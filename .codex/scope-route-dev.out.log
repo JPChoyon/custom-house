@@ -1,0 +1,39 @@
+
+Preview URL: https://admin.shopify.com/store/custom-house-dev/apps/eb25203ac35156bc6c1e02778a800679?dev-console=show
+GraphiQL URL (Admin API): http://localhost:3457/graphiql?key=463f50165bcab3a74c25aca9bcb73dd6c6e03b1795ad31b2bddb21e5de8bc88a
+Running pre-dev command: "npx prisma generate"Preparing dev preview on custom-house-dev.myshopify.comProxy server started on port 54784 GraphiQL server started on port 3457Running theme check on your Theme app extension...Bundling theme extension customhouse-creator-storefront...✅ Ready, watching for changes in your app │ Access scopes auto-granted: read_publications, write_metaobject_definitions, write_metaobjects, write_products, write_publications│ Using URL: https://suites-ipaq-casual-musician.trycloudflare.com/proxy│ Any changes to prefix and subpath will only apply to new installs└ Using URL: https://suites-ipaq-casual-musician.trycloudflare.comPrisma schema loaded from prisma\schema.prisma
+Datasource "db": SQLite database "dev.sqlite" at "file:dev.sqlite"
+
+2 migrations found in prisma/migrations
+
+
+No pending migrations to apply.
+[33m  ⚠️  Future Flag Warning: Route middleware support is changing in React Router v8.
+     You can use the `future.v8_middleware` flag to opt in early.
+     -> https://reactrouter.com/v7/upgrading/future#futurev8_middleware[39m
+[33m  ⚠️  Future Flag Warning: Route module splitting behavior is changing in React Router v8.
+     You can use the `future.v8_splitRouteModules` flag to opt in early.
+     -> https://reactrouter.com/v7/upgrading/future#futurev8_splitroutemodules[39m
+[33m  ⚠️  Future Flag Warning: Vite Environment API usage is changing in React Router v8.
+     You can use the `future.v8_viteEnvironmentApi` flag to opt in early.
+     -> https://reactrouter.com/v7/upgrading/future#futurev8_viteenvironmentapi[39m
+[33m  ⚠️  Future Flag Warning: Request handling behavior is changing in React Router v8.
+     You can use the `future.v8_passThroughRequests` flag to opt in early.
+     -> https://reactrouter.com/v7/upgrading/future#futurev8_passthroughrequests[39m
+[33m  ⚠️  Future Flag Warning: Data request URL formats are changing in React Router v8.
+     You can use the `future.v8_trailingSlashAwareDataRequests` flag to opt in early.
+     -> https://reactrouter.com/v7/upgrading/future#futurev8_trailingslashawaredatarequests[39m
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m54787[22m/[39m
+[2m  [32m➜[39m  [1mNetwork[22m[2m: use [22m[1m--host[22m[2m to expose[22m
+[shopify-api/INFO] version 13.1.0, environment React Router
+[shopify-app/INFO] Authenticating admin request | {shop: custom-house-dev.myshopify.com}
+[shopify-app/INFO] Authenticating admin request | {shop: custom-house-dev.myshopify.com}
+[shopify-app/INFO] Authenticating admin request | {shop: custom-house-dev.myshopify.com}
+[shopify-app/INFO] Authenticating admin request | {shop: custom-house-dev.myshopify.com}
+[shopify-app/INFO] Authenticating admin request | {shop: null}
+[shopify-app/INFO] Authenticating admin request | {shop: null}
+[shopify-app/INFO] Authenticating admin request | {shop: null}
+[shopify-app/INFO] Authenticating admin request | {shop: null}
+[shopify-app/INFO] Redirecting login request to https://admin.shopify.com/store/gkd2hy-mf/oauth/install?client_id=eb25203ac35156bc6c1e02778a800679 | {shop: gkd2hy-mf.myshopify.com}
+[shopify-app/INFO] Authenticating admin request | {shop: custom-house-dev.myshopify.com}
+[shopify-app/INFO] Authenticating admin request | {shop: custom-house-dev.myshopify.com}

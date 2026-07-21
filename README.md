@@ -237,11 +237,11 @@ Internationalization:
 - [Internationalizing your app](https://shopify.dev/docs/apps/best-practices/internationalization/getting-started)
 # Custom House Creator Marketplace
 
-Embedded Shopify custom-distribution app for creator applications, approval, manual InkyBay saved-design submissions, and admin-controlled publishing of permanent buy-only creator products. The app uses React Router, App Bridge/Polaris web components, Shopify Admin GraphQL July 2026, signed app-proxy authentication, Prisma/SQLite locally, and a Theme App Extension.
+Embedded Shopify custom-distribution app for creator applications, approval, manual InkyBay saved-design submissions, and admin-controlled publishing of permanent buy-only creator products. The app uses React Router, App Bridge/Polaris web components, Shopify Admin GraphQL July 2026, signed app-proxy authentication, Prisma/PostgreSQL, and a Theme App Extension.
 
 ## Local setup
 
-Copy `.env.example` to `.env`, supply Shopify CLI-provided credentials, then run `npm install`, `npm run setup`, and `npm run dev`. Validation: `npm test`, `npm run lint`, `npm run typecheck`, `npm run build`. SQLite is development-only unless hosted on persistent single-instance storage; see `docs/PRODUCTION_DATABASE.md`.
+Copy `.env.example` to `.env`, supply a PostgreSQL `DATABASE_URL` and Shopify CLI-provided credentials, then run `npm install`, `npm run setup`, and `npm run dev`. Validation: `npm test`, `npm run lint`, `npm run typecheck`, `npm run build`. Render production instructions are in `docs/RENDER_DEPLOYMENT.md`.
 
 Required scopes are declared in `shopify.app.toml`. The proxy is `/apps/customhouse` → `/proxy`; JSON endpoints are `/api/me`, `/api/applications`, `/api/creator-dashboard`, and `/api/design-submissions`. Deploy `customhouse-creator-storefront`, then follow `docs/MERCHANT_SETUP.md` to add blocks and verify metafields/publication.
 

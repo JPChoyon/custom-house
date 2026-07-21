@@ -14,7 +14,7 @@
 - `app/routes/app.*`: authenticated embedded-admin pages.
 - `app/routes/proxy.*`: authenticated app-proxy JSON endpoints.
 - `extensions/customhouse-creator-storefront`: Liquid blocks and scoped storefront assets.
-- `prisma`: SQLite development schema and migrations. Production needs persistent storage/PostgreSQL.
+- `prisma`: PostgreSQL schema and reviewed migrations. All environments require `DATABASE_URL`; production runs `prisma migrate deploy`.
 
 ## Commands
 `npm install`, `npm run setup`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`.

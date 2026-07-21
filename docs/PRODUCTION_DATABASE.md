@@ -1,3 +1,7 @@
 # Production Database
 
-Development remains SQLite. Production SQLite requires durable single-instance storage and backups; ephemeral/container filesystems are unsafe. For PostgreSQL: provision an encrypted managed database, rehearse export/transformation in staging, change only the Prisma datasource provider/URL, generate a reviewed baseline migration, import while writes are paused, validate counts/constraints, rotate credentials, deploy one migrator, and retain a rollback snapshot. Never point `migrate dev` at production.
+The app now uses PostgreSQL through `DATABASE_URL` in every environment. Prisma session storage and all Creator Marketplace models share the exported client in `app/db.server.ts`.
+
+Production deployments must run `npx prisma migrate deploy`; `prisma db push` is not an accepted deployment strategy. The PostgreSQL baseline in `prisma/migrations` represents the complete current schema. The former SQLite database is development-only and intentionally not migrated.
+
+Use encrypted managed PostgreSQL, least-privilege credentials, private networking, automated backups, restore drills, monitoring, and a single controlled migration step before application rollout. See `docs/RENDER_DEPLOYMENT.md`.

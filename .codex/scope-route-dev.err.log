@@ -1,0 +1,32 @@
+╭─ info ───────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│  Using shopify.app.toml for default values:                                  │
+│                                                                              │
+│    • Org:             Custom House                                           │
+│    • App:             customhouse-app                                        │
+│    • Dev store:       custom-house-dev.myshopify.com                         │
+│    • Update URLs:     Yes                                                    │
+│                                                                              │
+│   You can pass `--reset` to your command to reset your app configuration.    │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+Configuring host theme for theme app extension ...
+[2K[1A[2K[G
+╭─ info ───────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│  The theme app extension development server is ready.                        │
+│                                                                              │
+│  Next steps                                                                  │
+│    1. Install your app in your development store [1]                         │
+│    2. Setup your theme app extension in the host theme [2]                   │
+│    3. Preview your theme app extension at http://127.0.0.1:9293 [3]          │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+[1] https://admin.shopify.com/?organization_id=223100728&no_redirect=true&redirect=/oauth/redirect_from_developer_dashboard?client_id%3Deb25203ac35156bc6c1e02778a800679
+[2] https://custom-house-dev.myshopify.com/admin/themes/152956633176/editor
+[3] http://127.0.0.1:9293
+
+npm warn Unknown project config "shamefully-hoist". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown project config "shamefully-hoist". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown project config "shamefully-hoist". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
