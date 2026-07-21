@@ -1,0 +1,2 @@
+{% if product.metafields.customhouse.product_origin.value == 'creator' and product.metafields.customhouse.design_mode.value == 'buy_only' %}<aside class="customhouse-card"><p>{{ block.settings.prefix }} {{ product.metafields.customhouse.creator_profile.value.display_name | escape }}</p></aside>{% endif %}
+{% schema %}{"name":"Creator Attribution","target":"section","settings":[{"type":"text","id":"prefix","label":"Prefix","default":"Designed by"}]}{% endschema %}

@@ -1,0 +1,7 @@
+import test from "node:test"; import assert from "node:assert/strict"; import { assertTransition, collectionTitle, normalizeHttpsUrl, slugify, statusTags } from "../app/services/domain.ts"; import { submissionKey } from "../app/services/idempotency.server.ts";
+test("generates safe handles", () => { assert.equal(slugify("  Café Artist!  "), "cafe-artist"); assert.equal(slugify("---"), "creator"); });
+test("renders collection title", () => assert.equal(collectionTitle("{creatorName} Designs", "Ari"), "Ari Designs"));
+test("normalizes and allowlists saved URLs", () => { assert.equal(normalizeHttpsUrl("https://Designs.Example.com/a#x", ["example.com"]), "https://designs.example.com/a"); assert.throws(() => normalizeHttpsUrl("http://example.com/a", ["example.com"])); assert.throws(() => normalizeHttpsUrl("https://evil.test/a", ["example.com"])); });
+test("idempotency key is stable and scoped", () => { const a = submissionKey("s", "c", "p", "u"); assert.equal(a, submissionKey("s", "c", "p", "u")); assert.notEqual(a, submissionKey("s", "c2", "p", "u")); });
+test("status tags remove conflicts", () => assert.deepEqual(statusTags(["vip", "creator-pending"], "APPROVED"), ["vip", "creator-applicant", "creator-approved"]));
+test("submission state machine rejects unsafe retry", () => { assert.doesNotThrow(() => assertTransition("FAILED", "PUBLISHING")); assert.throws(() => assertTransition("PUBLISHED", "PUBLISHING")); });

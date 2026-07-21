@@ -1,0 +1,2 @@
+import type { ActionFunctionArgs } from "react-router"; import { authenticate } from "../shopify.server"; import db from "../db.server";
+export async function action({ request }: ActionFunctionArgs) { const { shop, payload } = await authenticate.webhook(request); const gid = `gid://shopify/Collection/${String((payload as { id?: number | string }).id ?? "")}`; await db.creator.updateMany({ where: { shop, collectionId: gid }, data: { collectionId: null } }); return new Response(); }

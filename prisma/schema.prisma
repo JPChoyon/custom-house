@@ -1,0 +1,164 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
+// enough when changing adapters.
+// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
+datasource db {
+  provider = "sqlite"
+  url      = "file:dev.sqlite"
+}
+
+model Session {
+  id                  String    @id
+  shop                String
+  state               String
+  isOnline            Boolean   @default(false)
+  scope               String?
+  expires             DateTime?
+  accessToken         String
+  userId              BigInt?
+  firstName           String?
+  lastName            String?
+  email               String?
+  accountOwner        Boolean   @default(false)
+  locale              String?
+  collaborator        Boolean?  @default(false)
+  emailVerified       Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+enum CreatorStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+enum SubmissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+  ARCHIVED
+}
+
+model ShopConfig {
+  id                                 String   @id @default(cuid())
+  shop                               String   @unique
+  creatorApplicationsEnabled         Boolean  @default(true)
+  automaticCollectionCreationEnabled Boolean  @default(true)
+  requireAdminApproval               Boolean  @default(true)
+  collectionTitleTemplate            String   @default("{creatorName} Designs")
+  collectionHandleSuffix             String   @default("designs")
+  creatorTagsJson                    String   @default("{}")
+  onlineStorePublicationId           String?
+  creatorProfileMetaobjectType       String?
+  creatorProfileFieldMapJson         String?
+  creatorStatusMetafieldNamespace    String?
+  creatorStatusMetafieldKey          String?
+  inkybayAllowedHostsJson            String   @default("[]")
+  inkybayBuyOnlyHiddenSelectorsJson  String   @default("[]")
+  createdAt                          DateTime @default(now())
+  updatedAt                          DateTime @updatedAt
+}
+
+model Creator {
+  id                         String               @id @default(cuid())
+  shop                       String
+  customerId                 String
+  displayName                String
+  handle                     String
+  bio                        String?
+  portfolioUrl               String?
+  profileImageUrl            String?
+  status                     CreatorStatus        @default(PENDING)
+  collectionId               String?
+  creatorProfileMetaobjectId String?
+  approvedAt                 DateTime?
+  rejectedAt                 DateTime?
+  suspendedAt                DateTime?
+  rejectionReason            String?
+  suspensionReason           String?
+  createdAt                  DateTime             @default(now())
+  updatedAt                  DateTime             @updatedAt
+  applications               CreatorApplication[]
+  submissions                DesignSubmission[]
+
+  @@unique([shop, customerId])
+  @@unique([shop, handle])
+  @@index([shop, status])
+}
+
+model CreatorApplication {
+  id           String            @id @default(cuid())
+  shop         String
+  creatorId    String
+  answersJson  String
+  status       ApplicationStatus @default(PENDING)
+  reviewerNote String?
+  reviewedAt   DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  creator      Creator           @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([shop, status])
+  @@index([creatorId, createdAt])
+}
+
+model DesignSubmission {
+  id               String           @id @default(cuid())
+  shop             String
+  creatorId        String
+  baseProductId    String
+  baseVariantId    String?
+  designName       String
+  inkybayDesignId  String?
+  savedDesignUrl   String
+  previewUrl       String?
+  creatorMessage   String?
+  status           SubmissionStatus @default(PENDING)
+  idempotencyKey   String
+  createdProductId String?
+  publishError     String?
+  reviewedAt       DateTime?
+  publishedAt      DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  creator          Creator          @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@unique([shop, idempotencyKey])
+  @@index([shop, status])
+  @@index([creatorId, createdAt])
+  @@index([shop, createdProductId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  shop       String
+  actorType  String
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String
+  beforeJson String?
+  afterJson  String?
+  createdAt  DateTime @default(now())
+
+  @@index([shop, createdAt])
+  @@index([entityType, entityId])
+}

@@ -1,0 +1,2 @@
+import type { LoaderFunctionArgs } from "react-router"; import { creatorDashboard } from "../services/submission.server"; import { apiData, apiError, proxyContext } from "../services/proxy.server"; import { enforceRateLimit } from "../services/rate-limit.server";
+export async function loader({ request }: LoaderFunctionArgs) { try { const { shop, customerId } = await proxyContext(request); enforceRateLimit(`${shop}:${customerId}:dashboard`); return apiData(await creatorDashboard(shop, customerId!)); } catch (error) { return apiError(error); } }
