@@ -103,7 +103,7 @@ export async function creatorDashboard(shop: string, customerId: string) {
   ]);
 
   if (!creator) {
-    return { state: "APPLICATION_NOT_SUBMITTED" as const, creatorFound: false };
+    return { state: "NOT_APPLIED" as const, creatorFound: false };
   }
 
   const collectionUrl = creator.collectionId
@@ -111,7 +111,7 @@ export async function creatorDashboard(shop: string, customerId: string) {
     : null;
 
   return {
-    state: creator.status,
+    state: creator.externalSyncConflict ? "SYNC_CONFLICT" as const : creator.status,
     creatorFound: true,
     displayName: creator.displayName,
     bio: creator.bio,

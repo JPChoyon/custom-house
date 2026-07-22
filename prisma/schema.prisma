@@ -52,6 +52,11 @@ enum ApplicationSource {
   HELIUM_IMPORT
 }
 
+enum StatusAuthority {
+  HELIUM_IMPORT
+  CUSTOM_APP
+}
+
 enum SubmissionStatus {
   PENDING
   APPROVED
@@ -100,6 +105,10 @@ model Creator {
   country                    String?
   city                       String?
   applicationSource          ApplicationSource    @default(CUSTOM_APP)
+  statusAuthority            StatusAuthority      @default(HELIUM_IMPORT)
+  lastExternalSyncAt         DateTime?
+  externalSnapshotHash       String?
+  externalSyncConflict       Boolean              @default(false)
   status                     CreatorStatus        @default(PENDING)
   collectionId               String?
   creatorProfileMetaobjectId String?
@@ -116,6 +125,7 @@ model Creator {
   @@unique([shop, customerId])
   @@unique([shop, handle])
   @@index([shop, status])
+  @@index([shop, statusAuthority])
 }
 
 model CreatorApplication {

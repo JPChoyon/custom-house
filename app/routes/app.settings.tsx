@@ -10,18 +10,22 @@ import { authenticate } from "../shopify.server";
 import { parseJsonList } from "../services/domain";
 import {
   formatHeliumMappingEntry,
+  HELIUM_EXPECTED_TYPES,
+  HELIUM_FIELDS,
   parseHeliumMetafieldMap,
   serializeHeliumMetafieldMap,
-  type HeliumField,
 } from "../services/helium-sync";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { session } = await authenticate.admin(request);
-  return db.shopConfig.upsert({
+  const { session, admin } = await authenticate.admin(request);
+  const config = await db.shopConfig.upsert({
     where: { shop: session.shop },
     update: {},
     create: { shop: session.shop },
   });
+  const response = await admin.graphql(`#graphql query CustomerMetafieldDiscovery { metafieldDefinitions(first: 100, ownerType: CUSTOMER) { nodes { namespace key name type { name } } } }`);
+  const body = await response.json() as { data?: { metafieldDefinitions: { nodes: Array<{ namespace: string; key: string; name: string; type: { name: string } }> } } };
+  return { config, definitions: body.data?.metafieldDefinitions.nodes ?? [] };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -59,15 +63,9 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Settings() {
-  const config = useLoaderData<typeof loader>();
+  const { config, definitions } = useLoaderData<typeof loader>();
   const helium = parseHeliumMetafieldMap(config.heliumMetafieldMapJson);
-  const heliumFields: Array<[HeliumField, string]> = [
-    ["displayName", "Display name"],
-    ["biography", "Biography"],
-    ["portfolioUrl", "Portfolio URL"],
-    ["profileImage", "Profile image"],
-    ["applicationAnswers", "Application answers"],
-  ];
+  const labels: Record<(typeof HELIUM_FIELDS)[number], string> = { legalName: "Legal name", creatorDisplayName: "Creator display name", country: "Country", city: "City", creatorProfilePhoto: "Creator profile photo", shortCreatorBio: "Short creator bio", portfolioUrl: "Portfolio URL", socialProfiles: "Social profiles", termsAccepted: "Terms accepted", applicationMessage: "Application message" };
   return (
     <s-page heading="Creator Marketplace Settings">
       <s-section>
@@ -176,18 +174,15 @@ export default function Settings() {
           </p>
           <h2>Helium Customer Fields metafields</h2>
           <p>
-            Enter each mapping as <code>namespace.key</code>. Leave unused
-            values blank.
+            Select definitions discovered from Shopify. No Helium key is assumed.
           </p>
-          {heliumFields.map(([field, label]) => (
+          {HELIUM_FIELDS.map((field) => (
             <p key={field}>
               <label>
-                {label}{" "}
-                <input
-                  name={`helium.${field}`}
-                  defaultValue={formatHeliumMappingEntry(helium, field)}
-                />
+                <input type="checkbox" name={`helium.${field}.enabled`} defaultChecked={helium[field]?.enabled !== false && Boolean(helium[field])}/> Enable {labels[field]}{" "}
+                <select name={`helium.${field}.definition`} defaultValue={formatHeliumMappingEntry(helium, field)}><option value="">Not mapped</option>{definitions.map((definition) => <option key={`${definition.namespace}.${definition.key}`} value={`${definition.namespace}|${definition.key}|${definition.type.name}`}>{definition.name} — {definition.namespace}.{definition.key} ({definition.type.name})</option>)}</select>
               </label>
+              <span> {!helium[field] ? "Needs configuration" : !definitions.some((definition) => definition.namespace === helium[field]?.namespace && definition.key === helium[field]?.key) ? "Missing definition" : !HELIUM_EXPECTED_TYPES[field].includes(helium[field]!.type) ? "Invalid type" : "Mapped correctly"}</span>
             </p>
           ))}
           <button type="submit">Save settings</button>

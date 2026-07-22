@@ -5,6 +5,8 @@ export function resolveDashboardState(data) {
   switch (data.state) {
     case "LOGGED_OUT": return { state: "LOGGED_OUT", message: "Please sign in to access your creator dashboard." };
     case "APPLICATION_NOT_SUBMITTED": return { state: "APPLICATION_NOT_SUBMITTED", message: "No creator application was found. Apply to become a creator." };
+    case "NOT_APPLIED": return { state: "NOT_APPLIED", message: "No creator application was found." };
+    case "SYNC_CONFLICT": return { state: "SYNC_CONFLICT", message: "Your creator account needs administrator review.", data };
     case "PENDING": return { state: "PENDING", message: "Your creator application is under review.", data };
     case "APPROVED": return { state: "APPROVED", message: `Welcome, ${data.displayName}.`, data };
     case "REJECTED": return { state: "REJECTED", message: data.rejectionReason ? `Your creator application was rejected: ${data.rejectionReason}` : "Your creator application was rejected.", data };
@@ -41,7 +43,7 @@ function renderDashboard(root, view) {
   message.textContent = view.state === "LOADING" ? "" : view.message;
   message.classList.toggle("customhouse-error", view.state === "API_ERROR");
   root.querySelector("[data-dashboard-login]").hidden = view.state !== "LOGGED_OUT";
-  root.querySelector("[data-dashboard-apply]").hidden = !["APPLICATION_NOT_SUBMITTED", "CREATOR_RECORD_MISSING", "REJECTED"].includes(view.state);
+  root.querySelector("[data-dashboard-apply]").hidden = !["NOT_APPLIED", "APPLICATION_NOT_SUBMITTED", "CREATOR_RECORD_MISSING", "REJECTED"].includes(view.state);
 
   const profile = root.querySelector("[data-dashboard-profile]");
   profile.hidden = view.state !== "APPROVED";

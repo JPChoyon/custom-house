@@ -9,12 +9,14 @@ test("logged-out dashboard state", () => {
   });
 });
 
-test("missing creator becomes application-not-submitted state", () => {
-  assert.deepEqual(resolveDashboardState({ state: "APPLICATION_NOT_SUBMITTED", creatorFound: false }), {
-    state: "APPLICATION_NOT_SUBMITTED",
-    message: "No creator application was found. Apply to become a creator.",
+test("missing creator becomes not-applied state", () => {
+  assert.deepEqual(resolveDashboardState({ state: "NOT_APPLIED", creatorFound: false }), {
+    state: "NOT_APPLIED",
+    message: "No creator application was found.",
   });
 });
+
+test("dashboard exposes a safe synchronization conflict state", () => { assert.equal(resolveDashboardState({ state: "SYNC_CONFLICT" }).state, "SYNC_CONFLICT"); });
 
 test("pending dashboard state", () => {
   const state = resolveDashboardState({ state: "PENDING", status: "PENDING" });

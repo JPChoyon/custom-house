@@ -7,7 +7,7 @@ Secrets remain server-side in Shopify CLI/runtime environment variables and Pris
 
 Inputs are length/type checked; saved-design URLs require HTTPS, reject credentials/fragments, and must match a configured hostname. App-proxy writes are rate-limited and submission writes use deterministic unique idempotency keys. The in-memory rate limiter must be replaced with Redis or equivalent for multi-instance production.
 
-Native creator applications require Shopify's signed `logged_in_customer_id`; customer IDs in request bodies are ignored. Legal name and coarse location are private review data. Public profile fields are separated on the Creator record. Profile images are limited to 5 MB, accept only JPG/PNG/WebP MIME types with matching file signatures, and are transferred through Shopify staged uploads without exposing storage credentials.
+Helium remains the storefront application form. Authenticated customer webhooks and admin queries read only customer ID, creator tags, and explicitly configured customer metafields. External status may update `HELIUM_IMPORT` records, while `CUSTOM_APP` status authority prevents later Flow or webhook deliveries from overwriting an admin decision. App-proxy dashboard ownership uses only Shopify's signed `logged_in_customer_id`; customer IDs supplied by browser bodies are ignored.
 
 Retention: rejected or withdrawn application details should be removed under the merchant's documented retention schedule. Customer-redaction webhooks delete the Creator, applications, and submissions for the verified ownership key. Audit entries contain status/source metadata only and must not contain applicant email, phone, street address, cookies, authorization headers, tokens, or database connection values.
 

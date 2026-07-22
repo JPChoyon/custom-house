@@ -4,7 +4,7 @@ import { apiData, apiError, proxyContext } from "../services/proxy.server";
 import { enforceRateLimit } from "../services/rate-limit.server";
 import { lazySyncCreator, loadWithLazySync } from "../services/helium-sync.server";
 
-type DashboardStatus = "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED" | "APPLICATION_NOT_SUBMITTED";
+type DashboardStatus = "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED" | "NOT_APPLIED" | "SYNC_CONFLICT";
 
 function diagnostic(details: {
   shop: string;

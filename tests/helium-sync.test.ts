@@ -23,7 +23,11 @@ function creator(overrides: Partial<Creator> = {}): Creator {
     legalName: null,
     country: null,
     city: null,
-    applicationSource: "CUSTOM_APP",
+    applicationSource: "HELIUM_IMPORT",
+    statusAuthority: "HELIUM_IMPORT",
+    lastExternalSyncAt: null,
+    externalSnapshotHash: null,
+    externalSyncConflict: false,
     status: "PENDING",
     collectionId: null,
     creatorProfileMetaobjectId: null,
@@ -42,7 +46,7 @@ test("imports a Helium pending applicant", () => {
   const plan = planHeliumSync(null, {
     customerId: "1",
     tags: ["creator-applicant", "creator-pending"],
-    fields: { displayName: "Ada" },
+    fields: { creatorDisplayName: "Ada" },
   });
   assert.equal(plan.action, "CREATE");
   assert.equal(plan.status, "PENDING");
@@ -81,19 +85,31 @@ test("conflicting tags choose the most restrictive status", () => {
   );
 });
 
-test("status sync updates undecided creators but preserves app decisions", () => {
+test("external status updates Helium authority but not CUSTOM_APP authority", () => {
   assert.equal(
     planHeliumSync(creator(), { customerId: "1", tags: ["creator-approved"] })
       .data.status,
     "APPROVED",
   );
   assert.equal(
-    planHeliumSync(creator({ status: "APPROVED", approvedAt: new Date() }), {
+    planHeliumSync(creator({ status: "APPROVED", statusAuthority: "CUSTOM_APP", approvedAt: new Date() }), {
       customerId: "1",
       tags: ["creator-rejected"],
-    }).action,
-    "SKIP",
+    }).result,
+    "CONFLICT",
   );
+});
+
+test("profile updates continue for CUSTOM_APP authority", () => {
+  const plan = planHeliumSync(creator({ status: "APPROVED", statusAuthority: "CUSTOM_APP" }), { customerId: "1", tags: ["creator-pending"], fields: { shortCreatorBio: "Updated external biography" } });
+  assert.equal(plan.result, "CONFLICT"); assert.equal(plan.data.status, undefined); assert.equal(plan.data.bio, "Updated external biography");
+});
+
+test("normalizes all supported customer ID forms and rejects invalid IDs", () => {
+  assert.equal(normalizeCustomerGid(123), "gid://shopify/Customer/123");
+  assert.equal(normalizeCustomerGid("123"), "gid://shopify/Customer/123");
+  assert.equal(normalizeCustomerGid("gid://shopify/Customer/123"), "gid://shopify/Customer/123");
+  assert.throws(() => normalizeCustomerGid("customer-123"), /invalid/i);
 });
 
 test("dashboard performs one lazy synchronization then reloads", async () => {

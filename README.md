@@ -243,7 +243,7 @@ Embedded Shopify custom-distribution app for creator applications, approval, man
 
 Copy `.env.example` to `.env`, supply a PostgreSQL `DATABASE_URL` and Shopify CLI-provided credentials, then run `npm install`, `npm run setup`, and `npm run dev`. Validation: `npm test`, `npm run lint`, `npm run typecheck`, `npm run build`. Render production instructions are in `docs/RENDER_DEPLOYMENT.md`.
 
-Required scopes are declared in `shopify.app.toml`. The proxy is `/apps/customhouse` → `/proxy`; JSON endpoints are `/api/me`, `/api/applications`, `/api/creator-dashboard`, and `/api/design-submissions`. Deploy `customhouse-creator-storefront`, then follow `docs/MERCHANT_SETUP.md` to add blocks and verify metafields/publication.
+Required scopes are declared in `shopify.app.toml`. Helium Customer Fields is the storefront creator form; verified customer webhooks synchronize tags and configured customer metafields into PostgreSQL. The proxy is `/apps/customhouse` → `/proxy`; active storefront JSON endpoints are `/api/me`, `/api/creator-dashboard`, and `/api/design-submissions`. Deploy `customhouse-creator-storefront`, then follow `docs/MERCHANT_SETUP.md` and `docs/SHOPIFY_FLOW_SETUP.md`.
 
 Manual InkyBay mode is intentionally separate from its cart flow and requires an allowlisted HTTPS saved-design hostname. No undocumented InkyBay API is used. Optional creator metaobject configuration is stored but does not block the core creator/product flow. See `SECURITY.md`, `docs/INKYBAY_INTEGRATION.md`, and `docs/TEST_PLAN.md`.
 

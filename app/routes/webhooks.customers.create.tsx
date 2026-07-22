@@ -5,7 +5,12 @@ import { synchronizeCustomerWebhook, type CustomerWebhookPayload } from "../serv
 
 export async function action({ request }: ActionFunctionArgs) {
   const { shop, payload } = await authenticate.webhook(request);
-  const { admin } = await unauthenticated.admin(shop);
-  await synchronizeCustomerWebhook(shop, payload as CustomerWebhookPayload, new AdminGraphqlClient(admin));
-  return new Response();
+  try {
+    const { admin } = await unauthenticated.admin(shop);
+    await synchronizeCustomerWebhook(shop, payload as CustomerWebhookPayload, new AdminGraphqlClient(admin));
+    return new Response();
+  } catch {
+    console.error("helium_customer_sync_failed", { shop });
+    return new Response("Customer synchronization failed", { status: 500 });
+  }
 }

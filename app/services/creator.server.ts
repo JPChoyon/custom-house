@@ -103,6 +103,7 @@ export async function createApplication(
       country: value.country,
       city: value.city,
       applicationSource: "CUSTOM_APP" as const,
+      statusAuthority: "CUSTOM_APP" as const,
       status: "PENDING" as const,
       rejectionReason: null,
     };
@@ -168,24 +169,20 @@ export async function changeCreatorStatus(
       "The Shopify customer no longer exists.",
       409,
     );
-  const result = await client.request<{
-    customerUpdate: { userErrors: Array<{ message: string }> };
-  }>(
-    `#graphql mutation($input: CustomerInput!) { customerUpdate(input: $input) { userErrors { message } } }`,
-    {
-      input: {
-        id: creator.customerId,
-        tags: statusTags(customer.customer.tags, next),
-      },
-    },
-  );
-  throwUserErrors(result.customerUpdate.userErrors, "Customer tag sync");
+  const desiredTags = statusTags(customer.customer.tags, next);
+  const creatorTagSet = new Set(Object.values(CREATOR_TAGS));
+  const remove = customer.customer.tags.filter((tag) => creatorTagSet.has(tag as typeof CREATOR_TAGS.applicant) && !desiredTags.includes(tag));
+  const add = desiredTags.filter((tag) => !customer.customer!.tags.includes(tag));
+  if (remove.length) { const result = await client.request<{ tagsRemove: { userErrors: Array<{ message: string }> } }>(`#graphql mutation RemoveCreatorTags($id: ID!, $tags: [String!]!) { tagsRemove(id: $id, tags: $tags) { userErrors { message } } }`, { id: creator.customerId, tags: remove }); throwUserErrors(result.tagsRemove.userErrors, "Customer tag removal"); }
+  if (add.length) { const result = await client.request<{ tagsAdd: { userErrors: Array<{ message: string }> } }>(`#graphql mutation AddCreatorTags($id: ID!, $tags: [String!]!) { tagsAdd(id: $id, tags: $tags) { userErrors { message } } }`, { id: creator.customerId, tags: add }); throwUserErrors(result.tagsAdd.userErrors, "Customer tag addition"); }
   const now = new Date();
   const updated = await db.$transaction(async (tx) => {
     const updated = await tx.creator.update({
       where: { id: creator.id },
       data: {
         status: next,
+        statusAuthority: "CUSTOM_APP",
+        externalSyncConflict: false,
         approvedAt: next === "APPROVED" ? now : creator.approvedAt,
         rejectedAt: next === "REJECTED" ? now : null,
         suspendedAt: next === "SUSPENDED" ? now : null,
