@@ -50,10 +50,14 @@ export default function SetupGuide() {
     ["Online Store publication selected", data.publicationPermissionGranted && Boolean(data.config?.onlineStorePublicationId)],
     ["InkyBay allowed hosts", Boolean(data.config && parseJsonList(data.config.inkybayAllowedHostsJson).length)],
     ["App proxy", true],
-    ["Theme extension deployed", false],
+    ["Creator Dashboard added", false],
+    ["Creator Submission added", false],
+    ["Creator Attribution added", false],
+    ["Buy-only Product Form added", false],
+    ["InkyBay Compatibility Embed enabled", false],
   ] as const;
 
-  return <s-page heading="Setup guide">{!data.publicationPermissionGranted && <s-banner tone="warning"><s-heading>Publication permission is not granted</s-heading><s-paragraph>Add read_publications and write_publications to the app configuration, restart Shopify development mode, and approve the updated access request for the development store.</s-paragraph></s-banner>}<s-section heading="Detected readiness"><s-unordered-list>{checks.map(([name, ok]) => <s-list-item key={name}>{ok ? "Ready" : "Needs action"}: {name}</s-list-item>)}</s-unordered-list><s-paragraph>Mark Global Products: origin global, mode customizable, status published, creator profile empty. Add the five blocks and compatibility embed in the Theme Editor after deploying the extension.</s-paragraph></s-section></s-page>;
+  return <s-page heading="Setup guide">{!data.publicationPermissionGranted && <s-banner tone="warning"><s-heading>Publication permission is not granted</s-heading><s-paragraph>Add read_publications and write_publications to the app configuration, restart Shopify development mode, and approve the updated access request for the development store.</s-paragraph></s-banner>}<s-section heading="Detected readiness"><s-unordered-list>{checks.map(([name, ok]) => <s-list-item key={name}>{ok ? "Ready" : "Needs action"}: {name}</s-list-item>)}</s-unordered-list><s-paragraph>Helium Customer Fields is the only creator application interface. Mark Global Products: origin global, mode customizable, status published, creator profile empty. Add Creator Dashboard, Creator Submission, Creator Attribution, and Buy-only Product Form; then enable InkyBay Compatibility Embed.</s-paragraph></s-section></s-page>;
 }
 
 export function ErrorBoundary() {

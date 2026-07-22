@@ -40,6 +40,14 @@ api_version = "2026-07"
   uri = "/webhooks/app/scopes_update"
   topics = ["app/scopes_update"]
 
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/customers/create"
+  topics = ["customers/create"]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/customers/update"
+  topics = ["customers/update"]
+
 [access_scopes]
 scopes = "read_products,write_products,read_customers,write_customers,read_metaobjects,write_metaobjects,write_metaobject_definitions,read_files,write_files,read_publications,write_publications"
 

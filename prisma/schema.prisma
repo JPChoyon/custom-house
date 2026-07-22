@@ -69,6 +69,7 @@ model ShopConfig {
   onlineStorePublicationId           String?
   creatorProfileMetaobjectType       String?
   creatorProfileFieldMapJson         String?
+  heliumMetafieldMapJson             String?
   creatorStatusMetafieldNamespace    String?
   creatorStatusMetafieldKey          String?
   inkybayAllowedHostsJson            String   @default("[]")

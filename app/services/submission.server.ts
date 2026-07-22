@@ -1,10 +1,12 @@
 import db from "../db.server";
-import { DomainError, parseJsonList } from "./domain";
+import { DomainError, parseJsonList, slugify } from "./domain";
 import { submissionKey } from "./idempotency.server";
 import { ManualInkyBayProvider, type ManualDesignInput } from "./design-provider.server";
 import type { ShopifyGraphqlClient } from "./shopify-graphql.server";
+import { normalizeCustomerGid } from "./helium-sync.server";
 
 export async function createSubmission(shop: string, customerId: string, input: ManualDesignInput, client: ShopifyGraphqlClient) {
+  customerId = normalizeCustomerGid(customerId);
   const creator = await db.creator.findUnique({ where: { shop_customerId: { shop, customerId } } }); if (!creator || creator.status !== "APPROVED") throw new DomainError("NOT_APPROVED", "Only approved creators can submit designs.", 403);
   const config = await db.shopConfig.findUnique({ where: { shop } }); const normalized = new ManualInkyBayProvider().normalize(input, parseJsonList(config?.inkybayAllowedHostsJson ?? "[]"));
   const result = await client.request<{ product: { origin: { value: string } | null; mode: { value: string } | null } | null }>(`#graphql query($id: ID!) { product(id: $id) { origin: metafield(namespace: "customhouse", key: "product_origin") { value } mode: metafield(namespace: "customhouse", key: "design_mode") { value } } }`, { id: normalized.baseProductId });
@@ -15,6 +17,43 @@ export async function createSubmission(shop: string, customerId: string, input: 
 }
 
 export async function creatorDashboard(shop: string, customerId: string) {
-  const creator = await db.creator.findUnique({ where: { shop_customerId: { shop, customerId } }, include: { applications: { orderBy: { createdAt: "desc" }, take: 1 }, submissions: { orderBy: { createdAt: "desc" }, take: 20 } } }); if (!creator) return null;
-  return { displayName: creator.displayName, handle: creator.handle, status: creator.status, collectionId: creator.collectionId, rejectionReason: creator.rejectionReason, suspensionReason: creator.suspensionReason, applicationStatus: creator.applications[0]?.status ?? null, submissions: creator.submissions.map(({ id, designName, status, previewUrl, createdAt, createdProductId }) => ({ id, designName, status, previewUrl, createdAt, createdProductId })) };
+  customerId = normalizeCustomerGid(customerId);
+  const [creator, config] = await Promise.all([
+    db.creator.findUnique({
+      where: { shop_customerId: { shop, customerId } },
+      include: {
+        applications: { orderBy: { createdAt: "desc" }, take: 1 },
+        submissions: { orderBy: { createdAt: "desc" }, take: 20 },
+      },
+    }),
+    db.shopConfig.findUnique({ where: { shop }, select: { collectionHandleSuffix: true } }),
+  ]);
+
+  if (!creator) {
+    return { state: "APPLICATION_NOT_SUBMITTED" as const, creatorFound: false };
+  }
+
+  const collectionUrl = creator.collectionId
+    ? `/collections/${creator.handle}-${slugify(config?.collectionHandleSuffix ?? "designs")}`
+    : null;
+
+  return {
+    state: creator.status,
+    creatorFound: true,
+    displayName: creator.displayName,
+    handle: creator.handle,
+    status: creator.status,
+    collectionUrl,
+    rejectionReason: creator.rejectionReason,
+    suspensionReason: creator.suspensionReason,
+    applicationStatus: creator.applications[0]?.status ?? null,
+    submissions: creator.submissions.map(({ id, designName, status, previewUrl, createdAt, createdProductId }) => ({
+      id,
+      designName,
+      status,
+      previewUrl,
+      createdAt,
+      createdProductId,
+    })),
+  };
 }
