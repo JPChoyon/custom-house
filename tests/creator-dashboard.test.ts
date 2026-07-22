@@ -12,14 +12,14 @@ test("logged-out dashboard state", () => {
 test("missing creator becomes application-not-submitted state", () => {
   assert.deepEqual(resolveDashboardState({ state: "APPLICATION_NOT_SUBMITTED", creatorFound: false }), {
     state: "APPLICATION_NOT_SUBMITTED",
-    message: "No creator application was found.",
+    message: "No creator application was found. Apply to become a creator.",
   });
 });
 
 test("pending dashboard state", () => {
   const state = resolveDashboardState({ state: "PENDING", status: "PENDING" });
   assert.equal(state.state, "PENDING");
-  assert.equal(state.message, "Your application is under review.");
+  assert.equal(state.message, "Your creator application is under review.");
 });
 
 test("approved dashboard preserves profile data", () => {

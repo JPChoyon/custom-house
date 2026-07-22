@@ -47,6 +47,11 @@ enum ApplicationStatus {
   WITHDRAWN
 }
 
+enum ApplicationSource {
+  CUSTOM_APP
+  HELIUM_IMPORT
+}
+
 enum SubmissionStatus {
   PENDING
   APPROVED
@@ -58,24 +63,27 @@ enum SubmissionStatus {
 }
 
 model ShopConfig {
-  id                                 String   @id @default(cuid())
-  shop                               String   @unique
-  creatorApplicationsEnabled         Boolean  @default(true)
-  automaticCollectionCreationEnabled Boolean  @default(true)
-  requireAdminApproval               Boolean  @default(true)
-  collectionTitleTemplate            String   @default("{creatorName} Designs")
-  collectionHandleSuffix             String   @default("designs")
-  creatorTagsJson                    String   @default("{}")
+  id                                 String    @id @default(cuid())
+  shop                               String    @unique
+  creatorApplicationsEnabled         Boolean   @default(true)
+  automaticCollectionCreationEnabled Boolean   @default(true)
+  requireAdminApproval               Boolean   @default(true)
+  collectionTitleTemplate            String    @default("{creatorName} Designs")
+  collectionHandleSuffix             String    @default("designs")
+  creatorTagsJson                    String    @default("{}")
   onlineStorePublicationId           String?
   creatorProfileMetaobjectType       String?
   creatorProfileFieldMapJson         String?
   heliumMetafieldMapJson             String?
+  allowReapplicationAfterRejection   Boolean   @default(false)
+  heliumMigrationCompletedAt         DateTime?
+  heliumDecommissionedAt             DateTime?
   creatorStatusMetafieldNamespace    String?
   creatorStatusMetafieldKey          String?
-  inkybayAllowedHostsJson            String   @default("[]")
-  inkybayBuyOnlyHiddenSelectorsJson  String   @default("[]")
-  createdAt                          DateTime @default(now())
-  updatedAt                          DateTime @updatedAt
+  inkybayAllowedHostsJson            String    @default("[]")
+  inkybayBuyOnlyHiddenSelectorsJson  String    @default("[]")
+  createdAt                          DateTime  @default(now())
+  updatedAt                          DateTime  @updatedAt
 }
 
 model Creator {
@@ -87,6 +95,11 @@ model Creator {
   bio                        String?
   portfolioUrl               String?
   profileImageUrl            String?
+  socialLinksJson            String               @default("[]")
+  legalName                  String?
+  country                    String?
+  city                       String?
+  applicationSource          ApplicationSource    @default(CUSTOM_APP)
   status                     CreatorStatus        @default(PENDING)
   collectionId               String?
   creatorProfileMetaobjectId String?
@@ -106,16 +119,27 @@ model Creator {
 }
 
 model CreatorApplication {
-  id           String            @id @default(cuid())
-  shop         String
-  creatorId    String
-  answersJson  String
-  status       ApplicationStatus @default(PENDING)
-  reviewerNote String?
-  reviewedAt   DateTime?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  creator      Creator           @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  id              String            @id @default(cuid())
+  shop            String
+  creatorId       String
+  answersJson     String
+  legalName       String?
+  displayName     String?
+  country         String?
+  city            String?
+  bio             String?
+  portfolioUrl    String?
+  socialLinksJson String            @default("[]")
+  profileImageUrl String?
+  message         String?
+  termsAcceptedAt DateTime?
+  source          ApplicationSource @default(CUSTOM_APP)
+  status          ApplicationStatus @default(PENDING)
+  reviewerNote    String?
+  reviewedAt      DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  creator         Creator           @relation(fields: [creatorId], references: [id], onDelete: Cascade)
 
   @@index([shop, status])
   @@index([creatorId, createdAt])

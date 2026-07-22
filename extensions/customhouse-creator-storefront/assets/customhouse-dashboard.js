@@ -4,8 +4,8 @@ export function resolveDashboardState(data) {
   if (!data || typeof data !== "object") return { state: "CREATOR_RECORD_MISSING", message: "No creator application was found." };
   switch (data.state) {
     case "LOGGED_OUT": return { state: "LOGGED_OUT", message: "Please sign in to access your creator dashboard." };
-    case "APPLICATION_NOT_SUBMITTED": return { state: "APPLICATION_NOT_SUBMITTED", message: "No creator application was found." };
-    case "PENDING": return { state: "PENDING", message: "Your application is under review.", data };
+    case "APPLICATION_NOT_SUBMITTED": return { state: "APPLICATION_NOT_SUBMITTED", message: "No creator application was found. Apply to become a creator." };
+    case "PENDING": return { state: "PENDING", message: "Your creator application is under review.", data };
     case "APPROVED": return { state: "APPROVED", message: `Welcome, ${data.displayName}.`, data };
     case "REJECTED": return { state: "REJECTED", message: data.rejectionReason ? `Your creator application was rejected: ${data.rejectionReason}` : "Your creator application was rejected.", data };
     case "SUSPENDED": return { state: "SUSPENDED", message: data.suspensionReason ? `Your creator account is suspended: ${data.suspensionReason}` : "Your creator account is suspended.", data };
@@ -48,6 +48,13 @@ function renderDashboard(root, view) {
   if (view.state !== "APPROVED") return;
   profile.querySelector("[data-dashboard-name]").textContent = view.data.displayName;
   profile.querySelector("[data-dashboard-status]").textContent = view.data.status;
+  profile.querySelector("[data-dashboard-bio]").textContent = view.data.bio || "";
+  const image = profile.querySelector("[data-dashboard-image]");
+  image.hidden = !view.data.profileImageUrl?.startsWith("https://");
+  if (!image.hidden) { image.src = view.data.profileImageUrl; image.alt = `${view.data.displayName} profile`; }
+  const portfolio = profile.querySelector("[data-dashboard-portfolio]");
+  portfolio.hidden = !view.data.portfolioUrl;
+  if (view.data.portfolioUrl) portfolio.href = view.data.portfolioUrl;
   const collection = profile.querySelector("[data-dashboard-collection]");
   collection.hidden = !view.data.collectionUrl;
   if (view.data.collectionUrl) collection.href = view.data.collectionUrl;

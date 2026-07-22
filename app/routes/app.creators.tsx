@@ -31,9 +31,11 @@ export default function Creators() {
   const actionData = useActionData<typeof action>();
   const sync = actionData && "sync" in actionData ? actionData : null;
   return <s-page heading="Creators">
-    <s-section heading="Sync Existing Creators">
+    <s-section heading="Helium Migration">
       <p>Preview customers carrying Helium creator tags before importing. App-managed approval decisions are never overwritten.</p>
       {sync?.counts && <p>Create: {sync.counts.create} · Update: {sync.counts.update} · Skip: {sync.counts.skip} · Conflicts: {sync.counts.conflict}</p>}
+      {sync?.counts && <p>Applicants found: {sync.counts.applicantsFound} · Missing customer IDs: {sync.counts.customersWithoutUsableId} · Missing mappings: {sync.counts.missingMappings.join(", ") || "None"}</p>}
+      {sync?.counts?.preview?.length ? <details><summary>Per-record preview</summary><ul>{sync.counts.preview.map((row) => <li key={row.customerId}>{row.customerId}: {row.action} / {row.status || "no status"}{row.conflict ? " / conflict" : ""} — {row.reason}</li>)}</ul></details> : null}
       <Form method="post"><button name="intent" value="sync-preview">Dry run</button>{sync?.sync === "preview" && <button name="intent" value="sync-apply">Confirm import</button>}</Form>
     </s-section>
     <s-section>{creators.map((creator) => <s-box key={creator.id} padding="base" borderWidth="base" borderRadius="base"><s-heading>{creator.displayName}</s-heading><s-paragraph>{creator.status} · {creator._count.submissions} submissions · {creator.handle}</s-paragraph><Form method="post"><input type="hidden" name="intent" value="status"/><input type="hidden" name="creatorId" value={creator.id}/><input name="reason" aria-label="Reason" placeholder="Reason"/> <button name="status" value="APPROVED">Approve/Reinstate</button> <button name="status" value="SUSPENDED">Suspend</button> <button name="status" value="REJECTED">Reject</button></Form></s-box>)}</s-section>
