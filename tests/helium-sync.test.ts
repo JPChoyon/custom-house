@@ -108,8 +108,11 @@ test("profile updates continue for CUSTOM_APP authority", () => {
 test("normalizes all supported customer ID forms and rejects invalid IDs", () => {
   assert.equal(normalizeCustomerGid(123), "gid://shopify/Customer/123");
   assert.equal(normalizeCustomerGid("123"), "gid://shopify/Customer/123");
+  assert.equal(normalizeCustomerGid("000123"), "gid://shopify/Customer/123");
   assert.equal(normalizeCustomerGid("gid://shopify/Customer/123"), "gid://shopify/Customer/123");
   assert.throws(() => normalizeCustomerGid("customer-123"), /invalid/i);
+  assert.throws(() => normalizeCustomerGid("0"), /invalid/i);
+  assert.throws(() => normalizeCustomerGid(Number.MAX_SAFE_INTEGER + 1), /invalid/i);
 });
 
 test("dashboard performs one lazy synchronization then reloads", async () => {

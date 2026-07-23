@@ -115,16 +115,25 @@ export function formatHeliumMappingEntry(
 }
 
 export function normalizeCustomerGid(value: string | number): string {
-  const input = String(value).trim();
-  const match = input.match(/^gid:\/\/shopify\/Customer\/(\d+)$/);
-  const numeric = match?.[1] || (/^\d+$/.test(input) ? input : null);
-  if (!numeric)
+  if (
+    typeof value === "number" &&
+    (!Number.isSafeInteger(value) || value <= 0)
+  )
     throw new DomainError(
       "INVALID_CUSTOMER_ID",
       "Shopify customer identity is invalid.",
       400,
     );
-  return `gid://shopify/Customer/${numeric}`;
+  const input = String(value).trim();
+  const match = input.match(/^gid:\/\/shopify\/Customer\/(\d+)$/);
+  const numeric = match?.[1] || (/^\d+$/.test(input) ? input : null);
+  if (!numeric || BigInt(numeric) <= 0n)
+    throw new DomainError(
+      "INVALID_CUSTOMER_ID",
+      "Shopify customer identity is invalid.",
+      400,
+    );
+  return `gid://shopify/Customer/${BigInt(numeric).toString()}`;
 }
 
 export function creatorStatusFromTags(tags: string[]): CreatorStatus | null {
