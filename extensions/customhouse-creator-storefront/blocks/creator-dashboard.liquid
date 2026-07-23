@@ -1,5 +1,19 @@
 {{ 'customhouse.css' | asset_url | stylesheet_tag }}
-<section class="customhouse-card" data-customhouse-dashboard>
+{% assign helium_legal_name = customer.metafields["app--960624--helium"]["legal_name"].value | default: customer.metafields["app--960624--helium"]["creator_legal_name"].value %}
+{% assign helium_display_name = customer.metafields["app--960624--helium"]["creator_display_name_1"].value | default: customer.metafields["app--960624--helium"]["creator_display_name"].value %}
+{% assign helium_bio = customer.metafields["app--960624--helium"]["short_creator_bio"].value | default: customer.metafields["app--960624--helium"]["creator_bio"].value %}
+{% assign helium_portfolio = customer.metafields["app--960624--helium"]["socialportfolio_url"].value %}
+{% assign helium_profile = customer.metafields["app--960624--helium"]["creator_profile_photo_1"].value | default: customer.metafields["app--960624--helium"]["creator_profile_photo"].value %}
+{% assign helium_profile_url = helium_profile.url | default: helium_profile.preview_image.src %}
+<section
+  class="customhouse-card"
+  data-customhouse-dashboard
+  data-helium-legal-name="{{ helium_legal_name | escape }}"
+  data-helium-display-name="{{ helium_display_name | escape }}"
+  data-helium-bio="{{ helium_bio | escape }}"
+  data-helium-portfolio="{{ helium_portfolio | escape }}"
+  data-helium-profile-image="{{ helium_profile_url | escape }}"
+>
   <h2>{{ block.settings.heading }}</h2>
   <p data-dashboard-loading role="status">Loading…</p>
   <p data-dashboard-message aria-live="polite" hidden></p>

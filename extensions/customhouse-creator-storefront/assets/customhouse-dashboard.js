@@ -61,7 +61,14 @@ function renderDashboard(root, view) {
   const profile = root.querySelector("[data-dashboard-profile]");
   profile.hidden = view.state !== "APPROVED";
   if (view.state !== "APPROVED") return;
-  profile.querySelector("[data-dashboard-name]").textContent = view.data.displayName;
+  const displayName =
+    root.dataset.heliumLegalName ||
+    root.dataset.heliumDisplayName ||
+    view.data.legalName ||
+    view.data.displayName;
+  const profileImageUrl =
+    root.dataset.heliumProfileImage || view.data.profileImageUrl;
+  profile.querySelector("[data-dashboard-name]").textContent = displayName;
   profile.querySelector("[data-dashboard-status]").textContent = view.data.status;
   const overview = view.data.overview || {};
   profile.querySelector("[data-dashboard-total-sales]").textContent =
@@ -76,13 +83,19 @@ function renderDashboard(root, view) {
     String(overview.collectionsCount ?? 0);
   profile.querySelector("[data-dashboard-products]").textContent =
     String(overview.publishedProductsCount ?? 0);
-  profile.querySelector("[data-dashboard-bio]").textContent = view.data.bio || "";
+  profile.querySelector("[data-dashboard-bio]").textContent =
+    root.dataset.heliumBio || view.data.bio || "";
   const image = profile.querySelector("[data-dashboard-image]");
-  image.hidden = !view.data.profileImageUrl?.startsWith("https://");
-  if (!image.hidden) { image.src = view.data.profileImageUrl; image.alt = `${view.data.displayName} profile`; }
+  image.hidden = !profileImageUrl?.startsWith("https://");
+  if (!image.hidden) {
+    image.src = profileImageUrl;
+    image.alt = `${displayName} profile`;
+  }
   const portfolio = profile.querySelector("[data-dashboard-portfolio]");
-  portfolio.hidden = !view.data.portfolioUrl;
-  if (view.data.portfolioUrl) portfolio.href = view.data.portfolioUrl;
+  const portfolioUrl =
+    root.dataset.heliumPortfolio || view.data.portfolioUrl;
+  portfolio.hidden = !portfolioUrl?.startsWith("https://");
+  if (!portfolio.hidden) portfolio.href = portfolioUrl;
   const collection = profile.querySelector("[data-dashboard-collection]");
   collection.hidden = !view.data.collectionUrl;
   if (view.data.collectionUrl) collection.href = view.data.collectionUrl;
