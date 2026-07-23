@@ -121,9 +121,18 @@ if (typeof document !== "undefined") {
     void loadDashboardState(requestDashboard, (view) => renderDashboard(root, view));
     const form = root.querySelector("[data-dashboard-image-form]");
     const message = root.querySelector("[data-dashboard-image-message]");
+    const input = form?.querySelector("[data-dashboard-image-input]");
+    const avatar = root.querySelector("[data-dashboard-image]");
+    input?.addEventListener("change", () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      avatar.src = URL.createObjectURL(file);
+      avatar.alt = "Selected profile picture";
+      avatar.hidden = false;
+      message.textContent = "Image selected. Click upload to save it.";
+    });
     form?.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const input = form.querySelector("[data-dashboard-image-input]");
       if (!input?.files?.length) {
         message.textContent = "Choose an image first.";
         return;
@@ -133,7 +142,7 @@ if (typeof document !== "undefined") {
         await uploadProfileImage(form);
         message.textContent =
           "Profile picture uploaded. It may take a moment to appear.";
-        window.setTimeout(() => window.location.reload(), 2500);
+        window.setTimeout(() => window.location.reload(), 5000);
       } catch {
         message.textContent =
           "Profile picture could not be uploaded. Use a JPG, PNG, or WebP under 5 MB.";
