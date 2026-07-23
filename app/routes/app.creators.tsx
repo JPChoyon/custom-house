@@ -6,14 +6,38 @@ import { changeCreatorStatus } from "../services/creator.server";
 import { syncExistingCreators } from "../services/helium-sync.server";
 import { AdminGraphqlClient } from "../services/shopify-graphql.server";
 
+type CustomerContact = {
+  id: string;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+};
+
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { session } = await authenticate.admin(request);
-  return db.creator.findMany({
-    where: { shop: session.shop },
+  const { session, admin } = await authenticate.admin(request);
+  const creators = await db.creator.findMany({
+    where: { shop: session.shop, status: "APPROVED" },
     include: { _count: { select: { submissions: true } } },
-    orderBy: { updatedAt: "desc" },
+    orderBy: { approvedAt: "desc" },
     take: 100,
   });
+  let contacts: CustomerContact[] = [];
+  if (creators.length) {
+    try {
+      const result = await new AdminGraphqlClient(admin).request<{
+        nodes: Array<CustomerContact | null>;
+      }>(
+        `#graphql query ApprovedCreatorContacts($ids: [ID!]!) { nodes(ids: $ids) { ... on Customer { id email firstName lastName } } }`,
+        { ids: creators.map((creator) => creator.customerId) },
+      );
+      contacts = result.nodes.filter(
+        (contact): contact is CustomerContact => Boolean(contact),
+      );
+    } catch {
+      contacts = [];
+    }
+  }
+  return { creators, contacts };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -30,12 +54,12 @@ export async function action({ request }: ActionFunctionArgs) {
     return { sync: intent === "sync-preview" ? "preview" : "applied", counts };
   }
   const state = String(form.get("status"));
-  if (!(["APPROVED", "REJECTED", "SUSPENDED"] as string[]).includes(state))
+  if (state !== "SUSPENDED")
     throw new Response("Invalid status", { status: 400 });
   await changeCreatorStatus(
     session.shop,
     String(form.get("creatorId")),
-    state as "APPROVED" | "REJECTED" | "SUSPENDED",
+    "SUSPENDED",
     client,
     String(form.get("reason") || "") || undefined,
   );
@@ -43,35 +67,36 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Creators() {
-  const creators = useLoaderData<typeof loader>();
+  const { creators, contacts } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const sync = actionData && "sync" in actionData ? actionData : null;
+  const contactById = new Map(
+    contacts.map((contact) => [contact.id, contact]),
+  );
   return (
-    <s-page heading="Creators">
-      <s-section heading="Helium Migration">
+    <s-page heading="Approved Creators">
+      <s-section heading="Sync Existing Creators">
         <p>
-          Preview customers carrying Helium creator tags before importing.
-          App-managed approval decisions are never overwritten.
+          Dry Run detects creator tags and the configured Helium form ID
+          without writing Creator, Application, customer, or collection data.
         </p>
         {sync?.counts && (
-          <p>
-            Create: {sync.counts.create} · Update: {sync.counts.update} · Skip:{" "}
-            {sync.counts.skip} · Conflicts: {sync.counts.conflict}
-          </p>
-        )}
-        {sync?.counts && (
-          <p>
-            Applicants found: {sync.counts.applicantsFound} · Missing customer
-            IDs: {sync.counts.customersWithoutUsableId} · Missing mappings:{" "}
-            {sync.counts.missingMappings.join(", ") || "None"}
-          </p>
-        )}
-        {sync?.counts && (
-          <p>
-            Applications to create: {sync.counts.applicationCreate} ·
-            Applications to update: {sync.counts.applicationUpdate} · Invalid
-            image references: {sync.counts.invalidImageReference}
-          </p>
+          <>
+            <p>
+              Create: {sync.counts.create} · Update: {sync.counts.update} ·
+              Skip: {sync.counts.skip} · Conflicts: {sync.counts.conflict}
+            </p>
+            <p>
+              Applicants found: {sync.counts.applicantsFound} · Applications to
+              create: {sync.counts.applicationCreate} · Applications to update:{" "}
+              {sync.counts.applicationUpdate}
+            </p>
+            <p>
+              Missing mappings:{" "}
+              {sync.counts.missingMappings.join(", ") || "None"} · Invalid
+              images: {sync.counts.invalidImageReference}
+            </p>
+          </>
         )}
         {sync?.counts?.preview?.length ? (
           <details>
@@ -89,7 +114,7 @@ export default function Creators() {
         <Form method="post">
           <button name="intent" value="sync-preview">
             Dry run
-          </button>
+          </button>{" "}
           {sync?.sync === "preview" && (
             <button name="intent" value="sync-apply">
               Confirm import
@@ -98,39 +123,87 @@ export default function Creators() {
         </Form>
       </s-section>
       <s-section>
-        {creators.map((creator) => (
-          <s-box
-            key={creator.id}
-            padding="base"
-            borderWidth="base"
-            borderRadius="base"
-          >
-            <s-heading>{creator.displayName}</s-heading>
-            {creator.externalSyncConflict && <s-banner tone="warning">External Helium or Flow tags conflict with the app-managed status. Use an explicit status action below to resolve it.</s-banner>}
-            <s-paragraph>
-              {creator.status} · {creator._count.submissions} submissions ·{" "}
-              {creator.handle}
-            </s-paragraph>
-            <Form method="post">
-              <input type="hidden" name="intent" value="status" />
-              <input type="hidden" name="creatorId" value={creator.id} />
-              <input
-                name="reason"
-                aria-label="Reason"
-                placeholder="Reason"
-              />{" "}
-              <button name="status" value="APPROVED">
-                Approve/Reinstate
-              </button>{" "}
-              <button name="status" value="SUSPENDED">
-                Suspend
-              </button>{" "}
-              <button name="status" value="REJECTED">
-                Reject
-              </button>
-            </Form>
-          </s-box>
-        ))}
+        {creators.length ? (
+          creators.map((creator) => {
+            const contact = contactById.get(creator.customerId);
+            const shopifyName = [contact?.firstName, contact?.lastName]
+              .filter(Boolean)
+              .join(" ");
+            return (
+              <s-box
+                key={creator.id}
+                padding="base"
+                borderWidth="base"
+                borderRadius="base"
+              >
+                <s-heading>{creator.displayName}</s-heading>
+                <s-paragraph>
+                  APPROVED · {creator._count.submissions} submissions ·{" "}
+                  {creator.handle}
+                </s-paragraph>
+                <p>
+                  <strong>Shopify name:</strong>{" "}
+                  {shopifyName || "Not available"}
+                </p>
+                <p>
+                  <strong>Email:</strong>{" "}
+                  {contact?.email || "Not available"}
+                </p>
+                <p>
+                  <strong>Legal name:</strong>{" "}
+                  {creator.legalName || "Not provided"}
+                </p>
+                <p>
+                  <strong>Location:</strong>{" "}
+                  {[creator.city, creator.country]
+                    .filter(Boolean)
+                    .join(", ") || "Not provided"}
+                </p>
+                <p>
+                  <strong>Biography:</strong>{" "}
+                  {creator.bio || "Not provided"}
+                </p>
+                {creator.portfolioUrl && (
+                  <p>
+                    <a
+                      href={creator.portfolioUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Portfolio
+                    </a>
+                  </p>
+                )}
+                <p>
+                  <strong>Source:</strong> {creator.applicationSource} ·{" "}
+                  <strong>Status authority:</strong> {creator.statusAuthority}
+                </p>
+                <p>
+                  <strong>Collection:</strong>{" "}
+                  {creator.collectionId || "Not created"}
+                </p>
+                <Form method="post">
+                  <input type="hidden" name="intent" value="status" />
+                  <input
+                    type="hidden"
+                    name="creatorId"
+                    value={creator.id}
+                  />
+                  <input
+                    name="reason"
+                    aria-label="Suspension reason"
+                    placeholder="Suspension reason"
+                  />{" "}
+                  <button name="status" value="SUSPENDED">
+                    Suspend
+                  </button>
+                </Form>
+              </s-box>
+            );
+          })
+        ) : (
+          <s-paragraph>No approved creators.</s-paragraph>
+        )}
       </s-section>
     </s-page>
   );

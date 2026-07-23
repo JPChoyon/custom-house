@@ -80,6 +80,7 @@ model ShopConfig {
   creatorProfileMetaobjectType       String?
   creatorProfileFieldMapJson         String?
   heliumMetafieldMapJson             String?
+  heliumCreatorFormId                String?
   allowReapplicationAfterRejection   Boolean   @default(false)
   heliumMigrationCompletedAt         DateTime?
   heliumDecommissionedAt             DateTime?

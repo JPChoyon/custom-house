@@ -28,6 +28,7 @@ export const HELIUM_EXPECTED_TYPES: Record<HeliumField, string[]> = { legalName:
 export interface HeliumCustomerInput {
   customerId: string;
   tags: string[];
+  formIds?: string[];
   fields?: HeliumMappedValues;
   snapshotHash?: string;
 }
@@ -144,6 +145,29 @@ export function creatorStatusFromTags(tags: string[]): CreatorStatus | null {
   if (values.has(CREATOR_TAGS.PENDING) || values.has(CREATOR_TAGS.applicant))
     return "PENDING";
   return null;
+}
+
+export function isHeliumCreatorFormSubmission(
+  formIds: string[] | undefined,
+  configuredFormId: string | null | undefined,
+): boolean {
+  const formId = configuredFormId?.trim();
+  return Boolean(formId && formIds?.includes(formId));
+}
+
+export function withHeliumCreatorFormTags(
+  input: HeliumCustomerInput,
+  configuredFormId: string | null | undefined,
+): HeliumCustomerInput {
+  if (
+    creatorStatusFromTags(input.tags) ||
+    !isHeliumCreatorFormSubmission(input.formIds, configuredFormId)
+  )
+    return input;
+  return {
+    ...input,
+    tags: [...new Set([...input.tags, CREATOR_TAGS.applicant, CREATOR_TAGS.PENDING])],
+  };
 }
 export function hasConflictingCreatorTags(tags: string[]): boolean {
   const statuses = new Set([

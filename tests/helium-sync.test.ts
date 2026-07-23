@@ -7,7 +7,28 @@ import {
   loadWithLazySync,
   normalizeCustomerGid,
   planHeliumSync,
+  withHeliumCreatorFormTags,
 } from "../app/services/helium-sync.ts";
+
+test("confirmed Helium form submission receives pending creator tags", () => {
+  const input = withHeliumCreatorFormTags(
+    { customerId: "1", tags: [], formIds: ["lXteLY"] },
+    "lXteLY",
+  );
+  assert.equal(creatorStatusFromTags(input.tags), "PENDING");
+  assert.deepEqual(input.tags.sort(), [
+    "creator-applicant",
+    "creator-pending",
+  ]);
+});
+
+test("unrelated Helium form does not become a creator", () => {
+  const input = withHeliumCreatorFormTags(
+    { customerId: "1", tags: [], formIds: ["other-form"] },
+    "lXteLY",
+  );
+  assert.equal(creatorStatusFromTags(input.tags), null);
+});
 
 function creator(overrides: Partial<Creator> = {}): Creator {
   return {

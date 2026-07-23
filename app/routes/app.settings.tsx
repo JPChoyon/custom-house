@@ -39,26 +39,37 @@ export async function action({ request }: ActionFunctionArgs) {
     .split(/\r?\n/)
     .map((value) => value.trim())
     .filter(Boolean);
+  const heliumCreatorFormId = String(
+    form.get("heliumCreatorFormId") || "",
+  ).trim();
+  if (
+    heliumCreatorFormId &&
+    !/^[A-Za-z0-9_-]{1,64}$/.test(heliumCreatorFormId)
+  )
+    throw new Response("Invalid Helium form ID", { status: 400 });
+  const settings = {
+    creatorApplicationsEnabled: form.has("applications"),
+    allowReapplicationAfterRejection: form.has("reapplication"),
+    requireAdminApproval: form.has("approval"),
+    automaticCollectionCreationEnabled: form.has("collections"),
+    collectionTitleTemplate: String(
+      form.get("titleTemplate") || "{creatorName} Designs",
+    ),
+    collectionHandleSuffix: String(form.get("handleSuffix") || "designs"),
+    onlineStorePublicationId:
+      String(form.get("publicationId") || "") || null,
+    creatorProfileMetaobjectType:
+      String(form.get("metaobjectType") || "") || null,
+    creatorProfileFieldMapJson: String(form.get("fieldMap") || "") || null,
+    heliumCreatorFormId: heliumCreatorFormId || null,
+    heliumMetafieldMapJson: serializeHeliumMetafieldMap(form),
+    inkybayAllowedHostsJson: JSON.stringify(hosts),
+    inkybayBuyOnlyHiddenSelectorsJson: JSON.stringify(selectors),
+  };
   return db.shopConfig.upsert({
     where: { shop: session.shop },
-    create: { shop: session.shop },
-    update: {
-      creatorApplicationsEnabled: form.has("applications"),
-      allowReapplicationAfterRejection: form.has("reapplication"),
-      requireAdminApproval: form.has("approval"),
-      automaticCollectionCreationEnabled: form.has("collections"),
-      collectionTitleTemplate: String(
-        form.get("titleTemplate") || "{creatorName} Designs",
-      ),
-      collectionHandleSuffix: String(form.get("handleSuffix") || "designs"),
-      onlineStorePublicationId: String(form.get("publicationId") || "") || null,
-      creatorProfileMetaobjectType:
-        String(form.get("metaobjectType") || "") || null,
-      creatorProfileFieldMapJson: String(form.get("fieldMap") || "") || null,
-      heliumMetafieldMapJson: serializeHeliumMetafieldMap(form),
-      inkybayAllowedHostsJson: JSON.stringify(hosts),
-      inkybayBuyOnlyHiddenSelectorsJson: JSON.stringify(selectors),
-    },
+    create: { shop: session.shop, ...settings },
+    update: settings,
   });
 }
 
@@ -175,6 +186,16 @@ export default function Settings() {
           <h2>Helium Customer Fields metafields</h2>
           <p>
             Select definitions discovered from Shopify. No Helium key is assumed.
+          </p>
+          <p>
+            <label>
+              Creator Application form ID{" "}
+              <input
+                name="heliumCreatorFormId"
+                defaultValue={config.heliumCreatorFormId ?? ""}
+                placeholder="Helium form ID"
+              />
+            </label>
           </p>
           {HELIUM_FIELDS.map((field) => (
             <p key={field}>
