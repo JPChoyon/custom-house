@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { Form, useLoaderData } from "react-router";
+import { Form, useActionData, useLoaderData } from "react-router";
 import db from "../db.server";
 import { authenticate } from "../shopify.server";
 import { changeCreatorStatus } from "../services/creator.server";
@@ -57,6 +57,38 @@ export async function action({ request }: ActionFunctionArgs) {
   const form = await request.formData();
   const creatorId = String(form.get("creatorId"));
   const intent = String(form.get("intent"));
+  if (intent === "SAVE_NOTE") {
+    const applicationId = String(form.get("applicationId"));
+    const note = String(form.get("note") || "").trim();
+    if (!applicationId || note.length > 1000)
+      throw new Response("Invalid application note", { status: 400 });
+    const application = await db.creatorApplication.findFirst({
+      where: { id: applicationId, creatorId, shop: session.shop },
+      select: { id: true, reviewerNote: true },
+    });
+    if (!application)
+      throw new Response("Application not found", { status: 404 });
+    await db.$transaction([
+      db.creatorApplication.update({
+        where: { id: application.id },
+        data: { reviewerNote: note || null },
+      }),
+      db.auditLog.create({
+        data: {
+          shop: session.shop,
+          actorType: "ADMIN",
+          action: "application.note_updated",
+          entityType: "CreatorApplication",
+          entityId: application.id,
+          beforeJson: JSON.stringify({
+            notePresent: Boolean(application.reviewerNote),
+          }),
+          afterJson: JSON.stringify({ notePresent: Boolean(note) }),
+        },
+      }),
+    ]);
+    return { ok: true, message: "Admin note saved." };
+  }
   if (!(["APPROVED", "REJECTED"] as string[]).includes(intent))
     throw new Response("Invalid action", { status: 400 });
   await changeCreatorStatus(
@@ -66,14 +98,26 @@ export async function action({ request }: ActionFunctionArgs) {
     new AdminGraphqlClient(admin),
     String(form.get("reason") || "") || undefined,
   );
-  return { ok: true };
+  return {
+    ok: true,
+    message:
+      intent === "APPROVED"
+        ? "Creator approved."
+        : "Application rejected.",
+  };
 }
 
 export default function Applications() {
   const { rows, audits, shop } = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
   const store = shop.replace(/\.myshopify\.com$/, "");
   return (
     <s-page heading="Pending Creator Applications">
+      {actionData?.message && (
+        <s-section>
+          <s-paragraph>{actionData.message}</s-paragraph>
+        </s-section>
+      )}
       <s-section>
         <Form method="get">
           <label>
@@ -89,6 +133,19 @@ export default function Applications() {
         {rows.length ? (
           rows.map((item) => {
             const customerNumber = item.creator.customerId.split("/").at(-1);
+            let socialLinks: string[] = [];
+            try {
+              const parsed = JSON.parse(item.socialLinksJson);
+              socialLinks = Array.isArray(parsed)
+                ? parsed.filter(
+                    (link): link is string =>
+                      typeof link === "string" &&
+                      link.startsWith("https://"),
+                  )
+                : [];
+            } catch {
+              socialLinks = [];
+            }
             const history = audits.filter(
               (audit) =>
                 audit.entityId === item.id ||
@@ -133,6 +190,19 @@ export default function Applications() {
                     </a>
                   </p>
                 )}
+                <p>
+                  <strong>Social profiles:</strong>{" "}
+                  {socialLinks.length
+                    ? socialLinks.map((link, index) => (
+                        <span key={link}>
+                          {index ? " · " : ""}
+                          <a href={link} target="_blank" rel="noreferrer">
+                            Profile {index + 1}
+                          </a>
+                        </span>
+                      ))
+                    : "Not provided"}
+                </p>
                 {item.profileImageUrl?.startsWith("https://") && (
                   <img
                     src={item.profileImageUrl}
@@ -164,6 +234,30 @@ export default function Applications() {
                   </button>{" "}
                   <button name="intent" value="REJECTED">
                     Reject
+                  </button>
+                </Form>
+                <Form method="post">
+                  <input
+                    type="hidden"
+                    name="creatorId"
+                    value={item.creatorId}
+                  />
+                  <input
+                    type="hidden"
+                    name="applicationId"
+                    value={item.id}
+                  />
+                  <label>
+                    Admin note{" "}
+                    <textarea
+                      name="note"
+                      defaultValue={item.reviewerNote ?? ""}
+                      maxLength={1000}
+                      rows={3}
+                    />
+                  </label>{" "}
+                  <button name="intent" value="SAVE_NOTE">
+                    Save note
                   </button>
                 </Form>
                 <details>
