@@ -163,22 +163,35 @@ export async function fetchHeliumCustomer(
     customer: ({
       id: string;
       tags: string[];
+      firstName: string | null;
+      lastName: string | null;
     } & Record<string, unknown>) | null;
   }>(
-    `#graphql query HeliumCustomer($id: ID!${metafields.variableDefinitions ? `, ${metafields.variableDefinitions}` : ""}) { customer(id: $id) { id tags creatorFormIds: metafield(namespace: "customer_fields", key: "form_ids") { value } ${metafields.selection} } }`,
+    `#graphql query HeliumCustomer($id: ID!${metafields.variableDefinitions ? `, ${metafields.variableDefinitions}` : ""}) { customer(id: $id) { id tags firstName lastName creatorFormIds: metafield(namespace: "customer_fields", key: "form_ids") { value } ${metafields.selection} } }`,
     {
       id: normalizeCustomerGid(customerId),
       ...metafields.variables,
     },
   );
-  return result.customer
-    ? {
+  if (!result.customer) return null;
+  const fields = mapMetafieldValues(
+    map,
+    metafields.values(result.customer),
+  ) || {};
+  const customerName = [result.customer.firstName, result.customer.lastName]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  if (customerName) {
+    fields.legalName ||= customerName;
+    fields.creatorDisplayName ||= customerName;
+  }
+  return {
         customerId: result.customer.id,
         tags: result.customer.tags,
         formIds: customerFormIds(result.customer),
-        fields: mapMetafieldValues(map, metafields.values(result.customer)),
-      }
-    : null;
+        fields,
+      };
 }
 
 async function uniqueHandle(
@@ -402,7 +415,7 @@ export async function syncExistingCreators(
         pageInfo: { hasNextPage: boolean; endCursor: string | null };
       };
     } = await client.request(
-      `#graphql query HeliumCreators($after: String${metafields.variableDefinitions ? `, ${metafields.variableDefinitions}` : ""}) { customers(first: 100, after: $after) { nodes { id tags creatorFormIds: metafield(namespace: "customer_fields", key: "form_ids") { value } ${metafields.selection} } pageInfo { hasNextPage endCursor } } }`,
+      `#graphql query HeliumCreators($after: String${metafields.variableDefinitions ? `, ${metafields.variableDefinitions}` : ""}) { customers(first: 100, after: $after) { nodes { id tags firstName lastName creatorFormIds: metafield(namespace: "customer_fields", key: "form_ids") { value } ${metafields.selection} } pageInfo { hasNextPage endCursor } } }`,
       { after: cursor, ...metafields.variables },
     );
     for (const customer of result.customers.nodes) {
@@ -411,12 +424,27 @@ export async function syncExistingCreators(
         continue;
       }
       const originalStatus = creatorStatusFromTags(customer.tags);
+      const mappedFields = mapMetafieldValues(
+        map,
+        metafields.values(customer),
+      ) || {};
+      const customerName = [
+        typeof customer.firstName === "string" ? customer.firstName : null,
+        typeof customer.lastName === "string" ? customer.lastName : null,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+      if (customerName) {
+        mappedFields.legalName ||= customerName;
+        mappedFields.creatorDisplayName ||= customerName;
+      }
       const input = withHeliumCreatorFormTags(
         {
           customerId: customer.id,
           tags: customer.tags,
           formIds: customerFormIds(customer),
-          fields: mapMetafieldValues(map, metafields.values(customer)),
+          fields: mappedFields,
         },
         config?.heliumCreatorFormId,
       );
@@ -426,8 +454,7 @@ export async function syncExistingCreators(
       const existingCreator = await findCreatorByCustomerIdentity(shop, customer.id);
       const existingApplication = existingCreator ? await db.creatorApplication.findFirst({ where: { creatorId: existingCreator.id, source: "HELIUM_IMPORT" }, select: { id: true } }) : null;
       if (existingApplication) counts.applicationUpdate++; else counts.applicationCreate++;
-      const mappedFields = input.fields;
-      if (mappedFields?.creatorProfilePhoto?.startsWith("gid://")) counts.invalidImageReference++;
+      if (input.fields?.creatorProfilePhoto?.startsWith("gid://")) counts.invalidImageReference++;
       if (!dryRun && !originalStatus)
         await addInitialCreatorTags(client, customer.id);
       const plan = await applyHeliumSync(
@@ -436,7 +463,7 @@ export async function syncExistingCreators(
           customerId: customer.id,
           tags: input.tags,
           formIds: input.formIds,
-          fields: mappedFields,
+          fields: input.fields,
         },
         "IMPORT",
         dryRun,

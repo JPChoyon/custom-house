@@ -8,6 +8,14 @@
   <div data-dashboard-profile hidden>
     <img data-dashboard-image alt="" hidden width="160" height="160">
     <p><strong data-dashboard-name></strong> — <span data-dashboard-status></span></p>
+    <form data-dashboard-image-form>
+      <label class="customhouse-field">
+        Profile picture
+        <input data-dashboard-image-input type="file" name="profileImage" accept="image/jpeg,image/png,image/webp">
+      </label>
+      <button type="submit">Upload profile picture</button>
+      <span data-dashboard-image-message role="status"></span>
+    </form>
     <p data-dashboard-bio></p>
     <p><a data-dashboard-portfolio hidden>Creator portfolio</a></p>
     <p><a data-dashboard-collection href="{{ routes.root_url }}" hidden>View creator collection</a></p>

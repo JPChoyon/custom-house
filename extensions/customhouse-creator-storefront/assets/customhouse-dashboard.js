@@ -1,4 +1,5 @@
 const DASHBOARD_ENDPOINT = "/apps/customhouse/api/creator-dashboard";
+const PROFILE_IMAGE_ENDPOINT = "/apps/customhouse/api/creator-profile-upload";
 
 export function resolveDashboardState(data) {
   if (!data || typeof data !== "object") return { state: "CREATOR_RECORD_MISSING", message: "No creator application was found." };
@@ -30,6 +31,18 @@ async function requestDashboard() {
   const response = await fetch(DASHBOARD_ENDPOINT, { credentials: "same-origin", headers: { Accept: "application/json" } });
   const body = await response.json();
   if (!response.ok || !body?.ok) throw new Error("Dashboard request failed");
+  return body.data;
+}
+
+async function uploadProfileImage(form) {
+  const response = await fetch(PROFILE_IMAGE_ENDPOINT, {
+    method: "POST",
+    credentials: "same-origin",
+    body: new FormData(form),
+    headers: { Accept: "application/json" },
+  });
+  const body = await response.json();
+  if (!response.ok || !body?.ok) throw new Error("Profile upload failed");
   return body.data;
 }
 
@@ -79,5 +92,25 @@ function renderDashboard(root, view) {
 if (typeof document !== "undefined") {
   document.querySelectorAll("[data-customhouse-dashboard]").forEach((root) => {
     void loadDashboardState(requestDashboard, (view) => renderDashboard(root, view));
+    const form = root.querySelector("[data-dashboard-image-form]");
+    const message = root.querySelector("[data-dashboard-image-message]");
+    form?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const input = form.querySelector("[data-dashboard-image-input]");
+      if (!input?.files?.length) {
+        message.textContent = "Choose an image first.";
+        return;
+      }
+      message.textContent = "Uploading...";
+      try {
+        await uploadProfileImage(form);
+        message.textContent =
+          "Profile picture uploaded. It may take a moment to appear.";
+        window.setTimeout(() => window.location.reload(), 2500);
+      } catch {
+        message.textContent =
+          "Profile picture could not be uploaded. Use a JPG, PNG, or WebP under 5 MB.";
+      }
+    });
   });
 }

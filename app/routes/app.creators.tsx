@@ -136,7 +136,9 @@ export default function Creators() {
                 borderWidth="base"
                 borderRadius="base"
               >
-                <s-heading>{creator.displayName}</s-heading>
+                <s-heading>
+                  {creator.legalName || shopifyName || creator.displayName}
+                </s-heading>
                 <s-paragraph>
                   APPROVED · {creator._count.submissions} submissions ·{" "}
                   {creator.handle}
