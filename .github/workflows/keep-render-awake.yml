@@ -2,13 +2,19 @@ name: Keep Render Awake
 
 on:
   schedule:
-    - cron: "3,13,23,33,43,53 * * * *"
+    # Stagger away from the top of the hour to reduce GitHub scheduler delays.
+    # The longest interval is 12 minutes, below Render Free's 15-minute idle window.
+    - cron: "4,12,20,28,36,44,52 * * * *"
   workflow_dispatch:
+
+concurrency:
+  group: keep-render-awake
+  cancel-in-progress: false
 
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 4
 
     steps:
       - name: Ping Render health endpoint
@@ -17,7 +23,11 @@ jobs:
             --fail \
             --silent \
             --show-error \
-            --retry 3 \
+            --location \
+            --retry 6 \
+            --retry-all-errors \
             --retry-delay 10 \
-            --max-time 60 \
+            --connect-timeout 20 \
+            --max-time 90 \
+            --user-agent "CustomHouse-Uptime-Check/1.0" \
             "https://custom-house.onrender.com/health"
