@@ -5,7 +5,9 @@ import type { ShopifyGraphqlClient } from "./shopify-graphql.server";
 import {
   creatorStatusFromTags,
   hasConflictingCreatorTags,
+  isHeliumCreatorFormSubmission,
   normalizeCustomerGid,
+  parseHeliumFormIds,
   parseHeliumMetafieldMap,
   planHeliumSync,
   withHeliumCreatorFormTags,
@@ -78,21 +80,9 @@ function snapshotHash(input: HeliumCustomerInput): string {
     .digest("hex");
 }
 
-function parseFormIds(value: unknown): string[] {
-  if (typeof value !== "string") return [];
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed)
-      ? parsed.filter((item): item is string => typeof item === "string")
-      : [];
-  } catch {
-    return [];
-  }
-}
-
 function customerFormIds(customer: Record<string, unknown>): string[] {
   const metafield = customer.creatorFormIds as { value?: unknown } | null;
-  return parseFormIds(metafield?.value);
+  return parseHeliumFormIds(metafield?.value);
 }
 
 export async function addInitialCreatorTags(
@@ -394,7 +384,19 @@ export async function syncExistingCreators(
   const map = parseHeliumMetafieldMap(config?.heliumMetafieldMapJson);
   const metafields = mappedMetafieldQuery(map);
   let cursor: string | null = null;
-  const counts = { create: 0, update: 0, skip: 0, conflict: 0, applicationCreate: 0, applicationUpdate: 0, invalidImageReference: 0 };
+  const counts = {
+    create: 0,
+    update: 0,
+    skip: 0,
+    conflict: 0,
+    applicationCreate: 0,
+    applicationUpdate: 0,
+    invalidImageReference: 0,
+    customersScanned: 0,
+    creatorTaggedCustomers: 0,
+    configuredFormSubmissions: 0,
+    customersWithoutCreatorSignal: 0,
+  };
   const preview: Array<{
     customerId: string;
     action: string;
@@ -419,11 +421,19 @@ export async function syncExistingCreators(
       { after: cursor, ...metafields.variables },
     );
     for (const customer of result.customers.nodes) {
+      counts.customersScanned++;
       if (!customer.id.startsWith("gid://shopify/Customer/")) {
         customersWithoutUsableId++;
         continue;
       }
       const originalStatus = creatorStatusFromTags(customer.tags);
+      if (originalStatus) counts.creatorTaggedCustomers++;
+      const formIds = customerFormIds(customer);
+      const configuredFormSubmission = isHeliumCreatorFormSubmission(
+        formIds,
+        config?.heliumCreatorFormId,
+      );
+      if (configuredFormSubmission) counts.configuredFormSubmissions++;
       const mappedFields = mapMetafieldValues(
         map,
         metafields.values(customer),
@@ -443,12 +453,15 @@ export async function syncExistingCreators(
         {
           customerId: customer.id,
           tags: customer.tags,
-          formIds: customerFormIds(customer),
+          formIds,
           fields: mappedFields,
         },
         config?.heliumCreatorFormId,
       );
-      if (!creatorStatusFromTags(input.tags)) continue;
+      if (!creatorStatusFromTags(input.tags)) {
+        counts.customersWithoutCreatorSignal++;
+        continue;
+      }
       const conflict = hasConflictingCreatorTags(input.tags);
       if (conflict) counts.conflict++;
       const existingCreator = await findCreatorByCustomerIdentity(shop, customer.id);

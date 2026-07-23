@@ -137,6 +137,27 @@ export function normalizeCustomerGid(value: string | number): string {
   return `gid://shopify/Customer/${BigInt(numeric).toString()}`;
 }
 
+export function parseHeliumFormIds(value: unknown): string[] {
+  if (typeof value !== "string") return [];
+  const normalized = (items: unknown[]) => [
+    ...new Set(
+      items
+        .filter((item): item is string => typeof item === "string")
+        .flatMap((item) => item.split(","))
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ];
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return normalized(parsed);
+    if (typeof parsed === "string") return normalized([parsed]);
+    return [];
+  } catch {
+    return normalized([value]);
+  }
+}
+
 export function creatorStatusFromTags(tags: string[]): CreatorStatus | null {
   const values = new Set(tags.map((tag) => tag.toLowerCase()));
   if (values.has(CREATOR_TAGS.SUSPENDED)) return "SUSPENDED";
@@ -152,7 +173,12 @@ export function isHeliumCreatorFormSubmission(
   configuredFormId: string | null | undefined,
 ): boolean {
   const formId = configuredFormId?.trim();
-  return Boolean(formId && formIds?.includes(formId));
+  return Boolean(
+    formId &&
+      formIds?.some(
+        (value) => value.trim().toLowerCase() === formId.toLowerCase(),
+      ),
+  );
 }
 
 export function withHeliumCreatorFormTags(

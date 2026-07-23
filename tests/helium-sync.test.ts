@@ -6,9 +6,20 @@ import {
   hasConflictingCreatorTags,
   loadWithLazySync,
   normalizeCustomerGid,
+  parseHeliumFormIds,
   planHeliumSync,
   withHeliumCreatorFormTags,
 } from "../app/services/helium-sync.ts";
+
+test("Helium form IDs accept all observed storage formats", () => {
+  assert.deepEqual(parseHeliumFormIds('["lXteLY","other"]'), [
+    "lXteLY",
+    "other",
+  ]);
+  assert.deepEqual(parseHeliumFormIds('"lXteLY"'), ["lXteLY"]);
+  assert.deepEqual(parseHeliumFormIds("lXteLY"), ["lXteLY"]);
+  assert.deepEqual(parseHeliumFormIds("lXteLY, other"), ["lXteLY", "other"]);
+});
 
 test("confirmed Helium form submission receives pending creator tags", () => {
   const input = withHeliumCreatorFormTags(

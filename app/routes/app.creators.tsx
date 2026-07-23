@@ -15,12 +15,18 @@ type CustomerContact = {
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session, admin } = await authenticate.admin(request);
-  const creators = await db.creator.findMany({
-    where: { shop: session.shop, status: "APPROVED" },
-    include: { _count: { select: { submissions: true } } },
-    orderBy: { approvedAt: "desc" },
-    take: 100,
-  });
+  const [creators, config] = await Promise.all([
+    db.creator.findMany({
+      where: { shop: session.shop, status: "APPROVED" },
+      include: { _count: { select: { submissions: true } } },
+      orderBy: { approvedAt: "desc" },
+      take: 100,
+    }),
+    db.shopConfig.findUnique({
+      where: { shop: session.shop },
+      select: { heliumCreatorFormId: true },
+    }),
+  ]);
   let contacts: CustomerContact[] = [];
   if (creators.length) {
     try {
@@ -37,7 +43,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
       contacts = [];
     }
   }
-  return { creators, contacts };
+  return {
+    creators,
+    contacts,
+    heliumCreatorFormId: config?.heliumCreatorFormId ?? null,
+  };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -67,7 +77,8 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Creators() {
-  const { creators, contacts } = useLoaderData<typeof loader>();
+  const { creators, contacts, heliumCreatorFormId } =
+    useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const sync = actionData && "sync" in actionData ? actionData : null;
   const contactById = new Map(
@@ -96,6 +107,34 @@ export default function Creators() {
               {sync.counts.missingMappings.join(", ") || "None"} · Invalid
               images: {sync.counts.invalidImageReference}
             </p>
+            <p>
+              Customers scanned: {sync.counts.customersScanned} ·
+              Creator-tagged: {sync.counts.creatorTaggedCustomers} · Matching
+              Helium form marker: {sync.counts.configuredFormSubmissions} · No
+              creator signal: {sync.counts.customersWithoutCreatorSignal}
+            </p>
+            {sync.counts.applicantsFound === 0 && (
+              <s-banner
+                tone="warning"
+                heading="No creator applicant signal was found"
+              >
+                <p>
+                  In Shopify Flow, use Helium Customer Fields&apos;{" "}
+                  <strong>Customer submitted form</strong> trigger, require Form
+                  ID{" "}
+                  <strong>
+                    {heliumCreatorFormId || "configured creator form"}
+                  </strong>
+                  , then add both{" "}
+                  <strong>creator-applicant</strong> and{" "}
+                  <strong>creator-pending</strong> customer tags. The customer
+                  update webhook will then import every new applicant
+                  automatically. Dry Run never guesses from ordinary customer
+                  records because that could incorrectly turn shoppers into
+                  creators.
+                </p>
+              </s-banner>
+            )}
           </>
         )}
         {sync?.counts?.preview?.length ? (
