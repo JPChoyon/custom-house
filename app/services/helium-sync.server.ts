@@ -20,10 +20,49 @@ export {
   planHeliumSync,
 } from "./helium-sync";
 
-function mappedIdentifiers(map: HeliumMetafieldMap) {
-  return Object.values(map)
-    .filter((entry) => entry.enabled)
-    .map(({ namespace, key }) => ({ namespace, key }));
+type CustomerMetafield = {
+  namespace: string;
+  key: string;
+  value: string;
+  reference?: {
+    image?: { url?: string };
+    url?: string;
+  } | null;
+};
+
+function mappedMetafieldQuery(map: HeliumMetafieldMap) {
+  const entries = Object.values(map).filter((entry) => entry.enabled);
+  const variableDefinitions = entries
+    .flatMap((_, index) => [
+      `$metafieldNamespace${index}: String!`,
+      `$metafieldKey${index}: String!`,
+    ])
+    .join(", ");
+  const selection = entries
+    .map(
+      (_, index) =>
+        `metafield${index}: metafield(namespace: $metafieldNamespace${index}, key: $metafieldKey${index}) { namespace key value reference { ... on MediaImage { image { url } } ... on GenericFile { url } } }`,
+    )
+    .join("\n");
+  const variables = Object.fromEntries(
+    entries.flatMap((entry, index) => [
+      [`metafieldNamespace${index}`, entry.namespace],
+      [`metafieldKey${index}`, entry.key],
+    ]),
+  );
+  return {
+    variableDefinitions,
+    selection,
+    variables,
+    values(customer: Record<string, unknown>): CustomerMetafield[] {
+      return entries
+        .map(
+          (_, index) =>
+            customer[`metafield${index}`] as CustomerMetafield | null,
+        )
+        .filter((value): value is CustomerMetafield => Boolean(value));
+    },
+  };
 }
 
 function snapshotHash(input: HeliumCustomerInput): string {
@@ -39,7 +78,7 @@ function snapshotHash(input: HeliumCustomerInput): string {
 
 function mapMetafieldValues(
   map: HeliumMetafieldMap,
-  metafields: Array<{ namespace: string; key: string; value: string; reference?: { image?: { url?: string }; url?: string } | null }>,
+  metafields: CustomerMetafield[],
 ): HeliumCustomerInput["fields"] {
   const fields: HeliumCustomerInput["fields"] = {};
   for (const [field, identifier] of Object.entries(map) as Array<
@@ -83,24 +122,24 @@ export async function fetchHeliumCustomer(
   customerId: string,
   map: HeliumMetafieldMap,
 ): Promise<HeliumCustomerInput | null> {
+  const metafields = mappedMetafieldQuery(map);
   const result = await client.request<{
-    customer: {
+    customer: ({
       id: string;
       tags: string[];
-      metafields: Array<{ namespace: string; key: string; value: string; reference?: { image?: { url?: string }; url?: string } | null }>;
-    } | null;
+    } & Record<string, unknown>) | null;
   }>(
-    `#graphql query HeliumCustomer($id: ID!, $identifiers: [HasMetafieldsIdentifier!]!) { customer(id: $id) { id tags metafields(identifiers: $identifiers) { namespace key value reference { ... on MediaImage { image { url } } ... on GenericFile { url } } } } }`,
+    `#graphql query HeliumCustomer($id: ID!${metafields.variableDefinitions ? `, ${metafields.variableDefinitions}` : ""}) { customer(id: $id) { id tags ${metafields.selection} } }`,
     {
       id: normalizeCustomerGid(customerId),
-      identifiers: mappedIdentifiers(map),
+      ...metafields.variables,
     },
   );
   return result.customer
     ? {
         customerId: result.customer.id,
         tags: result.customer.tags,
-        fields: mapMetafieldValues(map, result.customer.metafields),
+        fields: mapMetafieldValues(map, metafields.values(result.customer)),
       }
     : null;
 }
@@ -296,6 +335,7 @@ export async function syncExistingCreators(
     select: { heliumMetafieldMapJson: true },
   });
   const map = parseHeliumMetafieldMap(config?.heliumMetafieldMapJson);
+  const metafields = mappedMetafieldQuery(map);
   let cursor: string | null = null;
   const counts = { create: 0, update: 0, skip: 0, conflict: 0, applicationCreate: 0, applicationUpdate: 0, invalidImageReference: 0 };
   const preview: Array<{
@@ -309,16 +349,17 @@ export async function syncExistingCreators(
   do {
     const result: {
       customers: {
-        nodes: Array<{
+        nodes: Array<
+          {
           id: string;
           tags: string[];
-          metafields: Array<{ namespace: string; key: string; value: string; reference?: { image?: { url?: string }; url?: string } | null }>;
-        }>;
+          } & Record<string, unknown>
+        >;
         pageInfo: { hasNextPage: boolean; endCursor: string | null };
       };
     } = await client.request(
-      `#graphql query HeliumCreators($after: String, $identifiers: [HasMetafieldsIdentifier!]!) { customers(first: 100, after: $after, query: "tag:creator-applicant OR tag:creator-pending OR tag:creator-approved OR tag:creator-rejected OR tag:creator-suspended") { nodes { id tags metafields(identifiers: $identifiers) { namespace key value reference { ... on MediaImage { image { url } } ... on GenericFile { url } } } } pageInfo { hasNextPage endCursor } } }`,
-      { after: cursor, identifiers: mappedIdentifiers(map) },
+      `#graphql query HeliumCreators($after: String${metafields.variableDefinitions ? `, ${metafields.variableDefinitions}` : ""}) { customers(first: 100, after: $after, query: "tag:creator-applicant OR tag:creator-pending OR tag:creator-approved OR tag:creator-rejected OR tag:creator-suspended") { nodes { id tags ${metafields.selection} } pageInfo { hasNextPage endCursor } } }`,
+      { after: cursor, ...metafields.variables },
     );
     for (const customer of result.customers.nodes) {
       if (!customer.id.startsWith("gid://shopify/Customer/")) {
@@ -330,7 +371,10 @@ export async function syncExistingCreators(
       const existingCreator = await findCreatorByCustomerIdentity(shop, customer.id);
       const existingApplication = existingCreator ? await db.creatorApplication.findFirst({ where: { creatorId: existingCreator.id, source: "HELIUM_IMPORT" }, select: { id: true } }) : null;
       if (existingApplication) counts.applicationUpdate++; else counts.applicationCreate++;
-      const mappedFields = mapMetafieldValues(map, customer.metafields);
+      const mappedFields = mapMetafieldValues(
+        map,
+        metafields.values(customer),
+      );
       if (mappedFields?.creatorProfilePhoto?.startsWith("gid://")) counts.invalidImageReference++;
       const plan = await applyHeliumSync(
         shop,
