@@ -16,9 +16,38 @@
       <button type="submit">Upload profile picture</button>
       <span data-dashboard-image-message role="status"></span>
     </form>
+    <div class="customhouse-dashboard-grid" aria-label="Creator overview">
+      <article class="customhouse-dashboard-stat">
+        <span>Total sales</span>
+        <strong data-dashboard-total-sales>Not configured</strong>
+      </article>
+      <article class="customhouse-dashboard-stat">
+        <span>Total earnings</span>
+        <strong data-dashboard-total-earnings>Not configured</strong>
+      </article>
+      <article class="customhouse-dashboard-stat">
+        <span>Orders</span>
+        <strong data-dashboard-orders>Not configured</strong>
+      </article>
+      <article class="customhouse-dashboard-stat">
+        <span>Collections</span>
+        <strong data-dashboard-collections>0</strong>
+      </article>
+      <article class="customhouse-dashboard-stat">
+        <span>Published products</span>
+        <strong data-dashboard-products>0</strong>
+      </article>
+    </div>
     <p data-dashboard-bio></p>
     <p><a data-dashboard-portfolio hidden>Creator portfolio</a></p>
     <p><a data-dashboard-collection href="{{ routes.root_url }}" hidden>View creator collection</a></p>
+    <section>
+      <h3>Top selling products</h3>
+      <p data-dashboard-top-products-empty>
+        Sales tracking is not configured yet.
+      </p>
+      <ol data-dashboard-top-products></ol>
+    </section>
     <h3>Recent submissions</h3>
     <ul data-dashboard-submissions></ul>
   </div>

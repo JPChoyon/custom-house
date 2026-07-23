@@ -24,13 +24,15 @@ test("pending dashboard state", () => {
   assert.equal(state.message, "Your creator application is under review.");
 });
 
-test("approved dashboard preserves profile data", () => {
-  const data = { state: "APPROVED", displayName: "Ari", status: "APPROVED", collectionUrl: "/collections/ari-designs", submissions: [{ designName: "Sky", status: "PENDING" }] };
+test("approved dashboard preserves profile and overview data", () => {
+  const data = { state: "APPROVED", displayName: "Ari", status: "APPROVED", collectionUrl: "/collections/ari-designs", overview: { collectionsCount: 1, publishedProductsCount: 2 }, topSellingProducts: [], submissions: [{ designName: "Sky", status: "PENDING" }] };
   const view = resolveDashboardState(data);
   assert.equal(view.state, "APPROVED");
   assert.equal(view.data.displayName, "Ari");
   assert.equal(view.data.collectionUrl, "/collections/ari-designs");
   assert.equal(view.data.submissions.length, 1);
+  assert.equal(view.data.overview.collectionsCount, 1);
+  assert.equal(view.data.overview.publishedProductsCount, 2);
 });
 
 test("rejected dashboard state includes safe reason", () => {

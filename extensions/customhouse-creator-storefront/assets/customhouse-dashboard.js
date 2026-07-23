@@ -63,6 +63,19 @@ function renderDashboard(root, view) {
   if (view.state !== "APPROVED") return;
   profile.querySelector("[data-dashboard-name]").textContent = view.data.displayName;
   profile.querySelector("[data-dashboard-status]").textContent = view.data.status;
+  const overview = view.data.overview || {};
+  profile.querySelector("[data-dashboard-total-sales]").textContent =
+    overview.totalSales == null ? "Not configured" : String(overview.totalSales);
+  profile.querySelector("[data-dashboard-total-earnings]").textContent =
+    overview.totalEarnings == null
+      ? "Not configured"
+      : String(overview.totalEarnings);
+  profile.querySelector("[data-dashboard-orders]").textContent =
+    overview.ordersCount == null ? "Not configured" : String(overview.ordersCount);
+  profile.querySelector("[data-dashboard-collections]").textContent =
+    String(overview.collectionsCount ?? 0);
+  profile.querySelector("[data-dashboard-products]").textContent =
+    String(overview.publishedProductsCount ?? 0);
   profile.querySelector("[data-dashboard-bio]").textContent = view.data.bio || "";
   const image = profile.querySelector("[data-dashboard-image]");
   image.hidden = !view.data.profileImageUrl?.startsWith("https://");
@@ -73,6 +86,20 @@ function renderDashboard(root, view) {
   const collection = profile.querySelector("[data-dashboard-collection]");
   collection.hidden = !view.data.collectionUrl;
   if (view.data.collectionUrl) collection.href = view.data.collectionUrl;
+  const topProducts = Array.isArray(view.data.topSellingProducts)
+    ? view.data.topSellingProducts
+    : [];
+  const topProductsList = profile.querySelector("[data-dashboard-top-products]");
+  const topProductsEmpty = profile.querySelector(
+    "[data-dashboard-top-products-empty]",
+  );
+  topProductsList.replaceChildren();
+  topProductsEmpty.hidden = topProducts.length > 0;
+  topProducts.forEach((product) => {
+    const item = document.createElement("li");
+    item.textContent = product.title;
+    topProductsList.append(item);
+  });
   const submissions = profile.querySelector("[data-dashboard-submissions]");
   submissions.replaceChildren();
   const recent = Array.isArray(view.data.submissions) ? view.data.submissions : [];

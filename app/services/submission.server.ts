@@ -109,6 +109,10 @@ export async function creatorDashboard(shop: string, customerId: string) {
   const collectionUrl = creator.collectionId
     ? `/collections/${creator.handle}-${slugify(config?.collectionHandleSuffix ?? "designs")}`
     : null;
+  const publishedProducts = creator.submissions.filter(
+    (submission) =>
+      submission.status === "PUBLISHED" && submission.createdProductId,
+  );
 
   return {
     state: creator.externalSyncConflict ? "SYNC_CONFLICT" as const : creator.status,
@@ -123,6 +127,14 @@ export async function creatorDashboard(shop: string, customerId: string) {
     rejectionReason: creator.rejectionReason,
     suspensionReason: creator.suspensionReason,
     applicationStatus: creator.applications[0]?.status ?? null,
+    overview: {
+      totalSales: null,
+      totalEarnings: null,
+      ordersCount: null,
+      collectionsCount: creator.collectionId ? 1 : 0,
+      publishedProductsCount: publishedProducts.length,
+    },
+    topSellingProducts: [],
     submissions: creator.submissions.map(
       ({
         id,
