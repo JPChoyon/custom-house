@@ -6,13 +6,30 @@ export class AdminGraphqlClient implements ShopifyGraphqlClient {
   constructor(private readonly admin: AdminClient) {}
   async request<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
     const document = query.replace(/^#graphql\s+/, "");
-    const response = await this.admin.graphql(document, { variables });
-    const body = await response.json() as GraphqlResponse<T>;
-    if (!response.ok || body.errors?.length || !body.data) throw new Error("Shopify Admin API request failed.");
-    return body.data;
+    const operation =
+      document.match(/\b(query|mutation)\s+([A-Za-z0-9_]+)/)?.[2] ||
+      "anonymous";
+    const id = correlationId();
+    try {
+      const response = await this.admin.graphql(document, { variables });
+      const body = await response.json() as GraphqlResponse<T>;
+      if (!response.ok || body.errors?.length || !body.data)
+        throw new Error("Shopify Admin API request failed.");
+      return body.data;
+    } catch {
+      safeDiagnostic("graphql_failure", "failed", {
+        correlationId: id,
+        operation,
+      });
+      throw new Error("Shopify Admin API request failed.");
+    }
   }
 }
 
 export function throwUserErrors(errors: Array<{ message: string }> | undefined, operation: string): void {
   if (errors?.length) throw new Error(`${operation} failed: ${errors.map((error) => error.message).join("; ").slice(0, 500)}`);
 }
+import {
+  correlationId,
+  safeDiagnostic,
+} from "./observability.server";
