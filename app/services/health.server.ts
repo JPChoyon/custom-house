@@ -5,14 +5,24 @@ export const REQUIRED_ENVIRONMENT_VARIABLES = [
   "SHOPIFY_API_SECRET",
   "SHOPIFY_APP_URL",
   "SCOPES",
+  "NODE_ENV",
 ] as const;
 
-export type HealthResult = {
-  status: "ok" | "error";
-  app: "running";
-  environment: "configured" | "missing";
-  database: "connected" | "unavailable" | "not_checked";
-};
+export type HealthResult =
+  | {
+      status: "ok";
+      app: "running";
+      database: "connected";
+    }
+  | {
+      status: "error";
+      app: "running";
+      database: "unavailable";
+      code:
+        | "MISSING_ENVIRONMENT"
+        | "INVALID_APP_URL"
+        | "DATABASE_UNAVAILABLE";
+    };
 
 export async function evaluateHealth(
   environment: Record<string, string | undefined>,
@@ -27,8 +37,24 @@ export async function evaluateHealth(
       body: {
         status: "error",
         app: "running",
-        environment: "missing",
-        database: "not_checked",
+        database: "unavailable",
+        code: "MISSING_ENVIRONMENT",
+      },
+    };
+  }
+  try {
+    const appUrl = new URL(environment.SHOPIFY_APP_URL!);
+    if (appUrl.protocol !== "https:") {
+      throw new Error("SHOPIFY_APP_URL must use HTTPS");
+    }
+  } catch {
+    return {
+      status: 503,
+      body: {
+        status: "error",
+        app: "running",
+        database: "unavailable",
+        code: "INVALID_APP_URL",
       },
     };
   }
@@ -39,7 +65,6 @@ export async function evaluateHealth(
       body: {
         status: "ok",
         app: "running",
-        environment: "configured",
         database: "connected",
       },
     };
@@ -49,8 +74,8 @@ export async function evaluateHealth(
       body: {
         status: "error",
         app: "running",
-        environment: "configured",
         database: "unavailable",
+        code: "DATABASE_UNAVAILABLE",
       },
     };
   }

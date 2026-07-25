@@ -11,7 +11,9 @@ export default async function handleRequest(
   reactRouterContext: EntryContext,
   loadContext?: AppLoadContext,
 ) {
-  addDocumentResponseHeaders(request, responseHeaders);
+  if (new URL(request.url).pathname !== "/health") {
+    addDocumentResponseHeaders(request, responseHeaders);
+  }
   return handleVercelRequest(
     request,
     responseStatusCode,

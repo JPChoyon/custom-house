@@ -13,6 +13,7 @@ import {
 const configuredEnvironment = Object.fromEntries(
   REQUIRED_ENVIRONMENT_VARIABLES.map((name) => [name, "configured"]),
 );
+configuredEnvironment.SHOPIFY_APP_URL = "https://custom-house.vercel.app";
 
 test("Vercel React Router preset keeps SSR enabled", () => {
   assert.equal(config.ssr, true);
@@ -30,7 +31,6 @@ test("health succeeds only after a database query succeeds", async () => {
   assert.deepEqual(result.body, {
     status: "ok",
     app: "running",
-    environment: "configured",
     database: "connected",
   });
 });
@@ -41,6 +41,10 @@ test("health returns non-200 when Neon is unavailable", async () => {
   });
   assert.equal(result.status, 503);
   assert.equal(result.body.database, "unavailable");
+  assert.equal(result.body.status, "error");
+  if (result.body.status === "error") {
+    assert.equal(result.body.code, "DATABASE_UNAVAILABLE");
+  }
 });
 
 test("health reports missing configuration without exposing values", async () => {
@@ -51,10 +55,21 @@ test("health reports missing configuration without exposing values", async () =>
   assert.deepEqual(result.body, {
     status: "error",
     app: "running",
-    environment: "missing",
-    database: "not_checked",
+    database: "unavailable",
+    code: "MISSING_ENVIRONMENT",
   });
-  assert.equal(JSON.stringify(result).includes("configured"), false);
+});
+
+test("health rejects a malformed production application URL", async () => {
+  const result = await evaluateHealth(
+    { ...configuredEnvironment, SHOPIFY_APP_URL: "custom-house.vercel.app" },
+    async () => 1,
+  );
+  assert.equal(result.status, 503);
+  assert.equal(result.body.status, "error");
+  if (result.body.status === "error") {
+    assert.equal(result.body.code, "INVALID_APP_URL");
+  }
 });
 
 test("authentication diagnostics preserve Shopify redirects and errors", async () => {
@@ -71,6 +86,40 @@ test("authentication diagnostics preserve Shopify redirects and errors", async (
       },
     ),
     (error) => error === redirect,
+  );
+});
+
+test("webhook authentication receives the original raw request", async () => {
+  const rawBody = "{\"id\":123,\"topic\":\"customers/create\"}";
+  const request = new Request("https://app.example.invalid/webhooks/customers/create", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: rawBody,
+  });
+  await observeAuthentication("webhook_authentication", request, async () => {
+    assert.equal(await request.clone().text(), rawBody);
+    return undefined;
+  });
+  assert.equal(await request.text(), rawBody);
+});
+
+test("app proxy authentication preserves verified query parameters", async () => {
+  const request = new Request(
+    "https://app.example.invalid/proxy/api/me?shop=example.myshopify.com&logged_in_customer_id=123&signature=signed",
+  );
+  await observeAuthentication("app_proxy_authentication", request, async () => {
+    const url = new URL(request.url);
+    assert.equal(url.searchParams.get("logged_in_customer_id"), "123");
+    assert.equal(url.searchParams.get("signature"), "signed");
+    return undefined;
+  });
+});
+
+test("production validation includes Node and migration configuration", () => {
+  assert.equal(REQUIRED_ENVIRONMENT_VARIABLES.includes("NODE_ENV"), true);
+  assert.equal(
+    REQUIRED_ENVIRONMENT_VARIABLES.includes("DIRECT_DATABASE_URL"),
+    true,
   );
 });
 
