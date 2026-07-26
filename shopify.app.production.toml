@@ -2,21 +2,19 @@
 
 client_id = "c4d7bc9a8267eb65f73e4188e88f6eb0"
 name = "Custom House Creator"
-application_url = "https://custom-house.onrender.com"
+application_url = "https://custom-house.vercel.app"
 embedded = true
 
-
 [app_proxy]
-url = "https://custom-house.onrender.com/proxy"
+url = "/proxy"
 prefix = "apps"
 subpath = "customhouse"
 
 [access_scopes]
-# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_customers,read_files,read_metaobjects,read_products,read_publications,write_customers,write_files,write_metaobject_definitions,write_metaobjects,write_products,write_publications"
+scopes = "read_customers,read_files,read_metaobjects,read_products,read_publications,write_app_proxy,write_customers,write_files,write_metaobject_definitions,write_metaobjects,write_products,write_publications"
 
 [auth]
-redirect_urls = [ "https://custom-house.onrender.com/api/auth" ]
+redirect_urls = [ "https://custom-house.vercel.app/auth/callback" ]
 
 [webhooks]
 api_version = "2026-07"
@@ -56,7 +54,6 @@ api_version = "2026-07"
   [[webhooks.subscriptions]]
   uri = "/webhooks/customers/update"
   topics = ["customers/update"]
-
 
 [build]
 automatically_update_urls_on_dev = false

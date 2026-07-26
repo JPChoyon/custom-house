@@ -1,0 +1,191 @@
+import assert from "node:assert/strict";
+import { createHmac, timingSafeEqual } from "node:crypto";
+import test from "node:test";
+import {
+  handleStorefrontProxy,
+  parseProxyRoute,
+  type ProxyAuthenticator,
+} from "../app/services/storefront-proxy.server.ts";
+
+const TEST_SECRET = "test-only-secret";
+
+function signedUrl(
+  pathname: string,
+  extra: Record<string, string> = {},
+): string {
+  const params = new URLSearchParams({
+    shop: "example.myshopify.com",
+    timestamp: "1785000000",
+    path_prefix: "/apps/customhouse",
+    ...extra,
+  });
+  const message = [...params.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `${key}=${value}`)
+    .join("");
+  params.set(
+    "signature",
+    createHmac("sha256", TEST_SECRET).update(message).digest("hex"),
+  );
+  return `https://app.example.invalid${pathname}?${params.toString()}`;
+}
+
+const verifyTestSignature: ProxyAuthenticator = async (request) => {
+  const url = new URL(request.url);
+  const supplied = url.searchParams.get("signature");
+  if (!supplied) throw new Response(null, { status: 401 });
+  url.searchParams.delete("signature");
+  const message = [...url.searchParams.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `${key}=${value}`)
+    .join("");
+  const expected = createHmac("sha256", TEST_SECRET)
+    .update(message)
+    .digest("hex");
+  const valid =
+    supplied.length === expected.length &&
+    timingSafeEqual(Buffer.from(supplied), Buffer.from(expected));
+  if (!valid) throw new Response(null, { status: 403 });
+  return {
+    shop: url.searchParams.get("shop")!,
+    customerId: url.searchParams.get("logged_in_customer_id"),
+  };
+};
+
+async function json(response: Response) {
+  return response.json() as Promise<Record<string, unknown>>;
+}
+
+test("base proxy route provides an unsigned production-safe health response", async () => {
+  const response = await handleStorefrontProxy(
+    new Request("https://app.example.invalid/proxy"),
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(await json(response), {
+    success: true,
+    message: "Custom House Shopify App Proxy is working",
+  });
+});
+
+test("catch-all child routes are parsed deterministically", () => {
+  assert.deepEqual(parseProxyRoute("creators"), { kind: "creators" });
+  assert.deepEqual(parseProxyRoute("creator/john-doe"), {
+    kind: "creator",
+    creatorHandle: "john-doe",
+  });
+  assert.deepEqual(parseProxyRoute("design/abc123"), {
+    kind: "design",
+    designSlug: "abc123",
+  });
+  assert.deepEqual(parseProxyRoute("design/abc123/cart"), {
+    kind: "designCart",
+    designId: "abc123",
+  });
+});
+
+test("valid Shopify-style signature reaches a protected GET route", async () => {
+  const response = await handleStorefrontProxy(
+    new Request(signedUrl("/proxy/design/abc123")),
+    "design/abc123",
+    verifyTestSignature,
+  );
+  assert.equal(response.status, 200);
+  assert.equal((await json(response)).success, true);
+});
+
+test("invalid proxy signature is rejected safely", async () => {
+  const url = new URL(signedUrl("/proxy/creators"));
+  url.searchParams.set("signature", "invalid");
+  const request = new Request(url);
+  const response = await handleStorefrontProxy(
+    request,
+    "creators",
+    verifyTestSignature,
+  );
+  assert.equal(response.status, 403);
+  assert.deepEqual(await json(response), {
+    success: false,
+    error: {
+      code: "INVALID_PROXY_SIGNATURE",
+      message: "The storefront request could not be verified.",
+    },
+  });
+});
+
+test("missing signature is rejected on protected child routes", async () => {
+  const response = await handleStorefrontProxy(
+    new Request("https://app.example.invalid/proxy/creators"),
+    "creators",
+  );
+  assert.equal(response.status, 401);
+  assert.equal(
+    ((await json(response)).error as { code: string }).code,
+    "MISSING_PROXY_SIGNATURE",
+  );
+});
+
+test("verified logged-in customer ID is exposed only after authentication", async () => {
+  const response = await handleStorefrontProxy(
+    new Request(
+      signedUrl("/proxy", { logged_in_customer_id: "123456789" }),
+    ),
+    "",
+    verifyTestSignature,
+  );
+  const body = await json(response);
+  assert.deepEqual(body.customer, {
+    loggedIn: true,
+    customerId: "123456789",
+  });
+});
+
+test("verified anonymous customer request remains logged out", async () => {
+  const response = await handleStorefrontProxy(
+    new Request(signedUrl("/proxy")),
+    "",
+    verifyTestSignature,
+  );
+  const body = await json(response);
+  assert.deepEqual(body.customer, {
+    loggedIn: false,
+    customerId: null,
+  });
+});
+
+test("signed POST requests are supported on the base route", async () => {
+  const response = await handleStorefrontProxy(
+    new Request(signedUrl("/proxy"), { method: "POST" }),
+    "",
+    verifyTestSignature,
+  );
+  assert.equal(response.status, 200);
+});
+
+test("unsupported methods return a structured 405 response", async () => {
+  const response = await handleStorefrontProxy(
+    new Request("https://app.example.invalid/proxy", { method: "PUT" }),
+  );
+  assert.equal(response.status, 405);
+  assert.equal(
+    ((await json(response)).error as { code: string }).code,
+    "METHOD_NOT_ALLOWED",
+  );
+});
+
+test("safe error responses never expose secrets or stack traces", async () => {
+  const leakingAuthenticator: ProxyAuthenticator = async () => {
+    throw new Error(
+      "DATABASE_URL=postgresql://private Shopify secret access token",
+    );
+  };
+  const response = await handleStorefrontProxy(
+    new Request(signedUrl("/proxy/creators")),
+    "creators",
+    leakingAuthenticator,
+  );
+  const body = JSON.stringify(await json(response));
+  assert.equal(response.status, 500);
+  assert.equal(body.includes("postgresql://"), false);
+  assert.equal(body.includes("access token"), false);
+  assert.equal(body.includes("stack"), false);
+});
