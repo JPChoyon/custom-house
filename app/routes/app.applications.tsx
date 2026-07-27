@@ -1,5 +1,11 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { Form, useActionData, useLoaderData } from "react-router";
+import {
+  AdminStyles,
+  SafeAdminError,
+  StatusBadge,
+  SubmitButton,
+} from "../components/admin-ui";
 import db from "../db.server";
 import { authenticate } from "../shopify.server";
 import { changeCreatorStatus } from "../services/creator.server";
@@ -113,6 +119,7 @@ export default function Applications() {
   const store = shop.replace(/\.myshopify\.com$/, "");
   return (
     <s-page heading="Pending Creator Applications">
+      <AdminStyles />
       {actionData?.message && (
         <s-section>
           <s-paragraph>{actionData.message}</s-paragraph>
@@ -126,7 +133,7 @@ export default function Applications() {
           <label>
             Date <input name="date" type="date" />
           </label>{" "}
-          <button type="submit">Filter</button>
+          <SubmitButton>Filter</SubmitButton>
         </Form>
       </s-section>
       <s-section>
@@ -162,7 +169,7 @@ export default function Applications() {
                   {item.displayName || item.creator.displayName}
                 </s-heading>
                 <s-paragraph>
-                  {item.status} ·{" "}
+                  <StatusBadge status={item.status} /> ·{" "}
                   {new Date(item.createdAt).toLocaleDateString()} · Source:{" "}
                   {item.source}
                 </s-paragraph>
@@ -209,6 +216,7 @@ export default function Applications() {
                     alt={`${item.displayName || "Creator"} profile`}
                     width="120"
                     height="120"
+                    className="dashboard-avatar"
                   />
                 )}
                 <p>
@@ -229,12 +237,20 @@ export default function Applications() {
                   <label>
                     Decision reason <input name="reason" />
                   </label>{" "}
-                  <button name="intent" value="APPROVED">
+                  <SubmitButton
+                    name="intent"
+                    value="APPROVED"
+                    confirmMessage="Approve this creator? Their creator account and collection setup will be activated."
+                  >
                     Approve
-                  </button>{" "}
-                  <button name="intent" value="REJECTED">
+                  </SubmitButton>{" "}
+                  <SubmitButton
+                    name="intent"
+                    value="REJECTED"
+                    confirmMessage="Reject this creator application? The decision will be recorded in the status history."
+                  >
                     Reject
-                  </button>
+                  </SubmitButton>
                 </Form>
                 <Form method="post">
                   <input
@@ -256,9 +272,9 @@ export default function Applications() {
                       rows={3}
                     />
                   </label>{" "}
-                  <button name="intent" value="SAVE_NOTE">
+                  <SubmitButton name="intent" value="SAVE_NOTE">
                     Save note
-                  </button>
+                  </SubmitButton>
                 </Form>
                 <details>
                   <summary>Audit history ({history.length})</summary>
@@ -280,4 +296,8 @@ export default function Applications() {
       </s-section>
     </s-page>
   );
+}
+
+export function ErrorBoundary() {
+  return <SafeAdminError heading="Creator Applications" />;
 }

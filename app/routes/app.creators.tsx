@@ -1,5 +1,10 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { Form, useActionData, useLoaderData } from "react-router";
+import {
+  AdminStyles,
+  SafeAdminError,
+  SubmitButton,
+} from "../components/admin-ui";
 import db from "../db.server";
 import { authenticate } from "../shopify.server";
 import { changeCreatorStatus } from "../services/creator.server";
@@ -86,6 +91,7 @@ export default function Creators() {
   );
   return (
     <s-page heading="Approved Creators">
+      <AdminStyles />
       <s-section heading="Sync Existing Creators">
         <p>
           Dry Run detects creator tags and the configured Helium form ID
@@ -151,13 +157,17 @@ export default function Creators() {
           </details>
         ) : null}
         <Form method="post">
-          <button name="intent" value="sync-preview">
+          <SubmitButton name="intent" value="sync-preview">
             Dry run
-          </button>{" "}
+          </SubmitButton>{" "}
           {sync?.sync === "preview" && (
-            <button name="intent" value="sync-apply">
+            <SubmitButton
+              name="intent"
+              value="sync-apply"
+              confirmMessage="Import the creators shown in this preview? Existing newer app-managed decisions will be preserved."
+            >
               Confirm import
-            </button>
+            </SubmitButton>
           )}
         </Form>
       </s-section>
@@ -235,9 +245,13 @@ export default function Creators() {
                     aria-label="Suspension reason"
                     placeholder="Suspension reason"
                   />{" "}
-                  <button name="status" value="SUSPENDED">
+                  <SubmitButton
+                    name="status"
+                    value="SUSPENDED"
+                    confirmMessage="Suspend this creator? Protected creator access will be blocked, but existing data and orders will not be deleted."
+                  >
                     Suspend
-                  </button>
+                  </SubmitButton>
                 </Form>
               </s-box>
             );
@@ -248,4 +262,8 @@ export default function Creators() {
       </s-section>
     </s-page>
   );
+}
+
+export function ErrorBoundary() {
+  return <SafeAdminError heading="Approved Creators" />;
 }

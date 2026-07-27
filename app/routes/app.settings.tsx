@@ -3,8 +3,13 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { Form, useLoaderData, useRouteError } from "react-router";
+import { Form, useLoaderData } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+import {
+  AdminStyles,
+  SafeAdminError,
+  SubmitButton,
+} from "../components/admin-ui";
 import db from "../db.server";
 import { authenticate } from "../shopify.server";
 import { parseJsonList } from "../services/domain";
@@ -15,6 +20,7 @@ import {
   parseHeliumMetafieldMap,
   serializeHeliumMetafieldMap,
 } from "../services/helium-sync";
+import { AdminGraphqlClient } from "../services/shopify-graphql.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session, admin } = await authenticate.admin(request);
@@ -23,9 +29,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
     update: {},
     create: { shop: session.shop },
   });
-  const response = await admin.graphql(`#graphql query CustomerMetafieldDiscovery { metafieldDefinitions(first: 100, ownerType: CUSTOMER) { nodes { namespace key name type { name } } } }`);
-  const body = await response.json() as { data?: { metafieldDefinitions: { nodes: Array<{ namespace: string; key: string; name: string; type: { name: string } }> } } };
-  return { config, definitions: body.data?.metafieldDefinitions.nodes ?? [] };
+  const data = await new AdminGraphqlClient(admin).request<{
+    metafieldDefinitions: {
+      nodes: Array<{
+        namespace: string;
+        key: string;
+        name: string;
+        type: { name: string };
+      }>;
+    };
+  }>(`#graphql query CustomerMetafieldDiscovery { metafieldDefinitions(first: 100, ownerType: CUSTOMER) { nodes { namespace key name type { name } } } }`);
+  return { config, definitions: data.metafieldDefinitions.nodes };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -79,6 +93,7 @@ export default function Settings() {
   const labels: Record<(typeof HELIUM_FIELDS)[number], string> = { legalName: "Legal name", creatorDisplayName: "Creator display name", country: "Country", city: "City", creatorProfilePhoto: "Creator profile photo", shortCreatorBio: "Short creator bio", portfolioUrl: "Portfolio URL", socialProfiles: "Social profiles", termsAccepted: "Terms accepted", applicationMessage: "Application message" };
   return (
     <s-page heading="Creator Marketplace Settings">
+      <AdminStyles />
       <s-section>
         <Form method="post">
           <p>
@@ -206,7 +221,7 @@ export default function Settings() {
               <span> {!helium[field] ? "Needs configuration" : !definitions.some((definition) => definition.namespace === helium[field]?.namespace && definition.key === helium[field]?.key) ? "Missing definition" : !HELIUM_EXPECTED_TYPES[field].includes(helium[field]!.type) ? "Invalid type" : "Mapped correctly"}</span>
             </p>
           ))}
-          <button type="submit">Save settings</button>
+          <SubmitButton>Save settings</SubmitButton>
         </Form>
       </s-section>
     </s-page>
@@ -214,15 +229,7 @@ export default function Settings() {
 }
 
 export function ErrorBoundary() {
-  useRouteError();
-  return (
-    <s-page heading="Creator Marketplace Settings">
-      <s-banner tone="critical">
-        Settings could not be loaded. Restart the app preview and try again. No
-        settings were changed.
-      </s-banner>
-    </s-page>
-  );
+  return <SafeAdminError heading="Creator Marketplace Settings" />;
 }
 
 export const headers: HeadersFunction = (args) => boundary.headers(args);
