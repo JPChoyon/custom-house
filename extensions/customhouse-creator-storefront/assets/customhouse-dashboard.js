@@ -68,6 +68,8 @@ function renderDashboard(root, view) {
     view.data.displayName;
   const profileImageUrl =
     root.dataset.heliumProfileImage || view.data.profileImageUrl;
+  const heading = root.querySelector("[data-dashboard-heading]");
+  if (heading) heading.textContent = `${displayName}’s Dashboard`;
   profile.querySelector("[data-dashboard-name]").textContent = displayName;
   profile.querySelector("[data-dashboard-status]").textContent = view.data.status;
   const overview = view.data.overview || {};
