@@ -6,7 +6,7 @@
 {% assign helium_profile = customer.metafields["app--960624--helium"]["creator_profile_photo_1"].value | default: customer.metafields["app--960624--helium"]["creator_profile_photo"].value %}
 {% assign helium_profile_url = helium_profile.url | default: helium_profile.preview_image.src %}
 <section
-  class="customhouse-card"
+  class="customhouse-card customhouse-dashboard-page"
   data-customhouse-dashboard
   data-helium-legal-name="{{ helium_legal_name | escape }}"
   data-helium-display-name="{{ helium_display_name | escape }}"
