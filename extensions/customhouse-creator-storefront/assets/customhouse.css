@@ -233,10 +233,8 @@
 
 .customhouse-dashboard-stat {
   position: relative;
-  display: grid;
-  gap: .45rem;
   min-width: 0;
-  padding: 1.1rem;
+  padding: 0;
   overflow: hidden;
   border: 1px solid var(--ch-border);
   border-radius: .85rem;
@@ -245,12 +243,50 @@
   transition: transform 180ms ease, box-shadow 180ms ease;
 }
 
-.customhouse-dashboard-stat::before {
+.customhouse-dashboard-stat summary::before {
   content: "";
   width: 1.65rem;
   height: .3rem;
   border-radius: 999px;
   background: linear-gradient(90deg, var(--ch-primary), var(--ch-accent));
+}
+
+.customhouse-dashboard-stat summary {
+  display: grid;
+  gap: .45rem;
+  min-height: 100%;
+  padding: 1.1rem;
+  list-style: none;
+  cursor: pointer;
+}
+
+.customhouse-dashboard-stat summary::-webkit-details-marker {
+  display: none;
+}
+
+.customhouse-dashboard-stat summary::after {
+  content: "View details";
+  margin-top: .25rem;
+  color: var(--ch-primary);
+  font-size: .76rem;
+  font-weight: 700;
+}
+
+.customhouse-dashboard-stat[open] summary::after {
+  content: "Hide details";
+}
+
+.customhouse-dashboard-stat > p {
+  margin: 0;
+  padding: 0 1.1rem 1.1rem;
+  color: var(--ch-muted);
+  font-size: .88rem;
+  line-height: 1.5;
+}
+
+.customhouse-dashboard-stat summary:focus-visible {
+  outline: none;
+  box-shadow: inset var(--ch-focus);
 }
 
 .customhouse-dashboard-stat:hover {

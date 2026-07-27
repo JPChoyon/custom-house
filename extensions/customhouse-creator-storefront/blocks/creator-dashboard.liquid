@@ -39,26 +39,41 @@
       <span data-dashboard-image-message role="status"></span>
     </form>
     <div class="customhouse-dashboard-grid" aria-label="Creator overview">
-      <article class="customhouse-dashboard-stat">
-        <span>Total sales</span>
-        <strong data-dashboard-total-sales>Not configured</strong>
-      </article>
-      <article class="customhouse-dashboard-stat">
-        <span>Total earnings</span>
-        <strong data-dashboard-total-earnings>Not configured</strong>
-      </article>
-      <article class="customhouse-dashboard-stat">
-        <span>Orders</span>
-        <strong data-dashboard-orders>Not configured</strong>
-      </article>
-      <article class="customhouse-dashboard-stat">
-        <span>Collections</span>
-        <strong data-dashboard-collections>0</strong>
-      </article>
-      <article class="customhouse-dashboard-stat">
-        <span>Published products</span>
-        <strong data-dashboard-products>0</strong>
-      </article>
+      <details class="customhouse-dashboard-stat">
+        <summary>
+          <span>Total sales</span>
+          <strong data-dashboard-total-sales>Not configured</strong>
+        </summary>
+        <p>Sales reporting will appear here when verified creator sales tracking is configured.</p>
+      </details>
+      <details class="customhouse-dashboard-stat">
+        <summary>
+          <span>Total earnings</span>
+          <strong data-dashboard-total-earnings>Not configured</strong>
+        </summary>
+        <p>Earnings reporting will appear here when the creator payout calculation is configured.</p>
+      </details>
+      <details class="customhouse-dashboard-stat">
+        <summary>
+          <span>Orders</span>
+          <strong data-dashboard-orders>Not configured</strong>
+        </summary>
+        <p>Creator-attributed order details will appear here when order tracking is configured.</p>
+      </details>
+      <details class="customhouse-dashboard-stat">
+        <summary>
+          <span>Collections</span>
+          <strong data-dashboard-collections>0</strong>
+        </summary>
+        <p>This is the number of creator collections currently linked to your creator profile.</p>
+      </details>
+      <details class="customhouse-dashboard-stat">
+        <summary>
+          <span>Published products</span>
+          <strong data-dashboard-products>0</strong>
+        </summary>
+        <p>This is the number of approved creator products currently recorded as published.</p>
+      </details>
     </div>
     <p data-dashboard-bio></p>
     <div class="customhouse-dashboard-links">
