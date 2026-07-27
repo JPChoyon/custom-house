@@ -1,0 +1,179 @@
+body.template-page main,
+body.template-page #MainContent {
+  --ch-app-primary: #4f46e5;
+  --ch-app-secondary: #7c3aed;
+  --ch-app-accent: #0891b2;
+  --ch-app-text: #172033;
+  --ch-app-muted: #667085;
+  --ch-app-border: #e4e7ec;
+  --ch-app-surface: #fff;
+  --ch-app-focus: 0 0 0 3px rgba(79, 70, 229, .22);
+}
+
+body.template-page main::before,
+body.template-page #MainContent::before {
+  content: "Become a Custom House Creator";
+  display: block;
+  box-sizing: border-box;
+  width: min(calc(100% - 2rem), 1100px);
+  margin: 1.5rem auto 0;
+  padding: clamp(1.6rem, 5vw, 3rem);
+  border-radius: 1.25rem;
+  color: #fff;
+  background:
+    radial-gradient(circle at 86% 20%, rgba(255, 255, 255, .2), transparent 28%),
+    linear-gradient(135deg, #4338ca, #7c3aed 58%, #0891b2);
+  box-shadow: 0 16px 40px rgba(47, 43, 111, .16);
+  font-size: clamp(1.8rem, 5vw, 3rem);
+  font-weight: 780;
+  line-height: 1.12;
+  text-align: center;
+}
+
+body.template-page main form,
+body.template-page #MainContent form,
+body.template-page .cf-form,
+body.template-page .cf-form-inner,
+body.template-page [data-cf-form],
+body.template-page [class*="customer-fields"] form {
+  box-sizing: border-box;
+  width: min(calc(100% - 2rem), 900px);
+  margin: 1.5rem auto;
+  padding: clamp(1.25rem, 4vw, 2.25rem);
+  border: 1px solid var(--ch-app-border);
+  border-radius: 1.1rem;
+  color: var(--ch-app-text);
+  background:
+    linear-gradient(145deg, rgba(248, 247, 255, .65), rgba(240, 253, 250, .45)),
+    var(--ch-app-surface);
+  box-shadow: 0 12px 36px rgba(47, 43, 111, .1);
+}
+
+body.template-page main label,
+body.template-page #MainContent label,
+body.template-page .cf-field label,
+body.template-page [class*="customer-fields"] label {
+  color: var(--ch-app-text);
+  font-weight: 650;
+}
+
+body.template-page main input:not([type="checkbox"]):not([type="radio"]),
+body.template-page main textarea,
+body.template-page main select,
+body.template-page #MainContent input:not([type="checkbox"]):not([type="radio"]),
+body.template-page #MainContent textarea,
+body.template-page #MainContent select,
+body.template-page .cf-form input:not([type="checkbox"]):not([type="radio"]),
+body.template-page .cf-form textarea,
+body.template-page .cf-form select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.9rem;
+  padding: .75rem .85rem;
+  border: 1px solid #cfd4dc;
+  border-radius: .7rem;
+  color: var(--ch-app-text);
+  background: #fff;
+  font: inherit;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+body.template-page main textarea,
+body.template-page #MainContent textarea,
+body.template-page .cf-form textarea {
+  min-height: 8rem;
+  resize: vertical;
+}
+
+body.template-page main input:focus,
+body.template-page main textarea:focus,
+body.template-page main select:focus,
+body.template-page #MainContent input:focus,
+body.template-page #MainContent textarea:focus,
+body.template-page #MainContent select:focus,
+body.template-page .cf-form input:focus,
+body.template-page .cf-form textarea:focus,
+body.template-page .cf-form select:focus {
+  border-color: var(--ch-app-primary);
+  outline: none;
+  box-shadow: var(--ch-app-focus);
+}
+
+body.template-page main button[type="submit"],
+body.template-page #MainContent button[type="submit"],
+body.template-page .cf-form button[type="submit"],
+body.template-page [class*="customer-fields"] button[type="submit"] {
+  min-height: 2.9rem;
+  padding: .75rem 1.25rem;
+  border: 0;
+  border-radius: .7rem;
+  color: #fff;
+  background: linear-gradient(135deg, var(--ch-app-primary), var(--ch-app-secondary));
+  box-shadow: 0 8px 20px rgba(79, 70, 229, .22);
+  font: inherit;
+  font-weight: 720;
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+}
+
+body.template-page main button[type="submit"]:hover:not(:disabled),
+body.template-page #MainContent button[type="submit"]:hover:not(:disabled),
+body.template-page .cf-form button[type="submit"]:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 11px 25px rgba(79, 70, 229, .28);
+}
+
+body.template-page main button[type="submit"]:disabled,
+body.template-page #MainContent button[type="submit"]:disabled,
+body.template-page .cf-form button[type="submit"]:disabled {
+  cursor: wait;
+  opacity: .58;
+}
+
+body.template-page main small,
+body.template-page main .help-text,
+body.template-page #MainContent small,
+body.template-page #MainContent .help-text,
+body.template-page .cf-form .help-text {
+  color: var(--ch-app-muted);
+}
+
+body.template-page main [aria-invalid="true"],
+body.template-page #MainContent [aria-invalid="true"],
+body.template-page .cf-form [aria-invalid="true"] {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, .14) !important;
+}
+
+@media (max-width: 600px) {
+  body.template-page main::before,
+  body.template-page #MainContent::before {
+    width: min(calc(100% - 1rem), 1100px);
+    margin-top: .75rem;
+  }
+
+  body.template-page main form,
+  body.template-page #MainContent form,
+  body.template-page .cf-form,
+  body.template-page .cf-form-inner,
+  body.template-page [data-cf-form],
+  body.template-page [class*="customer-fields"] form {
+    width: min(calc(100% - 1rem), 900px);
+    padding: 1rem;
+  }
+
+  body.template-page main button[type="submit"],
+  body.template-page #MainContent button[type="submit"],
+  body.template-page .cf-form button[type="submit"] {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.template-page main *,
+  body.template-page #MainContent *,
+  body.template-page .cf-form * {
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+  }
+}

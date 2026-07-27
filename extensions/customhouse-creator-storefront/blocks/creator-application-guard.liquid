@@ -1,0 +1,40 @@
+{% assign protected_handle = block.settings.page_handle | default: 'become-a-creator' | strip %}
+
+{% if request.page_type == 'page' and page.handle == protected_handle %}
+  {{ 'creator-application.css' | asset_url | stylesheet_tag }}
+
+  {% unless customer %}
+    <style>
+      main,
+      #MainContent {
+        visibility: hidden !important;
+      }
+    </style>
+    <script>
+      window.location.replace(
+        {{ routes.account_login_url | append: '?return_url=' | append: request.path | json }}
+      );
+    </script>
+    <noscript>
+      <meta
+        http-equiv="refresh"
+        content="0;url={{ routes.account_login_url }}?return_url={{ request.path | url_encode }}"
+      >
+    </noscript>
+  {% endunless %}
+{% endif %}
+
+{% schema %}
+{
+  "name": "Creator application guard",
+  "target": "body",
+  "settings": [
+    {
+      "type": "text",
+      "id": "page_handle",
+      "label": "Creator application page handle",
+      "default": "become-a-creator"
+    }
+  ]
+}
+{% endschema %}

@@ -422,7 +422,7 @@
               <p class="customhouse-header__profile-name">Customer account</p>
               <a href="{{ routes.account_login_url }}">Log in</a>
               <a href="{{ routes.account_login_url }}">Create account</a>
-              <a href="/pages/become-a-creator">Become a creator</a>
+              <a href="{{ routes.account_login_url }}?return_url={{ '/pages/become-a-creator' | url_encode }}">Become a creator</a>
             {% endif %}
           </div>
         </details>
@@ -554,7 +554,7 @@
             <span>CREATOR DASHBOARD</span>
           </a>
         {% else %}
-          <a href="/pages/become-a-creator">
+          <a href="{{ routes.account_login_url }}?return_url={{ '/pages/become-a-creator' | url_encode }}">
             <span class="customhouse-mobile-drawer__account-icon" aria-hidden="true">
               <svg viewBox="0 0 32 32" focusable="false">
                 <path d="M16 4v24"></path>
