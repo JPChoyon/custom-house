@@ -276,6 +276,18 @@
   background: rgba(255, 255, 255, .8);
 }
 
+.customhouse-dashboard-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .75rem;
+  margin: 1rem 0;
+}
+
+.customhouse-dashboard-links [hidden] {
+  display: none !important;
+}
+
 .customhouse-dashboard-section h3 {
   margin-top: 0;
 }
@@ -318,6 +330,11 @@
   .customhouse-card button,
   .customhouse-action {
     width: 100%;
+  }
+
+  .customhouse-dashboard-links {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 }
 
