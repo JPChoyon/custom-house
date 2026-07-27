@@ -291,7 +291,12 @@ export default function Applications() {
             );
           })
         ) : (
-          <s-paragraph>No pending applications.</s-paragraph>
+          <div className="dashboard-empty">
+            <strong>No pending applications.</strong>
+            <span className="dashboard-muted">
+              New Helium creator applications will appear here automatically.
+            </span>
+          </div>
         )}
       </s-section>
     </s-page>

@@ -14,14 +14,22 @@
   data-helium-portfolio="{{ helium_portfolio | escape }}"
   data-helium-profile-image="{{ helium_profile_url | escape }}"
 >
-  <h2>{{ block.settings.heading }}</h2>
+  <header class="customhouse-dashboard-hero">
+    <h2>{{ block.settings.heading }}</h2>
+    <p>Your creator profile, collection, and recent activity in one place.</p>
+  </header>
   <p data-dashboard-loading role="status">Loading…</p>
   <p data-dashboard-message aria-live="polite" hidden></p>
   <p><a data-dashboard-login href="{{ routes.account_login_url }}" hidden>Customer login</a></p>
   <p><a data-dashboard-apply href="{{ block.settings.application_url | default: '/pages/become-a-creator' }}" hidden>Become a Creator</a></p>
   <div data-dashboard-profile hidden>
-    <img class="customhouse-dashboard-avatar" data-dashboard-image alt="" hidden width="96" height="96">
-    <p><strong data-dashboard-name></strong> — <span data-dashboard-status></span></p>
+    <div class="customhouse-profile-header">
+      <img class="customhouse-dashboard-avatar" data-dashboard-image alt="" hidden width="76" height="76">
+      <div class="customhouse-profile-copy">
+        <p><strong data-dashboard-name></strong></p>
+        <span class="customhouse-status" data-dashboard-status></span>
+      </div>
+    </div>
     <form data-dashboard-image-form>
       <label class="customhouse-field">
         Profile picture
@@ -53,17 +61,19 @@
       </article>
     </div>
     <p data-dashboard-bio></p>
-    <p><a data-dashboard-portfolio hidden>Creator portfolio</a></p>
-    <p><a data-dashboard-collection href="{{ routes.root_url }}" hidden>View creator collection</a></p>
-    <section>
+    <p><a class="customhouse-action" data-dashboard-portfolio hidden>Creator portfolio</a></p>
+    <p><a class="customhouse-action" data-dashboard-collection href="{{ routes.root_url }}" hidden>View creator collection</a></p>
+    <section class="customhouse-dashboard-section">
       <h3>Top selling products</h3>
-      <p data-dashboard-top-products-empty>
+      <p class="customhouse-dashboard-empty" data-dashboard-top-products-empty>
         Sales tracking is not configured yet.
       </p>
       <ol data-dashboard-top-products></ol>
     </section>
-    <h3>Recent submissions</h3>
-    <ul data-dashboard-submissions></ul>
+    <section class="customhouse-dashboard-section">
+      <h3>Recent submissions</h3>
+      <ul data-dashboard-submissions></ul>
+    </section>
   </div>
 </section>
 <script type="module" src="{{ 'customhouse-dashboard.js' | asset_url }}"></script>

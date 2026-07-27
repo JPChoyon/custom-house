@@ -7,6 +7,12 @@ import {
   ScrollRestoration,
   useRouteError,
 } from "react-router";
+import type { LinksFunction } from "react-router";
+import adminStylesHref from "./styles/admin.css?url";
+
+export const links: LinksFunction = () => [
+  { rel: "stylesheet", href: adminStylesHref },
+];
 
 export default function App() {
   return (
@@ -59,17 +65,13 @@ export function ErrorBoundary() {
         <title>{title}</title>
       </head>
       <body>
-        <main
-          style={{
-            maxWidth: 680,
-            margin: "64px auto",
-            padding: 24,
-            fontFamily: "Inter, system-ui, sans-serif",
-          }}
-        >
+        <main className="error-shell">
+          <section className="error-card">
+          <p className="error-code">Error {status}</p>
           <h1>{title}</h1>
           <p>{message}</p>
           <a href="/">Return to the app</a>
+          </section>
         </main>
         <Scripts />
       </body>

@@ -28,9 +28,12 @@ export default function Auth() {
 
   return (
     <AppProvider embedded={false}>
+      <div className="error-shell">
+        <div className="error-card">
+          <p className="error-code">CUSTOM HOUSE CREATOR</p>
       <s-page>
         <Form method="post">
-        <s-section heading="Log in">
+        <s-section heading="Connect your Shopify store">
           <s-text-field
             name="shop"
             label="Shop domain"
@@ -44,6 +47,8 @@ export default function Auth() {
         </s-section>
         </Form>
       </s-page>
+        </div>
+      </div>
     </AppProvider>
   );
 }

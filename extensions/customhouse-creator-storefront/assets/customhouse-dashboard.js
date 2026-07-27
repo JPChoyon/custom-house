@@ -152,10 +152,14 @@ if (typeof document !== "undefined") {
       }
       message.textContent = "Uploading...";
       try {
-        await uploadProfileImage(form);
+        const uploaded = await uploadProfileImage(form);
+        if (uploaded?.profileImageUrl?.startsWith("https://")) {
+          avatar.src = uploaded.profileImageUrl;
+          avatar.alt = "Creator profile picture";
+          avatar.hidden = false;
+        }
         message.textContent =
-          "Profile picture uploaded. It may take a moment to appear.";
-        window.setTimeout(() => window.location.reload(), 5000);
+          "Profile picture uploaded successfully.";
       } catch {
         message.textContent =
           "Profile picture could not be uploaded. Use a JPG, PNG, or WebP under 5 MB.";

@@ -157,7 +157,12 @@ export default function Submissions() {
             ))}
           </div>
         ) : (
-          <s-paragraph>No design submissions were found.</s-paragraph>
+          <div className="dashboard-empty">
+            <strong>No design submissions were found.</strong>
+            <span className="dashboard-muted">
+              New creator submissions will appear here for review.
+            </span>
+          </div>
         )}
       </s-section>
     </s-page>

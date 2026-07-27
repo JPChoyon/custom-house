@@ -21,16 +21,19 @@ export default function App() {
   return (
     <div className={styles.index}>
       <div className={styles.content}>
-        <h1 className={styles.heading}>A short heading about [your app]</h1>
+        <div className={styles.mark} aria-hidden="true">CH</div>
+        <p className={styles.eyebrow}>CUSTOM HOUSE CREATOR</p>
+        <h1 className={styles.heading}>Creator marketplace management</h1>
         <p className={styles.text}>
-          A tagline about [your app] that describes your value proposition.
+          A secure workspace for creator applications, approvals, collections,
+          profiles, and design submissions.
         </p>
         {showForm && (
           <Form className={styles.form} method="post" action="/auth/login">
             <label className={styles.label}>
               <span>Shop domain</span>
               <input className={styles.input} type="text" name="shop" />
-              <span>e.g: my-shop-domain.myshopify.com</span>
+              <small>Example: your-store.myshopify.com</small>
             </label>
             <button className={styles.button} type="submit">
               Log in
@@ -38,18 +41,9 @@ export default function App() {
           </Form>
         )}
         <ul className={styles.list}>
-          <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
-          </li>
-          <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
-          </li>
-          <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
-          </li>
+          <li><strong>Creator operations</strong><span>Review applications and manage creator status safely.</span></li>
+          <li><strong>Shopify connected</strong><span>Keep creator profiles, customer tags, and collections synchronized.</span></li>
+          <li><strong>Production ready</strong><span>Built for secure embedded administration and storefront access.</span></li>
         </ul>
       </div>
     </div>

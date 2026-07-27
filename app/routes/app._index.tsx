@@ -49,23 +49,33 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export default function Dashboard() {
   const data = useLoaderData<typeof loader>();
   const cards = [
-    ["Pending applications", data.pendingApplications],
-    ["Approved creators", data.approvedCreators],
-    ["Suspended creators", data.suspendedCreators],
-    ["Pending submissions", data.pendingSubmissions],
-    ["Published products", data.publishedProducts],
-    ["Failed publishing jobs", data.failedJobs],
+    ["Pending applications", data.pendingApplications, "warning"],
+    ["Approved creators", data.approvedCreators, "success"],
+    ["Suspended creators", data.suspendedCreators, "danger"],
+    ["Pending submissions", data.pendingSubmissions, "warning"],
+    ["Published products", data.publishedProducts, "success"],
+    ["Failed publishing jobs", data.failedJobs, "danger"],
   ] as const;
 
   return (
     <s-page heading="Creator Marketplace">
       <AdminStyles />
+      <div className="dashboard-welcome">
+        <h2>Creator marketplace overview</h2>
+        <p>
+          Review applications, manage approved creators, and monitor publishing
+          activity from one secure workspace.
+        </p>
+      </div>
       <s-section heading="Overview">
         <div className="dashboard-grid">
-          {cards.map(([label, value]) => (
-            <div className="dashboard-card" key={label}>
-              <s-heading>{String(value)}</s-heading>
-              <s-paragraph>{label}</s-paragraph>
+          {cards.map(([label, value, tone]) => (
+            <div
+              className={`dashboard-card dashboard-kpi dashboard-kpi--${tone}`}
+              key={label}
+            >
+              <span className="dashboard-value">{String(value)}</span>
+              <span className="dashboard-label">{label}</span>
             </div>
           ))}
         </div>
@@ -81,7 +91,12 @@ export default function Dashboard() {
             ))}
           </s-unordered-list>
         ) : (
-          <s-paragraph>No activity has been recorded yet.</s-paragraph>
+          <div className="dashboard-empty">
+            <strong>No activity has been recorded yet.</strong>
+            <span className="dashboard-muted">
+              Creator reviews and synchronization events will appear here.
+            </span>
+          </div>
         )}
       </s-section>
     </s-page>

@@ -257,7 +257,12 @@ export default function Creators() {
             );
           })
         ) : (
-          <s-paragraph>No approved creators.</s-paragraph>
+          <div className="dashboard-empty">
+            <strong>No approved creators were found.</strong>
+            <span className="dashboard-muted">
+              Approved applications will move into this creator workspace.
+            </span>
+          </div>
         )}
       </s-section>
     </s-page>
