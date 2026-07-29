@@ -7,6 +7,7 @@ import {
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
 import { observeAuthentication } from "./services/observability.server";
+import { withSessionStorageRecovery } from "./services/session-recovery.server";
 
 function createShopify() {
   return shopifyApp({
@@ -53,7 +54,13 @@ export const addDocumentResponseHeaders = (
 export const authenticate = {
   admin: (request: Request) =>
     observeAuthentication("admin_authentication", request, () =>
-      getShopify().authenticate.admin(request),
+      withSessionStorageRecovery(
+        () => getShopify().authenticate.admin(request),
+        () => prisma.session.count(),
+        () => {
+          shopifyInstance = undefined;
+        },
+      ),
     ),
   webhook: (request: Request) =>
     observeAuthentication("webhook_authentication", request, () =>
