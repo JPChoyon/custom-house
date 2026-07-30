@@ -168,4 +168,3 @@ Suspension:
 4. Manually set any POC-created test products to DRAFT/unpublished if required.
 5. Revert the application commit only after the flag is disabled. Do not run
    `prisma migrate reset` and do not delete existing creator or submission data.
-

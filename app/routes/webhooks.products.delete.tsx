@@ -44,6 +44,10 @@ export async function action({ request }: ActionFunctionArgs) {
       where: { shop, shopifyProductId: gid },
       data: { status: "FAILED" },
     }),
+    db.globalProductMapping.updateMany({
+      where: { shop, shopifyProductId: gid },
+      data: { enabled: false, status: "DISABLED" },
+    }),
   ]);
   return new Response();
 }

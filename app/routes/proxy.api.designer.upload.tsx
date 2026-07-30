@@ -42,4 +42,3 @@ export async function action({ request }: ActionFunctionArgs) {
     return designerApiError(error, "designer.upload");
   }
 }
-

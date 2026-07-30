@@ -122,12 +122,68 @@ function renderDashboard(root, view) {
     const item = document.createElement("li");
     item.textContent = "No design submissions yet.";
     submissions.append(item);
-    return;
+  } else {
+    recent.forEach((submission) => {
+      const item = document.createElement("li");
+      item.textContent = `${submission.designName}: ${submission.status}`;
+      submissions.append(item);
+    });
   }
-  recent.forEach((submission) => {
-    const item = document.createElement("li");
-    item.textContent = `${submission.designName}: ${submission.status}`;
-    submissions.append(item);
+
+  const zakekeSection = profile.querySelector("[data-dashboard-zakeke]");
+  const zakeke = view.data.zakeke;
+  zakekeSection.hidden = !zakeke;
+  if (!zakeke) return;
+  profile.querySelector("[data-dashboard-zakeke-message]").textContent =
+    zakeke.publishingAvailable
+      ? "Choose an eligible global product, then select Create for My Collection."
+      : "Creator design publishing is not currently enabled.";
+  const eligible = profile.querySelector("[data-dashboard-eligible-products]");
+  eligible.replaceChildren();
+  (zakeke.eligibleProducts || []).forEach((product) => {
+    if (!product.productUrl) return;
+    const link = document.createElement("a");
+    link.className = "customhouse-action";
+    link.href = product.productUrl;
+    link.textContent = `Create design · ${product.productCode}`;
+    eligible.append(link);
+  });
+  const groups = {
+    drafts: (zakeke.designs || []).filter((design) =>
+      ["DRAFT", "PROCESSING", "FAILED"].includes(design.status),
+    ),
+    published: (zakeke.designs || []).filter(
+      (design) => design.status === "ACTIVE",
+    ),
+    hidden: (zakeke.designs || []).filter(
+      (design) => ["HIDDEN", "SUSPENDED"].includes(design.status),
+    ),
+    archived: (zakeke.designs || []).filter(
+      (design) => design.status === "ARCHIVED",
+    ),
+  };
+  const countNames = {
+    drafts: "draft",
+    published: "published",
+    hidden: "hidden",
+    archived: "archived",
+  };
+  Object.entries(groups).forEach(([name, designs]) => {
+    profile.querySelector(`[data-dashboard-${countNames[name]}-count]`)
+      .textContent = String(designs.length);
+    const list = profile.querySelector(`[data-dashboard-${name}]`);
+    list.replaceChildren();
+    if (!designs.length) {
+      const empty = document.createElement("li");
+      empty.textContent = "No designs in this section.";
+      list.append(empty);
+      return;
+    }
+    designs.forEach((design) => {
+      const item = document.createElement("li");
+      item.textContent = `${design.title} · ${design.syncStatus}`;
+      list.append(item);
+    });
   });
 }
 

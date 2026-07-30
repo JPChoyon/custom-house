@@ -12,6 +12,26 @@ export async function action({ request }: ActionFunctionArgs) {
     where: { shop_customerId: { shop, customerId } },
   });
   await db.$transaction([
+    db.designPurchase.updateMany({
+      where: { shop, customerId },
+      data: { customerId: null },
+    }),
+    db.zakekeOrderJob.updateMany({
+      where: { shop, customerId },
+      data: { customerId: null },
+    }),
+    ...(creator
+      ? [
+          db.orderDesignSnapshot.updateMany({
+            where: { shop, creatorId: creator.id },
+            data: {
+              creatorId: null,
+              creatorDesignId: null,
+              creatorName: null,
+            },
+          }),
+        ]
+      : []),
     ...(creator
       ? [
           db.creatorDesign.deleteMany({ where: { creatorId: creator.id } }),

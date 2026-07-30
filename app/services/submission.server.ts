@@ -7,6 +7,7 @@ import {
 } from "./design-provider.server";
 import type { ShopifyGraphqlClient } from "./shopify-graphql.server";
 import { normalizeCustomerGid } from "./helium-sync.server";
+import { getZakekeFeatureFlags } from "./zakeke/zakeke-config.server";
 
 export async function createSubmission(
   shop: string,
@@ -94,6 +95,20 @@ export async function creatorDashboard(shop: string, customerId: string) {
       include: {
         applications: { orderBy: { createdAt: "desc" }, take: 1 },
         submissions: { orderBy: { createdAt: "desc" }, take: 20 },
+        creatorDesigns: {
+          where: { provider: "ZAKEKE" },
+          orderBy: { updatedAt: "desc" },
+          take: 50,
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            syncStatus: true,
+            previewUrl: true,
+            shopifyCreatorProductId: true,
+            updatedAt: true,
+          },
+        },
       },
     }),
     db.shopConfig.findUnique({
@@ -112,6 +127,30 @@ export async function creatorDashboard(shop: string, customerId: string) {
   const publishedProducts = creator.submissions.filter(
     (submission) =>
       submission.status === "PUBLISHED" && submission.createdProductId,
+  );
+  const zakekeFlags = getZakekeFeatureFlags();
+  const eligibleProducts =
+    creator.status === "APPROVED" &&
+    zakekeFlags.integration &&
+    zakekeFlags.creatorPublishing
+      ? await db.globalProductMapping.findMany({
+          where: {
+            shop,
+            enabled: true,
+            status: { in: ["TESTING", "ACTIVE"] },
+          },
+          select: {
+            shopifyProductId: true,
+            shopifyProductHandle: true,
+            zakekeProductCode: true,
+          },
+          orderBy: { updatedAt: "desc" },
+          take: 20,
+        })
+      : [];
+  const activeZakekeDesigns = creator.creatorDesigns.filter(
+    (design) =>
+      design.status === "ACTIVE" && design.syncStatus === "SYNCED",
   );
 
   return {
@@ -132,7 +171,8 @@ export async function creatorDashboard(shop: string, customerId: string) {
       totalEarnings: null,
       ordersCount: null,
       collectionsCount: creator.collectionId ? 1 : 0,
-      publishedProductsCount: publishedProducts.length,
+      publishedProductsCount:
+        publishedProducts.length + activeZakekeDesigns.length,
     },
     topSellingProducts: [],
     submissions: creator.submissions.map(
@@ -152,5 +192,19 @@ export async function creatorDashboard(shop: string, customerId: string) {
         createdProductId,
       }),
     ),
+    zakeke: {
+      publishingAvailable:
+        creator.status === "APPROVED" &&
+        zakekeFlags.integration &&
+        zakekeFlags.creatorPublishing,
+      eligibleProducts: eligibleProducts.map((mapping) => ({
+        productId: mapping.shopifyProductId,
+        productUrl: mapping.shopifyProductHandle
+          ? `/products/${mapping.shopifyProductHandle}`
+          : null,
+        productCode: mapping.zakekeProductCode,
+      })),
+      designs: creator.creatorDesigns,
+    },
   };
 }

@@ -1,6 +1,7 @@
+import { randomUUID } from "node:crypto";
 import db from "../db.server";
 import { ensureCreatorCollection } from "./creator.server";
-import { DomainError, safeJson } from "./domain";
+import { DomainError, safeJson, slugify } from "./domain";
 import { getDesignerConfig } from "./designer-config.server";
 import {
   designerPublishKey,
@@ -16,6 +17,10 @@ import { normalizeCustomerGid } from "./helium-sync.server";
 import type { ShopifyGraphqlClient } from "./shopify-graphql.server";
 import { throwUserErrors } from "./shopify-graphql.server";
 import { validateDesignJson } from "./designer-validation";
+import {
+  parseVariantMapping,
+  verifyGlobalZakekeProduct,
+} from "./zakeke/zakeke-products.server";
 
 type Errors = Array<{ message: string }>;
 
@@ -137,6 +142,8 @@ async function configureFixedProduct(
     baseProductId: string;
     collectionId: string;
     publicationId?: string | null;
+    sourceZakekeDesignId?: string | null;
+    designVersion?: number;
   },
 ) {
   const updated = await client.request<{
@@ -164,6 +171,16 @@ async function configureFixedProduct(
     ["creator_design_id", "single_line_text_field", input.designId],
     ["base_product_id", "single_line_text_field", input.baseProductId],
     ["design_locked", "boolean", "true"],
+    ["design_version", "number_integer", String(input.designVersion ?? 1)],
+    ...(input.sourceZakekeDesignId
+      ? [
+          [
+            "zakeke_source_design_id",
+            "single_line_text_field",
+            input.sourceZakekeDesignId,
+          ],
+        ]
+      : []),
   ].map(([key, type, value]) => ({
     ownerId: input.productId,
     namespace: "customhouse",
@@ -300,13 +317,55 @@ async function synchronizeCreatorDesign(
       403,
     );
   }
-  const config = getDesignerConfig();
-  const source = await verifyDesignerProduct(
-    client,
-    config,
-    design.globalShopifyProductId,
-    design.designSession.shopifyVariantId,
-  );
+  let source: {
+    id: string;
+    title: string;
+    tags: string[];
+    variants: VariantShape[];
+  };
+  let allowedVariantIds: readonly string[];
+  if (design.provider === "ZAKEKE") {
+    if (!design.globalProductMappingId) {
+      throw new DomainError(
+        "ZAKEKE_MAPPING_MISSING",
+        "The Zakeke product mapping is missing.",
+        409,
+      );
+    }
+    const mapping = await db.globalProductMapping.findFirst({
+      where: {
+        id: design.globalProductMappingId,
+        shop,
+        enabled: true,
+        status: { in: ["TESTING", "ACTIVE"] },
+      },
+    });
+    if (!mapping) {
+      throw new DomainError(
+        "ZAKEKE_MAPPING_MISSING",
+        "The Zakeke product mapping is unavailable.",
+        409,
+      );
+    }
+    source = await verifyGlobalZakekeProduct(
+      client,
+      design.globalShopifyProductId,
+    );
+    allowedVariantIds = parseVariantMapping(
+      mapping.variantMappingJson,
+    ).variants
+      .filter((variant) => variant.enabled !== false)
+      .map((variant) => variant.shopifyVariantId);
+  } else {
+    const config = getDesignerConfig();
+    source = await verifyDesignerProduct(
+      client,
+      config,
+      design.globalShopifyProductId,
+      design.designSession.shopifyVariantId,
+    );
+    allowedVariantIds = config.allowedVariantIds;
+  }
   let productId = design.shopifyCreatorProductId;
   try {
     const collectionId = await ensureCreatorCollection(
@@ -338,13 +397,15 @@ async function synchronizeCreatorDesign(
       title: design.title,
       sourceTags: source.tags,
       sourceVariants: source.variants,
-      allowedVariantIds: config.allowedVariantIds,
+      allowedVariantIds,
       previewUrl: design.previewUrl,
       creatorId: design.creatorId,
       designId: design.id,
       baseProductId: design.globalShopifyProductId,
       collectionId,
       publicationId: shopConfig?.onlineStorePublicationId,
+      sourceZakekeDesignId: design.sourceZakekeDesignId,
+      designVersion: design.designVersion,
     });
     const now = new Date();
     return db.$transaction(async (tx) => {
@@ -356,6 +417,8 @@ async function synchronizeCreatorDesign(
           status: "ACTIVE",
           syncStatus: "SYNCED",
           publishError: null,
+          lastErrorCode: null,
+          lastErrorReference: null,
           publishedAt: now,
         },
       });
@@ -368,7 +431,10 @@ async function synchronizeCreatorDesign(
           shop,
           actorType: "CREATOR",
           actorId: design.creator.customerId,
-          action: "fabric_design.published",
+          action:
+            design.provider === "ZAKEKE"
+              ? "zakeke_design.published"
+              : "fabric_design.published",
           entityType: "CreatorDesign",
           entityId: design.id,
           afterJson: safeJson({ productId, collectionId }),
@@ -377,6 +443,7 @@ async function synchronizeCreatorDesign(
       return updated;
     });
   } catch {
+    const referenceId = randomUUID();
     if (productId) {
       try {
         await setProductStatus(client, productId, "DRAFT");
@@ -391,6 +458,8 @@ async function synchronizeCreatorDesign(
         status: "FAILED",
         syncStatus: "FAILED",
         publishError: "Shopify synchronization failed. Retry is available.",
+        lastErrorCode: "SHOPIFY_DESIGN_SYNC_FAILED",
+        lastErrorReference: referenceId,
       },
     });
     throw new DomainError(
@@ -399,6 +468,129 @@ async function synchronizeCreatorDesign(
       502,
     );
   }
+}
+
+export async function publishZakekeCreatorDesign(input: {
+  shop: string;
+  customerId: string;
+  sessionId: string;
+  sourceZakekeDesignId: string;
+  title: string;
+  description?: string;
+  previewUrl: string;
+  selectedAttributesJson: string;
+  client: ShopifyGraphqlClient;
+}) {
+  const customerId = normalizeCustomerGid(input.customerId);
+  const creator = await requireApprovedCreator(input.shop, customerId);
+  const session = await db.designSession.findFirst({
+    where: {
+      id: input.sessionId,
+      shop: input.shop,
+      customerId,
+      creatorId: creator.id,
+      provider: "ZAKEKE",
+      mode: "CREATOR_PUBLISH",
+      zakekeDesignId: input.sourceZakekeDesignId,
+    },
+    include: { creatorDesign: true, globalProductMapping: true },
+  });
+  if (!session?.globalProductMapping) {
+    throw new DomainError(
+      "DESIGN_SESSION_MISSING",
+      "The Zakeke designer session could not be found.",
+      404,
+    );
+  }
+  const title = input.title.trim();
+  if (title.length < 2 || title.length > 120) {
+    throw new DomainError(
+      "DESIGN_TITLE_INVALID",
+      "Enter a design title between 2 and 120 characters.",
+      422,
+    );
+  }
+  const description = input.description?.trim().slice(0, 2_000) || null;
+  if (
+    session.creatorDesign?.status === "ACTIVE" &&
+    session.creatorDesign.syncStatus === "SYNCED"
+  ) {
+    return session.creatorDesign;
+  }
+  const compatibleVariantIds = parseVariantMapping(
+    session.globalProductMapping.variantMappingJson,
+  ).variants
+    .filter((variant) => variant.enabled !== false)
+    .map((variant) => variant.shopifyVariantId);
+  const idempotencyKey = designerPublishKey(
+    input.shop,
+    creator.id,
+    session.id,
+  );
+  const slug = `${slugify(title)}-${input.sourceZakekeDesignId
+    .replace(/[^A-Za-z0-9]/g, "")
+    .slice(-8)
+    .toLowerCase()}`;
+  let designId: string;
+  if (session.creatorDesign) {
+    const claimed = await db.creatorDesign.updateMany({
+      where: {
+        id: session.creatorDesign.id,
+        syncStatus: { in: ["PENDING", "FAILED"] },
+      },
+      data: {
+        title,
+        description,
+        slug,
+        previewUrl: input.previewUrl,
+        artworkUrl: input.previewUrl,
+        sourceZakekeDesignId: input.sourceZakekeDesignId,
+        selectedAttributesJson: input.selectedAttributesJson,
+        compatibleVariantIdsJson: JSON.stringify(compatibleVariantIds),
+        status: "PROCESSING",
+        syncStatus: "SYNCING",
+        publishError: null,
+        lastErrorCode: null,
+        lastErrorReference: null,
+      },
+    });
+    if (claimed.count !== 1) {
+      throw new DomainError(
+        "DESIGN_PUBLISH_IN_PROGRESS",
+        "This design is already being published.",
+        409,
+      );
+    }
+    designId = session.creatorDesign.id;
+  } else {
+    const design = await db.creatorDesign.create({
+      data: {
+        shop: input.shop,
+        creatorId: creator.id,
+        designSessionId: session.id,
+        provider: "ZAKEKE",
+        globalProductMappingId: session.globalProductMappingId,
+        globalShopifyProductId: session.shopifyProductId,
+        sourceZakekeDesignId: input.sourceZakekeDesignId,
+        title,
+        slug,
+        description,
+        previewUrl: input.previewUrl,
+        artworkUrl: input.previewUrl,
+        designJson: safeJson({
+          provider: "ZAKEKE",
+          designId: input.sourceZakekeDesignId,
+        }),
+        compatibleVariantIdsJson: JSON.stringify(compatibleVariantIds),
+        selectedAttributesJson: input.selectedAttributesJson,
+        status: "PROCESSING",
+        syncStatus: "SYNCING",
+        idempotencyKey,
+      },
+    });
+    designId = design.id;
+  }
+  return synchronizeCreatorDesign(input.shop, designId, input.client);
 }
 
 export async function publishCreatorDesign(input: {
@@ -542,7 +734,14 @@ export async function setDesignerCreatorAvailability(
     db.shopConfig.findUnique({ where: { shop } }),
     db.creatorDesign.findMany({
       where: active
-        ? { shop, creatorId, status: "SUSPENDED", syncStatus: "HIDDEN" }
+        ? {
+            shop,
+            creatorId,
+            status: "SUSPENDED",
+            syncStatus: "HIDDEN",
+            hiddenReason: "CREATOR_SUSPENDED",
+            wasPublishedBeforeSuspension: true,
+          }
         : { shop, creatorId, status: "ACTIVE", syncStatus: "SYNCED" },
     }),
   ]);
@@ -561,7 +760,12 @@ export async function setDesignerCreatorAvailability(
       await setProductStatus(client, design.shopifyCreatorProductId, "ACTIVE");
       await db.creatorDesign.update({
         where: { id: design.id },
-        data: { status: "ACTIVE", syncStatus: "SYNCED" },
+        data: {
+          status: "ACTIVE",
+          syncStatus: "SYNCED",
+          hiddenReason: null,
+          wasPublishedBeforeSuspension: false,
+        },
       });
     } else {
       await setProductStatus(client, design.shopifyCreatorProductId, "DRAFT");
@@ -575,7 +779,11 @@ export async function setDesignerCreatorAvailability(
       }
       await db.creatorDesign.update({
         where: { id: design.id },
-        data: { status: "SUSPENDED", syncStatus: "HIDDEN" },
+        data: {
+          status: "SUSPENDED", syncStatus: "HIDDEN",
+          hiddenReason: "CREATOR_SUSPENDED",
+          wasPublishedBeforeSuspension: true,
+        },
       });
     }
   }

@@ -6,7 +6,8 @@ export type DiagnosticCategory =
   | "app_proxy_authentication"
   | "database_connection"
   | "graphql_failure"
-  | "designer_request";
+  | "designer_request"
+  | "zakeke_request";
 
 export function correlationId(request?: Request): string {
   const supplied = request?.headers.get("x-request-id")?.trim();

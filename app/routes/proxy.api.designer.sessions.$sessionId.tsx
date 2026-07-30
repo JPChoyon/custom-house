@@ -43,4 +43,3 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     return designerApiError(error, "designer.session_load");
   }
 }
-

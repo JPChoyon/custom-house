@@ -1,0 +1,78 @@
+{% liquid
+  assign product_type = product.metafields.customhouse.product_type.value | default: 'standard'
+  assign zakeke_enabled = product.metafields.customhouse.zakeke_enabled.value
+  assign is_global = false
+  assign is_fixed = false
+  if product_type == 'global_customizable' and zakeke_enabled == true
+    assign is_global = true
+  elsif product_type == 'creator_fixed'
+    assign is_fixed = true
+  endif
+%}
+
+{% if is_global or is_fixed %}
+  {{ 'customhouse-zakeke.css' | asset_url | stylesheet_tag }}
+  <section
+    class="customhouse-zakeke-actions"
+    data-customhouse-zakeke
+    data-product-id="{{ product.id | prepend: 'gid://shopify/Product/' }}"
+    data-product-type="{{ product_type }}"
+    data-current-variant-id="{{ product.selected_or_first_available_variant.id | prepend: 'gid://shopify/ProductVariant/' }}"
+  >
+    <div class="customhouse-zakeke-heading">
+      {% if is_fixed %}
+        <span class="customhouse-zakeke-kicker">Creator original</span>
+        <h2>{{ product.title }}</h2>
+        {% if product.featured_image %}
+          {{
+            product.featured_image
+            | image_url: width: 900
+            | image_tag:
+              widths: '320, 480, 720, 900',
+              loading: 'lazy',
+              class: 'customhouse-zakeke-preview',
+              alt: product.title
+          }}
+        {% endif %}
+      {% else %}
+        <span class="customhouse-zakeke-kicker">Design it your way</span>
+        <h2>{{ block.settings.heading }}</h2>
+      {% endif %}
+    </div>
+
+    <p data-zakeke-status>Checking secure customization access…</p>
+
+    {% if is_global %}
+      <div class="customhouse-zakeke-buttons" data-zakeke-global-actions hidden>
+        <button type="button" data-zakeke-customer>
+          Customize This Product
+        </button>
+        <button type="button" class="secondary" data-zakeke-creator hidden>
+          Create for My Collection
+        </button>
+      </div>
+    {% else %}
+      <div class="customhouse-zakeke-creator-byline" data-zakeke-creator-byline hidden></div>
+      <a data-zakeke-collection hidden>View creator collection</a>
+      <button type="button" data-zakeke-fixed-purchase hidden>
+        Add creator design to cart
+      </button>
+    {% endif %}
+  </section>
+  <script src="{{ 'customhouse-zakeke.js' | asset_url }}" defer></script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "Zakeke Product Actions",
+  "target": "section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Global product heading",
+      "default": "Customize this product"
+    }
+  ]
+}
+{% endschema %}

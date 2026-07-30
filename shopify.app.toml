@@ -25,6 +25,22 @@ api_version = "2026-07"
   topics = ["products/delete"]
 
   [[webhooks.subscriptions]]
+  uri = "/webhooks/products/update"
+  topics = ["products/update"]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/orders/create"
+  topics = ["orders/create"]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/orders/cancelled"
+  topics = ["orders/cancelled"]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/refunds/create"
+  topics = ["refunds/create"]
+
+  [[webhooks.subscriptions]]
   uri = "/webhooks/customers/data_request"
   compliance_topics = ["customers/data_request"]
 
@@ -49,7 +65,7 @@ api_version = "2026-07"
   topics = ["customers/update"]
 
 [access_scopes]
-scopes = "read_products,write_products,read_customers,write_customers,read_metaobjects,write_metaobjects,write_metaobject_definitions,read_files,write_files,read_publications,write_publications"
+scopes = "read_products,write_products,read_customers,write_customers,read_metaobjects,write_metaobjects,write_metaobject_definitions,read_files,write_files,read_publications,write_publications,read_orders"
 
 [auth]
 redirect_urls = [

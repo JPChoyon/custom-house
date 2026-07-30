@@ -5,8 +5,13 @@ import { authenticate } from "../shopify.server";
 export async function action({ request }: ActionFunctionArgs) {
   const { shop } = await authenticate.webhook(request);
   await db.$transaction([
+    db.orderDesignSnapshot.deleteMany({ where: { shop } }),
+    db.zakekeOrderJob.deleteMany({ where: { shop } }),
+    db.webhookDelivery.deleteMany({ where: { shop } }),
+    db.designPurchase.deleteMany({ where: { shop } }),
     db.creatorDesign.deleteMany({ where: { shop } }),
     db.designSession.deleteMany({ where: { shop } }),
+    db.globalProductMapping.deleteMany({ where: { shop } }),
     db.creatorApplication.deleteMany({ where: { shop } }),
     db.designSubmission.deleteMany({ where: { shop } }),
     db.creator.deleteMany({ where: { shop } }),

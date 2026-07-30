@@ -91,6 +91,29 @@
       <h3>Recent submissions</h3>
       <ul data-dashboard-submissions></ul>
     </section>
+    <section class="customhouse-dashboard-section" data-dashboard-zakeke hidden>
+      <h3>Create Design</h3>
+      <p data-dashboard-zakeke-message></p>
+      <div class="customhouse-dashboard-links" data-dashboard-eligible-products></div>
+      <div class="customhouse-dashboard-grid">
+        <details class="customhouse-dashboard-stat" open>
+          <summary><span>My Drafts</span><strong data-dashboard-draft-count>0</strong></summary>
+          <ul data-dashboard-drafts></ul>
+        </details>
+        <details class="customhouse-dashboard-stat">
+          <summary><span>Published Designs</span><strong data-dashboard-published-count>0</strong></summary>
+          <ul data-dashboard-published></ul>
+        </details>
+        <details class="customhouse-dashboard-stat">
+          <summary><span>Hidden Designs</span><strong data-dashboard-hidden-count>0</strong></summary>
+          <ul data-dashboard-hidden></ul>
+        </details>
+        <details class="customhouse-dashboard-stat">
+          <summary><span>Archived Designs</span><strong data-dashboard-archived-count>0</strong></summary>
+          <ul data-dashboard-archived></ul>
+        </details>
+      </div>
+    </section>
   </div>
 </section>
 <script type="module" src="{{ 'customhouse-dashboard.js' | asset_url }}"></script>
