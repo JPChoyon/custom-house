@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { DomainError } from "../services/domain";
-import { proxyContext } from "../services/proxy.server";
+import { getStorefrontActor } from "../services/storefront-actor.server";
 import { getZakekePublicConfiguration } from "../services/zakeke/zakeke-config.server";
 import {
   zakekeDesignerHtml,
@@ -19,15 +19,14 @@ const HTML_HEADERS = {
 
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
-    const { shop, customerId, client } = await proxyContext(request, false);
+    const actor = await getStorefrontActor(request);
     const url = new URL(request.url);
     const session = await createZakekeDesignerSession({
-      shop,
-      customerId,
+      actor,
       productId: url.searchParams.get("product_id") || "",
       variantId: url.searchParams.get("variant_id") || "",
       intent: url.searchParams.get("intent"),
-      client,
+      client: actor.client,
     });
     return new Response(
       zakekeDesignerHtml({

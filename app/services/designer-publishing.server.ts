@@ -590,7 +590,25 @@ export async function publishZakekeCreatorDesign(input: {
     });
     designId = design.id;
   }
-  return synchronizeCreatorDesign(input.shop, designId, input.client);
+  try {
+    return await synchronizeCreatorDesign(
+      input.shop,
+      designId,
+      input.client,
+    );
+  } catch (error) {
+    if (
+      error instanceof DomainError &&
+      error.code === "DESIGN_PUBLISH_FAILED"
+    ) {
+      throw new DomainError(
+        "ZAKEKE_DESIGN_SAVED_SYNC_FAILED",
+        "Your design was saved, but we could not add it to your collection. Please try again.",
+        502,
+      );
+    }
+    throw error;
+  }
 }
 
 export async function publishCreatorDesign(input: {

@@ -6,13 +6,14 @@ import {
 } from "node:crypto";
 import { DomainError } from "../domain.ts";
 import { requireZakekeSecret } from "./zakeke-config.server.ts";
+import type { ZakekeDesignerMode } from "./zakeke-mode.ts";
 
 export type ZakekeDesignerSessionPayload = {
   sessionId: string;
   shop: string;
   productId: string;
   variantId: string;
-  mode: "CUSTOMER_BUY" | "CREATOR_PUBLISH";
+  mode: ZakekeDesignerMode;
   principal: string;
   creatorId?: string;
   nonce: string;
@@ -145,7 +146,11 @@ export function verifyZakekeDesignerSession(
     requireZakekeSecret("ZAKEKE_TOKEN_ENCRYPTION_SECRET"),
   );
   const mode = requiredString(payload, "mode");
-  if (mode !== "CUSTOMER_BUY" && mode !== "CREATOR_PUBLISH") {
+  if (
+    mode !== "CUSTOMER_BUY" &&
+    mode !== "CREATOR_BUY" &&
+    mode !== "CREATOR_PUBLISH"
+  ) {
     throw new DomainError(
       "SIGNED_TOKEN_INVALID",
       "The signed request is invalid.",

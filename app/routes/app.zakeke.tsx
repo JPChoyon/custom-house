@@ -226,7 +226,8 @@ export default function ZakekeAdmin() {
         <p>
           Integration: {String(data.connection.integration)} · Creator
           publishing: {String(data.connection.creatorPublishing)} · Fixed
-          purchase: {String(data.connection.fixedPurchase)}
+          purchase: {String(data.connection.fixedPurchase)} · Admin actor
+          diagnostics: {String(data.connection.adminDiagnostics)}
         </p>
         <p>
           Credentials:{" "}

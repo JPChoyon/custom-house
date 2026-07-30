@@ -66,6 +66,7 @@ No undocumented Zakeke cart property or API endpoint is used.
 ZAKEKE_INTEGRATION_ENABLED=false
 ZAKEKE_CREATOR_PUBLISHING_ENABLED=false
 ZAKEKE_FIXED_PURCHASE_ENABLED=false
+ZAKEKE_ADMIN_DIAGNOSTICS_ENABLED=false
 ```
 
 Enable flags in Preview only, in this order:
@@ -95,6 +96,12 @@ Both signing secrets must be high-entropy values at least 32 characters long.
 The client secret and S2S bearer token are server-only. The C2S token is created
 server-side and is returned only to the short-lived Customizer UI page, as
 required by Zakeke.
+
+Temporary actor diagnostics are available only through the authenticated Admin
+route `/app/zakeke/actor-diagnostic?customer_id=SHOPIFY_CUSTOMER_ID` when
+`ZAKEKE_ADMIN_DIAGNOSTICS_ENABLED=true`. Keep this flag `false` outside a
+short verification window. The response contains IDs, normalized status, and
+authorized modes only; it never contains contact data or credentials.
 
 ## Product mapping
 
@@ -133,10 +140,20 @@ product. An untested size or color must remain absent.
 ## Storefront behavior
 
 Add **Zakeke Product Actions** to the one test product template.
+Disable the standard Zakeke Shopify product-page launcher on that hidden test
+template. The standard launcher opens Zakeke's native Shopify integration and
+cannot receive the Custom House signed `CREATOR_PUBLISH` mode or the
+`cartButtonText` override.
 
 - Normal customers see **Customize This Product**.
 - Approved active creators see **Customize & Buy** and
   **Create for My Collection**.
+- The first button opens
+  `/apps/customhouse/zakeke/designer?...&intent=creator_buy`.
+- The collection button opens
+  `/apps/customhouse/zakeke/designer?...&intent=creator_publish`.
+- Pending, rejected, suspended, and ordinary customer accounts use
+  `intent=customer_buy`.
 - Pending, rejected, suspended, and logged-out customers cannot publish.
 - `creator_fixed` products never load the Zakeke Customizer UI.
 - Fixed purchase duplicates the source Zakeke design once per independent

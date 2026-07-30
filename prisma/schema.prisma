@@ -71,6 +71,7 @@ enum SubmissionStatus {
 enum DesignerMode {
   CUSTOMER_CUSTOMIZE
   CUSTOMER_BUY
+  CREATOR_BUY
   CREATOR_PUBLISH
 }
 

@@ -1,13 +1,18 @@
 import { randomUUID } from "node:crypto";
 import db from "../../db.server";
 import { DomainError, normalizeHttpsUrl, safeJson } from "../domain";
-import { requireApprovedCreator } from "../designer-session.server";
-import { normalizeCustomerGid } from "../helium-sync.server";
 import type { ShopifyGraphqlClient } from "../shopify-graphql.server";
+import type { TrustedStorefrontActor } from "../storefront-actor.server";
 import { ZakekeAuthService } from "./zakeke-auth.server";
 import { getZakekeFeatureFlags } from "./zakeke-config.server";
 import { ZakekeDesignService } from "./zakeke-designs.server";
 import {
+  authorizeZakekeMode,
+  isZakekePurchaseMode,
+  parseZakekeDesignerIntent,
+} from "./zakeke-mode";
+import {
+  parseVariantMapping,
   requireActiveGlobalProductMapping,
   requireMappedVariant,
   verifyGlobalZakekeProduct,
@@ -21,16 +26,6 @@ import {
 } from "./zakeke-signing.server";
 import { zakekeIdentityForPrincipal } from "./zakeke-identity";
 export { zakekeIdentityForPrincipal } from "./zakeke-identity";
-
-function safeIntent(value: string | null) {
-  if (!value || value === "customer") return "CUSTOMER_BUY" as const;
-  if (value === "creator") return "CREATOR_PUBLISH" as const;
-  throw new DomainError(
-    "DESIGNER_MODE_INVALID",
-    "The requested designer mode is invalid.",
-    400,
-  );
-}
 
 function numericVariantId(value: string) {
   const id = value.match(/^gid:\/\/shopify\/ProductVariant\/(\d+)$/)?.[1];
@@ -81,8 +76,7 @@ function safeQuantity(value: unknown) {
 }
 
 export async function createZakekeDesignerSession(input: {
-  shop: string;
-  customerId: string | null;
+  actor: TrustedStorefrontActor;
   productId: string;
   variantId: string;
   intent: string | null;
@@ -97,9 +91,12 @@ export async function createZakekeDesignerSession(input: {
       404,
     );
   }
-  const mode = safeIntent(input.intent);
+  const mode = authorizeZakekeMode(
+    input.actor,
+    parseZakekeDesignerIntent(input.intent),
+  );
   const mapping = await requireActiveGlobalProductMapping(
-    input.shop,
+    input.actor.shop,
     input.productId,
   );
   const mappedVariant = requireMappedVariant(
@@ -130,8 +127,8 @@ export async function createZakekeDesignerSession(input: {
 
   let creatorId: string | undefined;
   let principal: string;
-  if (input.customerId) {
-    principal = normalizeCustomerGid(input.customerId);
+  if (input.actor.customerId) {
+    principal = input.actor.customerId;
     if (mode === "CREATOR_PUBLISH") {
       if (!flags.creatorPublishing) {
         throw new DomainError(
@@ -140,14 +137,22 @@ export async function createZakekeDesignerSession(input: {
           404,
         );
       }
-      const creator = await requireApprovedCreator(input.shop, principal);
-      creatorId = creator.id;
+      creatorId = input.actor.creatorId || undefined;
+    } else if (mode === "CREATOR_BUY") {
+      creatorId = input.actor.creatorId || undefined;
+    }
+    if (mode !== "CUSTOMER_BUY" && !creatorId) {
+      throw new DomainError(
+        "CREATOR_FORBIDDEN",
+        "The approved creator record could not be resolved.",
+        403,
+      );
     }
   } else {
-    if (mode === "CREATOR_PUBLISH") {
+    if (mode !== "CUSTOMER_BUY") {
       throw new DomainError(
         "LOGIN_REQUIRED",
-        "Sign in before adding a design to your collection.",
+        "Sign in before using creator design mode.",
         401,
       );
     }
@@ -162,7 +167,7 @@ export async function createZakekeDesignerSession(input: {
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
   const session = await db.designSession.create({
     data: {
-      shop: input.shop,
+      shop: input.actor.shop,
       customerId: principal,
       creatorId,
       clientKey: randomUUID().replaceAll("-", ""),
@@ -181,7 +186,7 @@ export async function createZakekeDesignerSession(input: {
   });
   const sessionToken = signZakekeDesignerSession({
     sessionId: session.id,
-    shop: input.shop,
+    shop: input.actor.shop,
     productId: input.productId,
     variantId: input.variantId,
     mode,
@@ -208,26 +213,33 @@ export async function createZakekeDesignerSession(input: {
 }
 
 export async function verifyZakekeCallback(input: {
-  shop: string;
-  customerId: string | null;
+  actor: TrustedStorefrontActor;
   sessionToken: string;
+  callbackProductId: unknown;
   designId: unknown;
   quantity: unknown;
   selectedAttributes: unknown;
+  additionalData?: unknown;
+  extraOptions?: unknown;
   designService?: ZakekeDesignService;
 }) {
   const payload = verifyZakekeDesignerSession(input.sessionToken);
-  if (payload.shop !== input.shop) {
+  authorizeZakekeMode(input.actor, payload.mode);
+  if (payload.shop !== input.actor.shop) {
     throw new DomainError(
       "DESIGNER_SESSION_INVALID",
       "The designer session is invalid.",
       401,
     );
   }
-  const currentPrincipal = input.customerId
-    ? normalizeCustomerGid(input.customerId)
+  const currentPrincipal = input.actor.customerId
+    ? input.actor.customerId
     : payload.principal;
-  if (payload.principal !== currentPrincipal) {
+  if (
+    payload.principal !== currentPrincipal ||
+    (payload.mode !== "CUSTOMER_BUY" &&
+      payload.creatorId !== input.actor.creatorId)
+  ) {
     throw new DomainError(
       "DESIGNER_SESSION_FORBIDDEN",
       "This designer session belongs to another customer.",
@@ -237,11 +249,14 @@ export async function verifyZakekeCallback(input: {
   const session = await db.designSession.findFirst({
     where: {
       id: payload.sessionId,
-      shop: input.shop,
+      shop: input.actor.shop,
       provider: "ZAKEKE",
       customerId: payload.principal,
       shopifyProductId: payload.productId,
       shopifyVariantId: payload.variantId,
+      creatorId: payload.creatorId,
+      mode: payload.mode,
+      status: "READY",
     },
     include: { globalProductMapping: true },
   });
@@ -261,6 +276,26 @@ export async function verifyZakekeCallback(input: {
   const designId = safeDesignId(input.designId);
   const quantity = safeQuantity(input.quantity);
   const selectedAttributesJson = safeCallbackJson(input.selectedAttributes);
+  const callbackDataJson = safeCallbackJson({
+    additionalData: input.additionalData,
+    extraOptions: input.extraOptions,
+  });
+  if (
+    input.callbackProductId !==
+    session.globalProductMapping.zakekeProductCode
+  ) {
+    throw new DomainError(
+      "ZAKEKE_PRODUCT_MISMATCH",
+      "The customization product does not match this session.",
+      403,
+    );
+  }
+  requireMappedVariant(
+    parseVariantMapping(
+      session.globalProductMapping.variantMappingJson,
+    ),
+    payload.variantId,
+  );
   const identity = zakekeIdentityForPrincipal(payload.principal);
   const design = await (
     input.designService ?? new ZakekeDesignService()
@@ -290,9 +325,14 @@ export async function verifyZakekeCallback(input: {
     );
   }
   const previewUrl = normalizeHttpsUrl(preview);
-  await db.designSession.update({
-    where: { id: session.id },
+  const claimed = await db.designSession.updateMany({
+    where: {
+      id: session.id,
+      status: "READY",
+      nonceHash: hashOpaqueValue(payload.nonce),
+    },
     data: {
+      status: "DRAFT",
       zakekeDesignId: designId,
       previewUrl,
       artworkUrl: previewUrl,
@@ -301,9 +341,17 @@ export async function verifyZakekeCallback(input: {
         provider: "ZAKEKE",
         designId,
         modelCode: design.modelCode,
+        callbackData: JSON.parse(callbackDataJson),
       }),
     },
   });
+  if (claimed.count !== 1) {
+    throw new DomainError(
+      "DESIGNER_SESSION_REPLAYED",
+      "This designer action was already completed.",
+      409,
+    );
+  }
   return {
     payload,
     session,
@@ -321,7 +369,7 @@ export async function createCustomerDesignPurchase(input: {
   verified: Awaited<ReturnType<typeof verifyZakekeCallback>>;
 }) {
   const { payload, session, designId, quantity } = input.verified;
-  if (payload.mode !== "CUSTOMER_BUY") {
+  if (!isZakekePurchaseMode(payload.mode)) {
     throw new DomainError(
       "DESIGNER_MODE_INVALID",
       "This designer session cannot add a customer cart line.",
@@ -380,7 +428,10 @@ export async function createCustomerDesignPurchase(input: {
       id: numericVariantId(payload.variantId),
       quantity,
       properties: {
-        _custom_house_mode: "customer_customized",
+        _custom_house_mode:
+          payload.mode === "CREATOR_BUY"
+            ? "creator_customized"
+            : "customer_customized",
         _custom_house_design_id: designId,
         _custom_house_purchase_id: purchase.id,
         _custom_house_design_token: token,

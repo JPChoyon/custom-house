@@ -35,7 +35,7 @@
     return body.data;
   }
 
-  function openDesigner(root, intent) {
+  function openDesigner(root, mode) {
     const selectedVariant = variantId(root);
     if (!selectedVariant) {
       setStatus(root, "Choose an available product option first.", true);
@@ -44,7 +44,7 @@
     const url = new URL("/apps/customhouse/zakeke/designer", location.origin);
     url.searchParams.set("product_id", root.dataset.productId);
     url.searchParams.set("variant_id", selectedVariant);
-    url.searchParams.set("intent", intent);
+    url.searchParams.set("intent", mode.toLowerCase());
     location.assign(url.toString());
   }
 
@@ -125,13 +125,17 @@
       root.querySelector("[data-zakeke-global-actions]").hidden = false;
       root
         .querySelector("[data-zakeke-customer]")
-        .addEventListener("click", () => openDesigner(root, "customer"));
+        .addEventListener("click", () =>
+          openDesigner(root, data.customerMode || "CUSTOMER_BUY"),
+        );
       const creator = root.querySelector("[data-zakeke-creator]");
       creator.hidden = !data.creatorPublishAvailable;
       if (!creator.hidden) {
         root.querySelector("[data-zakeke-customer]").textContent =
           "Customize & Buy";
-        creator.addEventListener("click", () => openDesigner(root, "creator"));
+        creator.addEventListener("click", () =>
+          openDesigner(root, "CREATOR_PUBLISH"),
+        );
       }
       setStatus(
         root,

@@ -2,6 +2,7 @@
 -- Existing creator, submission, session, InkyBay, and Fabric data is preserved.
 
 ALTER TYPE "DesignerMode" ADD VALUE 'CUSTOMER_BUY';
+ALTER TYPE "DesignerMode" ADD VALUE 'CREATOR_BUY';
 
 ALTER TYPE "CreatorDesignStatus" ADD VALUE 'PROCESSING';
 ALTER TYPE "CreatorDesignStatus" ADD VALUE 'HIDDEN';

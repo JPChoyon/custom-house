@@ -92,6 +92,8 @@ export function zakekeConnectionSummary() {
   const flags = getZakekeFeatureFlags();
   return {
     ...flags,
+    adminDiagnostics:
+      process.env.ZAKEKE_ADMIN_DIAGNOSTICS_ENABLED === "true",
     credentialsConfigured: Boolean(
       process.env.ZAKEKE_CLIENT_ID?.trim() &&
         process.env.ZAKEKE_CLIENT_SECRET?.trim(),

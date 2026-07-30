@@ -18,7 +18,7 @@ export function zakekeDesignerHtml(input: {
   customizerScriptUrl: string;
   sessionToken: string;
   tokenOauth: string;
-  mode: "CUSTOMER_BUY" | "CREATOR_PUBLISH";
+  mode: ZakekeDesignerMode;
   product: {
     id: string;
     title: string;
@@ -47,11 +47,10 @@ export function zakekeDesignerHtml(input: {
   const modeLabel =
     input.mode === "CREATOR_PUBLISH"
       ? "Create for My Collection"
-      : "Customize & Buy";
-  const cartLabel =
-    input.mode === "CREATOR_PUBLISH"
-      ? "Add to My Collection"
-      : "Add to Cart";
+      : input.mode === "CREATOR_BUY"
+        ? "Customize & Buy"
+        : "Customize This Product";
+  const cartLabel = zakekeCartButtonText(input.mode);
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -109,16 +108,24 @@ export function zakekeDesignerHtml(input: {
         headers: {"Content-Type":"application/json","Accept":"application/json"},
         body: JSON.stringify({
           sessionToken: state.sessionToken,
+          productId: payload.productId,
           designId: payload.designId,
           quantity: payload.quantity || 1,
           selectedAttributes: payload.selectedattributes || [],
+          additionalData: payload.additionaldata || null,
+          extraOptions: payload.extraOptions || null,
           title: document.getElementById("design-title")?.value || "",
           description: document.getElementById("design-description")?.value || ""
         })
       });
       const body = await response.json().catch(() => null);
       if (!response.ok || !body?.success) {
-        throw new Error(body?.error?.message || "The design could not be completed.");
+        throw new Error(
+          body?.error?.message ||
+          (state.mode === "CREATOR_PUBLISH"
+            ? "Your design was saved, but we could not add it to your collection. Please try again."
+            : "The design could not be completed.")
+        );
       }
       if (state.mode === "CREATOR_PUBLISH") {
         show("Your design has been added to your collection.");
@@ -141,6 +148,7 @@ export function zakekeDesignerHtml(input: {
       quantity: 1,
       selectedattributes: state.product.attributes,
       cartButtonText: ${scriptJson(cartLabel)},
+      mobileVersion: window.matchMedia("(max-width: 700px)").matches,
       isSaveDesign: state.mode === "CREATOR_PUBLISH",
       getProductInfo: (data) => ({
         price: state.product.price + Number(data?.price || 0),
@@ -173,3 +181,7 @@ export function zakekeUnavailableHtml(message: string) {
     message,
   )}</p><a class="button" href="/">Return to store</a></main></body></html>`;
 }
+import {
+  zakekeCartButtonText,
+  type ZakekeDesignerMode,
+} from "./zakeke-mode.ts";
