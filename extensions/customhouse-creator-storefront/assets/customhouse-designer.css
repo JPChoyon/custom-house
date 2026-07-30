@@ -1,0 +1,302 @@
+.customhouse-designer {
+  --chd-accent: #5b4df7;
+  --chd-text: #171b2c;
+  --chd-muted: #667085;
+  --chd-border: #d9dce5;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 1rem 0;
+  color: var(--chd-text);
+}
+
+.customhouse-designer[hidden],
+.customhouse-designer [hidden] {
+  display: none !important;
+}
+
+.customhouse-designer button,
+.customhouse-designer input,
+.customhouse-designer select {
+  font: inherit;
+}
+
+.customhouse-designer button {
+  min-height: 44px;
+  padding: .65rem .85rem;
+  border: 1px solid var(--chd-border);
+  border-radius: .65rem;
+  color: var(--chd-text);
+  background: #fff;
+  cursor: pointer;
+}
+
+.customhouse-designer button:hover:not(:disabled) {
+  border-color: var(--chd-accent);
+}
+
+.customhouse-designer button:focus-visible,
+.customhouse-designer input:focus-visible,
+.customhouse-designer select:focus-visible {
+  outline: 3px solid rgba(91, 77, 247, .25);
+  outline-offset: 2px;
+}
+
+.customhouse-designer button:disabled {
+  cursor: wait;
+  opacity: .55;
+}
+
+.customhouse-designer__open,
+.customhouse-designer__login,
+.customhouse-designer [data-designer-primary] {
+  color: #fff !important;
+  border-color: transparent !important;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed) !important;
+  font-weight: 750 !important;
+  text-decoration: none;
+}
+
+.customhouse-designer__error {
+  margin: .75rem 0;
+  padding: .8rem 1rem;
+  border: 1px solid #fecdca;
+  border-radius: .65rem;
+  color: #b42318;
+  background: #fef3f2;
+}
+
+.customhouse-designer__app {
+  overflow: hidden;
+  border: 1px solid var(--chd-border);
+  border-radius: 18px;
+  background: #f8f9fc;
+  box-shadow: 0 18px 50px rgba(31, 35, 58, .14);
+}
+
+.customhouse-designer__header,
+.customhouse-designer__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: #fff;
+}
+
+.customhouse-designer__header {
+  border-bottom: 1px solid var(--chd-border);
+}
+
+.customhouse-designer__header h2,
+.customhouse-designer__header p,
+.customhouse-designer__actions p {
+  margin: 0;
+}
+
+.customhouse-designer__eyebrow {
+  color: var(--chd-accent);
+  font-size: .75rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.customhouse-designer__close {
+  min-width: 44px;
+  padding: 0 !important;
+  font-size: 1.5rem !important;
+}
+
+.customhouse-designer__mode {
+  display: flex;
+  gap: .5rem;
+  padding: .75rem 1rem 0;
+}
+
+.customhouse-designer__mode button[aria-pressed="true"] {
+  color: #fff;
+  border-color: var(--chd-accent);
+  background: var(--chd-accent);
+}
+
+.customhouse-designer__layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.customhouse-designer__tools {
+  display: grid;
+  align-content: start;
+  gap: .75rem;
+  padding: 1rem;
+  border: 1px solid var(--chd-border);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.customhouse-designer__tools label {
+  display: grid;
+  gap: .35rem;
+  color: var(--chd-muted);
+  font-size: .84rem;
+  font-weight: 700;
+}
+
+.customhouse-designer__tools input,
+.customhouse-designer__tools select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: .6rem .7rem;
+  border: 1px solid var(--chd-border);
+  border-radius: .55rem;
+  color: var(--chd-text);
+  background: #fff;
+}
+
+.customhouse-designer__tool-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .5rem;
+}
+
+.customhouse-designer__workspace {
+  min-width: 0;
+}
+
+.customhouse-designer__stage {
+  position: relative;
+  width: min(100%, 720px);
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--chd-border);
+  border-radius: 14px;
+  background-color: #eef0f5;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+}
+
+.customhouse-designer__stage .canvas-container {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.customhouse-designer__stage canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.customhouse-designer__print-area {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  border: 2px dashed rgba(91, 77, 247, .75);
+  box-shadow: 0 0 0 9999px rgba(255, 255, 255, .08);
+}
+
+.customhouse-designer__hint {
+  margin: .6rem 0 0;
+  color: var(--chd-muted);
+  text-align: center;
+  font-size: .82rem;
+}
+
+.customhouse-designer__actions {
+  align-items: flex-start;
+  border-top: 1px solid var(--chd-border);
+}
+
+.customhouse-designer__actions > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: .55rem;
+}
+
+.customhouse-designer__actions [data-state="error"] {
+  color: #b42318;
+}
+
+.customhouse-designer__actions [data-state="saved"] {
+  color: #067647;
+}
+
+.customhouse-designer__preview {
+  width: min(92vw, 700px);
+  padding: 1rem;
+  border: 0;
+  border-radius: 16px;
+  box-shadow: 0 24px 70px rgba(17, 24, 39, .35);
+}
+
+.customhouse-designer__preview::backdrop {
+  background: rgba(17, 24, 39, .72);
+}
+
+.customhouse-designer__preview img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.customhouse-designer__preview [data-designer-preview-close] {
+  float: right;
+}
+
+@media (max-width: 767px) {
+  .customhouse-designer__layout {
+    grid-template-columns: 1fr;
+    padding: .75rem;
+  }
+
+  .customhouse-designer__workspace {
+    order: -1;
+  }
+
+  .customhouse-designer__tools {
+    grid-template-columns: 1fr 1fr;
+    max-height: 42vh;
+    overflow-y: auto;
+  }
+
+  .customhouse-designer__tool-grid,
+  .customhouse-designer__tools [data-designer-resume-field],
+  .customhouse-designer__tools label:first-child,
+  .customhouse-designer__tools [data-designer-add-text],
+  .customhouse-designer__tools [data-designer-title-field] {
+    grid-column: 1 / -1;
+  }
+
+  .customhouse-designer__header,
+  .customhouse-designer__actions {
+    padding: .85rem;
+  }
+
+  .customhouse-designer__actions {
+    display: grid;
+  }
+
+  .customhouse-designer__actions > div,
+  .customhouse-designer__actions button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 430px) {
+  .customhouse-designer__tools {
+    grid-template-columns: 1fr;
+  }
+
+  .customhouse-designer__mode {
+    display: grid;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .customhouse-designer * {
+    scroll-behavior: auto !important;
+  }
+}

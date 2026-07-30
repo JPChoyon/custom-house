@@ -9,10 +9,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   // If this webhook already ran, the session may have been deleted previously.
   if (session) {
     await db.$transaction([
-      db.session.deleteMany({ where: { shop } }),
+      db.creatorDesign.deleteMany({ where: { shop } }),
+      db.designSession.deleteMany({ where: { shop } }),
       db.creatorApplication.deleteMany({ where: { shop } }),
       db.designSubmission.deleteMany({ where: { shop } }),
       db.creator.deleteMany({ where: { shop } }),
+      db.session.deleteMany({ where: { shop } }),
       db.shopConfig.deleteMany({ where: { shop } }),
       db.auditLog.deleteMany({ where: { shop } }),
     ]);

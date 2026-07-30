@@ -175,6 +175,17 @@ export async function changeCreatorStatus(
   const add = desiredTags.filter((tag) => !customer.customer!.tags.includes(tag));
   if (remove.length) { const result = await client.request<{ tagsRemove: { userErrors: Array<{ message: string }> } }>(`#graphql mutation RemoveCreatorTags($id: ID!, $tags: [String!]!) { tagsRemove(id: $id, tags: $tags) { userErrors { message } } }`, { id: creator.customerId, tags: remove }); throwUserErrors(result.tagsRemove.userErrors, "Customer tag removal"); }
   if (add.length) { const result = await client.request<{ tagsAdd: { userErrors: Array<{ message: string }> } }>(`#graphql mutation AddCreatorTags($id: ID!, $tags: [String!]!) { tagsAdd(id: $id, tags: $tags) { userErrors { message } } }`, { id: creator.customerId, tags: add }); throwUserErrors(result.tagsAdd.userErrors, "Customer tag addition"); }
+  if (next === "SUSPENDED" || (next === "APPROVED" && creator.status === "SUSPENDED")) {
+    const { setDesignerCreatorAvailability } = await import(
+      "./designer-publishing.server"
+    );
+    await setDesignerCreatorAvailability(
+      shop,
+      creator.id,
+      next === "APPROVED",
+      client,
+    );
+  }
   const now = new Date();
   const updated = await db.$transaction(async (tx) => {
     const updated = await tx.creator.update({

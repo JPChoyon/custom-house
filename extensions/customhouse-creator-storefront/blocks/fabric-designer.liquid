@@ -1,0 +1,143 @@
+{% if product %}
+  {{ 'customhouse-designer.css' | asset_url | stylesheet_tag }}
+  <section
+    class="customhouse-designer"
+    data-customhouse-designer
+    data-product-id="gid://shopify/Product/{{ product.id }}"
+    data-variant-id="gid://shopify/ProductVariant/{{ product.selected_or_first_available_variant.id }}"
+    data-fabric-module="{{ 'fabric-7.4.0.min.mjs' | asset_url }}"
+    hidden
+  >
+    <button
+      class="customhouse-designer__open"
+      type="button"
+      data-designer-open
+      hidden
+    >
+      {{ block.settings.button_label }}
+    </button>
+    <a class="customhouse-designer__login" data-designer-login href="{{ routes.account_login_url }}" hidden>
+      Sign in to customize this product
+    </a>
+    <p class="customhouse-designer__error" data-designer-bootstrap-error role="alert" hidden></p>
+
+    <div class="customhouse-designer__app" data-designer-app hidden>
+      <header class="customhouse-designer__header">
+        <div>
+          <p class="customhouse-designer__eyebrow">Custom House design lab</p>
+          <h2>{{ block.settings.heading }}</h2>
+        </div>
+        <button type="button" class="customhouse-designer__close" data-designer-close aria-label="Close designer">×</button>
+      </header>
+
+      <div class="customhouse-designer__mode" data-designer-mode-switch hidden>
+        <button type="button" data-designer-mode="CUSTOMER_CUSTOMIZE">Customize &amp; Buy</button>
+        <button type="button" data-designer-mode="CREATOR_PUBLISH">Create for my collection</button>
+      </div>
+
+      <div class="customhouse-designer__layout">
+        <aside class="customhouse-designer__tools" aria-label="Design tools">
+          <label data-designer-resume-field hidden>
+            Resume saved design
+            <select data-designer-resume>
+              <option value="">Choose a recent design</option>
+            </select>
+          </label>
+          <label>
+            Text
+            <input data-designer-text type="text" maxlength="120" value="Your text">
+          </label>
+          <button type="button" data-designer-add-text>Add text</button>
+          <label>
+            Font
+            <select data-designer-font>
+              <option value="Arial">Arial</option>
+              <option value="Georgia">Georgia</option>
+              <option value="Trebuchet MS">Trebuchet</option>
+              <option value="Verdana">Verdana</option>
+            </select>
+          </label>
+          <label>
+            Font size
+            <input data-designer-font-size type="number" min="12" max="240" value="48">
+          </label>
+          <label>
+            Text color
+            <input data-designer-color type="color" value="#111111">
+          </label>
+          <label>
+            Upload artwork
+            <input
+              data-designer-upload
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+            >
+          </label>
+          <div class="customhouse-designer__tool-grid">
+            <button type="button" data-designer-delete>Delete</button>
+            <button type="button" data-designer-forward>Bring forward</button>
+            <button type="button" data-designer-backward>Send backward</button>
+            <button type="button" data-designer-undo>Undo</button>
+            <button type="button" data-designer-redo>Redo</button>
+            <button type="button" data-designer-reset>Reset</button>
+            <button type="button" data-designer-export-artwork>Export artwork PNG</button>
+            <button type="button" data-designer-export-preview>Export preview PNG</button>
+          </div>
+          <label data-designer-title-field hidden>
+            Design title
+            <input data-designer-title type="text" minlength="2" maxlength="120" value="My creator design">
+          </label>
+        </aside>
+
+        <div class="customhouse-designer__workspace">
+          <div class="customhouse-designer__stage" data-designer-stage>
+            <canvas data-designer-canvas></canvas>
+            <div class="customhouse-designer__print-area" data-designer-print-area aria-hidden="true"></div>
+          </div>
+          <p class="customhouse-designer__hint">Keep artwork inside the dashed print area.</p>
+        </div>
+      </div>
+
+      <footer class="customhouse-designer__actions">
+        <p data-designer-status role="status" aria-live="polite">Ready.</p>
+        <div>
+          <button type="button" data-designer-preview>Preview</button>
+          <button type="button" data-designer-save hidden>Save Draft</button>
+          <button type="button" data-designer-primary>Customize &amp; Buy</button>
+        </div>
+      </footer>
+    </div>
+
+    <dialog class="customhouse-designer__preview" data-designer-preview-dialog>
+      <button type="button" data-designer-preview-close aria-label="Close preview">×</button>
+      <h3>Product preview</h3>
+      <img data-designer-preview-image alt="Your customized product preview">
+    </dialog>
+  </section>
+
+  <script type="module" src="{{ 'customhouse-designer.js' | asset_url }}"></script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "Fabric Designer POC",
+  "target": "section",
+  "enabled_on": {
+    "templates": ["product"]
+  },
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Design your Custom House T-shirt"
+    },
+    {
+      "type": "text",
+      "id": "button_label",
+      "label": "Button label",
+      "default": "Customize This Product"
+    }
+  ]
+}
+{% endschema %}

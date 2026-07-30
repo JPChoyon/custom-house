@@ -68,6 +68,34 @@ enum SubmissionStatus {
   ARCHIVED
 }
 
+enum DesignerMode {
+  CUSTOMER_CUSTOMIZE
+  CREATOR_PUBLISH
+}
+
+enum DesignSessionStatus {
+  DRAFT
+  READY
+  PUBLISHED
+  CARTED
+  FAILED
+}
+
+enum CreatorDesignStatus {
+  DRAFT
+  ACTIVE
+  SUSPENDED
+  FAILED
+}
+
+enum CreatorDesignSyncStatus {
+  PENDING
+  SYNCING
+  SYNCED
+  FAILED
+  HIDDEN
+}
+
 model ShopConfig {
   id                                 String    @id @default(cuid())
   shop                               String    @unique
@@ -123,6 +151,8 @@ model Creator {
   updatedAt                  DateTime             @updatedAt
   applications               CreatorApplication[]
   submissions                DesignSubmission[]
+  designSessions             DesignSession[]
+  creatorDesigns             CreatorDesign[]
 
   @@unique([shop, customerId])
   @@unique([shop, handle])
@@ -182,6 +212,58 @@ model DesignSubmission {
   @@index([shop, status])
   @@index([creatorId, createdAt])
   @@index([shop, createdProductId])
+}
+
+model DesignSession {
+  id                 String              @id @default(cuid())
+  shop               String
+  customerId         String
+  creatorId          String?
+  clientKey          String
+  shopifyProductId   String
+  shopifyVariantId   String
+  mode               DesignerMode
+  designJson         String              @db.Text
+  previewUrl         String?
+  artworkUrl         String?
+  status             DesignSessionStatus @default(DRAFT)
+  version            Int                 @default(1)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  creator            Creator?            @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+  creatorDesign      CreatorDesign?
+
+  @@unique([shop, customerId, clientKey])
+  @@index([shop, customerId, updatedAt])
+  @@index([creatorId, status])
+}
+
+model CreatorDesign {
+  id                      String                  @id @default(cuid())
+  shop                    String
+  creatorId               String
+  designSessionId         String                  @unique
+  globalShopifyProductId  String
+  shopifyCreatorProductId String?
+  shopifyCollectionId     String?
+  title                   String
+  previewUrl              String
+  artworkUrl              String
+  designJson              String                  @db.Text
+  status                  CreatorDesignStatus     @default(DRAFT)
+  syncStatus              CreatorDesignSyncStatus @default(PENDING)
+  idempotencyKey          String
+  publishError            String?
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+  publishedAt             DateTime?
+  creator                 Creator                 @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  designSession           DesignSession           @relation(fields: [designSessionId], references: [id], onDelete: Restrict)
+
+  @@unique([shop, idempotencyKey])
+  @@index([creatorId, status])
+  @@index([shop, shopifyCreatorProductId])
+  @@index([shop, syncStatus])
 }
 
 model AuditLog {
