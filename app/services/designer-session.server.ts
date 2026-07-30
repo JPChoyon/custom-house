@@ -124,8 +124,8 @@ export async function requireApprovedCreator(shop: string, customerId: string) {
   });
   if (!creator || !canCreatorPublish(creator.status, creator.suspendedAt)) {
     throw new DomainError(
-      "CREATOR_FORBIDDEN",
-      "Only approved, active creators can publish designs.",
+      "CREATOR_NOT_APPROVED",
+      "Only approved creators can add designs to a collection.",
       403,
     );
   }

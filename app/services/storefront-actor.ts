@@ -1,8 +1,10 @@
-export type StorefrontCreatorStatus =
-  | "PENDING"
-  | "APPROVED"
-  | "REJECTED"
-  | "SUSPENDED";
+import {
+  canApprovedCreatorPublish,
+  isSuspendedCreatorStatus,
+  normalizeCreatorStatus,
+} from "./creator-status.ts";
+
+export type StorefrontCreatorStatus = string;
 
 export type StorefrontActorRole = "GUEST" | "CUSTOMER" | "CREATOR";
 
@@ -16,7 +18,11 @@ export type StorefrontActor = {
   role: StorefrontActorRole;
   creatorId: string | null;
   creatorStatus: StorefrontCreatorStatus | null;
+  rawCreatorStatus: StorefrontCreatorStatus | null;
+  normalizedCreatorStatus: string;
+  isCreator: boolean;
   isApprovedCreator: boolean;
+  isSuspendedCreator: boolean;
   isSuspended: boolean;
   authorizedDesignerModes: AuthorizedDesignerMode[];
 };
@@ -25,29 +31,44 @@ export function normalizeStorefrontActor(input: {
   customerId: string | null;
   creator: {
     id: string;
-    status: StorefrontCreatorStatus;
+    status: unknown;
     suspendedAt: Date | string | null;
   } | null;
 }): StorefrontActor {
-  const isSuspended = Boolean(
+  const rawCreatorStatus =
+    typeof input.creator?.status === "string"
+      ? input.creator.status
+      : null;
+  const normalizedCreatorStatus =
+    normalizeCreatorStatus(rawCreatorStatus);
+  const isSuspendedCreator = Boolean(
     input.creator &&
-      (input.creator.status === "SUSPENDED" ||
+      (isSuspendedCreatorStatus(rawCreatorStatus) ||
         input.creator.suspendedAt),
   );
   const isApprovedCreator = Boolean(
-    input.creator?.status === "APPROVED" && !isSuspended,
+    input.creator &&
+      canApprovedCreatorPublish(
+        rawCreatorStatus,
+        input.creator.suspendedAt,
+      ),
   );
+  const isCreator = Boolean(input.creator);
   return {
     customerId: input.customerId,
-    role: input.creator
+    role: isCreator
       ? "CREATOR"
       : input.customerId
         ? "CUSTOMER"
         : "GUEST",
     creatorId: input.creator?.id ?? null,
-    creatorStatus: input.creator?.status ?? null,
+    creatorStatus: rawCreatorStatus,
+    rawCreatorStatus,
+    normalizedCreatorStatus,
+    isCreator,
     isApprovedCreator,
-    isSuspended,
+    isSuspendedCreator,
+    isSuspended: isSuspendedCreator,
     authorizedDesignerModes: [
       "CUSTOMER_BUY",
       ...(isApprovedCreator

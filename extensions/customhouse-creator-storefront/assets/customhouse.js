@@ -20,7 +20,13 @@
     const status = element.querySelector("[data-status]");
     try {
       const me = await api("me");
-      if (!me.creator || me.creator.status !== "APPROVED") { message(status, "Only approved creators can submit designs."); return; }
+      if (
+        !me.creator ||
+        String(me.creator.status || "").trim().toLowerCase() !== "approved"
+      ) {
+        message(status, "Only approved creators can submit designs.");
+        return;
+      }
       element.querySelector("form").hidden = false;
     } catch (error) {
       message(status, error instanceof Error ? error.message : "Request failed", true);

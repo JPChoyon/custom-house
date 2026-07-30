@@ -8,6 +8,8 @@ import { DomainError } from "../services/domain";
 import { getStorefrontActor } from "../services/storefront-actor.server";
 import { getZakekeFeatureFlags } from "../services/zakeke/zakeke-config.server";
 import { requireActiveGlobalProductMapping } from "../services/zakeke/zakeke-products.server";
+import { canCreatorPublish } from "../services/designer-publishing";
+import { zakekeProductActions } from "../services/zakeke/zakeke-mode";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
@@ -24,14 +26,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
       );
     }
     if (productType === "creator_fixed") {
-      const design = await db.creatorDesign.findFirst({
+      let design = await db.creatorDesign.findFirst({
         where: {
           shop: actor.shop,
           shopifyCreatorProductId: productId,
           provider: "ZAKEKE",
           status: "ACTIVE",
           syncStatus: "SYNCED",
-          creator: { status: "APPROVED", suspendedAt: null },
         },
         select: {
           id: true,
@@ -39,9 +40,24 @@ export async function loader({ request }: LoaderFunctionArgs) {
           previewUrl: true,
           compatibleVariantIdsJson: true,
           shopifyCollectionId: true,
-          creator: { select: { displayName: true } },
+          creator: {
+            select: {
+              displayName: true,
+              status: true,
+              suspendedAt: true,
+            },
+          },
         },
       });
+      if (
+        design &&
+        !canCreatorPublish(
+          design.creator.status,
+          design.creator.suspendedAt,
+        )
+      ) {
+        design = null;
+      }
       let collectionUrl: string | null = null;
       if (design?.shopifyCollectionId) {
         try {
@@ -68,27 +84,27 @@ export async function loader({ request }: LoaderFunctionArgs) {
               id: design.id,
               title: design.title,
               previewUrl: design.previewUrl,
-              creator: design.creator,
+              creator: { displayName: design.creator.displayName },
             }
           : null,
         collectionUrl,
       });
     }
     await requireActiveGlobalProductMapping(actor.shop, productId);
-    const creatorPublishAvailable =
-      actor.isApprovedCreator && flags.creatorPublishing;
+    const actions = zakekeProductActions(
+      actor,
+      flags.creatorPublishing,
+    );
     return designerApiSuccess({
       productType: "global_customizable",
-      customerBuyAvailable: true,
-      creatorPublishAvailable,
-      customerMode: actor.isApprovedCreator
-        ? "CREATOR_BUY"
-        : "CUSTOMER_BUY",
+      ...actions,
       actor: {
         role: actor.role,
         creatorStatus: actor.creatorStatus,
+        normalizedCreatorStatus: actor.normalizedCreatorStatus,
+        isCreator: actor.isCreator,
         isApprovedCreator: actor.isApprovedCreator,
-        isSuspended: actor.isSuspended,
+        isSuspendedCreator: actor.isSuspendedCreator,
       },
     });
   } catch (error) {

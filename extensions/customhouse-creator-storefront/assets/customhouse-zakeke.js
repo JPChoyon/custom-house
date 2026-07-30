@@ -128,11 +128,13 @@
         .addEventListener("click", () =>
           openDesigner(root, data.customerMode || "CUSTOMER_BUY"),
         );
+      root.querySelector("[data-zakeke-customer]").textContent =
+        data.customerButtonText || "Customize This Product";
       const creator = root.querySelector("[data-zakeke-creator]");
       creator.hidden = !data.creatorPublishAvailable;
       if (!creator.hidden) {
-        root.querySelector("[data-zakeke-customer]").textContent =
-          "Customize & Buy";
+        creator.textContent =
+          data.creatorButtonText || "Create for My Collection";
         creator.addEventListener("click", () =>
           openDesigner(root, "CREATOR_PUBLISH"),
         );

@@ -4,6 +4,7 @@ import { ensureCreatorCollection } from "./creator.server";
 import { DomainError, safeJson, slugify } from "./domain";
 import { getDesignerConfig } from "./designer-config.server";
 import {
+  canCreatorPublish,
   designerPublishKey,
   duplicateVariantsToDelete,
   fixedProductTags,
@@ -310,10 +311,15 @@ async function synchronizeCreatorDesign(
   if (!design) {
     throw new DomainError("DESIGN_MISSING", "The creator design was not found.", 404);
   }
-  if (design.creator.status !== "APPROVED" || design.creator.suspendedAt) {
+  if (
+    !canCreatorPublish(
+      design.creator.status,
+      design.creator.suspendedAt,
+    )
+  ) {
     throw new DomainError(
-      "CREATOR_FORBIDDEN",
-      "Only approved, active creators can publish designs.",
+      "CREATOR_NOT_APPROVED",
+      "Only approved creators can add designs to a collection.",
       403,
     );
   }

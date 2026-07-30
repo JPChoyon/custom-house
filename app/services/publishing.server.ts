@@ -2,6 +2,7 @@ import db from "../db.server";
 import { DomainError, collectionTitle, safeJson, slugify } from "./domain";
 import type { ShopifyGraphqlClient } from "./shopify-graphql.server";
 import { throwUserErrors } from "./shopify-graphql.server";
+import { canCreatorPublish } from "./designer-publishing";
 
 type Errors = Array<{ message: string }>;
 
@@ -38,7 +39,13 @@ export async function publishSubmission(shop: string, submissionId: string, clie
   const submission = await db.designSubmission.findFirst({ where: { id: submissionId, shop }, include: { creator: true } });
   if (!submission) throw new DomainError("NOT_FOUND", "Submission not found.", 404);
   if (!(["PENDING", "FAILED", "APPROVED"] as string[]).includes(submission.status)) throw new DomainError("NOT_PUBLISHABLE", "Submission is not publishable.", 409);
-  if (submission.creator.status !== "APPROVED") throw new DomainError("CREATOR_NOT_APPROVED", "Creator is no longer approved.", 409);
+  if (!canCreatorPublish(submission.creator.status, submission.creator.suspendedAt)) {
+    throw new DomainError(
+      "CREATOR_NOT_APPROVED",
+      "Only approved creators can add designs to a collection.",
+      403,
+    );
+  }
 
   const base = await client.request<{ product: { origin: { value: string } | null; mode: { value: string } | null } | null }>(
     `#graphql query($id: ID!) { product(id: $id) { origin: metafield(namespace: "customhouse", key: "product_origin") { value } mode: metafield(namespace: "customhouse", key: "design_mode") { value } } }`,

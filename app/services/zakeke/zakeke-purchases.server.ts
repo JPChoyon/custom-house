@@ -4,6 +4,7 @@ import { DomainError, parseJsonList } from "../domain";
 import { normalizeCustomerGid } from "../helium-sync.server";
 import type { ShopifyGraphqlClient } from "../shopify-graphql.server";
 import { getZakekeFeatureFlags } from "./zakeke-config.server";
+import { canCreatorPublish } from "../designer-publishing";
 import { ZakekeDesignService } from "./zakeke-designs.server";
 import {
   hashOpaqueValue,
@@ -157,13 +158,13 @@ export async function prepareFixedCreatorPurchase(input: {
       sourceZakekeDesignId: { not: null },
       shopifyCreatorProductId: { not: null },
       shopifyCollectionId: { not: null },
-      creator: { status: "APPROVED", suspendedAt: null },
     },
     include: { creator: true },
   });
   if (
     !design?.sourceZakekeDesignId ||
-    !design.shopifyCreatorProductId
+    !design.shopifyCreatorProductId ||
+    !canCreatorPublish(design.creator.status, design.creator.suspendedAt)
   ) {
     throw new DomainError(
       "CREATOR_DESIGN_UNAVAILABLE",

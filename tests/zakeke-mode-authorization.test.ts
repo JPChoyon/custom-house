@@ -5,13 +5,22 @@ import {
   normalizeStorefrontActor,
   type StorefrontCreatorStatus,
 } from "../app/services/storefront-actor.ts";
-import { designerPublishKey } from "../app/services/designer-publishing.ts";
+import {
+  canCreatorPublish,
+  designerPublishKey,
+} from "../app/services/designer-publishing.ts";
+import {
+  isApprovedCreatorStatus,
+  isSuspendedCreatorStatus,
+  normalizeCreatorStatus,
+} from "../app/services/creator-status.ts";
 import { zakekeDesignerHtml } from "../app/services/zakeke/zakeke-designer-page.server.ts";
 import {
   authorizeZakekeMode,
   parseZakekeDesignerIntent,
   zakekeCallbackDestination,
   zakekeCartButtonText,
+  zakekeProductActions,
 } from "../app/services/zakeke/zakeke-mode.ts";
 import {
   signZakekeDesignerSession,
@@ -32,32 +41,47 @@ function actor(
   });
 }
 
-test("actual approved status is APPROVED and not approve", async () => {
+test("schema keeps the confirmed Creator.status enum without a second status field", async () => {
   const schema = await readFile(
     new URL("../prisma/schema.prisma", import.meta.url),
     "utf8",
   );
+  assert.match(schema, /model Creator\s*\{[^}]*status\s+CreatorStatus/s);
   assert.match(schema, /enum CreatorStatus\s*\{[^}]*APPROVED/s);
-  assert.doesNotMatch(schema, /^\s*approve\s*$/m);
-  assert.equal(actor("APPROVED").isApprovedCreator, true);
-  assert.equal(
-    normalizeStorefrontActor({
-      customerId: "gid://shopify/Customer/10",
-      creator: {
-        id: "creator-10",
-        status: "approve" as StorefrontCreatorStatus,
-        suspendedAt: null,
-      },
-    }).isApprovedCreator,
-    false,
-  );
+  assert.doesNotMatch(schema, /^\s*creator_status\s+/m);
+});
+
+test("creator status normalization accepts approved defensively and rejects near matches", () => {
+  for (const status of ["approved", " approved ", "APPROVED"]) {
+    assert.equal(normalizeCreatorStatus(status), "approved");
+    assert.equal(isApprovedCreatorStatus(status), true);
+    assert.equal(canCreatorPublish(status, null), true);
+    assert.equal(actor(status).isApprovedCreator, true);
+  }
+  for (const status of [
+    "approve",
+    "pending",
+    "rejected",
+    "suspended",
+    null,
+  ]) {
+    assert.equal(isApprovedCreatorStatus(status), false);
+    assert.equal(canCreatorPublish(status, null), false);
+  }
+  assert.equal(isSuspendedCreatorStatus(" SUSPENDED "), true);
 });
 
 test("storefront actor maps approved creator and Shopify customer identity", () => {
-  const approved = actor("APPROVED");
+  const approved = actor("approved");
   assert.equal(approved.customerId, "gid://shopify/Customer/10");
   assert.equal(approved.creatorId, "creator-10");
   assert.equal(approved.role, "CREATOR");
+  assert.equal(approved.creatorStatus, "approved");
+  assert.equal(approved.rawCreatorStatus, "approved");
+  assert.equal(approved.normalizedCreatorStatus, "approved");
+  assert.equal(approved.isCreator, true);
+  assert.equal(approved.isApprovedCreator, true);
+  assert.equal(approved.isSuspendedCreator, false);
   assert.deepEqual(approved.authorizedDesignerModes, [
     "CUSTOMER_BUY",
     "CREATOR_BUY",
@@ -67,19 +91,31 @@ test("storefront actor maps approved creator and Shopify customer identity", () 
 
 test("pending, rejected, and suspended creators cannot use creator modes", () => {
   for (const status of [
-    "PENDING",
-    "REJECTED",
-    "SUSPENDED",
+    "pending",
+    "rejected",
+    "suspended",
   ] as const) {
     const value = actor(status);
     assert.deepEqual(value.authorizedDesignerModes, ["CUSTOMER_BUY"]);
-    assert.throws(
-      () => authorizeZakekeMode(value, "CREATOR_PUBLISH"),
-      /approved, active creators/i,
-    );
+    assert.throws(() => {
+      try {
+        authorizeZakekeMode(value, "CREATOR_PUBLISH");
+      } catch (error) {
+        assert.equal(
+          (error as { code?: string }).code,
+          "CREATOR_NOT_APPROVED",
+        );
+        assert.equal(
+          (error as { status?: number }).status,
+          403,
+        );
+        throw error;
+      }
+    }, /only approved creators/i);
   }
-  const suspendedTimestamp = actor("APPROVED", new Date());
+  const suspendedTimestamp = actor("approved", new Date());
   assert.equal(suspendedTimestamp.isSuspended, true);
+  assert.equal(suspendedTimestamp.isSuspendedCreator, true);
   assert.deepEqual(suspendedTimestamp.authorizedDesignerModes, [
     "CUSTOMER_BUY",
   ]);
@@ -95,9 +131,33 @@ test("normal customer and guest receive customer-buy mode only", () => {
   assert.equal(guest.role, "GUEST");
   assert.deepEqual(customer.authorizedDesignerModes, ["CUSTOMER_BUY"]);
   assert.deepEqual(guest.authorizedDesignerModes, ["CUSTOMER_BUY"]);
+  assert.equal(customer.isCreator, false);
+  assert.equal(guest.isCreator, false);
   assert.equal(
     authorizeZakekeMode(customer, "CUSTOMER_BUY"),
     "CUSTOMER_BUY",
+  );
+});
+
+test("approved creator product actions show two modes while customers show one", () => {
+  assert.deepEqual(zakekeProductActions(actor("approved"), true), {
+    customerBuyAvailable: true,
+    customerMode: "CREATOR_BUY",
+    customerButtonText: "Customize & Buy",
+    creatorPublishAvailable: true,
+    creatorButtonText: "Create for My Collection",
+  });
+  assert.deepEqual(zakekeProductActions(actor(null), true), {
+    customerBuyAvailable: true,
+    customerMode: "CUSTOMER_BUY",
+    customerButtonText: "Customize This Product",
+    creatorPublishAvailable: false,
+    creatorButtonText: null,
+  });
+  assert.equal(
+    zakekeProductActions(actor("approved"), false)
+      .creatorPublishAvailable,
+    false,
   );
 });
 

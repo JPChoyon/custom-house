@@ -25,9 +25,11 @@ export function authorizeZakekeMode(
 ) {
   if (!actor.authorizedDesignerModes.includes(mode)) {
     throw new DomainError(
-      "CREATOR_FORBIDDEN",
       mode === "CREATOR_PUBLISH"
-        ? "Only approved, active creators can add designs to a collection."
+        ? "CREATOR_NOT_APPROVED"
+        : "CREATOR_FORBIDDEN",
+      mode === "CREATOR_PUBLISH"
+        ? "Only approved creators can add designs to a collection."
         : "This creator purchase mode is not available.",
       403,
     );
@@ -49,4 +51,25 @@ export function zakekeCartButtonText(mode: ZakekeDesignerMode) {
   return mode === "CREATOR_PUBLISH"
     ? "Add to My Collection"
     : "Add to Cart";
+}
+
+export function zakekeProductActions(
+  actor: StorefrontActor,
+  creatorPublishingEnabled: boolean,
+) {
+  const creatorPublishAvailable =
+    actor.isApprovedCreator && creatorPublishingEnabled;
+  return {
+    customerBuyAvailable: true,
+    customerMode: actor.isApprovedCreator
+      ? ("CREATOR_BUY" as const)
+      : ("CUSTOMER_BUY" as const),
+    customerButtonText: creatorPublishAvailable
+      ? "Customize & Buy"
+      : "Customize This Product",
+    creatorPublishAvailable,
+    creatorButtonText: creatorPublishAvailable
+      ? "Create for My Collection"
+      : null,
+  };
 }

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { canApprovedCreatorPublish } from "./creator-status.ts";
 
 export type VariantShape = {
   id: string;
@@ -6,10 +7,10 @@ export type VariantShape = {
 };
 
 export function canCreatorPublish(
-  status: string | null | undefined,
+  status: unknown,
   suspendedAt: Date | string | null | undefined,
 ) {
-  return status === "APPROVED" && !suspendedAt;
+  return canApprovedCreatorPublish(status, suspendedAt);
 }
 
 export function ownsDesignSession(

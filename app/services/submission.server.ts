@@ -8,6 +8,7 @@ import {
 import type { ShopifyGraphqlClient } from "./shopify-graphql.server";
 import { normalizeCustomerGid } from "./helium-sync.server";
 import { getZakekeFeatureFlags } from "./zakeke/zakeke-config.server";
+import { canCreatorPublish } from "./designer-publishing";
 
 export async function createSubmission(
   shop: string,
@@ -19,7 +20,7 @@ export async function createSubmission(
   const creator = await db.creator.findUnique({
     where: { shop_customerId: { shop, customerId } },
   });
-  if (!creator || creator.status !== "APPROVED")
+  if (!creator || !canCreatorPublish(creator.status, creator.suspendedAt))
     throw new DomainError(
       "NOT_APPROVED",
       "Only approved creators can submit designs.",
@@ -130,7 +131,7 @@ export async function creatorDashboard(shop: string, customerId: string) {
   );
   const zakekeFlags = getZakekeFeatureFlags();
   const eligibleProducts =
-    creator.status === "APPROVED" &&
+    canCreatorPublish(creator.status, creator.suspendedAt) &&
     zakekeFlags.integration &&
     zakekeFlags.creatorPublishing
       ? await db.globalProductMapping.findMany({
@@ -194,7 +195,7 @@ export async function creatorDashboard(shop: string, customerId: string) {
     ),
     zakeke: {
       publishingAvailable:
-        creator.status === "APPROVED" &&
+        canCreatorPublish(creator.status, creator.suspendedAt) &&
         zakekeFlags.integration &&
         zakekeFlags.creatorPublishing,
       eligibleProducts: eligibleProducts.map((mapping) => ({
