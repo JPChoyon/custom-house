@@ -1,4 +1,8 @@
 import { DomainError } from "../domain";
+import {
+  canRunProductionCreatorPublishing,
+  runtimeEnvironment,
+} from "../environment-safety.server";
 
 export type VercelBlobStorageConfig = {
   provider: "vercel_blob";
@@ -27,9 +31,14 @@ function positiveInteger(name: string, fallback: number, maximum: number) {
 }
 
 export function getInkyBayFeatureFlags() {
+  const runtime = runtimeEnvironment();
+  const requestedCreatorPublishing =
+    process.env.INKYBAY_CREATOR_PUBLISHING_ENABLED === "true";
   return {
     creatorPublishing:
-      process.env.INKYBAY_CREATOR_PUBLISHING_ENABLED === "true",
+      runtime === "preview"
+        ? requestedCreatorPublishing
+        : canRunProductionCreatorPublishing(),
     customCallback: process.env.INKYBAY_CUSTOM_CALLBACK_ENABLED === "true",
     manualBridge: process.env.INKYBAY_MANUAL_PUBLISH_BRIDGE_ENABLED === "true",
   };

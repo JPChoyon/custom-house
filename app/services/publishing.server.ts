@@ -3,6 +3,7 @@ import { DomainError, collectionTitle, safeJson, slugify } from "./domain";
 import type { ShopifyGraphqlClient } from "./shopify-graphql.server";
 import { throwUserErrors } from "./shopify-graphql.server";
 import { canCreatorPublish } from "./designer-publishing";
+import { isPreviewRuntime } from "./environment-safety.server";
 
 type Errors = Array<{ message: string }>;
 
@@ -36,6 +37,13 @@ async function ensureCollection(
 }
 
 export async function publishSubmission(shop: string, submissionId: string, client: ShopifyGraphqlClient) {
+  if (isPreviewRuntime()) {
+    throw new DomainError(
+      "PREVIEW_WORKFLOW_DISABLED",
+      "Legacy submission publishing is disabled in the Preview POC.",
+      403,
+    );
+  }
   const submission = await db.designSubmission.findFirst({ where: { id: submissionId, shop }, include: { creator: true } });
   if (!submission) throw new DomainError("NOT_FOUND", "Submission not found.", 404);
   if (!(["PENDING", "FAILED", "APPROVED"] as string[]).includes(submission.status)) throw new DomainError("NOT_PUBLISHABLE", "Submission is not publishable.", 409);

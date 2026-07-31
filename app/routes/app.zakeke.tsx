@@ -17,6 +17,11 @@ import {
   refreshZakekePrintFiles,
 } from "../services/zakeke/zakeke-order-processing.server";
 import { saveGlobalProductMapping } from "../services/zakeke/zakeke-products.server";
+import {
+  canRunPreviewMutation,
+  isPreviewOwnedRecord,
+  isPreviewRuntime,
+} from "../services/environment-safety.server";
 
 function status(value: FormDataEntryValue | null) {
   const normalized = String(value || "");
@@ -56,6 +61,21 @@ async function hideDesign(
     );
   }
   if (design.shopifyCreatorProductId) {
+    if (
+      isPreviewRuntime() &&
+      !canRunPreviewMutation({
+        shop,
+        resourceType: "product",
+        resourceId: design.shopifyCreatorProductId,
+        previewOwned: isPreviewOwnedRecord(design),
+      })
+    ) {
+      throw new DomainError(
+        "PREVIEW_PRODUCT_MUTATION_DENIED",
+        "Only Preview-owned products can be changed in this environment.",
+        403,
+      );
+    }
     const result = await client.request<{
       productUpdate: { userErrors: Array<{ message: string }> };
     }>(

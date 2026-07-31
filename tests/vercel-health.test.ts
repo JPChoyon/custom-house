@@ -32,6 +32,14 @@ test("health succeeds only after a database query succeeds", async () => {
     status: "ok",
     app: "running",
     database: "connected",
+    environment: "unknown",
+    databaseIsolation: "not_applicable",
+    creatorPublishingEnabled: false,
+    manualBridgeEnabled: false,
+    customCallbackEnabled: false,
+    previewMutationsEnabled: false,
+    previewOrderTestingEnabled: false,
+    productionRolloutApproved: false,
   });
 });
 
@@ -57,6 +65,14 @@ test("health reports missing configuration without exposing values", async () =>
     app: "running",
     database: "unavailable",
     code: "MISSING_ENVIRONMENT",
+    environment: "unknown",
+    databaseIsolation: "not_applicable",
+    creatorPublishingEnabled: false,
+    manualBridgeEnabled: false,
+    customCallbackEnabled: false,
+    previewMutationsEnabled: false,
+    previewOrderTestingEnabled: false,
+    productionRolloutApproved: false,
   });
 });
 

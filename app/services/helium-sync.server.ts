@@ -2,6 +2,7 @@ import db from "../db.server";
 import { createHash } from "node:crypto";
 import { safeJson, slugify } from "./domain";
 import type { ShopifyGraphqlClient } from "./shopify-graphql.server";
+import { runCustomerMutation } from "./environment-safety.server";
 import {
   creatorStatusFromTags,
   hasConflictingCreatorTags,
@@ -88,18 +89,26 @@ function customerFormIds(customer: Record<string, unknown>): string[] {
 export async function addInitialCreatorTags(
   client: ShopifyGraphqlClient,
   customerId: string,
-): Promise<void> {
-  const result = await client.request<{
-    tagsAdd: { userErrors: Array<{ message: string }> };
-  }>(
-    `#graphql mutation AddInitialCreatorTags($id: ID!, $tags: [String!]!) { tagsAdd(id: $id, tags: $tags) { userErrors { message } } }`,
-    {
-      id: normalizeCustomerGid(customerId),
-      tags: ["creator-applicant", "creator-pending"],
-    },
+): Promise<
+  | { skipped: true; reason: "PREVIEW_CUSTOMER_MUTATION_DISABLED" | "UNKNOWN_ENVIRONMENT" }
+  | { skipped: false }
+> {
+  const guarded = await runCustomerMutation(() =>
+    client.request<{
+      tagsAdd: { userErrors: Array<{ message: string }> };
+    }>(
+      `#graphql mutation AddInitialCreatorTags($id: ID!, $tags: [String!]!) { tagsAdd(id: $id, tags: $tags) { userErrors { message } } }`,
+      {
+        id: normalizeCustomerGid(customerId),
+        tags: ["creator-applicant", "creator-pending"],
+      },
+    ),
   );
+  if (guarded.skipped) return guarded;
+  const result = guarded.value;
   if (result.tagsAdd.userErrors.length)
     throw new Error("Initial creator tag synchronization failed.");
+  return { skipped: false };
 }
 
 function mapMetafieldValues(

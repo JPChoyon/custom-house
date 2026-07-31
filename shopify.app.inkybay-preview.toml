@@ -25,42 +25,6 @@ api_version = "2026-07"
   topics = ["app/uninstalled"]
 
   [[webhooks.subscriptions]]
-  uri = "/webhooks/app/scopes_update"
-  topics = ["app/scopes_update"]
-
-  [[webhooks.subscriptions]]
-  uri = "/webhooks/collections/delete"
-  topics = ["collections/delete"]
-
-  [[webhooks.subscriptions]]
-  uri = "/webhooks/products/delete"
-  topics = ["products/delete"]
-
-  [[webhooks.subscriptions]]
-  uri = "/webhooks/products/update"
-  topics = ["products/update"]
-
-  [[webhooks.subscriptions]]
-  uri = "/webhooks/orders/create"
-  topics = ["orders/create"]
-
-  [[webhooks.subscriptions]]
-  uri = "/webhooks/orders/cancelled"
-  topics = ["orders/cancelled"]
-
-  [[webhooks.subscriptions]]
-  uri = "/webhooks/refunds/create"
-  topics = ["refunds/create"]
-
-  [[webhooks.subscriptions]]
-  uri = "/webhooks/customers/create"
-  topics = ["customers/create"]
-
-  [[webhooks.subscriptions]]
-  uri = "/webhooks/customers/update"
-  topics = ["customers/update"]
-
-  [[webhooks.subscriptions]]
   uri = "/webhooks/customers/data_request"
   compliance_topics = ["customers/data_request"]
 

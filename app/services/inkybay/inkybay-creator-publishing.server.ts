@@ -24,6 +24,10 @@ import {
   validateProductionArtwork,
 } from "./inkybay-validation";
 import { storePrivateProductionArtwork } from "./private-storage.server";
+import {
+  canRunPreviewMutation,
+  isPreviewRuntime,
+} from "../environment-safety.server";
 
 const ACTIVE_SESSION_STATUSES = [
   "CREATED",
@@ -504,6 +508,20 @@ export async function publishInkyBayCreatorDesign(input: {
 }) {
   requireManualBridge();
   const session = await requireOwnedInkyBaySession(input);
+  if (
+    isPreviewRuntime() &&
+    !canRunPreviewMutation({
+      shop: session.shop,
+      resourceType: "product",
+      resourceId: session.shopifyProductId,
+    })
+  ) {
+    throw new DomainError(
+      "PREVIEW_PRODUCT_MUTATION_DENIED",
+      "Creator product publishing is not enabled for this Preview product.",
+      403,
+    );
+  }
   await requireApprovedCreator(session.shop, session.customerId);
   if (
     !session.inkybaySavedDesignUrl ||
@@ -576,6 +594,12 @@ export async function publishInkyBayCreatorDesign(input: {
           publishError: null,
           lastErrorCode: null,
           lastErrorReference: null,
+          ...(isPreviewRuntime()
+            ? {
+                previewPoc: true,
+                previewOwnerApp: "customhouse-dev-800679",
+              }
+            : {}),
         },
       });
     } else {
@@ -604,6 +628,12 @@ export async function publishInkyBayCreatorDesign(input: {
           status: "PROCESSING",
           syncStatus: "SYNCING",
           idempotencyKey,
+          ...(isPreviewRuntime()
+            ? {
+                previewPoc: true,
+                previewOwnerApp: "customhouse-dev-800679",
+              }
+            : {}),
         },
       });
     }

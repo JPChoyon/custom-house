@@ -6,10 +6,32 @@ import {
   queueZakekeOrder,
 } from "../services/zakeke/zakeke-order-processing.server";
 import { snapshotCreatorFixedOrder } from "../services/order-design-snapshot.server";
+import {
+  canProcessPreviewOrder,
+  isPreviewRuntime,
+  previewOrderCandidate,
+  runtimeEnvironment,
+  sanitizedPreviewSkip,
+} from "../services/environment-safety.server";
 
 export async function action({ request }: ActionFunctionArgs) {
   const { shop, payload, webhookId, topic } =
     await authenticate.webhook(request);
+  const runtime = runtimeEnvironment();
+  if (runtime !== "production") {
+    const candidate = previewOrderCandidate(payload);
+    if (
+      !isPreviewRuntime() ||
+      !canProcessPreviewOrder({
+        shop,
+        productIds: candidate.productIds,
+        hasVerifiedPreviewReference: candidate.hasPreviewReference,
+      })
+    ) {
+      sanitizedPreviewSkip(shop, "orders/create", "PREVIEW_ORDER_PROCESSING_DENIED");
+      return new Response();
+    }
+  }
   await snapshotCreatorFixedOrder(shop, payload);
   const queued = await queueZakekeOrder({
     shop,

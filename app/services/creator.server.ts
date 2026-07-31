@@ -15,6 +15,22 @@ import {
   validateCreatorApplication,
   type CreatorApplicationInput,
 } from "./creator-application";
+import {
+  canRunPreviewMutation,
+  customerMutationDecision,
+  isPreviewRuntime,
+} from "./environment-safety.server";
+
+function requireCustomerMutationAllowed() {
+  const decision = customerMutationDecision();
+  if (!decision.allowed) {
+    throw new DomainError(
+      decision.reason,
+      "Customer changes are disabled in this environment.",
+      403,
+    );
+  }
+}
 
 export async function createApplication(
   shop: string,
@@ -22,6 +38,7 @@ export async function createApplication(
   input: CreatorApplicationInput,
   client: ShopifyGraphqlClient,
 ) {
+  requireCustomerMutationAllowed();
   customerId = normalizeCustomerGid(customerId);
   const value = validateCreatorApplication(input);
   const config = await db.shopConfig.upsert({
@@ -153,6 +170,7 @@ export async function changeCreatorStatus(
   client: ShopifyGraphqlClient,
   reason?: string,
 ) {
+  requireCustomerMutationAllowed();
   const creator = await db.creator.findFirst({
     where: { id: creatorId, shop },
   });
@@ -255,6 +273,21 @@ export async function ensureCreatorCollection(
   ]);
   if (!creator) return null;
   let collectionId = creator.collectionId;
+  if (
+    isPreviewRuntime() &&
+    (!collectionId ||
+      !canRunPreviewMutation({
+        shop,
+        resourceType: "collection",
+        resourceId: collectionId,
+      }))
+  ) {
+    throw new DomainError(
+      "PREVIEW_COLLECTION_MUTATION_DENIED",
+      "A designated Preview creator collection is required.",
+      403,
+    );
+  }
   if (!collectionId && config?.automaticCollectionCreationEnabled === false) return null;
   const title = collectionTitle(
     config?.collectionTitleTemplate ?? "{creatorName} Designs",
@@ -287,7 +320,7 @@ export async function ensureCreatorCollection(
     data: { collectionId },
   });
   }
-  if (config?.onlineStorePublicationId && collectionId) {
+  if (config?.onlineStorePublicationId && collectionId && !isPreviewRuntime()) {
     const publication = await client.request<{ publishablePublish: { userErrors: Array<{ message: string }> } }>(
       `#graphql mutation PublishCreatorCollection($id: ID!, $input: [PublicationInput!]!) { publishablePublish(id: $id, input: $input) { userErrors { message } } }`,
       { id: collectionId, input: [{ publicationId: config.onlineStorePublicationId }] },

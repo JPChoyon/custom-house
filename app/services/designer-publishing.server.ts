@@ -23,6 +23,11 @@ import {
   parseVariantMapping,
   verifyGlobalZakekeProduct,
 } from "./zakeke/zakeke-products.server";
+import {
+  canRunPreviewMutation,
+  isPreviewOwnedRecord,
+  isPreviewRuntime,
+} from "./environment-safety.server";
 
 type Errors = Array<{ message: string }>;
 
@@ -175,6 +180,12 @@ async function configureFixedProduct(
     ["base_product_id", "single_line_text_field", input.baseProductId],
     ["design_locked", "boolean", "true"],
     ["design_version", "number_integer", String(input.designVersion ?? 1)],
+    ...(isPreviewRuntime()
+      ? [
+          ["preview_owner_app", "single_line_text_field", "customhouse-dev-800679"],
+          ["preview_poc", "boolean", "true"],
+        ]
+      : []),
     ...(input.sourceZakekeDesignId
       ? [
           [
@@ -303,11 +314,13 @@ async function configureFixedProduct(
     membership.collectionAddProducts.userErrors,
     "Designer collection membership",
   );
-  if (input.publicationId) {
+  if (input.publicationId && !isPreviewRuntime()) {
     await setPublication(client, input.productId, input.publicationId, true);
     await setPublication(client, input.collectionId, input.publicationId, true);
   }
-  await setProductStatus(client, input.productId, "ACTIVE");
+  if (!isPreviewRuntime()) {
+    await setProductStatus(client, input.productId, "ACTIVE");
+  }
 }
 
 export async function synchronizeCreatorDesign(
@@ -321,6 +334,21 @@ export async function synchronizeCreatorDesign(
   });
   if (!design) {
     throw new DomainError("DESIGN_MISSING", "The creator design was not found.", 404);
+  }
+  if (
+    isPreviewRuntime() &&
+    (!isPreviewOwnedRecord(design) ||
+      !canRunPreviewMutation({
+        shop,
+        resourceType: "product",
+        resourceId: design.globalShopifyProductId,
+      }))
+  ) {
+    throw new DomainError(
+      "PREVIEW_PRODUCT_MUTATION_DENIED",
+      "This design is not owned by the Preview POC or its source product is not allowlisted.",
+      403,
+    );
   }
   if (
     !canCreatorPublish(
@@ -462,12 +490,12 @@ export async function synchronizeCreatorDesign(
         data: {
           shopifyCreatorProductId: productId,
           shopifyCollectionId: collectionId,
-          status: "ACTIVE",
+          status: isPreviewRuntime() ? "DRAFT" : "ACTIVE",
           syncStatus: "SYNCED",
           publishError: null,
           lastErrorCode: null,
           lastErrorReference: null,
-          publishedAt: now,
+          publishedAt: isPreviewRuntime() ? null : now,
         },
       });
       await tx.designSession.update({

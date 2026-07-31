@@ -2,10 +2,16 @@ import { addInitialCreatorTags, applyHeliumSync, normalizeCustomerGid, parseHeli
 import { creatorStatusFromTags, withHeliumCreatorFormTags } from "./helium-sync";
 import db from "../db.server";
 import type { ShopifyGraphqlClient } from "./shopify-graphql.server";
+import { customerMutationDecision, sanitizedPreviewSkip } from "./environment-safety.server";
 
 export interface CustomerWebhookPayload { id?: string | number; admin_graphql_api_id?: string; tags?: string | string[] }
 
 export async function synchronizeCustomerWebhook(shop: string, payload: CustomerWebhookPayload, client?: ShopifyGraphqlClient) {
+  const decision = customerMutationDecision();
+  if (!decision.allowed) {
+    sanitizedPreviewSkip(shop, "customers/create-or-update", decision.reason);
+    return { skipped: true as const, reason: decision.reason };
+  }
   const rawId = payload.admin_graphql_api_id || payload.id;
   if (!rawId) return;
   const customerId = normalizeCustomerGid(rawId);
@@ -22,4 +28,5 @@ export async function synchronizeCustomerWebhook(shop: string, payload: Customer
   }
   const result = await applyHeliumSync(shop, input, "WEBHOOK");
   console.info("helium_customer_sync", { shop, customerIdExists: true, action: result.action, creatorStatus: result.status });
+  return { skipped: false as const, result };
 }

@@ -7,6 +7,11 @@ import { synchronizeCreatorDesign } from "../services/designer-publishing.server
 import { DomainError } from "../services/domain";
 import { inkyBayConfigurationSummary } from "../services/inkybay/inkybay-config.server";
 import { AdminGraphqlClient } from "../services/shopify-graphql.server";
+import {
+  canRunPreviewMutation,
+  isPreviewOwnedRecord,
+  isPreviewRuntime,
+} from "../services/environment-safety.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session } = await authenticate.admin(request);
@@ -99,6 +104,21 @@ export async function action({ request }: ActionFunctionArgs) {
   }
   if (intent === "hide" || intent === "archive") {
     if (design.shopifyCreatorProductId) {
+      if (
+        isPreviewRuntime() &&
+        !canRunPreviewMutation({
+          shop: session.shop,
+          resourceType: "product",
+          resourceId: design.shopifyCreatorProductId,
+          previewOwned: isPreviewOwnedRecord(design),
+        })
+      ) {
+        throw new DomainError(
+          "PREVIEW_PRODUCT_MUTATION_DENIED",
+          "Only Preview-owned products can be changed in this environment.",
+          403,
+        );
+      }
       const result = await client.request<{
         productUpdate: { userErrors: Array<{ message: string }> };
       }>(

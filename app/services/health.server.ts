@@ -1,3 +1,5 @@
+import { safetyDiagnostics } from "./environment-safety.server.ts";
+
 export const REQUIRED_ENVIRONMENT_VARIABLES = [
   "DATABASE_URL",
   "DIRECT_DATABASE_URL",
@@ -6,6 +8,7 @@ export const REQUIRED_ENVIRONMENT_VARIABLES = [
   "SHOPIFY_APP_URL",
   "SCOPES",
   "NODE_ENV",
+  "APP_ENV",
 ] as const;
 
 export type HealthResult =
@@ -13,6 +16,14 @@ export type HealthResult =
       status: "ok";
       app: "running";
       database: "connected";
+      environment: "preview" | "production" | "unknown";
+      databaseIsolation: "verified" | "not_applicable" | "unverified";
+      creatorPublishingEnabled: boolean;
+      manualBridgeEnabled: boolean;
+      customCallbackEnabled: boolean;
+      previewMutationsEnabled: boolean;
+      previewOrderTestingEnabled: boolean;
+      productionRolloutApproved: boolean;
     }
   | {
       status: "error";
@@ -22,12 +33,21 @@ export type HealthResult =
         | "MISSING_ENVIRONMENT"
         | "INVALID_APP_URL"
         | "DATABASE_UNAVAILABLE";
+      environment: "preview" | "production" | "unknown";
+      databaseIsolation: "verified" | "not_applicable" | "unverified";
+      creatorPublishingEnabled: boolean;
+      manualBridgeEnabled: boolean;
+      customCallbackEnabled: boolean;
+      previewMutationsEnabled: boolean;
+      previewOrderTestingEnabled: boolean;
+      productionRolloutApproved: boolean;
     };
 
 export async function evaluateHealth(
   environment: Record<string, string | undefined>,
   pingDatabase: () => Promise<unknown>,
 ): Promise<{ status: number; body: HealthResult }> {
+  const diagnostics = safetyDiagnostics(environment);
   const configured = REQUIRED_ENVIRONMENT_VARIABLES.every(
     (name) => Boolean(environment[name]?.trim()),
   );
@@ -39,6 +59,7 @@ export async function evaluateHealth(
         app: "running",
         database: "unavailable",
         code: "MISSING_ENVIRONMENT",
+        ...diagnostics,
       },
     };
   }
@@ -55,6 +76,7 @@ export async function evaluateHealth(
         app: "running",
         database: "unavailable",
         code: "INVALID_APP_URL",
+        ...diagnostics,
       },
     };
   }
@@ -66,6 +88,7 @@ export async function evaluateHealth(
         status: "ok",
         app: "running",
         database: "connected",
+        ...diagnostics,
       },
     };
   } catch {
@@ -76,6 +99,7 @@ export async function evaluateHealth(
         app: "running",
         database: "unavailable",
         code: "DATABASE_UNAVAILABLE",
+        ...diagnostics,
       },
     };
   }

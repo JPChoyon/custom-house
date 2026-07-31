@@ -3,6 +3,13 @@ import db from "../db.server";
 import { authenticate } from "../shopify.server";
 import { AdminGraphqlClient } from "../services/shopify-graphql.server";
 import { parseVariantMapping } from "../services/zakeke/zakeke-products.server";
+import {
+  canHandleMutatingWebhook,
+  canRunPreviewMutation,
+  isPreviewOwnedRecord,
+  isPreviewRuntime,
+  sanitizedPreviewSkip,
+} from "../services/environment-safety.server";
 
 type ProductPayload = {
   id?: number | string;
@@ -14,6 +21,16 @@ export async function action({ request }: ActionFunctionArgs) {
   const { shop, payload, admin } = await authenticate.webhook(request);
   const product = payload as ProductPayload;
   const productId = `gid://shopify/Product/${String(product.id || "")}`;
+  if (
+    !canHandleMutatingWebhook({
+      shop,
+      resourceType: "product",
+      resourceId: productId,
+    })
+  ) {
+    sanitizedPreviewSkip(shop, "products/update", "PREVIEW_PRODUCT_MUTATION_DENIED");
+    return new Response();
+  }
   const availableVariants = new Set(
     (product.variants || [])
       .map((variant) => String(variant.id || ""))
@@ -33,6 +50,8 @@ export async function action({ request }: ActionFunctionArgs) {
       status: true,
       shopifyCreatorProductId: true,
       compatibleVariantIdsJson: true,
+      previewPoc: true,
+      previewOwnerApp: true,
     },
   });
   const inkybayToHide: typeof inkybayDesigns = [];
@@ -84,6 +103,18 @@ export async function action({ request }: ActionFunctionArgs) {
     const client = new AdminGraphqlClient(admin);
     for (const design of inkybayToHide.slice(0, 20)) {
       if (!design.shopifyCreatorProductId) continue;
+      if (
+        isPreviewRuntime() &&
+        !canRunPreviewMutation({
+          shop,
+          resourceType: "product",
+          resourceId: design.shopifyCreatorProductId,
+          previewOwned: isPreviewOwnedRecord(design),
+        })
+      ) {
+        sanitizedPreviewSkip(shop, "products/update", "TARGET_PRODUCT_NOT_PREVIEW_OWNED");
+        continue;
+      }
       try {
         await client.request(
           `#graphql mutation HideStaleInkyBayProduct($product: ProductUpdateInput!) {
@@ -126,6 +157,8 @@ export async function action({ request }: ActionFunctionArgs) {
       status: true,
       shopifyCreatorProductId: true,
       compatibleVariantIdsJson: true,
+      previewPoc: true,
+      previewOwnerApp: true,
     },
   });
   const allowed = variants
@@ -135,6 +168,18 @@ export async function action({ request }: ActionFunctionArgs) {
     const client = new AdminGraphqlClient(admin);
     for (const design of linked) {
       if (!design.shopifyCreatorProductId || design.status !== "ACTIVE") {
+        continue;
+      }
+      if (
+        isPreviewRuntime() &&
+        !canRunPreviewMutation({
+          shop,
+          resourceType: "product",
+          resourceId: design.shopifyCreatorProductId,
+          previewOwned: isPreviewOwnedRecord(design),
+        })
+      ) {
+        sanitizedPreviewSkip(shop, "products/update", "TARGET_PRODUCT_NOT_PREVIEW_OWNED");
         continue;
       }
       try {

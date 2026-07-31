@@ -337,6 +337,8 @@ model CreatorDesign {
   inkybayTid                   String?
   shopifyCreatorProductId      String?
   shopifyCollectionId          String?
+  previewPoc                   Boolean                 @default(false)
+  previewOwnerApp              String?
   title                        String
   slug                         String?
   description                  String?
@@ -368,6 +370,7 @@ model CreatorDesign {
   @@index([creatorId, status])
   @@index([shop, shopifyCreatorProductId])
   @@index([shop, syncStatus])
+  @@index([shop, previewPoc])
   @@index([globalProductMappingId])
 }
 
