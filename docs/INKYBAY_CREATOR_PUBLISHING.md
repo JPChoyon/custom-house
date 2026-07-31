@@ -68,6 +68,8 @@ Use one active InkyBay-enabled test T-shirt and an unpublished duplicate theme. 
 
 Do not publish the duplicate theme or enable every global product during the POC.
 
+The repository includes `shopify.app.inkybay-preview.toml` for the separate development app only. Its app proxy is `/apps/customhouse-inkybay-preview`; configure that value in the test theme block. Never deploy this file as the production app configuration. The live block keeps `/apps/customhouse` by default.
+
 ## Operations
 
 The embedded **InkyBay Publishing** page shows sessions, waiting assets, published/failed designs, fixed product references, order snapshots, safe error references, retry/hide/archive controls, and authenticated private-artwork downloads.

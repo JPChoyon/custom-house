@@ -1,6 +1,4 @@
 (() => {
-  const endpoint = "/apps/customhouse/api/inkybay";
-
   function selectedVariant(root) {
     const form =
       root.closest("section")?.querySelector('form[action*="/cart/add"]') ||
@@ -30,7 +28,8 @@
     const body = await response.json().catch(() => null);
     if (!response.ok || !body?.success) {
       throw new Error(
-        body?.error?.message || "Creator publishing is temporarily unavailable.",
+        body?.error?.message ||
+          "Creator publishing is temporarily unavailable.",
       );
     }
     return body.data;
@@ -50,6 +49,13 @@
   document
     .querySelectorAll("[data-customhouse-inkybay-creator]")
     .forEach(async (root) => {
+      const configuredProxyRoot = root.dataset.appProxyRoot?.trim() || "";
+      const proxyRoot = /^\/apps\/[a-z0-9][a-z0-9-]*$/i.test(
+        configuredProxyRoot,
+      )
+        ? configuredProxyRoot
+        : "/apps/customhouse";
+      const endpoint = `${proxyRoot}/api/inkybay`;
       const existingButton = existingInkyBayButton(root);
       const buy = root.querySelector("[data-inkybay-buy]");
       if (existingButton) {
@@ -77,8 +83,8 @@
           try {
             const idempotencyKey =
               root.dataset.sessionKey ||
-              (crypto.randomUUID?.().replaceAll("-", "") ||
-                `${Date.now()}_${Math.random().toString(36).slice(2)}`);
+              crypto.randomUUID?.().replaceAll("-", "") ||
+              `${Date.now()}_${Math.random().toString(36).slice(2)}`;
             root.dataset.sessionKey = idempotencyKey;
             const session = await json(`${endpoint}/creator-designs/start`, {
               method: "POST",

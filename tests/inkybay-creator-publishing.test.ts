@@ -17,12 +17,12 @@ process.env.DESIGN_SIGNING_SECRET = "i".repeat(48);
 test("saved InkyBay URL extracts a tid from an allowlisted HTTPS host", () => {
   assert.deepEqual(
     parseInkyBaySavedDesign({
-      savedDesignUrl: "https://customhouse.se/products/shirt?tid=design_12345#ignored",
+      savedDesignUrl:
+        "https://customhouse.se/products/shirt?tid=design_12345#ignored",
       allowedHosts: ["customhouse.se", "inkybay.com"],
     }),
     {
-      savedDesignUrl:
-        "https://customhouse.se/products/shirt?tid=design_12345",
+      savedDesignUrl: "https://customhouse.se/products/shirt?tid=design_12345",
       tid: "design_12345",
     },
   );
@@ -168,7 +168,10 @@ test("workspace requires private production artwork and documents manual bridge"
     },
   });
   assert.match(html, /name="productionArtwork"/);
-  assert.match(html, /manual bridge does not claim an unsupported InkyBay API/i);
+  assert.match(
+    html,
+    /manual bridge does not claim an unsupported InkyBay API/i,
+  );
   assert.match(html, /Publish to My Collection/);
   assert.match(html, /X-Customhouse-Session-Token/);
 });
@@ -184,9 +187,12 @@ test("theme creator action remains hidden until trusted eligibility resolves", a
   );
   assert.match(liquid, /data-inkybay-create hidden disabled/);
   assert.match(liquid, /product_type == 'global_customizable'/);
+  assert.match(liquid, /data-app-proxy-root/);
+  assert.match(liquid, /default: '\/apps\/customhouse'/);
   assert.doesNotMatch(liquid, /creator_fixed/);
   assert.match(script, /eligibility\.creatorPublishAvailable/);
   assert.match(script, /idempotencyKey/);
+  assert.match(script, /configuredProxyRoot/);
   assert.doesNotMatch(script, /localStorage/);
 });
 

@@ -5,7 +5,7 @@
     data-customhouse-designer
     data-product-id="gid://shopify/Product/{{ product.id }}"
     data-variant-id="gid://shopify/ProductVariant/{{ product.selected_or_first_available_variant.id }}"
-    data-fabric-module="{{ 'fabric-7.4.0.min.mjs' | asset_url }}"
+    data-fabric-module="{{ 'fabric-7.4.0.min.js' | asset_url }}"
     hidden
   >
     <button
@@ -111,7 +111,12 @@
     <dialog class="customhouse-designer__preview" data-designer-preview-dialog>
       <button type="button" data-designer-preview-close aria-label="Close preview">×</button>
       <h3>Product preview</h3>
-      <img data-designer-preview-image alt="Your customized product preview">
+      <img
+        data-designer-preview-image
+        alt="Your customized product preview"
+        width="600"
+        height="600"
+      >
     </dialog>
   </section>
 
