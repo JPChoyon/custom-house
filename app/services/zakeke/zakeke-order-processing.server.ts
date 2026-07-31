@@ -229,6 +229,7 @@ export async function queueZakekeOrder(input: {
           orderZakekeDesignId: item.designId,
           designVersion: design?.designVersion || 1,
           previewUrl: design?.previewUrl,
+          productionArtworkKey: design?.productionArtworkKey,
           designTitle: design?.title || "Customer customization",
           creatorName: design?.creator.displayName,
         },
@@ -374,14 +375,19 @@ export async function refreshZakekePrintFiles(
     );
   }
   const snapshots = await db.orderDesignSnapshot.findMany({
-    where: { shop: job.shop, shopifyOrderId: job.shopifyOrderId },
+    where: {
+      shop: job.shop,
+      shopifyOrderId: job.shopifyOrderId,
+      provider: "ZAKEKE",
+      orderZakekeDesignId: { not: null },
+    },
   });
   let available = 0;
   let pending = 0;
   for (const snapshot of snapshots) {
     try {
       const output = await designService.getOutputFiles(
-        snapshot.orderZakekeDesignId,
+        snapshot.orderZakekeDesignId!,
         zakekeIdentityForPrincipal(principal),
       );
       const url = new URL(output.url);

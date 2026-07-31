@@ -18,6 +18,7 @@ import { normalizeCustomerGid } from "./helium-sync.server";
 import type { ShopifyGraphqlClient } from "./shopify-graphql.server";
 import { throwUserErrors } from "./shopify-graphql.server";
 import { validateDesignJson } from "./designer-validation";
+import { verifyInkyBayGlobalProduct } from "./inkybay/inkybay-product.server";
 import {
   parseVariantMapping,
   verifyGlobalZakekeProduct,
@@ -144,6 +145,7 @@ async function configureFixedProduct(
     collectionId: string;
     publicationId?: string | null;
     sourceZakekeDesignId?: string | null;
+    inkybayTid?: string | null;
     designVersion?: number;
   },
 ) {
@@ -179,6 +181,15 @@ async function configureFixedProduct(
             "zakeke_source_design_id",
             "single_line_text_field",
             input.sourceZakekeDesignId,
+          ],
+        ]
+      : []),
+    ...(input.inkybayTid
+      ? [
+          [
+            "inkybay_saved_design_tid",
+            "single_line_text_field",
+            input.inkybayTid,
           ],
         ]
       : []),
@@ -299,7 +310,7 @@ async function configureFixedProduct(
   await setProductStatus(client, input.productId, "ACTIVE");
 }
 
-async function synchronizeCreatorDesign(
+export async function synchronizeCreatorDesign(
   shop: string,
   designId: string,
   client: ShopifyGraphqlClient,
@@ -327,7 +338,7 @@ async function synchronizeCreatorDesign(
     id: string;
     title: string;
     tags: string[];
-    variants: VariantShape[];
+    variants: Array<VariantShape & { availableForSale?: boolean }>;
   };
   let allowedVariantIds: readonly string[];
   if (design.provider === "ZAKEKE") {
@@ -362,6 +373,36 @@ async function synchronizeCreatorDesign(
     ).variants
       .filter((variant) => variant.enabled !== false)
       .map((variant) => variant.shopifyVariantId);
+  } else if (design.provider === "INKYBAY") {
+    source = await verifyInkyBayGlobalProduct(
+      client,
+      design.globalShopifyProductId,
+      design.designSession.shopifyVariantId,
+    );
+    let selected: unknown = [];
+    try {
+      selected = JSON.parse(design.compatibleVariantIdsJson);
+    } catch {
+      selected = [];
+    }
+    const available = new Set(
+      source.variants
+        .filter((variant) => variant.availableForSale !== false)
+        .map((variant) => variant.id),
+    );
+    allowedVariantIds = Array.isArray(selected)
+      ? selected.filter(
+          (variant): variant is string =>
+            typeof variant === "string" && available.has(variant),
+        )
+      : [];
+    if (!allowedVariantIds.length) {
+      throw new DomainError(
+        "INKYBAY_VARIANTS_INVALID",
+        "No compatible product variants remain available.",
+        409,
+      );
+    }
   } else {
     const config = getDesignerConfig();
     source = await verifyDesignerProduct(
@@ -411,6 +452,7 @@ async function synchronizeCreatorDesign(
       collectionId,
       publicationId: shopConfig?.onlineStorePublicationId,
       sourceZakekeDesignId: design.sourceZakekeDesignId,
+      inkybayTid: design.inkybayTid,
       designVersion: design.designVersion,
     });
     const now = new Date();
@@ -440,7 +482,9 @@ async function synchronizeCreatorDesign(
           action:
             design.provider === "ZAKEKE"
               ? "zakeke_design.published"
-              : "fabric_design.published",
+              : design.provider === "INKYBAY"
+                ? "inkybay_design.published"
+                : "fabric_design.published",
           entityType: "CreatorDesign",
           entityId: design.id,
           afterJson: safeJson({ productId, collectionId }),

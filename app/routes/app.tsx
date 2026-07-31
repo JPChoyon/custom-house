@@ -25,6 +25,7 @@ export default function App() {
         <s-link href="/app/products">Products</s-link>
         <s-link href="/app/designer-poc">Designer POC</s-link>
         <s-link href="/app/zakeke">Zakeke</s-link>
+        <s-link href="/app/inkybay">InkyBay publishing</s-link>
         <s-link href="/app/settings">Settings</s-link>
         <s-link href="/app/setup-guide">Setup guide</s-link>
       </s-app-nav>

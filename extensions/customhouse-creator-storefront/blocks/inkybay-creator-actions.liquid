@@ -1,0 +1,45 @@
+{% liquid
+  assign product_type = product.metafields.customhouse.product_type.value
+  assign inkybay_enabled = product.metafields.customhouse.inkybay_enabled.value
+  assign is_global = false
+  if product_type == 'global_customizable'
+    assign is_global = true
+  elsif product.metafields.customhouse.product_origin.value == 'global' and product.metafields.customhouse.design_mode.value == 'customizable'
+    assign is_global = true
+  endif
+%}
+
+{% if is_global and inkybay_enabled == true %}
+  {{ 'customhouse-inkybay-creator.css' | asset_url | stylesheet_tag }}
+  <section
+    class="customhouse-inkybay-creator"
+    data-customhouse-inkybay-creator
+    data-product-id="{{ product.id | prepend: 'gid://shopify/Product/' }}"
+    data-current-variant-id="{{ product.selected_or_first_available_variant.id | prepend: 'gid://shopify/ProductVariant/' }}"
+    data-existing-selector="{{ block.settings.existing_button_selector | escape }}"
+  >
+    <button type="button" class="customhouse-inkybay-buy" data-inkybay-buy hidden>
+      Customize &amp; Buy
+    </button>
+    <button type="button" class="customhouse-inkybay-create" data-inkybay-create hidden disabled>
+      Create for My Collection
+    </button>
+    <p data-inkybay-message hidden aria-live="polite"></p>
+  </section>
+  <script src="{{ 'customhouse-inkybay-creator.js' | asset_url }}" defer></script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "InkyBay Creator Actions",
+  "target": "section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "existing_button_selector",
+      "label": "Existing InkyBay button selector",
+      "info": "Test on a duplicate theme. The matched existing InkyBay button is relabelled Customize & Buy; leave blank until verified."
+    }
+  ]
+}
+{% endschema %}

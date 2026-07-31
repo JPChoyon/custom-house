@@ -5,10 +5,12 @@ import {
   processZakekeOrderJob,
   queueZakekeOrder,
 } from "../services/zakeke/zakeke-order-processing.server";
+import { snapshotCreatorFixedOrder } from "../services/order-design-snapshot.server";
 
 export async function action({ request }: ActionFunctionArgs) {
   const { shop, payload, webhookId, topic } =
     await authenticate.webhook(request);
+  await snapshotCreatorFixedOrder(shop, payload);
   const queued = await queueZakekeOrder({
     shop,
     webhookId,

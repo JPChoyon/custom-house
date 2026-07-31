@@ -8,6 +8,7 @@ import {
 import type { ShopifyGraphqlClient } from "./shopify-graphql.server";
 import { normalizeCustomerGid } from "./helium-sync.server";
 import { getZakekeFeatureFlags } from "./zakeke/zakeke-config.server";
+import { getInkyBayFeatureFlags } from "./inkybay/inkybay-config.server";
 import { canCreatorPublish } from "./designer-publishing";
 
 export async function createSubmission(
@@ -16,6 +17,14 @@ export async function createSubmission(
   input: ManualDesignInput,
   client: ShopifyGraphqlClient,
 ) {
+  const inkybayFlags = getInkyBayFeatureFlags();
+  if (inkybayFlags.creatorPublishing && inkybayFlags.manualBridge) {
+    throw new DomainError(
+      "LEGACY_SUBMISSION_DISABLED",
+      "Use Create for My Collection to submit the saved design and production artwork securely.",
+      409,
+    );
+  }
   customerId = normalizeCustomerGid(customerId);
   const creator = await db.creator.findUnique({
     where: { shop_customerId: { shop, customerId } },
@@ -97,11 +106,11 @@ export async function creatorDashboard(shop: string, customerId: string) {
         applications: { orderBy: { createdAt: "desc" }, take: 1 },
         submissions: { orderBy: { createdAt: "desc" }, take: 20 },
         creatorDesigns: {
-          where: { provider: "ZAKEKE" },
           orderBy: { updatedAt: "desc" },
           take: 50,
           select: {
             id: true,
+            provider: true,
             title: true,
             status: true,
             syncStatus: true,
@@ -109,6 +118,18 @@ export async function creatorDashboard(shop: string, customerId: string) {
             shopifyCreatorProductId: true,
             updatedAt: true,
           },
+        },
+        designSessions: {
+          where: { provider: "INKYBAY" },
+          select: {
+            id: true,
+            status: true,
+            title: true,
+            previewUrl: true,
+            updatedAt: true,
+          },
+          orderBy: { updatedAt: "desc" },
+          take: 50,
         },
       },
     }),
@@ -130,6 +151,7 @@ export async function creatorDashboard(shop: string, customerId: string) {
       submission.status === "PUBLISHED" && submission.createdProductId,
   );
   const zakekeFlags = getZakekeFeatureFlags();
+  const inkybayFlags = getInkyBayFeatureFlags();
   const eligibleProducts =
     canCreatorPublish(creator.status, creator.suspendedAt) &&
     zakekeFlags.integration &&
@@ -150,6 +172,14 @@ export async function creatorDashboard(shop: string, customerId: string) {
         })
       : [];
   const activeZakekeDesigns = creator.creatorDesigns.filter(
+    (design) =>
+      design.provider === "ZAKEKE" &&
+      design.status === "ACTIVE" && design.syncStatus === "SYNCED",
+  );
+  const inkybayDesigns = creator.creatorDesigns.filter(
+    (design) => design.provider === "INKYBAY",
+  );
+  const activeInkyBayDesigns = inkybayDesigns.filter(
     (design) =>
       design.status === "ACTIVE" && design.syncStatus === "SYNCED",
   );
@@ -173,7 +203,9 @@ export async function creatorDashboard(shop: string, customerId: string) {
       ordersCount: null,
       collectionsCount: creator.collectionId ? 1 : 0,
       publishedProductsCount:
-        publishedProducts.length + activeZakekeDesigns.length,
+        publishedProducts.length +
+        activeZakekeDesigns.length +
+        activeInkyBayDesigns.length,
     },
     topSellingProducts: [],
     submissions: creator.submissions.map(
@@ -205,7 +237,17 @@ export async function creatorDashboard(shop: string, customerId: string) {
           : null,
         productCode: mapping.zakekeProductCode,
       })),
-      designs: creator.creatorDesigns,
+      designs: creator.creatorDesigns.filter(
+        (design) => design.provider === "ZAKEKE",
+      ),
+    },
+    inkybay: {
+      publishingAvailable:
+        canCreatorPublish(creator.status, creator.suspendedAt) &&
+        inkybayFlags.creatorPublishing &&
+        inkybayFlags.manualBridge,
+      designs: inkybayDesigns,
+      sessions: creator.designSessions,
     },
   };
 }

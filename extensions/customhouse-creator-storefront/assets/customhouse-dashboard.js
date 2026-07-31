@@ -131,16 +131,22 @@ function renderDashboard(root, view) {
   }
 
   const zakekeSection = profile.querySelector("[data-dashboard-zakeke]");
-  const zakeke = view.data.zakeke;
-  zakekeSection.hidden = !zakeke;
-  if (!zakeke) return;
+  const zakeke = view.data.zakeke || { publishingAvailable: false, designs: [], eligibleProducts: [] };
+  const inkybay = view.data.inkybay || { publishingAvailable: false, designs: [], sessions: [] };
+  const publishing = {
+    publishingAvailable: zakeke.publishingAvailable || inkybay.publishingAvailable,
+    eligibleProducts: zakeke.eligibleProducts || [],
+    designs: [...(zakeke.designs || []), ...(inkybay.designs || [])],
+    sessions: inkybay.sessions || [],
+  };
+  zakekeSection.hidden = false;
   profile.querySelector("[data-dashboard-zakeke-message]").textContent =
-    zakeke.publishingAvailable
-      ? "Choose an eligible global product, then select Create for My Collection."
+    publishing.publishingAvailable
+      ? "Open an eligible global product, then select Create for My Collection."
       : "Creator design publishing is not currently enabled.";
   const eligible = profile.querySelector("[data-dashboard-eligible-products]");
   eligible.replaceChildren();
-  (zakeke.eligibleProducts || []).forEach((product) => {
+  (publishing.eligibleProducts || []).forEach((product) => {
     if (!product.productUrl) return;
     const link = document.createElement("a");
     link.className = "customhouse-action";
@@ -149,16 +155,16 @@ function renderDashboard(root, view) {
     eligible.append(link);
   });
   const groups = {
-    drafts: (zakeke.designs || []).filter((design) =>
+    drafts: (publishing.designs || []).filter((design) =>
       ["DRAFT", "PROCESSING", "FAILED"].includes(design.status),
     ),
-    published: (zakeke.designs || []).filter(
+    published: (publishing.designs || []).filter(
       (design) => design.status === "ACTIVE",
     ),
-    hidden: (zakeke.designs || []).filter(
+    hidden: (publishing.designs || []).filter(
       (design) => ["HIDDEN", "SUSPENDED"].includes(design.status),
     ),
-    archived: (zakeke.designs || []).filter(
+    archived: (publishing.designs || []).filter(
       (design) => design.status === "ARCHIVED",
     ),
   };
