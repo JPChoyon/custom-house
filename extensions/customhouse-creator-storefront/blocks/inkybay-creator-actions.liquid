@@ -1,32 +1,70 @@
 {% liquid
   assign product_type = product.metafields.customhouse.product_type.value
   assign inkybay_enabled = product.metafields.customhouse.inkybay_enabled.value
-  assign is_global = false
-  if product_type == 'global_customizable'
-    assign is_global = true
-  elsif product.metafields.customhouse.product_origin.value == 'global' and product.metafields.customhouse.design_mode.value == 'customizable'
-    assign is_global = true
+  assign creator_publishing_enabled = product.metafields.customhouse.creator_publishing_enabled.value
+
+  assign is_creator_fixed_product = false
+  if product_type == 'creator_fixed' or product.tags contains 'creator-fixed'
+    assign is_creator_fixed_product = true
+  endif
+
+  assign has_legacy_inkybay_tag = false
+  if product.tags contains 'inkybay-designlab' or product.tags contains 'inkybay-options'
+    assign has_legacy_inkybay_tag = true
+  endif
+
+  assign is_inkybay_global_product = false
+  if is_creator_fixed_product == false
+    if product_type == 'global_customizable' and inkybay_enabled == true
+      assign is_inkybay_global_product = true
+    elsif has_legacy_inkybay_tag
+      assign is_inkybay_global_product = true
+    endif
+  endif
+
+  assign can_request_creator_publishing = false
+  if is_inkybay_global_product and creator_publishing_enabled == true
+    assign can_request_creator_publishing = true
   endif
 %}
 
-{% if is_global and inkybay_enabled == true %}
+{% if is_inkybay_global_product %}
   {{ 'customhouse-inkybay-creator.css' | asset_url | stylesheet_tag }}
-  <section
-    class="customhouse-inkybay-creator"
+  <div
+    class="customhouse-inkybay-creator customhouse-inkybay-creator-actions"
     data-customhouse-inkybay-creator
+    data-customhouse-inkybay-actions
     data-product-id="{{ product.id | prepend: 'gid://shopify/Product/' }}"
+    data-product-numeric-id="{{ product.id }}"
     data-current-variant-id="{{ product.selected_or_first_available_variant.id | prepend: 'gid://shopify/ProductVariant/' }}"
+    data-product-handle="{{ product.handle | escape }}"
+    data-product-type="{{ product_type | default: 'legacy_inkybay' | escape }}"
+    data-creator-publishing-enabled="{{ can_request_creator_publishing }}"
     data-existing-selector="{{ block.settings.existing_button_selector | escape }}"
-    data-app-proxy-root="{{ block.settings.app_proxy_root | default: '/apps/customhouse' | escape }}"
+    data-app-proxy-root="/apps/customhouse-inkybay-preview"
+    data-show-status="{{ block.settings.show_status }}"
+    data-layout="{{ block.settings.layout | escape }}"
+    hidden
+    {{ block.shopify_attributes }}
   >
-    <button type="button" class="customhouse-inkybay-buy" data-inkybay-buy hidden>
-      Customize &amp; Buy
-    </button>
-    <button type="button" class="customhouse-inkybay-create" data-inkybay-create hidden disabled>
-      Create for My Collection
-    </button>
+    <div class="customhouse-inkybay-loading" data-inkybay-loading role="status">
+      Checking creator access&hellip;
+    </div>
+
+    <div class="customhouse-inkybay-actions" data-inkybay-customer-actions hidden>
+      <button type="button" class="customhouse-inkybay-buy" data-inkybay-buy disabled>
+        {{ block.settings.customize_label | escape }}
+      </button>
+    </div>
+
+    <div class="customhouse-inkybay-actions" data-inkybay-creator-actions hidden>
+      <button type="button" class="customhouse-inkybay-create" data-inkybay-create disabled>
+        {{ block.settings.creator_label | escape }}
+      </button>
+    </div>
+
     <p data-inkybay-message hidden aria-live="polite"></p>
-  </section>
+  </div>
   <script src="{{ 'customhouse-inkybay-creator.js' | asset_url }}" defer></script>
 {% endif %}
 
@@ -37,16 +75,37 @@
   "settings": [
     {
       "type": "text",
-      "id": "existing_button_selector",
-      "label": "Existing InkyBay button selector",
-      "info": "Test on a duplicate theme. The matched existing InkyBay button is relabelled Customize & Buy; leave blank until verified."
+      "id": "customize_label",
+      "label": "Customize & Buy label",
+      "default": "Customize & Buy"
     },
     {
       "type": "text",
-      "id": "app_proxy_root",
-      "label": "App proxy root",
-      "default": "/apps/customhouse",
-      "info": "Keep the default in production. Use the isolated preview app proxy only in an unpublished test theme."
+      "id": "creator_label",
+      "label": "Creator action label",
+      "default": "Create for My Collection"
+    },
+    {
+      "type": "select",
+      "id": "layout",
+      "label": "Button layout",
+      "default": "inline",
+      "options": [
+        { "value": "inline", "label": "Side by side" },
+        { "value": "stacked", "label": "Stacked" }
+      ]
+    },
+    {
+      "type": "checkbox",
+      "id": "show_status",
+      "label": "Show status and error messages",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "existing_button_selector",
+      "label": "Existing InkyBay trigger selector (optional)",
+      "info": "Leave blank when the existing InkyBay button uses data-inkybay-customize-trigger."
     }
   ]
 }

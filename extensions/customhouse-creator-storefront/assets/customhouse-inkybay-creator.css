@@ -1,49 +1,78 @@
-.customhouse-inkybay-creator {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
+.customhouse-inkybay-creator-actions {
   margin-block: 1rem;
 }
 
-.customhouse-inkybay-creator button {
+.customhouse-inkybay-creator-actions[data-layout="inline"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.customhouse-inkybay-creator-actions[data-layout="stacked"] {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.customhouse-inkybay-actions {
+  display: contents;
+}
+
+.customhouse-inkybay-creator-actions button {
   min-height: 48px;
   flex: 1 1 220px;
-  border: 0;
+  border: 2px solid #111;
   border-radius: 999px;
   padding: 0.8rem 1.25rem;
   font: inherit;
   font-weight: 750;
+  line-height: 1.2;
   cursor: pointer;
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease,
+    opacity 150ms ease;
+}
+
+.customhouse-inkybay-creator-actions button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgb(17 17 17 / 18%);
 }
 
 .customhouse-inkybay-buy {
-  background: #111827;
+  background: #111;
   color: #fff;
 }
 
 .customhouse-inkybay-create {
-  background: linear-gradient(135deg, #6d35e8, #ec4899);
-  color: #fff;
+  border-color: #6d35e8 !important;
+  background: #fff;
+  color: #5824cc;
 }
 
-.customhouse-inkybay-creator button:disabled {
+.customhouse-inkybay-creator-actions button:disabled {
   cursor: wait;
   opacity: 0.55;
 }
 
-.customhouse-inkybay-creator [data-inkybay-message] {
+.customhouse-inkybay-loading,
+.customhouse-inkybay-creator-actions [data-inkybay-message] {
   flex-basis: 100%;
   margin: 0;
   color: #475569;
+  font-size: 0.95em;
 }
 
-.customhouse-inkybay-creator [data-inkybay-message][data-error="true"] {
+.customhouse-inkybay-creator-actions [data-inkybay-message][data-error="true"] {
   color: #b42318;
 }
 
-@media (max-width: 520px) {
-  .customhouse-inkybay-creator button {
-    flex-basis: 100%;
+@media (max-width: 640px) {
+  .customhouse-inkybay-creator-actions,
+  .customhouse-inkybay-creator-actions[data-layout="inline"] {
+    display: grid;
+  }
+
+  .customhouse-inkybay-creator-actions button {
     width: 100%;
   }
 }

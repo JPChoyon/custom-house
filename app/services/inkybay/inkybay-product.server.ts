@@ -1,5 +1,5 @@
-import { DomainError } from "../domain";
-import type { ShopifyGraphqlClient } from "../shopify-graphql.server";
+import { DomainError } from "../domain.ts";
+import type { ShopifyGraphqlClient } from "../shopify-graphql.server.ts";
 
 export type VerifiedInkyBayProduct = {
   id: string;
@@ -14,6 +14,31 @@ export type VerifiedInkyBayProduct = {
     selectedOptions: Array<{ name: string; value: string }>;
   }>;
 };
+
+export function inkyBayProductContract(input: {
+  productType: string | null;
+  inkyBayEnabled: boolean;
+  creatorPublishingEnabled: boolean;
+  tags: string[];
+}) {
+  const tags = new Set(input.tags.map((tag) => tag.trim().toLowerCase()));
+  const isCreatorFixed =
+    input.productType === "creator_fixed" || tags.has("creator-fixed");
+  const hasLegacyInkyBayTag =
+    tags.has("inkybay-designlab") || tags.has("inkybay-options");
+  const isGlobalCustomizable = Boolean(
+    !isCreatorFixed &&
+    ((input.productType === "global_customizable" && input.inkyBayEnabled) ||
+      hasLegacyInkyBayTag),
+  );
+  return {
+    isCreatorFixed,
+    isGlobalCustomizable,
+    creatorPublishingEnabled: Boolean(
+      isGlobalCustomizable && input.creatorPublishingEnabled,
+    ),
+  };
+}
 
 export async function verifyInkyBayGlobalProduct(
   client: ShopifyGraphqlClient,
@@ -67,16 +92,27 @@ export async function verifyInkyBayGlobalProduct(
     { id: productId },
   );
   const product = result.product;
-  const isGlobal =
-    product?.productType?.value === "global_customizable" ||
-    (product?.legacyOrigin?.value === "global" &&
-      product.legacyMode?.value === "customizable");
+  const legacyGlobal = Boolean(
+    product?.legacyOrigin?.value === "global" &&
+    product.legacyMode?.value === "customizable",
+  );
+  const contract = product
+    ? inkyBayProductContract({
+        productType: legacyGlobal
+          ? "global_customizable"
+          : product.productType?.value || null,
+        inkyBayEnabled:
+          legacyGlobal || product.inkybayEnabled?.value === "true",
+        creatorPublishingEnabled:
+          product.creatorPublishingEnabled?.value === "true",
+        tags: product.tags,
+      })
+    : null;
   if (
     !product ||
     product.status !== "ACTIVE" ||
-    !isGlobal ||
-    product.inkybayEnabled?.value !== "true" ||
-    product.creatorPublishingEnabled?.value !== "true"
+    !contract?.isGlobalCustomizable ||
+    !contract.creatorPublishingEnabled
   ) {
     throw new DomainError(
       "SOURCE_PRODUCT_NOT_ELIGIBLE",
@@ -85,7 +121,9 @@ export async function verifyInkyBayGlobalProduct(
     );
   }
   if (variantId) {
-    const variant = product.variants.nodes.find((item) => item.id === variantId);
+    const variant = product.variants.nodes.find(
+      (item) => item.id === variantId,
+    );
     if (!variant?.availableForSale) {
       throw new DomainError(
         "SOURCE_VARIANT_UNAVAILABLE",

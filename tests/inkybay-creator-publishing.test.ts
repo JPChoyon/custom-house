@@ -11,6 +11,7 @@ import {
   verifyInkyBaySessionToken,
 } from "../app/services/inkybay/inkybay-session-token.server.ts";
 import { inkyBayWorkspaceHtml } from "../app/services/inkybay/inkybay-workspace.server.ts";
+import { inkyBayProductContract } from "../app/services/inkybay/inkybay-product.server.ts";
 
 process.env.DESIGN_SIGNING_SECRET = "i".repeat(48);
 
@@ -185,15 +186,81 @@ test("theme creator action remains hidden until trusted eligibility resolves", a
     "extensions/customhouse-creator-storefront/assets/customhouse-inkybay-creator.js",
     "utf8",
   );
-  assert.match(liquid, /data-inkybay-create hidden disabled/);
+  assert.match(liquid, /data-inkybay-creator-actions hidden/);
   assert.match(liquid, /product_type == 'global_customizable'/);
-  assert.match(liquid, /data-app-proxy-root/);
-  assert.match(liquid, /default: '\/apps\/customhouse'/);
-  assert.doesNotMatch(liquid, /creator_fixed/);
+  assert.match(liquid, /product\.tags contains 'inkybay-designlab'/);
+  assert.match(liquid, /product\.tags contains 'inkybay-options'/);
+  assert.match(liquid, /creator_publishing_enabled == true/);
+  assert.match(
+    liquid,
+    /data-app-proxy-root="\/apps\/customhouse-inkybay-preview"/,
+  );
+  assert.match(liquid, /block\.shopify_attributes/);
+  assert.match(liquid, /"name": "InkyBay Creator Actions"/);
+  assert.match(liquid, /"target": "section"/);
+  assert.match(liquid, /creator_fixed/);
+  assert.match(liquid, /creator-fixed/);
   assert.match(script, /eligibility\.creatorPublishAvailable/);
+  assert.match(script, /eligibility\.isApprovedCreator/);
+  assert.match(script, /data-inkybay-customize-trigger/);
+  assert.match(script, /dataset\.ready/);
+  assert.match(script, /shopify:section:load/);
+  assert.match(script, /shopify:block:select/);
   assert.match(script, /idempotencyKey/);
   assert.match(script, /configuredProxyRoot/);
   assert.doesNotMatch(script, /localStorage/);
+});
+
+test("InkyBay product contract supports legacy tags and always excludes creator-fixed", () => {
+  assert.deepEqual(
+    inkyBayProductContract({
+      productType: "global_customizable",
+      inkyBayEnabled: true,
+      creatorPublishingEnabled: true,
+      tags: [],
+    }),
+    {
+      isCreatorFixed: false,
+      isGlobalCustomizable: true,
+      creatorPublishingEnabled: true,
+    },
+  );
+  assert.equal(
+    inkyBayProductContract({
+      productType: null,
+      inkyBayEnabled: false,
+      creatorPublishingEnabled: true,
+      tags: ["inkybay-designlab"],
+    }).isGlobalCustomizable,
+    true,
+  );
+  assert.equal(
+    inkyBayProductContract({
+      productType: null,
+      inkyBayEnabled: false,
+      creatorPublishingEnabled: false,
+      tags: ["inkybay-options"],
+    }).creatorPublishingEnabled,
+    false,
+  );
+  assert.equal(
+    inkyBayProductContract({
+      productType: "creator_fixed",
+      inkyBayEnabled: true,
+      creatorPublishingEnabled: true,
+      tags: ["inkybay-designlab"],
+    }).isGlobalCustomizable,
+    false,
+  );
+  assert.equal(
+    inkyBayProductContract({
+      productType: "global_customizable",
+      inkyBayEnabled: true,
+      creatorPublishingEnabled: true,
+      tags: ["creator-fixed", "inkybay-options"],
+    }).isGlobalCustomizable,
+    false,
+  );
 });
 
 test("fixed product publishing never exposes private artwork in Shopify metafields", async () => {
