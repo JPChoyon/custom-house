@@ -26,9 +26,24 @@ INKYBAY_MANUAL_PUBLISH_BRIDGE_ENABLED=false
 
 For the Preview POC, enable creator publishing and the manual bridge only. Keep the callback flag false unless InkyBay supplies and the team verifies an official signed contract.
 
-Private production artwork requires an HTTPS S3-compatible bucket:
+Private production artwork should use a **Private** Vercel Blob store when the
+app is hosted on Vercel:
 
 ```text
+PRIVATE_STORAGE_PROVIDER=vercel_blob
+BLOB_STORE_ID=
+BLOB_READ_WRITE_TOKEN=
+```
+
+`BLOB_STORE_ID` plus the Vercel runtime OIDC token is supported. A project-scoped
+read/write token may be used where OIDC is unavailable. Never expose either value
+to storefront code. The application stores only the private pathname and streams
+admin downloads through the authenticated embedded route.
+
+An HTTPS S3-compatible private bucket remains supported as a fallback:
+
+```text
+PRIVATE_STORAGE_PROVIDER=s3
 PRIVATE_STORAGE_ENDPOINT=
 PRIVATE_STORAGE_REGION=
 PRIVATE_STORAGE_BUCKET=
@@ -37,7 +52,7 @@ PRIVATE_STORAGE_SECRET_ACCESS_KEY=
 PRIVATE_STORAGE_FORCE_PATH_STYLE=false
 ```
 
-The bucket must be private. Grant only object read/write access for this application. Configure lifecycle/retention rules according to the merchant's production policy. Admin downloads use short-lived signed URLs.
+The store or bucket must be private. Grant only object read/write access for this application. Configure lifecycle/retention rules according to the merchant's production policy. S3 admin downloads use short-lived signed URLs.
 
 Optional validation limits are documented in `.env.example`. `DESIGN_SIGNING_SECRET` must remain a server-only, high-entropy secret because it signs creator session tokens.
 
@@ -94,7 +109,7 @@ The migration is additive and should not be rolled back by deleting production d
 ## Merchant-owned steps
 
 - Verify the one test product's metafields, variants, InkyBay collection membership, minimum quantity, and normal Add to Cart behavior.
-- Supply/configure private S3-compatible storage through the hosting dashboard; never send credentials in chat.
+- Create/connect a private Vercel Blob store (recommended) or supply private S3-compatible storage through the hosting dashboard; never send credentials in chat.
 - Create and select the unpublished duplicate theme, then add/configure the InkyBay Creator Actions block.
 - Verify app scopes, app proxy, Online Store publication selection, and theme extension deployment.
 - Approve production rollout only after every Preview acceptance check passes.

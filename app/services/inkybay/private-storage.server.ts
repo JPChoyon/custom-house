@@ -5,22 +5,30 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { get, put } from "@vercel/blob";
 import { DomainError } from "../domain";
-import { getPrivateStorageConfig } from "./inkybay-config.server";
+import {
+  getPrivateStorageConfig,
+  type S3PrivateStorageConfig,
+  type VercelBlobStorageConfig,
+} from "./inkybay-config.server";
 
-function client() {
-  const config = getPrivateStorageConfig();
+function s3Client(config: S3PrivateStorageConfig) {
+  return new S3Client({
+    endpoint: config.endpoint,
+    region: config.region,
+    forcePathStyle: config.forcePathStyle,
+    credentials: {
+      accessKeyId: config.accessKeyId,
+      secretAccessKey: config.secretAccessKey,
+    },
+  });
+}
+
+function blobAuthentication(config: VercelBlobStorageConfig) {
   return {
-    config,
-    s3: new S3Client({
-      endpoint: config.endpoint,
-      region: config.region,
-      forcePathStyle: config.forcePathStyle,
-      credentials: {
-        accessKeyId: config.accessKeyId,
-        secretAccessKey: config.secretAccessKey,
-      },
-    }),
+    ...(config.storeId ? { storeId: config.storeId } : {}),
+    ...(config.readWriteToken ? { token: config.readWriteToken } : {}),
   };
 }
 
@@ -36,7 +44,7 @@ export async function storePrivateProductionArtwork(input: {
   mimeType: string;
   extension: string;
 }) {
-  const { config, s3 } = client();
+  const config = getPrivateStorageConfig();
   const key = [
     "creator-production",
     segment(input.shop),
@@ -45,19 +53,31 @@ export async function storePrivateProductionArtwork(input: {
     `${randomUUID()}.${segment(input.extension)}`,
   ].join("/");
   try {
-    await s3.send(
-      new PutObjectCommand({
-        Bucket: config.bucket,
-        Key: key,
-        Body: input.bytes,
-        ContentType: input.mimeType,
-        CacheControl: "private, no-store",
-        ServerSideEncryption: "AES256",
-        Metadata: {
-          purpose: "creator-production-artwork",
-        },
-      }),
-    );
+    if (config.provider === "vercel_blob") {
+      await put(key, Buffer.from(input.bytes), {
+        access: "private",
+        addRandomSuffix: false,
+        allowOverwrite: false,
+        cacheControlMaxAge: 60,
+        contentType: input.mimeType,
+        multipart: input.bytes.byteLength > 5 * 1024 * 1024,
+        ...blobAuthentication(config),
+      });
+    } else {
+      await s3Client(config).send(
+        new PutObjectCommand({
+          Bucket: config.bucket,
+          Key: key,
+          Body: input.bytes,
+          ContentType: input.mimeType,
+          CacheControl: "private, no-store",
+          ServerSideEncryption: "AES256",
+          Metadata: {
+            purpose: "creator-production-artwork",
+          },
+        }),
+      );
+    }
   } catch {
     throw new DomainError(
       "PRODUCTION_ARTWORK_STORAGE_FAILED",
@@ -68,11 +88,21 @@ export async function storePrivateProductionArtwork(input: {
   return { key };
 }
 
-export async function signPrivateProductionDownload(
+export type PrivateProductionDownload =
+  | { kind: "redirect"; url: string }
+  | {
+      kind: "stream";
+      stream: ReadableStream<Uint8Array>;
+      contentType: string;
+      size: number;
+      etag: string;
+    };
+
+export async function getPrivateProductionDownload(
   key: string,
   lifetimeSeconds = 5 * 60,
-) {
-  const { config, s3 } = client();
+): Promise<PrivateProductionDownload> {
+  const config = getPrivateStorageConfig();
   if (!key.startsWith("creator-production/")) {
     throw new DomainError(
       "PRODUCTION_ARTWORK_INVALID",
@@ -81,11 +111,32 @@ export async function signPrivateProductionDownload(
     );
   }
   try {
-    return await getSignedUrl(
-      s3,
-      new GetObjectCommand({ Bucket: config.bucket, Key: key }),
-      { expiresIn: Math.max(60, Math.min(lifetimeSeconds, 15 * 60)) },
-    );
+    if (config.provider === "vercel_blob") {
+      const result = await get(key, {
+        access: "private",
+        useCache: false,
+        ...blobAuthentication(config),
+      });
+      if (!result || result.statusCode !== 200) {
+        throw new Error("Private blob was not found");
+      }
+      return {
+        kind: "stream",
+        stream: result.stream,
+        contentType: result.blob.contentType,
+        size: result.blob.size,
+        etag: result.blob.etag,
+      };
+    }
+
+    return {
+      kind: "redirect",
+      url: await getSignedUrl(
+        s3Client(config),
+        new GetObjectCommand({ Bucket: config.bucket, Key: key }),
+        { expiresIn: Math.max(60, Math.min(lifetimeSeconds, 15 * 60)) },
+      ),
+    };
   } catch {
     throw new DomainError(
       "PRODUCTION_ARTWORK_UNAVAILABLE",

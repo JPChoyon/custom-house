@@ -223,3 +223,25 @@ test("creator fixed order snapshots are immutable and retain private artwork map
   assert.match(source, /skipDuplicates: true/);
   assert.doesNotMatch(source, /updateMany|upsert/);
 });
+
+test("private production artwork supports Vercel Blob without exposing a public URL", async () => {
+  const storage = await readFile(
+    "app/services/inkybay/private-storage.server.ts",
+    "utf8",
+  );
+  const adminDownload = await readFile(
+    "app/routes/app.inkybay.artwork.$designId.tsx",
+    "utf8",
+  );
+  assert.match(storage, /put\(key, Buffer\.from\(input\.bytes\)/);
+  assert.match(storage, /access: "private"/);
+  assert.match(storage, /useCache: false/);
+  assert.match(storage, /kind: "stream"/);
+  assert.match(adminDownload, /await authenticate\.admin\(request\)/);
+  assert.match(adminDownload, /new Response\(download\.stream/);
+  assert.match(adminDownload, /"Cache-Control": "private, no-store"/);
+  assert.doesNotMatch(
+    adminDownload,
+    /productionArtworkKey.*json|json.*productionArtworkKey/i,
+  );
+});
