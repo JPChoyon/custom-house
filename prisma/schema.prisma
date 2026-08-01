@@ -68,6 +68,99 @@ enum SubmissionStatus {
   ARCHIVED
 }
 
+enum DesignerMode {
+  CUSTOMER_CUSTOMIZE
+  CUSTOMER_BUY
+  CREATOR_BUY
+  CREATOR_PUBLISH
+}
+
+enum DesignProvider {
+  FABRIC
+  ZAKEKE
+  INKYBAY
+}
+
+enum InkyBayPublishMode {
+  MANUAL_BRIDGE
+  INKYBAY_CALLBACK
+}
+
+enum DesignSessionStatus {
+  CREATED
+  DESIGNING
+  WAITING_FOR_SAVED_DESIGN
+  WAITING_FOR_ASSETS
+  READY_TO_PUBLISH
+  PUBLISHING
+  DRAFT
+  READY
+  PUBLISHED
+  CARTED
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+
+enum CreatorDesignStatus {
+  DRAFT
+  PROCESSING
+  ACTIVE
+  HIDDEN
+  ARCHIVED
+  SUSPENDED
+  FAILED
+}
+
+enum CreatorDesignSyncStatus {
+  PENDING
+  SYNCING
+  SYNCED
+  FAILED
+  HIDDEN
+}
+
+enum GlobalProductMappingStatus {
+  DRAFT
+  TESTING
+  ACTIVE
+  DISABLED
+  ERROR
+}
+
+enum DesignPurchaseStatus {
+  CREATING
+  READY
+  CARTED
+  ORDERED
+  FAILED
+  EXPIRED
+}
+
+enum PrintFilesStatus {
+  PENDING
+  PROCESSING
+  AVAILABLE
+  ERROR
+  CANCELLED
+  REFUNDED
+}
+
+enum WebhookDeliveryStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ZakekeOrderJobStatus {
+  PENDING
+  PROCESSING
+  REGISTERED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
 model ShopConfig {
   id                                 String    @id @default(cuid())
   shop                               String    @unique
@@ -123,6 +216,8 @@ model Creator {
   updatedAt                  DateTime             @updatedAt
   applications               CreatorApplication[]
   submissions                DesignSubmission[]
+  designSessions             DesignSession[]
+  creatorDesigns             CreatorDesign[]
 
   @@unique([shop, customerId])
   @@unique([shop, handle])
@@ -182,6 +277,211 @@ model DesignSubmission {
   @@index([shop, status])
   @@index([creatorId, createdAt])
   @@index([shop, createdProductId])
+}
+
+model DesignSession {
+  id                     String                @id @default(cuid())
+  shop                   String
+  customerId             String
+  creatorId              String?
+  clientKey              String
+  shopifyProductId       String
+  shopifyVariantId       String
+  mode                   DesignerMode
+  provider               DesignProvider        @default(FABRIC)
+  publishMode            InkyBayPublishMode?
+  visitorCode            String?
+  nonceHash              String?
+  expiresAt              DateTime?
+  zakekeDesignId         String?
+  selectedAttributesJson String?
+  globalProductMappingId String?
+  designJson             String                @db.Text
+  previewUrl             String?
+  artworkUrl             String?
+  productionArtworkKey   String?
+  inkybaySavedDesignUrl  String?
+  inkybayTid             String?
+  title                  String?
+  description            String?
+  idempotencyKey         String?
+  lastErrorCode          String?
+  lastErrorReference     String?
+  status                 DesignSessionStatus   @default(DRAFT)
+  version                Int                   @default(1)
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  creator                Creator?              @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+  creatorDesign          CreatorDesign?
+  globalProductMapping   GlobalProductMapping? @relation(fields: [globalProductMappingId], references: [id], onDelete: SetNull)
+
+  @@unique([shop, customerId, clientKey])
+  @@unique([shop, idempotencyKey])
+  @@index([shop, customerId, updatedAt])
+  @@index([creatorId, status])
+  @@index([shop, provider, expiresAt])
+  @@index([shop, provider, status, updatedAt])
+  @@index([globalProductMappingId])
+}
+
+model CreatorDesign {
+  id                           String                  @id @default(cuid())
+  shop                         String
+  creatorId                    String
+  designSessionId              String                  @unique
+  provider                     DesignProvider          @default(FABRIC)
+  globalProductMappingId       String?
+  globalShopifyProductId       String
+  sourceZakekeDesignId         String?
+  inkybaySavedDesignUrl        String?
+  inkybayTid                   String?
+  shopifyCreatorProductId      String?
+  shopifyCollectionId          String?
+  previewPoc                   Boolean                 @default(false)
+  previewOwnerApp              String?
+  title                        String
+  slug                         String?
+  description                  String?
+  previewUrl                   String
+  artworkUrl                   String
+  productionArtworkKey         String?
+  designJson                   String                  @db.Text
+  compatibleVariantIdsJson     String                  @default("[]")
+  selectedAttributesJson       String                  @default("[]")
+  designVersion                Int                     @default(1)
+  hiddenReason                 String?
+  wasPublishedBeforeSuspension Boolean                 @default(false)
+  status                       CreatorDesignStatus     @default(DRAFT)
+  syncStatus                   CreatorDesignSyncStatus @default(PENDING)
+  idempotencyKey               String
+  publishError                 String?
+  lastErrorCode                String?
+  lastErrorReference           String?
+  createdAt                    DateTime                @default(now())
+  updatedAt                    DateTime                @updatedAt
+  publishedAt                  DateTime?
+  creator                      Creator                 @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  designSession                DesignSession           @relation(fields: [designSessionId], references: [id], onDelete: Restrict)
+  globalProductMapping         GlobalProductMapping?   @relation(fields: [globalProductMappingId], references: [id], onDelete: SetNull)
+  designPurchases              DesignPurchase[]
+
+  @@unique([shop, idempotencyKey])
+  @@unique([shop, slug])
+  @@index([creatorId, status])
+  @@index([shop, shopifyCreatorProductId])
+  @@index([shop, syncStatus])
+  @@index([shop, previewPoc])
+  @@index([globalProductMappingId])
+}
+
+model GlobalProductMapping {
+  id                   String                     @id @default(cuid())
+  shop                 String
+  shopifyProductId     String
+  shopifyProductHandle String?
+  zakekeProductCode    String
+  enabled              Boolean                    @default(false)
+  status               GlobalProductMappingStatus @default(DRAFT)
+  variantMappingJson   String                     @default("{}")
+  lastSyncedAt         DateTime?
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  designSessions       DesignSession[]
+  creatorDesigns       CreatorDesign[]
+
+  @@unique([shop, shopifyProductId])
+  @@unique([shop, zakekeProductCode])
+  @@index([shop, enabled, status])
+}
+
+model DesignPurchase {
+  id                     String               @id @default(cuid())
+  shop                   String
+  creatorDesignId        String?
+  sourceZakekeDesignId   String
+  purchaseZakekeDesignId String?
+  shopifyProductId       String
+  shopifyVariantId       String
+  customerId             String?
+  visitorCode            String?
+  idempotencyKey         String
+  signedTokenHash        String?
+  status                 DesignPurchaseStatus @default(CREATING)
+  expiresAt              DateTime
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  creatorDesign          CreatorDesign?       @relation(fields: [creatorDesignId], references: [id], onDelete: SetNull)
+
+  @@unique([shop, idempotencyKey])
+  @@index([creatorDesignId, status])
+  @@index([shop, shopifyProductId, shopifyVariantId])
+  @@index([shop, status, expiresAt])
+}
+
+model OrderDesignSnapshot {
+  id                      String           @id @default(cuid())
+  shop                    String
+  shopifyOrderId          String
+  shopifyLineItemId       String
+  creatorId               String?
+  creatorDesignId         String?
+  sourceShopifyProductId  String
+  shopifyCreatorProductId String?
+  shopifyVariantId        String
+  provider                DesignProvider   @default(ZAKEKE)
+  sourceZakekeDesignId    String?
+  orderZakekeDesignId     String?
+  designVersion           Int
+  previewUrl              String?
+  productionArtworkKey    String?
+  printFilesStatus        PrintFilesStatus @default(PENDING)
+  printFilesReference     String?
+  designTitle             String
+  creatorName             String?
+  createdAt               DateTime         @default(now())
+
+  @@unique([shop, shopifyLineItemId])
+  @@index([shop, shopifyOrderId])
+  @@index([creatorDesignId])
+  @@index([shop, printFilesStatus])
+}
+
+model WebhookDelivery {
+  id            String                @id @default(cuid())
+  shop          String
+  webhookId     String
+  topic         String
+  status        WebhookDeliveryStatus @default(PROCESSING)
+  attempts      Int                   @default(1)
+  lastErrorCode String?
+  lastReference String?
+  processedAt   DateTime?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  @@unique([shop, webhookId])
+  @@index([shop, topic, status])
+}
+
+model ZakekeOrderJob {
+  id                 String               @id @default(cuid())
+  shop               String
+  shopifyOrderId     String
+  shopifyOrderCode   String
+  customerId         String?
+  visitorCode        String?
+  payloadJson        String               @db.Text
+  status             ZakekeOrderJobStatus @default(PENDING)
+  attempts           Int                  @default(0)
+  nextAttemptAt      DateTime?
+  lastErrorCode      String?
+  lastErrorReference String?
+  registeredAt       DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  @@unique([shop, shopifyOrderId])
+  @@index([shop, status, nextAttemptAt])
 }
 
 model AuditLog {

@@ -5,7 +5,8 @@ export type DiagnosticCategory =
   | "webhook_authentication"
   | "app_proxy_authentication"
   | "database_connection"
-  | "graphql_failure";
+  | "graphql_failure"
+  | "designer_request";
 
 export function correlationId(request?: Request): string {
   const supplied = request?.headers.get("x-request-id")?.trim();
