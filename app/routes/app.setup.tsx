@@ -12,7 +12,17 @@ type Readiness = "Ready" | "Needs configuration" | "Conflict" | "Unable to verif
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session, admin } = await authenticate.admin(request);
   const [config, conflicts] = await Promise.all([db.shopConfig.upsert({ where: { shop: session.shop }, update: {}, create: { shop: session.shop } }), db.creator.count({ where: { shop: session.shop, externalSyncConflict: true } })]);
-  const response = await admin.graphql(`#graphql query SetupProductMetafields { metafieldDefinitions(first: 20, ownerType: PRODUCT, namespace: "customhouse") { nodes { key } } }`);
+  const response = await admin.graphql(`#graphql
+    query SetupProductMetafields {
+      metafieldDefinitions(
+        first: 20
+        ownerType: PRODUCT
+        namespace: "customhouse"
+      ) {
+        nodes { key }
+      }
+    }
+  `);
   const definitions = await response.json() as SetupQuery;
   return { config, conflicts, keys: definitions.data?.metafieldDefinitions.nodes.map((node) => node.key) ?? [] };
 }
