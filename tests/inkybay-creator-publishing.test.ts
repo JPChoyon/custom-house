@@ -177,38 +177,49 @@ test("workspace requires private production artwork and documents manual bridge"
   assert.match(html, /X-Customhouse-Session-Token/);
 });
 
-test("theme creator action remains hidden until trusted eligibility resolves", async () => {
-  const liquid = await readFile(
-    "extensions/customhouse-creator-storefront/blocks/inkybay-creator-actions.liquid",
+test("live product section gates the direct creator action through production proxy", async () => {
+  const section = await readFile(
+    "theme-source/horizon-live-creator-button/sections/product-information.liquid",
     "utf8",
   );
-  const script = await readFile(
-    "extensions/customhouse-creator-storefront/assets/customhouse-inkybay-creator.js",
+  const details = await readFile(
+    "theme-source/horizon-live-creator-button/blocks/_product-details.liquid",
     "utf8",
   );
-  assert.match(liquid, /data-inkybay-creator-actions hidden/);
-  assert.match(liquid, /product_type == 'global_customizable'/);
-  assert.match(liquid, /product\.tags contains 'inkybay-designlab'/);
-  assert.match(liquid, /product\.tags contains 'inkybay-options'/);
-  assert.match(liquid, /creator_publishing_enabled == true/);
+
+  assert.match(section, /data-customhouse-creator-actions/);
+  assert.match(section, /data-create-for-collection/);
+  assert.match(section, /data-creator-action-message/);
+  assert.match(section, /Create for My Collection/);
+  assert.match(section, /Creating design session\\u2026/);
   assert.match(
-    liquid,
-    /data-app-proxy-root="\/apps\/customhouse-inkybay-preview"/,
+    section,
+    /We could not start your creator design\. Please try again\./,
   );
-  assert.match(liquid, /block\.shopify_attributes/);
-  assert.match(liquid, /"name": "InkyBay Creator Actions"/);
-  assert.match(liquid, /"target": "section"/);
-  assert.match(liquid, /creator_fixed/);
-  assert.match(liquid, /creator-fixed/);
-  assert.match(script, /eligibility\.creatorPublishAvailable/);
-  assert.match(script, /eligibility\.isApprovedCreator/);
-  assert.match(script, /data-inkybay-customize-trigger/);
-  assert.match(script, /dataset\.ready/);
-  assert.match(script, /shopify:section:load/);
-  assert.match(script, /shopify:block:select/);
-  assert.match(script, /idempotencyKey/);
-  assert.match(script, /configuredProxyRoot/);
-  assert.doesNotMatch(script, /localStorage/);
+  assert.match(section, /const ENDPOINT = '\/apps\/customhouse\/api\/inkybay'/);
+  assert.match(section, /eligibility\?\$\{query\}/);
+  assert.match(section, /creator-designs\/start/);
+  assert.match(section, /eligibility\?\.creatorPublishAvailable === true/);
+  assert.match(section, /eligibility\?\.isApprovedCreator === true/);
+  assert.match(section, /eligibility\?\.isSuspendedCreator === false/);
+  assert.match(section, /creatorActionsReady/);
+  assert.match(section, /creatorActionBound/);
+  assert.match(section, /shopify:section:load/);
+  assert.match(section, /idempotencyKey: sessionKey\(root\)/);
+  assert.match(section, /current_inkybay_enabled == true/);
+  assert.match(section, /current_creator_publishing_enabled == true/);
+  assert.match(section, /inkybay-designlab/);
+  assert.match(section, /inkybay-options/);
+  assert.match(section, /creator_fixed/);
+  assert.match(section, /creator-fixed/);
+  assert.doesNotMatch(section, /customhouse-inkybay-preview/);
+  assert.doesNotMatch(section, /localStorage|customerId|logged_in_customer_id/);
+
+  assert.match(details, /data-inkybay-customize-trigger/);
+  assert.match(details, /if is_inkybay_designer_product/);
+  assert.match(details, /is_creator_fixed_product/);
+  assert.match(details, /customhouse_inkybay_enabled == true/);
+  assert.match(details, /if \(isInkyBayDesignerProduct\)/);
 });
 
 test("InkyBay product contract supports legacy tags and always excludes creator-fixed", () => {
