@@ -78,7 +78,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     enforceRateLimit(`${shop}:${context.customerId}:dashboard`);
     const dashboard = await loadWithLazySync(
-      () => creatorDashboard(shop, context.customerId!),
+      () => creatorDashboard(shop, context.customerId!, context.client),
       () => lazySyncCreator(shop, context.customerId!, context.client),
     );
     const live = dashboard.creatorFound

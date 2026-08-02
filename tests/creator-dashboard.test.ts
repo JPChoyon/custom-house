@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { loadDashboardState, resolveDashboardState } from "../extensions/customhouse-creator-storefront/assets/customhouse-dashboard.js";
+import { countActiveCollectionProducts } from "../app/services/creator-collection-products.server.ts";
+import type { ShopifyGraphqlClient } from "../app/services/shopify-graphql.server.ts";
 
 test("logged-out dashboard state", () => {
   assert.deepEqual(resolveDashboardState({ state: "LOGGED_OUT" }), {
@@ -56,4 +58,60 @@ test("successful response always clears loading", async () => {
   await loadDashboardState(async () => ({ state: "PENDING" }), (event: { state: string; loading: boolean }) => events.push(event));
   assert.deepEqual(events.map((event) => event.state), ["LOADING", "PENDING", "LOADING_COMPLETE"]);
   assert.equal(events.at(-1)?.loading, false);
+});
+
+test("manually added active collection products are included in the published count", async () => {
+  const cursors: Array<unknown> = [];
+  const client: ShopifyGraphqlClient = {
+    async request<T>(_query: string, variables?: Record<string, unknown>) {
+      cursors.push(variables?.after);
+      const response = variables?.after
+        ? {
+            collection: {
+              products: {
+                nodes: [{ status: "ACTIVE" }, { status: "ACTIVE" }],
+                pageInfo: { hasNextPage: false, endCursor: null },
+              },
+            },
+          }
+        : {
+            collection: {
+              products: {
+                nodes: [
+                  { status: "ACTIVE" },
+                  { status: "DRAFT" },
+                  { status: "ARCHIVED" },
+                ],
+                pageInfo: { hasNextPage: true, endCursor: "page-2" },
+              },
+            },
+          };
+      return response as T;
+    },
+  };
+
+  assert.equal(
+    await countActiveCollectionProducts(
+      client,
+      "gid://shopify/Collection/123",
+    ),
+    3,
+  );
+  assert.deepEqual(cursors, [null, "page-2"]);
+});
+
+test("a deleted or unavailable creator collection has zero published products", async () => {
+  const client: ShopifyGraphqlClient = {
+    async request<T>() {
+      return { collection: null } as T;
+    },
+  };
+
+  assert.equal(
+    await countActiveCollectionProducts(
+      client,
+      "gid://shopify/Collection/404",
+    ),
+    0,
+  );
 });

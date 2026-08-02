@@ -7,6 +7,7 @@ import {
 } from "./design-provider.server";
 import type { ShopifyGraphqlClient } from "./shopify-graphql.server";
 import { normalizeCustomerGid } from "./helium-sync.server";
+import { countActiveCollectionProducts } from "./creator-collection-products.server";
 
 export async function createSubmission(
   shop: string,
@@ -86,7 +87,11 @@ export async function createSubmission(
   }
 }
 
-export async function creatorDashboard(shop: string, customerId: string) {
+export async function creatorDashboard(
+  shop: string,
+  customerId: string,
+  client?: ShopifyGraphqlClient,
+) {
   customerId = normalizeCustomerGid(customerId);
   const [creator, config] = await Promise.all([
     db.creator.findUnique({
@@ -113,6 +118,19 @@ export async function creatorDashboard(shop: string, customerId: string) {
     (submission) =>
       submission.status === "PUBLISHED" && submission.createdProductId,
   );
+  let publishedProductsCount = publishedProducts.length;
+
+  if (client && creator.collectionId) {
+    try {
+      publishedProductsCount = await countActiveCollectionProducts(
+        client,
+        creator.collectionId,
+      );
+    } catch {
+      // Keep the dashboard available if Shopify is temporarily unavailable.
+      // The GraphQL abstraction records a safe diagnostic without response data.
+    }
+  }
 
   return {
     state: creator.externalSyncConflict ? "SYNC_CONFLICT" as const : creator.status,
@@ -132,7 +150,7 @@ export async function creatorDashboard(shop: string, customerId: string) {
       totalEarnings: null,
       ordersCount: null,
       collectionsCount: creator.collectionId ? 1 : 0,
-      publishedProductsCount: publishedProducts.length,
+      publishedProductsCount,
     },
     topSellingProducts: [],
     submissions: creator.submissions.map(
