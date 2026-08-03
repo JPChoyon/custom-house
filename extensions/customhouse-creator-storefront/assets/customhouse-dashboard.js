@@ -81,6 +81,8 @@ function renderDashboard(root, view) {
       : String(overview.totalEarnings);
   profile.querySelector("[data-dashboard-orders]").textContent =
     overview.ordersCount == null ? "Not configured" : String(overview.ordersCount);
+  profile.querySelector("[data-dashboard-items-sold]").textContent =
+    String(overview.itemsSoldCount ?? 0);
   profile.querySelector("[data-dashboard-collections]").textContent =
     String(overview.collectionsCount ?? 0);
   profile.querySelector("[data-dashboard-products]").textContent =
@@ -112,7 +114,7 @@ function renderDashboard(root, view) {
   topProductsEmpty.hidden = topProducts.length > 0;
   topProducts.forEach((product) => {
     const item = document.createElement("li");
-    item.textContent = product.title;
+    item.textContent = `${product.title} — ${product.unitsSold ?? 0} sold`;
     topProductsList.append(item);
   });
   const submissions = profile.querySelector("[data-dashboard-submissions]");

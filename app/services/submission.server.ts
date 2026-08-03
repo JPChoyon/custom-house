@@ -8,6 +8,7 @@ import {
 import type { ShopifyGraphqlClient } from "./shopify-graphql.server";
 import { normalizeCustomerGid } from "./helium-sync.server";
 import { countActiveCollectionProducts } from "./creator-collection-products.server";
+import { creatorSalesOverview } from "./creator-sales.server";
 
 export async function createSubmission(
   shop: string,
@@ -131,6 +132,7 @@ export async function creatorDashboard(
       // The GraphQL abstraction records a safe diagnostic without response data.
     }
   }
+  const sales = await creatorSalesOverview(creator.id);
 
   return {
     state: creator.externalSyncConflict ? "SYNC_CONFLICT" as const : creator.status,
@@ -146,13 +148,15 @@ export async function creatorDashboard(
     suspensionReason: creator.suspensionReason,
     applicationStatus: creator.applications[0]?.status ?? null,
     overview: {
-      totalSales: null,
-      totalEarnings: null,
-      ordersCount: null,
+      totalSales: sales.totalSales,
+      totalEarnings: sales.totalEarnings,
+      ordersCount: sales.ordersCount,
+      itemsSoldCount: sales.itemsSoldCount,
+      commissionRatePercent: sales.commissionRatePercent,
       collectionsCount: creator.collectionId ? 1 : 0,
       publishedProductsCount,
     },
-    topSellingProducts: [],
+    topSellingProducts: sales.topSellingProducts,
     submissions: creator.submissions.map(
       ({
         id,

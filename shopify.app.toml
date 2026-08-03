@@ -48,8 +48,20 @@ api_version = "2026-07"
   uri = "/webhooks/customers/update"
   topics = ["customers/update"]
 
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/orders/create"
+  topics = ["orders/create"]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/orders/paid"
+  topics = ["orders/paid"]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/refunds/create"
+  topics = ["refunds/create"]
+
 [access_scopes]
-scopes = "read_products,write_products,read_customers,write_customers,read_metaobjects,write_metaobjects,write_metaobject_definitions,read_files,write_files,read_publications,write_publications"
+scopes = "read_products,write_products,read_customers,write_customers,read_metaobjects,write_metaobjects,write_metaobject_definitions,read_files,write_files,read_publications,write_publications,read_orders"
 
 [auth]
 redirect_urls = [

@@ -3,13 +3,30 @@
 {% if request.page_type == 'page' and page.handle == protected_handle %}
   {{ 'creator-application.css' | asset_url | stylesheet_tag }}
 
-  {% unless customer %}
-    <style>
-      main,
-      #MainContent {
-        visibility: hidden !important;
-      }
-    </style>
+  <style>
+    main,
+    #MainContent {
+      visibility: hidden;
+    }
+  </style>
+
+  {% if customer %}
+    <span
+      data-creator-application-guard
+      data-status-endpoint="/apps/customhouse/api/creator-dashboard"
+      data-dashboard-url="{{ block.settings.dashboard_url | default: '/pages/creator-dashboard' }}"
+      hidden
+    ></span>
+    <script type="module" src="{{ 'creator-application-guard.js' | asset_url }}"></script>
+    <noscript>
+      <style>
+        main,
+        #MainContent {
+          visibility: visible;
+        }
+      </style>
+    </noscript>
+  {% else %}
     <script>
       window.location.replace(
         {{ routes.account_login_url | append: '?return_url=' | append: request.path | json }}
@@ -21,7 +38,7 @@
         content="0;url={{ routes.account_login_url }}?return_url={{ request.path | url_encode }}"
       >
     </noscript>
-  {% endunless %}
+  {% endif %}
 {% endif %}
 
 {% schema %}
@@ -34,6 +51,11 @@
       "id": "page_handle",
       "label": "Creator application page handle",
       "default": "become-a-creator"
+    },
+    {
+      "type": "url",
+      "id": "dashboard_url",
+      "label": "Creator dashboard page"
     }
   ]
 }

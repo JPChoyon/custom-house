@@ -218,6 +218,7 @@ model Creator {
   submissions                DesignSubmission[]
   designSessions             DesignSession[]
   creatorDesigns             CreatorDesign[]
+  sales                      CreatorSale[]
 
   @@unique([shop, customerId])
   @@unique([shop, handle])
@@ -444,6 +445,52 @@ model OrderDesignSnapshot {
   @@index([shop, shopifyOrderId])
   @@index([creatorDesignId])
   @@index([shop, printFilesStatus])
+}
+
+model CreatorSale {
+  id                    String                  @id @default(cuid())
+  shop                  String
+  creatorId             String
+  shopifyOrderId        String
+  shopifyLineItemId     String
+  shopifyProductId      String
+  shopifyVariantId      String?
+  productTitle          String
+  quantity              Int
+  refundedQuantity      Int                     @default(0)
+  currencyCode          String
+  grossSalesAmount      Decimal                 @db.Decimal(20, 4)
+  refundedSalesAmount   Decimal                 @default(0) @db.Decimal(20, 4)
+  commissionRateBps     Int                     @default(1000)
+  sourceWebhookId       String
+  paidAt                DateTime?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  creator               Creator                 @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  adjustments           CreatorSaleAdjustment[]
+
+  @@unique([shop, shopifyLineItemId])
+  @@index([creatorId, currencyCode, createdAt])
+  @@index([shop, shopifyOrderId])
+  @@index([shop, shopifyProductId])
+}
+
+model CreatorSaleAdjustment {
+  id                    String       @id @default(cuid())
+  shop                  String
+  adjustmentKey         String
+  shopifyOrderId        String
+  shopifyLineItemId     String
+  creatorSaleId         String?
+  quantity              Int
+  salesAmount           Decimal      @db.Decimal(20, 4)
+  sourceWebhookId       String
+  createdAt             DateTime     @default(now())
+  creatorSale           CreatorSale? @relation(fields: [creatorSaleId], references: [id], onDelete: Cascade)
+
+  @@unique([shop, adjustmentKey])
+  @@index([shop, shopifyLineItemId])
+  @@index([creatorSaleId])
 }
 
 model WebhookDelivery {
