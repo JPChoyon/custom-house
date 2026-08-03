@@ -1,4 +1,7 @@
 {% assign protected_handle = block.settings.page_handle | default: 'become-a-creator' | strip %}
+{% assign creator_dashboard_url = block.settings.dashboard_url | default: '/pages/creator-dashboard' %}
+{% assign creator_dashboard_return_to = creator_dashboard_url | url_encode %}
+{% assign creator_dashboard_login_url = '/customer_authentication/login?return_to=' | append: creator_dashboard_return_to %}
 
 {% if request.page_type == 'page' and page.handle == protected_handle %}
   {{ 'creator-application.css' | asset_url | stylesheet_tag }}
@@ -14,7 +17,7 @@
     <span
       data-creator-application-guard
       data-status-endpoint="/apps/customhouse/api/creator-dashboard"
-      data-dashboard-url="{{ block.settings.dashboard_url | default: '/pages/creator-dashboard' }}"
+      data-dashboard-url="{{ creator_dashboard_url }}"
       hidden
     ></span>
     <script type="module" src="{{ 'creator-application-guard.js' | asset_url }}"></script>
@@ -29,13 +32,13 @@
   {% else %}
     <script>
       window.location.replace(
-        {{ routes.account_login_url | append: '?return_url=' | append: request.path | json }}
+        {{ creator_dashboard_login_url | json }}
       );
     </script>
     <noscript>
       <meta
         http-equiv="refresh"
-        content="0;url={{ routes.account_login_url }}?return_url={{ request.path | url_encode }}"
+        content="0;url={{ creator_dashboard_login_url }}"
       >
     </noscript>
   {% endif %}

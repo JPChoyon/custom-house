@@ -5,6 +5,9 @@
 {% assign helium_portfolio = customer.metafields["app--960624--helium"]["socialportfolio_url"].value %}
 {% assign helium_profile = customer.metafields["app--960624--helium"]["creator_profile_photo_1"].value | default: customer.metafields["app--960624--helium"]["creator_profile_photo"].value %}
 {% assign helium_profile_url = helium_profile.url | default: helium_profile.preview_image.src %}
+{% assign creator_dashboard_url = request.path | default: '/pages/creator-dashboard' %}
+{% assign creator_dashboard_return_to = creator_dashboard_url | url_encode %}
+{% assign creator_dashboard_login_url = '/customer_authentication/login?return_to=' | append: creator_dashboard_return_to %}
 <section
   class="customhouse-card customhouse-dashboard-page"
   data-customhouse-dashboard
@@ -20,7 +23,7 @@
   </header>
   <p data-dashboard-loading role="status">Loading…</p>
   <p data-dashboard-message aria-live="polite" hidden></p>
-  <p><a data-dashboard-login href="{{ routes.account_login_url }}" hidden>Customer login</a></p>
+  <p><a data-dashboard-login href="{{ creator_dashboard_login_url }}" hidden>Customer login</a></p>
   <p><a data-dashboard-apply href="{{ block.settings.application_url | default: '/pages/become-a-creator' }}" hidden>Become a Creator</a></p>
   <div data-dashboard-profile hidden>
     <div class="customhouse-profile-header">

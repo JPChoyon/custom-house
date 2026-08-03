@@ -112,6 +112,23 @@ test("application guard redirects existing creator states only", () => {
   }
 });
 
+test("storefront creator login returns to the creator dashboard", () => {
+  const guard = readFileSync(
+    "extensions/customhouse-creator-storefront/blocks/creator-application-guard.liquid",
+    "utf8",
+  );
+  const dashboard = readFileSync(
+    "extensions/customhouse-creator-storefront/blocks/creator-dashboard.liquid",
+    "utf8",
+  );
+
+  for (const source of [guard, dashboard]) {
+    assert.match(source, /\/customer_authentication\/login\?return_to=/);
+    assert.doesNotMatch(source, /return_url=/);
+  }
+  assert.match(guard, /default: '\/pages\/creator-dashboard'/);
+});
+
 test("production configuration subscribes to paid sales and refunds", () => {
   const config = readFileSync("shopify.app.production.toml", "utf8");
   assert.match(config, /read_orders/);
