@@ -27,26 +27,46 @@
       assign selected_variant = product.selected_or_first_available_variant | default: product.variants.first
       assign product_form_id = 'MarkedProductForm-' | append: section.id
       assign force_allow_purchase = section.settings.force_allow_purchase
+      assign product_origin = product.metafields.customhouse.product_origin.value | downcase
+      assign design_mode = product.metafields.customhouse.design_mode.value | downcase
+      assign design_status = product.metafields.customhouse.design_status.value | downcase
+      assign product_type = product.metafields.customhouse.product_type.value | downcase
+      assign pitchprint_enabled = product.metafields.customhouse.pitchprint_enabled.value
+      assign is_creator_fixed_product = false
+      assign is_creator_locked_product = false
+      assign is_pitchprint_designlab_product = false
+      assign is_pitchprint_required_product = false
       assign size_option = blank
       assign size_option_name = 'Size'
       assign size_option_position = 1
       assign selected_size_value = selected_variant.option1
-      assign customhouse_product_type = product.metafields.customhouse.product_type.value | downcase
-      assign customhouse_inkybay_enabled = product.metafields.customhouse.inkybay_enabled.value
-      assign is_creator_fixed_product = false
-      assign is_inkybay_designer_product = false
+      assign color_option = blank
+      assign color_option_name = 'Color'
+      assign color_option_position = 0
+      assign selected_color_value = blank
 
-      if customhouse_product_type == 'creator_fixed' or product.tags contains 'creator-fixed'
+      if product_type == 'creator_fixed' or product.tags contains 'creator-fixed'
         assign is_creator_fixed_product = true
       endif
 
-      unless is_creator_fixed_product
-        if customhouse_product_type == 'global_customizable' and customhouse_inkybay_enabled == true
-          assign is_inkybay_designer_product = true
-        elsif product.tags contains 'inkybay-designlab' or product.tags contains 'inkybay-options'
-          assign is_inkybay_designer_product = true
+      if product_origin == 'creator' and design_status == 'published' and design_mode == 'buy_only'
+        assign is_creator_locked_product = true
+        assign is_creator_fixed_product = true
+      endif
+
+      unless is_creator_locked_product
+        if product_type == 'global_customizable' and pitchprint_enabled == true
+          assign is_pitchprint_designlab_product = true
+        elsif product.tags contains 'pitchprint' or product.tags contains 'pitchprint-enabled'
+          assign is_pitchprint_designlab_product = true
+        elsif product.tags contains 'pitchprint-designlab' or product.tags contains 'pitchprint-options'
+          assign is_pitchprint_designlab_product = true
         endif
       endunless
+
+      if is_pitchprint_designlab_product and product.tags contains 'pitchprint-required'
+        assign is_pitchprint_required_product = true
+      endif
 
       for option in product.options_with_values
         assign option_name = option.name | downcase
@@ -54,6 +74,17 @@
           assign size_option = option
           assign size_option_name = option.name
           assign size_option_position = option.position
+          break
+        endif
+      endfor
+
+      for option in product.options_with_values
+        assign option_name = option.name | downcase
+        assign option_name_handle = option.name | handleize
+        if option_name contains 'color' or option_name contains 'colour' or option_name_handle contains 'farg'
+          assign color_option = option
+          assign color_option_name = option.name
+          assign color_option_position = option.position
           break
         endif
       endfor
@@ -67,6 +98,15 @@
           assign selected_size_value = selected_variant.option1
       endcase
 
+      case color_option_position
+        when 1
+          assign selected_color_value = selected_variant.option1
+        when 2
+          assign selected_color_value = selected_variant.option2
+        when 3
+          assign selected_color_value = selected_variant.option3
+      endcase
+
     -%}
 
     <div
@@ -74,11 +114,76 @@
       data-marked-product-actions
       data-product-variants="{{ product.variants | json | escape }}"
       data-size-option-position="{{ size_option_position }}"
-      data-inkybay-designer-product="{% if is_inkybay_designer_product %}true{% else %}false{% endif %}"
+      data-color-option-position="{{ color_option_position }}"
       data-product-id="{{ product.id }}"
       data-product-handle="{{ product.handle | escape }}"
       data-force-allow-purchase="{% if force_allow_purchase %}true{% else %}false{% endif %}"
+      data-customhouse-product-mode="{% if is_creator_locked_product %}creator-locked{% elsif is_pitchprint_designlab_product %}customizable{% else %}standard{% endif %}"
+      {% if is_pitchprint_required_product %}
+        data-customhouse-pitchprint-required="true"
+      {% endif %}
     >
+      {%- if color_option != blank -%}
+        <div class="marked-product-actions__block marked-product-actions__block--color">
+          <div class="marked-product-actions__color-header">
+            <p class="marked-product-actions__label">{{ color_option_name }}:</p>
+            <strong class="marked-product-actions__color-current" data-color-option-current>
+              {{ selected_color_value | default: color_option.values.first }}
+            </strong>
+          </div>
+          <div class="marked-product-actions__color-pills" aria-label="{{ color_option_name }}">
+            {%- for value in color_option.values -%}
+              {%- liquid
+                assign color_handle = value | handleize
+                assign swatch_color = '#555555'
+                case color_handle
+                  when 'black', 'svart'
+                    assign swatch_color = '#050505'
+                  when 'white', 'vit'
+                    assign swatch_color = '#f3f3f3'
+                  when 'navy'
+                    assign swatch_color = '#12243d'
+                  when 'green', 'forest-green', 'dark-green', 'gron', 'morkgron'
+                    assign swatch_color = '#156044'
+                  when 'red', 'rod'
+                    assign swatch_color = '#dd201c'
+                  when 'blue', 'bla'
+                    assign swatch_color = '#2457d6'
+                  when 'purple', 'lila'
+                    assign swatch_color = '#8a2cff'
+                  when 'gray', 'grey', 'gra'
+                    assign swatch_color = '#6f6f6f'
+                  when 'charcoal'
+                    assign swatch_color = '#282828'
+                  when 'silver'
+                    assign swatch_color = '#bfc2c5'
+                  when 'gold', 'guld'
+                    assign swatch_color = '#d4a640'
+                  when 'yellow', 'gul'
+                    assign swatch_color = '#f2cf28'
+                  when 'orange'
+                    assign swatch_color = '#e37822'
+                  when 'brown', 'brun'
+                    assign swatch_color = '#69452c'
+                  when 'pink', 'rosa'
+                    assign swatch_color = '#e66da3'
+                endcase
+              -%}
+              <button
+                class="marked-product-actions__color-pill{% if value == selected_color_value %} is-active{% endif %}"
+                type="button"
+                data-color-option-value="{{ value | escape }}"
+                aria-pressed="{% if value == selected_color_value %}true{% else %}false{% endif %}"
+                style="--marked-color-swatch: {{ swatch_color }};"
+              >
+                <span class="marked-product-actions__color-swatch" aria-hidden="true"></span>
+                <span>{{ value }}</span>
+              </button>
+            {%- endfor -%}
+          </div>
+        </div>
+      {%- endif -%}
+
       <div class="marked-product-actions__block marked-product-actions__block--size">
         <div class="marked-product-actions__size-row">
           <div class="marked-product-actions__size-content">
@@ -109,7 +214,7 @@
         </div>
       </div>
 
-      {% form 'product', product, id: product_form_id, class: 'marked-product-form', novalidate: 'novalidate' %}
+      {% form 'product', product, id: product_form_id, class: 'marked-product-form', novalidate: 'novalidate', data-customhouse-pitchprint-form: is_pitchprint_required_product, data-customhouse-native-creator-form: is_creator_locked_product, data-customhouse-product-id: product.id %}
         <input
           type="hidden"
           name="id"
@@ -136,43 +241,6 @@
           </div>
         </div>
 
-        {% if is_inkybay_designer_product %}
-        <div class="marked-product-actions__block marked-product-actions__block--customize">
-          <button
-            class="marked-product-actions__customize"
-            type="button"
-            data-inkybay-customize-trigger
-            data-product-id="{{ product.id }}"
-            data-variant-id="{{ selected_variant.id }}"
-            aria-label="Customize {{ product.title | escape }}"
-          >
-            <span aria-hidden="true">&#9998;</span>
-            <span>Customize this product</span>
-            <span aria-hidden="true">&rarr;</span>
-          </button>
-
-          {%- comment -%}
-            InkyBay still creates its native product-specific button in this hidden
-            host. The visible branded button above directly launches that native
-            functionality through JavaScript; no invisible overlay is used.
-          {%- endcomment -%}
-          <div
-            id="EFOLI_DESIGNER_CUSTOMIZE_IT_BUTTON_PLACE"
-            class="marked-product-actions__inkybay-host"
-            data-inkybay-native-host
-            aria-hidden="true"
-          ></div>
-
-          <p
-            class="marked-product-actions__customize-status"
-            data-inkybay-customize-status
-            role="status"
-            aria-live="polite"
-            hidden
-          ></p>
-        </div>
-        {% endif %}
-
         <div class="marked-product-actions__block marked-product-actions__block--add">
           <button
             class="marked-product-actions__add"
@@ -195,11 +263,13 @@
           <p class="marked-product-actions__cart-status" data-cart-status role="status" aria-live="polite" hidden></p>
         </div>
 
-        <div class="marked-product-actions__block marked-product-actions__block--buy-now">
-          <div class="marked-product-actions__buy-now">
-            {{ form | payment_button }}
+        {% unless is_creator_locked_product %}
+          <div class="marked-product-actions__block marked-product-actions__block--buy-now">
+            <div class="marked-product-actions__buy-now">
+              {{ form | payment_button }}
+            </div>
           </div>
-        </div>
+        {% endunless %}
       {% endform %}
 
 
@@ -323,6 +393,67 @@
     margin-block-end: 0 !important;
   }
 
+  #ProductInformation-{{ section.id }} .marked-product-actions__block--color {
+    margin-block-end: 18px !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__color-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+    margin-block-end: 10px !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__color-current {
+    color: rgba(255, 255, 255, 0.68) !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    text-transform: uppercase !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__color-pills {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__color-pill {
+    display: inline-flex !important;
+    min-height: 58px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    border-radius: 8px !important;
+    padding: 8px 15px 8px 9px !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+    color: currentColor !important;
+    font-family: inherit !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    text-transform: uppercase !important;
+    cursor: pointer !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__color-pill.is-active {
+    border-color: #9b36ff !important;
+    background: rgba(155, 54, 255, 0.25) !important;
+    box-shadow: 0 0 0 1px rgba(155, 54, 255, 0.45) !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__color-swatch {
+    display: inline-block !important;
+    width: 40px !important;
+    height: 40px !important;
+    flex: 0 0 40px !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    border-radius: 999px !important;
+    background: var(--marked-color-swatch, #555) !important;
+  }
+
   #ProductInformation-{{ section.id }} .marked-product-actions__size-row {
     display: flex !important;
     align-items: flex-start !important;
@@ -368,7 +499,8 @@
 
   #ProductInformation-{{ section.id }} .marked-product-actions__pill {
     display: inline-flex !important;
-    min-height: 34px !important;
+    min-width: 44px !important;
+    min-height: 42px !important;
     align-items: center !important;
     justify-content: center !important;
     border: 1px solid rgba(145, 42, 255, 0.75) !important;
@@ -668,35 +800,6 @@
     max-width: none !important;
   }
 
-  #ProductInformation-{{ section.id }} .marked-product-actions__inkybay-host {
-    position: fixed !important;
-    top: -10000px !important;
-    left: -10000px !important;
-    width: 1px !important;
-    height: 1px !important;
-    min-width: 1px !important;
-    min-height: 1px !important;
-    overflow: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-  }
-
-  #ProductInformation-{{ section.id }} .marked-product-actions__customize-status {
-    margin: 8px 0 0 !important;
-    color: rgba(255, 255, 255, 0.72) !important;
-    font-size: 12px !important;
-    line-height: 1.45 !important;
-  }
-
-  #ProductInformation-{{ section.id }} .marked-product-actions__customize-status.is-error {
-    color: #ff8585 !important;
-  }
-
-  #ProductInformation-{{ section.id }} .marked-product-actions__customize-status[hidden] {
-    display: none !important;
-  }
-
-  #ProductInformation-{{ section.id }} .marked-product-actions__customize,
   #ProductInformation-{{ section.id }} .marked-product-actions__add,
   #ProductInformation-{{ section.id }} .marked-product-actions__buy-now .shopify-payment-button__button,
   #ProductInformation-{{ section.id }} .marked-product-actions__buy-now button {
@@ -720,21 +823,10 @@
     cursor: pointer !important;
   }
 
-  #ProductInformation-{{ section.id }} .marked-product-actions__customize {
-    justify-content: space-between !important;
-    font-family: inherit !important;
-    appearance: none !important;
-    cursor: pointer !important;
-    margin-block-start: 2px !important;
-    border: 0 !important;
-    background: linear-gradient(90deg, #7825e8, #9b36ff) !important;
-    color: #fff !important;
-  }
-
   #ProductInformation-{{ section.id }} .marked-product-actions__add {
-    border: 1px solid rgba(166, 255, 0, 0.6) !important;
-    background: transparent !important;
-    color: currentColor !important;
+    border: 1px solid #c8ff00 !important;
+    background: #000 !important;
+    color: #fff !important;
   }
 
   #ProductInformation-{{ section.id }} .marked-product-actions__add:disabled {
@@ -795,12 +887,7 @@
       flex: 0 0 auto !important;
       white-space: nowrap !important;
     }
-  }
 
-  #ProductInformation-{{ section.id }} .marked-product-actions__customize.is-loading {
-    opacity: 0.72 !important;
-    cursor: wait !important;
-    pointer-events: none !important;
   }
 
 </style>
@@ -861,75 +948,13 @@
     const forceAllowPurchase = Boolean(
       productActions && productActions.dataset.forceAllowPurchase === 'true'
     );
-    const isInkyBayDesignerProduct = Boolean(
-      productActions && productActions.dataset.inkybayDesignerProduct === 'true'
+    const pitchPrintRequired = Boolean(
+      productActions && productActions.dataset.customhousePitchprintRequired === 'true'
     );
-    const inkybayScriptSource = 'https://inkybay.com/shopify/js/inkybay.js?shop={{ shop.permanent_domain | escape }}';
-    const sectionRoot = document.getElementById('PremiumTruckerProduct-{{ section.id }}');
-    const nativeHost = productInfo.querySelector('[data-inkybay-native-host]');
-    const customizeStatus = productInfo.querySelector('[data-inkybay-customize-status]');
-    let nativeButtonObserver = null;
-
-    function setCustomizeStatus(message, isError) {
-      if (!customizeStatus) return;
-
-      customizeStatus.textContent = message || '';
-      customizeStatus.classList.toggle('is-error', Boolean(isError));
-      customizeStatus.hidden = !message;
-    }
-
-    function ensureInkybayScript() {
-      if (window.__markedInkybayScriptPromise) {
-        return window.__markedInkybayScriptPromise;
-      }
-
-      window.__markedInkybayScriptPromise = new Promise(function (resolve) {
-        let finished = false;
-        let script = Array.from(document.scripts).find(function (item) {
-          return String(item.src || '').includes('inkybay.com/shopify/js/inkybay.js');
-        });
-
-        function finish() {
-          if (finished) return;
-          finished = true;
-          resolve();
-        }
-
-        function pollForApi(attempt) {
-          if (typeof window.showProductsDesigner === 'function' || findInkybayCustomizeButton()) {
-            finish();
-            return;
-          }
-
-          if (attempt >= 80) {
-            finish();
-            return;
-          }
-
-          window.setTimeout(function () {
-            pollForApi(attempt + 1);
-          }, 125);
-        }
-
-        if (!script) {
-          script = document.createElement('script');
-          script.src = inkybayScriptSource;
-          script.async = true;
-          script.dataset.markedInkybayLoader = 'true';
-          document.head.appendChild(script);
-        }
-
-        script.addEventListener('load', function () {
-          pollForApi(0);
-        }, { once: true });
-        script.addEventListener('error', finish, { once: true });
-
-        pollForApi(0);
-        window.setTimeout(finish, 12000);
-      });
-
-      return window.__markedInkybayScriptPromise;
-    }
+    const nativeCreatorRequired = Boolean(
+      productForm && productForm.dataset.customhouseNativeCreatorForm === 'true'
+    );
+    let isAddingToCart = false;
 
     function closeSizeGuide() {
       const modal = productInfo.querySelector('[data-size-guide-modal]');
@@ -939,211 +964,6 @@
       modal.hidden = true;
       modal.setAttribute('aria-hidden', 'true');
     }
-
-    function findInkybayCustomizeButton() {
-      const exactSelectors = [
-        '#EFOLI_CUSTOMIZE_IT_BUTTON',
-        '[data-inkybay-customize-button]',
-        '.efoli-customize-it-button',
-        '[onclick*="showProductsDesigner"]',
-        '[onmouseup*="showProductsDesigner"]',
-        '[href*="showProductsDesigner"]'
-      ].join(', ');
-
-      const localButton = nativeHost && nativeHost.querySelector(exactSelectors);
-      if (localButton) return localButton;
-
-      return Array.from(document.querySelectorAll(exactSelectors)).find(function (element) {
-        return !element.matches('[data-inkybay-customize-trigger]');
-      }) || null;
-    }
-
-    function prepareNativeInkybayButton() {
-      const nativeButton = findInkybayCustomizeButton();
-
-      if (!nativeButton) {
-        return null;
-      }
-
-      if (nativeButton.tagName === 'BUTTON') {
-        nativeButton.type = 'button';
-      }
-
-      if (nativeButton.tagName === 'INPUT' && String(nativeButton.type).toLowerCase() === 'submit') {
-        nativeButton.type = 'button';
-      }
-
-      nativeButton.setAttribute('aria-label', 'Customize this product');
-      nativeButton.setAttribute('tabindex', '-1');
-
-      setCustomizeStatus('', false);
-      return nativeButton;
-    }
-
-    function watchForNativeInkybayButton() {
-      prepareNativeInkybayButton();
-
-      if (nativeButtonObserver) return;
-
-      nativeButtonObserver = new MutationObserver(function () {
-        prepareNativeInkybayButton();
-      });
-
-      nativeButtonObserver.observe(document.body, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['id', 'class', 'href', 'onclick', 'onmouseup']
-      });
-    }
-
-    function syncInkybaySizeAndQuantity() {
-      const nativeHost = productInfo.querySelector('#EFOLI_DESIGNER_CUSTOMIZE_IT_BUTTON_PLACE');
-      const nativeQuantityInputs = nativeHost
-        ? Array.from(nativeHost.querySelectorAll('input.efl_size_qty_box'))
-        : Array.from(document.querySelectorAll('input.efl_size_qty_box'));
-
-      if (!nativeQuantityInputs.length) return;
-
-      const selectedSizeButton = productInfo.querySelector('[data-size-option-value].is-active');
-      const selectedSize = selectedSizeButton
-        ? String(selectedSizeButton.dataset.sizeOptionValue || '').trim().toLowerCase()
-        : '';
-      const quantity = Math.max(Number.parseInt(quantityInput && quantityInput.value, 10) || 1, 1);
-
-      let matchingInput = nativeQuantityInputs.find(function (input) {
-        const inputName = String(input.name || '');
-        const inputSize = inputName.split(':').pop().trim().toLowerCase();
-
-        return selectedSize && inputSize === selectedSize;
-      });
-
-      if (!matchingInput) matchingInput = nativeQuantityInputs[0];
-
-      nativeQuantityInputs.forEach(function (input) {
-        input.value = '0';
-        input.setAttribute('value', '0');
-        input.setAttribute('altvalue', '0');
-      });
-
-      matchingInput.value = String(quantity);
-      matchingInput.setAttribute('value', String(quantity));
-      matchingInput.setAttribute('altvalue', String(quantity));
-      matchingInput.dispatchEvent(new Event('input', { bubbles: true }));
-      matchingInput.dispatchEvent(new Event('change', { bubbles: true }));
-      matchingInput.dispatchEvent(new Event('keyup', { bubbles: true }));
-      matchingInput.dispatchEvent(new Event('blur', { bubbles: true }));
-    }
-
-    function launchNativeInkybayButton(nativeButton) {
-      if (!nativeButton) return false;
-
-      syncInkybaySizeAndQuantity();
-
-      const inlineMouseUp = nativeButton.onmouseup;
-      const inlineClick = nativeButton.onclick;
-
-      try {
-        if (typeof inlineMouseUp === 'function') {
-          inlineMouseUp.call(nativeButton, new MouseEvent('mouseup', {
-            bubbles: true,
-            cancelable: true,
-            view: window
-          }));
-          return true;
-        }
-
-        if (typeof inlineClick === 'function') {
-          inlineClick.call(nativeButton, new MouseEvent('click', {
-            bubbles: true,
-            cancelable: true,
-            view: window
-          }));
-          return true;
-        }
-
-        if (typeof window.showProductsDesigner === 'function') {
-          window.showProductsDesigner(nativeButton);
-          return true;
-        }
-
-        nativeButton.dispatchEvent(new MouseEvent('mousedown', {
-          bubbles: true,
-          cancelable: true,
-          view: window
-        }));
-        nativeButton.dispatchEvent(new MouseEvent('mouseup', {
-          bubbles: true,
-          cancelable: true,
-          view: window
-        }));
-        nativeButton.dispatchEvent(new MouseEvent('click', {
-          bubbles: true,
-          cancelable: true,
-          view: window
-        }));
-
-        const nativeHref = nativeButton.getAttribute('href');
-        if (nativeHref && nativeHref !== '#' && !nativeHref.toLowerCase().startsWith('javascript:')) {
-          window.location.assign(nativeHref);
-        }
-
-        return true;
-      } catch (error) {
-        console.error('InkyBay launch error:', error);
-        return false;
-      }
-    }
-
-    function waitForNativeInkybayButton(timeoutMs) {
-      return new Promise(function (resolve) {
-        const startedAt = Date.now();
-
-        function check() {
-          const nativeButton = prepareNativeInkybayButton();
-
-          if (nativeButton) {
-            resolve(nativeButton);
-            return;
-          }
-
-          if (Date.now() - startedAt >= timeoutMs) {
-            resolve(null);
-            return;
-          }
-
-          window.setTimeout(check, 150);
-        }
-
-        check();
-      });
-    }
-
-    async function openInkybayCustomizer(customButton) {
-      customButton.setAttribute('aria-busy', 'true');
-      customButton.classList.add('is-loading');
-      setCustomizeStatus('Loading the product customizer…', false);
-
-      await ensureInkybayScript();
-      watchForNativeInkybayButton();
-
-      const nativeButton = await waitForNativeInkybayButton(15000);
-
-      customButton.removeAttribute('aria-busy');
-      customButton.classList.remove('is-loading');
-
-      if (!nativeButton) {
-        setCustomizeStatus(
-          'The InkyBay button did not load. Enable the InkyBay app embed and confirm that this product is configured as a Custom Product in InkyBay.',
-          true
-        );
-        return;
-      }
-
-      setCustomizeStatus('', false);
-      launchNativeInkybayButton(nativeButton);
-    }
-
     function setControlValue(control, value) {
       if (!control) return;
 
@@ -1159,6 +979,73 @@
       cartStatus.textContent = message || '';
       cartStatus.classList.toggle('is-error', Boolean(isError));
       cartStatus.hidden = !message;
+    }
+
+    function getShopifyRouteRoot() {
+      return window.Shopify && window.Shopify.routes && window.Shopify.routes.root
+        ? window.Shopify.routes.root
+        : '/';
+    }
+
+    function getShopifyRoute(path) {
+      return getShopifyRouteRoot().replace(/\/?$/, '/') + String(path || '').replace(/^\//, '');
+    }
+
+    async function readJsonResponse(response, fallbackMessage) {
+      const payload = await response.json().catch(function () {
+        return null;
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          (payload && payload.error && payload.error.message) ||
+          (payload && payload.description) ||
+          (payload && payload.message) ||
+          fallbackMessage
+        );
+      }
+
+      return payload || {};
+    }
+
+    function redirectToCart() {
+      window.location.href = getShopifyRoute('cart');
+    }
+
+    function openPitchPrintCustomize() {
+      const productRoot = productInfo.closest('[data-customhouse-pitchprint-required="true"]');
+      const trigger = productRoot && productRoot.querySelector('[data-pitchprint-customize-trigger]');
+
+      if (!trigger) {
+        setCartStatus('Please use Customize before adding this product to the cart.', true);
+        return;
+      }
+
+      setCartStatus('', false);
+      trigger.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+    }
+
+    async function cartContainsVariant(variantId) {
+      try {
+        const response = await fetch(getShopifyRoute('cart.js'), {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json'
+          },
+          credentials: 'same-origin'
+        });
+
+        if (!response.ok) return false;
+
+        const cart = await response.json();
+        const items = Array.isArray(cart && cart.items) ? cart.items : [];
+
+        return items.some(function (item) {
+          return String(item && item.id) === String(variantId);
+        });
+      } catch (error) {
+        return false;
+      }
     }
 
     function getVariants(actions) {
@@ -1202,8 +1089,99 @@
       }
     }
 
+    function getVariantImageKey(url) {
+      if (!url) return '';
+
+      try {
+        const parsedUrl = new URL(url, window.location.origin);
+        return parsedUrl.pathname.replace(/_(\d+x|pico|icon|thumb|small|compact|medium|large|grande|master)(?=\.)/i, '').toLowerCase();
+      } catch (error) {
+        return String(url).split('?')[0].replace(/_(\d+x|pico|icon|thumb|small|compact|medium|large|grande|master)(?=\.)/i, '').toLowerCase();
+      }
+    }
+
+    function syncVariantImage(selectedVariant) {
+      const sectionRoot = productInfo.closest('.premium-trucker-product') || document;
+      const gallery = sectionRoot.querySelector('[data-premium-gallery]');
+
+      if (!gallery || !selectedVariant) return;
+
+      const variantImage = selectedVariant.featured_media || selectedVariant.featured_image || null;
+      const mediaIds = [
+        selectedVariant.featured_media && selectedVariant.featured_media.id,
+        selectedVariant.featured_image && selectedVariant.featured_image.id,
+        variantImage && variantImage.id
+      ].filter(Boolean).map(String);
+      const imageKeys = [
+        variantImage && variantImage.src,
+        variantImage && variantImage.url,
+        selectedVariant.featured_image && selectedVariant.featured_image.src,
+        selectedVariant.featured_image && selectedVariant.featured_image.url
+      ].map(getVariantImageKey).filter(Boolean);
+      const searchTerms = [
+        variantImage && variantImage.alt,
+        selectedVariant.title
+      ].concat(Array.isArray(selectedVariant.options) ? selectedVariant.options : [])
+        .filter(Boolean)
+        .map(function (term) {
+          return String(term).trim().toLowerCase();
+        });
+      const galleryItems = Array.from(gallery.querySelectorAll('[data-gallery-slide], [data-gallery-thumb]'));
+
+      let match = galleryItems.find(function (item) {
+        return [item.dataset.galleryMediaId, item.dataset.galleryImageId].some(function (id) {
+          return id && mediaIds.includes(String(id));
+        });
+      });
+
+      if (!match && imageKeys.length) {
+        match = galleryItems.find(function (item) {
+          const image = item.querySelector('img');
+          const itemKeys = [
+            item.dataset.gallerySrc,
+            image && image.currentSrc,
+            image && image.src
+          ].map(getVariantImageKey).filter(Boolean);
+
+          return itemKeys.some(function (itemKey) {
+            return imageKeys.includes(itemKey);
+          });
+        });
+      }
+
+      if (!match && searchTerms.length) {
+        match = galleryItems.find(function (item) {
+          const image = item.querySelector('img');
+          const searchText = [
+            item.dataset.gallerySrc,
+            item.getAttribute('aria-label'),
+            image && image.alt,
+            image && image.currentSrc,
+            image && image.src
+          ].filter(Boolean).join(' ').toLowerCase();
+
+          return searchTerms.some(function (term) {
+            return term && searchText.includes(term);
+          });
+        });
+      }
+
+      if (match && match.dataset.galleryIndex) {
+        gallery.dispatchEvent(new CustomEvent('premium:gallery:show', {
+          bubbles: true,
+          detail: { index: match.dataset.galleryIndex }
+        }));
+      }
+    }
+
     async function addCurrentVariantToCart() {
       if (!productForm || !addButton) return;
+      if (isAddingToCart) return;
+
+      if (pitchPrintRequired) {
+        openPitchPrintCustomize();
+        return;
+      }
 
       const variantInput = productForm.querySelector('[name="id"]');
       const variantId = Number.parseInt(variantInput && variantInput.value, 10);
@@ -1217,14 +1195,51 @@
         return;
       }
 
+      isAddingToCart = true;
       addButton.disabled = true;
       addButton.setAttribute('aria-busy', 'true');
       setCartStatus('Adding your product to the cart…', false);
 
       try {
-        const cartAddUrl = window.Shopify?.routes?.root
-          ? window.Shopify.routes.root + 'cart/add.js'
-          : '/cart/add.js';
+        const cartAddUrl = getShopifyRoute('cart/add.js');
+        let cartItems = [
+          {
+            id: variantId,
+            quantity: quantity
+          }
+        ];
+
+        if (nativeCreatorRequired) {
+          setCartStatus('Preparing creator artwork...', false);
+          const prepareResponse = await fetch('/apps/customhouse/api/native-creator-product-cart', {
+            method: 'POST',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+              shopifyProductId: productForm.dataset.customhouseProductId,
+              selectedVariantId: variantId,
+              quantity: quantity
+            })
+          });
+          const prepared = await readJsonResponse(
+            prepareResponse,
+            'Unable to prepare this creator product for checkout.'
+          );
+          if (!prepared.ok || !prepared.data || !prepared.data.cart) {
+            throw new Error('Unable to prepare this creator product for checkout.');
+          }
+          cartItems = [
+            {
+              id: Number.parseInt(prepared.data.cart.variantId, 10),
+              quantity: prepared.data.cart.quantity,
+              properties: prepared.data.cart.properties
+            }
+          ];
+          setCartStatus('Adding creator product to the cart...', false);
+        }
 
         const response = await fetch(cartAddUrl, {
           method: 'POST',
@@ -1232,39 +1247,33 @@
             'Accept': 'application/json',
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({
-            items: [
-              {
-                id: variantId,
-                quantity: quantity
-              }
-            ]
-          })
+          credentials: 'same-origin',
+          body: JSON.stringify({ items: cartItems })
         });
 
-        const payload = await response.json().catch(function () {
-          return {};
-        });
-
-        if (!response.ok) {
-          throw new Error(
-            payload.description ||
-            payload.message ||
-            'Shopify did not allow this variant to be added.'
-          );
-        }
+        await readJsonResponse(response, 'Shopify did not allow this variant to be added.');
 
         setCartStatus('Added to cart. Redirecting…', false);
-        window.location.assign('/cart');
+        redirectToCart();
       } catch (error) {
+        const errorMessage = error && error.message ? error.message : '';
+        const isPostAddThemeCartError =
+          errorMessage.includes('Cannot read properties of undefined') &&
+          errorMessage.toLowerCase().includes('cart');
+
+        if (isPostAddThemeCartError || await cartContainsVariant(variantId)) {
+          setCartStatus('Added to cart. Redirecting…', false);
+          redirectToCart();
+          return;
+        }
+
         setCartStatus(
-          error && error.message
-            ? error.message
-            : 'This variant could not be added. Check Shopify overselling and market availability.',
+          errorMessage || 'This variant could not be added. Check Shopify overselling and market availability.',
           true
         );
         updatePurchaseState(getCurrentVariant(productActions));
       } finally {
+        isAddingToCart = false;
         addButton.removeAttribute('aria-busy');
         updatePurchaseState(getCurrentVariant(productActions));
       }
@@ -1293,6 +1302,7 @@
 
       updatePurchaseState(selectedVariant);
       setCartStatus('', false);
+      syncVariantImage(selectedVariant);
 
       try {
         const nextUrl = new URL(window.location.href);
@@ -1312,9 +1322,9 @@
       }
     }
 
-    function getVariantForSize(actions, selectedValue) {
-      const sizeOptionIndex = Math.max(
-        Number.parseInt(actions.dataset.sizeOptionPosition, 10) || 1,
+    function getVariantForOptionValue(actions, optionPosition, selectedValue) {
+      const optionIndex = Math.max(
+        Number.parseInt(optionPosition, 10) || 1,
         1
       ) - 1;
       const variants = getVariants(actions);
@@ -1327,7 +1337,7 @@
 
       if (currentVariant && Array.isArray(currentVariant.options)) {
         const desiredOptions = currentVariant.options.slice();
-        desiredOptions[sizeOptionIndex] = selectedValue;
+        desiredOptions[optionIndex] = selectedValue;
 
         const exactVariant = variants.find(function (variant) {
           return Array.isArray(variant.options) && variant.options.every(function (value, index) {
@@ -1339,7 +1349,7 @@
       }
 
       const matchingVariants = variants.filter(function (variant) {
-        return Array.isArray(variant.options) && String(variant.options[sizeOptionIndex]) === String(selectedValue);
+        return Array.isArray(variant.options) && String(variant.options[optionIndex]) === String(selectedValue);
       });
 
       return matchingVariants.find(function (variant) {
@@ -1347,11 +1357,22 @@
       }) || matchingVariants[0] || null;
     }
 
-    if (productForm && forceAllowPurchase) {
+    if (productForm) {
       productForm.addEventListener('submit', function (event) {
         event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
         addCurrentVariantToCart();
-      });
+      }, true);
+    }
+
+    if (addButton) {
+      addButton.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        addCurrentVariantToCart();
+      }, true);
     }
 
     document.addEventListener('variant:change', function (event) {
@@ -1396,32 +1417,8 @@
     });
 
     updatePurchaseState(getCurrentVariant(productActions));
-    if (isInkyBayDesignerProduct) {
-      watchForNativeInkybayButton();
-      ensureInkybayScript().then(function () {
-        watchForNativeInkybayButton();
-        prepareNativeInkybayButton();
-      });
-    }
 
     document.addEventListener('click', function (event) {
-      const customizeButton = event.target.closest('[data-inkybay-customize-trigger]');
-
-      const isSectionCustomizeButton = Boolean(
-        customizeButton &&
-        (productInfo.contains(customizeButton) || (sectionRoot && sectionRoot.contains(customizeButton)))
-      );
-
-      if (isSectionCustomizeButton) {
-        event.preventDefault();
-        event.stopPropagation();
-
-        if (customizeButton.getAttribute('aria-busy') === 'true') return;
-
-        openInkybayCustomizer(customizeButton);
-        return;
-      }
-
       const quantityButton = event.target.closest('[data-quantity-minus], [data-quantity-plus]');
 
       if (quantityButton && productInfo.contains(quantityButton)) {
@@ -1449,7 +1446,11 @@
         if (!actions) return;
 
         const selectedValue = sizeButton.dataset.sizeOptionValue;
-        const selectedVariant = getVariantForSize(actions, selectedValue);
+        const selectedVariant = getVariantForOptionValue(
+          actions,
+          actions.dataset.sizeOptionPosition,
+          selectedValue
+        );
 
         actions.querySelectorAll('[data-size-option-value]').forEach(function (button) {
           const isSelected = button === sizeButton;
@@ -1462,6 +1463,39 @@
         } else {
           updatePurchaseState(null);
           setCartStatus('This size does not have a matching Shopify variant.', true);
+        }
+
+        return;
+      }
+
+      const colorButton = event.target.closest('[data-color-option-value]');
+
+      if (colorButton && productInfo.contains(colorButton)) {
+        const actions = colorButton.closest('[data-marked-product-actions]');
+
+        if (!actions) return;
+
+        const selectedValue = colorButton.dataset.colorOptionValue;
+        const selectedVariant = getVariantForOptionValue(
+          actions,
+          actions.dataset.colorOptionPosition,
+          selectedValue
+        );
+
+        actions.querySelectorAll('[data-color-option-value]').forEach(function (button) {
+          const isSelected = button === colorButton;
+          button.classList.toggle('is-active', isSelected);
+          button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+        });
+
+        const currentColor = actions.querySelector('[data-color-option-current]');
+        if (currentColor) currentColor.textContent = selectedValue;
+
+        if (selectedVariant) {
+          syncSelectedVariant(selectedVariant);
+        } else {
+          updatePurchaseState(null);
+          setCartStatus('This color does not have a matching Shopify variant.', true);
         }
 
         return;

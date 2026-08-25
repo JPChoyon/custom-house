@@ -1,0 +1,39 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "main": {
+      "type": "main-blog",
+      "settings": {
+        "eyebrow_text": "BLOG",
+        "heading_text": "News & Inspiration",
+        "description_text": "Explore ideas, creator stories, custom merchandise tips, and product inspiration from CustomHouse.",
+        "articles_per_page": 6,
+        "show_author": true,
+        "show_date": true,
+        "show_excerpt": true,
+        "show_graffiti_accents": true,
+        "container_width": 1440,
+        "top_padding": 56,
+        "bottom_padding": 64,
+        "card_radius": 20,
+        "background_color": "{{ settings.color_palette.background }}",
+        "card_background_color": "#17171a",
+        "heading_color": "#ffffff",
+        "body_text_color": "#b8b8b8",
+        "accent_color": "#c8ff16",
+        "border_color": "#7b3ff2"
+      }
+    }
+  },
+  "order": [
+    "main"
+  ]
+}

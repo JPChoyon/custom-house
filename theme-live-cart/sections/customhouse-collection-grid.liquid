@@ -1,0 +1,938 @@
+{{ 'customhouse-collection-grid.css' | asset_url | stylesheet_tag }}
+<script src="{{ 'customhouse-collection-grid.js' | asset_url }}" defer="defer"></script>
+
+{%- liquid
+  assign source_collection = collection
+  if section.settings.product_source == 'selected_collection' and section.settings.selected_collection != blank
+    assign source_collection = section.settings.selected_collection
+  endif
+
+  assign manual_products = section.settings.manual_products
+  assign max_products = section.settings.cards_per_row_desktop | times: section.settings.maximum_rows
+  assign page_size = section.settings.products_per_page
+  if page_size > max_products
+    assign page_size = max_products
+  endif
+
+  assign collection_title = section.settings.banner_heading | default: source_collection.title
+  assign breadcrumb_title = collection_title | strip_html
+  assign collection_description = source_collection.description | default: section.settings.banner_description
+  assign hero_image = section.settings.banner_image
+  if source_collection.image != blank
+    assign hero_image = source_collection.image
+  endif
+
+  assign products_count = source_collection.all_products_count | default: source_collection.products_count
+  if section.settings.product_source == 'manual'
+    assign products_count = manual_products.count | default: manual_products.size
+  endif
+
+  assign creator_count = section.settings.creator_count_override
+  if creator_count == 0 and source_collection.all_vendors != blank
+    assign creator_count = source_collection.all_vendors.size
+  endif
+
+  assign grid_classes = 'ch-grid ch-grid--desktop-' | append: section.settings.cards_per_row_desktop | append: ' ch-grid--tablet-' | append: section.settings.cards_per_row_tablet | append: ' ch-grid--mobile-' | append: section.settings.cards_per_row_mobile
+  assign hero_classes = 'ch-hero ch-hero--image-' | append: section.settings.hero_image_layout
+  assign container_classes = 'ch-collection__container'
+  if section.settings.enable_custom_width
+    assign container_classes = container_classes | append: ' ch-collection__container--custom'
+  endif
+-%}
+
+<section
+  id="CustomHouseCollection-{{ section.id }}"
+  class="ch-collection"
+  data-section-id="{{ section.id }}"
+  data-customhouse-collection
+>
+  <div
+    class="{{ container_classes }}"
+    {% if section.settings.enable_custom_width %}style="--ch-container-max-width: {{ section.settings.section_max_width | default: 1440 }}px;"{% endif %}
+  >
+  {%- if section.settings.show_banner -%}
+    <div class="{{ hero_classes }}">
+      <div class="ch-hero__content">
+        <nav class="ch-breadcrumb" aria-label="Breadcrumb">
+          <a href="{{ routes.root_url }}">Home</a>
+          <span aria-hidden="true">></span>
+          <a href="{{ routes.collections_url | default: '/collections' }}">Collections</a>
+          <span aria-hidden="true">></span>
+          <span>{{ breadcrumb_title | escape }}</span>
+        </nav>
+
+        <div class="ch-hero__copy">
+          <h1>
+            {%- if section.settings.banner_heading != blank -%}
+              {{ section.settings.banner_heading }}
+            {%- else -%}
+              {{ source_collection.title | escape }}
+            {%- endif -%}
+          </h1>
+          {%- if collection_description != blank -%}
+            <div class="ch-hero__description rte">
+              {{ collection_description }}
+            </div>
+          {%- endif -%}
+        </div>
+
+        <div class="ch-stats" aria-label="Collection stats">
+          {%- if section.settings.show_products_count -%}
+            <div class="ch-stat">
+              <span class="ch-stat__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false"><path d="M6.8 7.8V6.6a5.2 5.2 0 0 1 10.4 0v1.2h1.1c.9 0 1.7.7 1.8 1.6l1 9.7a2.7 2.7 0 0 1-2.7 2.9H5.6A2.7 2.7 0 0 1 3 19.1l1-9.7c.1-.9.9-1.6 1.8-1.6h1Zm2.1 0h6.2V6.6a3.1 3.1 0 0 0-6.2 0v1.2Zm-2.8 2.1-1 9.4c0 .4.2.7.5.7h12.8c.3 0 .6-.3.5-.7l-1-9.4H6.1Z"/></svg>
+              </span>
+              <strong>{{ products_count | default: 0 }}</strong>
+              <span>{{ section.settings.products_count_label | escape }}</span>
+            </div>
+          {%- endif -%}
+
+          {%- if section.settings.show_creator_count -%}
+            <div class="ch-stat">
+              <span class="ch-stat__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false"><path d="M12 12.2a4.7 4.7 0 1 0 0-9.4 4.7 4.7 0 0 0 0 9.4Zm0-7.3a2.6 2.6 0 1 1 0 5.2 2.6 2.6 0 0 1 0-5.2ZM4.4 21.2a7.6 7.6 0 0 1 15.2 0h-2.1a5.5 5.5 0 0 0-11 0H4.4Zm14.4-8.5a3.8 3.8 0 0 1 3.7 3.8v1h-2.1v-1a1.7 1.7 0 0 0-1.6-1.7h-1.1v-2.1h1.1ZM5.2 12.7h1.1v2.1H5.2a1.7 1.7 0 0 0-1.6 1.7v1H1.5v-1a3.8 3.8 0 0 1 3.7-3.8Z"/></svg>
+              </span>
+              <strong>{{ creator_count | default: 0 }}</strong>
+              <span>{{ section.settings.creator_count_label | escape }}</span>
+            </div>
+          {%- endif -%}
+        </div>
+      </div>
+
+      <div class="ch-hero__media" aria-hidden="true">
+        {%- if hero_image != blank -%}
+          {{
+            hero_image
+            | image_url: width: 1200
+            | image_tag:
+              loading: 'eager',
+              widths: '480, 720, 960, 1200',
+              sizes: '(min-width: 990px) 100vw, 100vw',
+              class: 'ch-hero__image'
+          }}
+        {%- else -%}
+          {{ 'collection-1' | placeholder_svg_tag: 'ch-hero__placeholder' }}
+        {%- endif -%}
+      </div>
+    </div>
+  {%- endif -%}
+
+  {%- if section.settings.show_info_bar and section.blocks.size > 0 -%}
+    <div class="ch-info-bar" aria-label="{{ section.settings.info_bar_label | escape }}">
+      {%- for block in section.blocks -%}
+        {%- if block.type == 'info_item' -%}
+          <div class="ch-info-item" {{ block.shopify_attributes }}>
+            <span class="ch-info-item__icon" aria-hidden="true">
+              {%- case block.settings.icon -%}
+                {%- when 'globe' -%}
+                  <svg viewBox="0 0 24 24" focusable="false"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm7.7 9h-3.1a14.7 14.7 0 0 0-1.3-5 8.1 8.1 0 0 1 4.4 5ZM12 4.1c.8 1 1.8 3.1 2.2 6.9H9.8c.4-3.8 1.4-5.9 2.2-6.9ZM4.3 13h3.1c.1 1.9.5 3.6 1.3 5a8.1 8.1 0 0 1-4.4-5Zm3.1-2H4.3a8.1 8.1 0 0 1 4.4-5 14.7 14.7 0 0 0-1.3 5Zm4.6 8.9c-.8-1-1.8-3.1-2.2-6.9h4.4c-.4 3.8-1.4 5.9-2.2 6.9Zm3.3-1.9c.8-1.4 1.2-3.1 1.3-5h3.1a8.1 8.1 0 0 1-4.4 5Z"/></svg>
+                {%- when 'crown' -%}
+                  <svg viewBox="0 0 24 24" focusable="false"><path d="m3 18 1.4-10.5 5 4.1L12 4l2.6 7.6 5-4.1L21 18H3Zm2.4-2h13.2l-.6-4.8-4.3 3.6L12 9.9l-1.7 4.9L6 11.2 5.4 16Zm-.4 4h14v2H5v-2Z"/></svg>
+                {%- when 'edit' -%}
+                  <svg viewBox="0 0 24 24" focusable="false"><path d="M4 17.7 16.9 4.8a3 3 0 0 1 4.3 4.3L8.3 22H4v-4.3Zm3.5 2.2L19.8 7.6a1 1 0 0 0-1.4-1.4L6.1 18.5v1.4h1.4ZM13 6l5 5-1.4 1.4-5-5L13 6Z"/></svg>
+                {%- else -%}
+                  <svg viewBox="0 0 24 24" focusable="false"><path d="m12 2 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 16.3l-5.6 2.9 1.1-6.2L3 8.6l6.2-.9L12 2Zm0 4.7-1.5 3-3.3.5 2.4 2.3-.6 3.3 3-1.6 3 1.6-.6-3.3 2.4-2.3-3.3-.5-1.5-3Z"/></svg>
+              {%- endcase -%}
+            </span>
+            <div>
+              <h2>{{ block.settings.heading | escape }}</h2>
+              <p>{{ block.settings.text | escape }}</p>
+            </div>
+          </div>
+        {%- endif -%}
+      {%- endfor -%}
+    </div>
+  {%- endif -%}
+
+  {%- if section.settings.show_toolbar and source_collection != blank and section.settings.product_source != 'manual' -%}
+    <form class="ch-toolbar" data-ch-filter-form>
+      <div class="ch-toolbar__filters">
+        {%- if section.settings.show_category_filter -%}
+          {%- for filter in source_collection.filters -%}
+            {%- assign filter_label = filter.label | downcase -%}
+            {%- if filter_label contains 'category' or filter_label contains 'product type' -%}
+              <details class="ch-filter">
+                <summary><span>Category</span><strong>{{ filter.active_values.first.label | default: 'All Categories' }}</strong></summary>
+                <div class="ch-filter__panel">
+                  {%- for value in filter.values -%}
+                    <label class="ch-check">
+                      <input type="checkbox" name="{{ value.param_name }}" value="{{ value.value }}" {% if value.active %}checked{% endif %} {% if value.count == 0 and value.active == false %}disabled{% endif %}>
+                      <span>{{ value.label | escape }}</span>
+                      <em>{{ value.count }}</em>
+                    </label>
+                  {%- endfor -%}
+                </div>
+              </details>
+              {%- break -%}
+            {%- endif -%}
+          {%- endfor -%}
+        {%- endif -%}
+
+        {%- if section.settings.show_type_filter -%}
+          {%- for filter in source_collection.filters -%}
+            {%- assign filter_label = filter.label | downcase -%}
+            {%- if filter_label contains 'type' -%}
+              <details class="ch-filter">
+                <summary><span>Type</span><strong>{{ filter.active_values.first.label | default: 'All Types' }}</strong></summary>
+                <div class="ch-filter__panel">
+                  {%- for value in filter.values -%}
+                    <label class="ch-check">
+                      <input type="checkbox" name="{{ value.param_name }}" value="{{ value.value }}" {% if value.active %}checked{% endif %} {% if value.count == 0 and value.active == false %}disabled{% endif %}>
+                      <span>{{ value.label | escape }}</span>
+                      <em>{{ value.count }}</em>
+                    </label>
+                  {%- endfor -%}
+                </div>
+              </details>
+              {%- break -%}
+            {%- endif -%}
+          {%- endfor -%}
+        {%- endif -%}
+
+        {%- if section.settings.show_color_filter -%}
+          {%- for filter in source_collection.filters -%}
+            {%- assign filter_label = filter.label | downcase -%}
+            {%- if filter_label contains 'color' or filter_label contains 'colour' -%}
+              <details class="ch-filter ch-filter--color">
+                <summary><span>Color</span><strong>{{ filter.active_values.size | default: 0 }} selected</strong></summary>
+                <div class="ch-filter__panel ch-color-list">
+                  {%- for value in filter.values -%}
+                    <label class="ch-color">
+                      <input type="checkbox" name="{{ value.param_name }}" value="{{ value.value }}" {% if value.active %}checked{% endif %} {% if value.count == 0 and value.active == false %}disabled{% endif %}>
+                      <span class="ch-color__swatch" data-color="{{ value.label | escape }}"></span>
+                      <span>{{ value.label | escape }}</span>
+                    </label>
+                  {%- endfor -%}
+                </div>
+              </details>
+              {%- break -%}
+            {%- endif -%}
+          {%- endfor -%}
+        {%- endif -%}
+
+        {%- if section.settings.show_price_filter -%}
+          {%- for filter in source_collection.filters -%}
+            {%- if filter.type == 'price_range' -%}
+              <details class="ch-filter">
+                <summary><span>Price</span><strong>All Prices</strong></summary>
+                <div class="ch-filter__panel ch-price">
+                  <label>
+                    <span>Min</span>
+                    <input name="{{ filter.min_value.param_name }}" type="number" min="0" {% if filter.min_value.value %}value="{{ filter.min_value.value | money_without_currency | replace: ',', '' }}"{% endif %} placeholder="0">
+                  </label>
+                  <label>
+                    <span>Max</span>
+                    <input name="{{ filter.max_value.param_name }}" type="number" min="0" {% if filter.max_value.value %}value="{{ filter.max_value.value | money_without_currency | replace: ',', '' }}"{% endif %} placeholder="{{ filter.range_max | money_without_currency | replace: ',', '' }}">
+                  </label>
+                </div>
+              </details>
+              {%- break -%}
+            {%- endif -%}
+          {%- endfor -%}
+        {%- endif -%}
+
+        {%- if section.settings.show_size_filter -%}
+          {%- for filter in source_collection.filters -%}
+            {%- assign filter_label = filter.label | downcase -%}
+            {%- if filter_label contains 'size' -%}
+              <details class="ch-filter">
+                <summary><span>Size</span><strong>{{ filter.active_values.first.label | default: 'All Sizes' }}</strong></summary>
+                <div class="ch-filter__panel">
+                  {%- for value in filter.values -%}
+                    <label class="ch-check">
+                      <input type="checkbox" name="{{ value.param_name }}" value="{{ value.value }}" {% if value.active %}checked{% endif %} {% if value.count == 0 and value.active == false %}disabled{% endif %}>
+                      <span>{{ value.label | escape }}</span>
+                      <em>{{ value.count }}</em>
+                    </label>
+                  {%- endfor -%}
+                </div>
+              </details>
+              {%- break -%}
+            {%- endif -%}
+          {%- endfor -%}
+        {%- endif -%}
+      </div>
+
+      <div class="ch-toolbar__actions">
+        {%- if section.settings.show_sort -%}
+          {%- assign sort_by = source_collection.sort_by | default: source_collection.default_sort_by -%}
+          <label class="ch-sort">
+            <span class="visually-hidden">Sort by</span>
+            <select name="sort_by" aria-label="Sort by" data-ch-auto-submit>
+              {%- for option in source_collection.sort_options -%}
+                <option value="{{ option.value | escape }}" {% if option.value == sort_by %}selected{% endif %}>{{ option.name | escape }}</option>
+              {%- endfor -%}
+            </select>
+          </label>
+        {%- endif -%}
+
+        {%- if section.settings.show_grid_toggle -%}
+          <div class="ch-layout-toggle" aria-label="Product layout">
+            <button type="button" class="is-active" aria-pressed="true" data-ch-layout="grid">
+              <span class="visually-hidden">Grid view</span>
+              <svg viewBox="0 0 24 24" focusable="false"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Zm-7-7v3h3V6H6Zm9 0v3h3V6h-3ZM6 15v3h3v-3H6Zm9 0v3h3v-3h-3Z"/></svg>
+            </button>
+            <button type="button" aria-pressed="false" data-ch-layout="list">
+              <span class="visually-hidden">List view</span>
+              <svg viewBox="0 0 24 24" focusable="false"><path d="M4 5h3v3H4V5Zm5 .5h11v2H9v-2ZM4 10.5h3v3H4v-3ZM9 11h11v2H9v-2Zm-5 5h3v3H4v-3Zm5 .5h11v2H9v-2Z"/></svg>
+            </button>
+          </div>
+        {%- endif -%}
+      </div>
+    </form>
+  {%- endif -%}
+
+  {%- if section.settings.product_source == 'manual' -%}
+    <div class="ch-products">
+      <div class="{{ grid_classes }}" data-ch-layout-target>
+        {%- for product in manual_products limit: max_products -%}
+          {%- render 'customhouse-product-card', product_card_product: product, section_settings: section.settings -%}
+        {%- else -%}
+          <p class="ch-empty">Select products in the section settings.</p>
+        {%- endfor -%}
+      </div>
+    </div>
+
+    {%- if section.settings.show_cta -%}
+      <div class="ch-bottom-row">
+        <div class="ch-cta">
+          <div class="ch-cta__mark" aria-hidden="true">
+            <svg viewBox="0 0 48 48" focusable="false"><path d="m5 38 3-26 11 11 5-17 5 17 11-11 3 26H5Zm6.8-5h24.4l-1-9.2-8.8 8.6L24 24l-2.4 8.4-8.8-8.6-1 9.2Z"/></svg>
+          </div>
+          <div>
+            <h2>{{ section.settings.cta_heading }}</h2>
+            <p>{{ section.settings.cta_text | escape }}</p>
+          </div>
+          {%- if section.settings.cta_button_text != blank -%}
+            <a class="ch-button ch-button--primary" href="{{ section.settings.cta_button_link | default: routes.root_url }}">
+              {{ section.settings.cta_button_text | escape }}
+              <span aria-hidden="true">-></span>
+            </a>
+          {%- endif -%}
+        </div>
+      </div>
+    {%- endif -%}
+  {%- elsif source_collection != blank -%}
+    {%- paginate source_collection.products by page_size -%}
+      <div class="ch-products">
+        <div class="{{ grid_classes }}" data-ch-layout-target>
+          {%- for product in source_collection.products -%}
+            {%- render 'customhouse-product-card', product_card_product: product, section_settings: section.settings -%}
+          {%- else -%}
+            <p class="ch-empty">No products found in this collection.</p>
+          {%- endfor -%}
+        </div>
+      </div>
+
+      <div class="ch-bottom-row">
+        {%- if section.settings.show_cta -%}
+          <div class="ch-cta">
+            <div class="ch-cta__mark" aria-hidden="true">
+              <svg viewBox="0 0 48 48" focusable="false"><path d="m5 38 3-26 11 11 5-17 5 17 11-11 3 26H5Zm6.8-5h24.4l-1-9.2-8.8 8.6L24 24l-2.4 8.4-8.8-8.6-1 9.2Z"/></svg>
+            </div>
+            <div>
+              <h2>{{ section.settings.cta_heading }}</h2>
+              <p>{{ section.settings.cta_text | escape }}</p>
+            </div>
+            {%- if section.settings.cta_button_text != blank -%}
+              <a class="ch-button ch-button--primary" href="{{ section.settings.cta_button_link | default: routes.root_url }}">
+                {{ section.settings.cta_button_text | escape }}
+                <span aria-hidden="true">-></span>
+              </a>
+            {%- endif -%}
+          </div>
+        {%- endif -%}
+
+        {%- if section.settings.show_pagination and paginate.pages > 1 -%}
+          <div class="ch-pagination-center">
+            {%- render 'customhouse-pagination', paginate: paginate -%}
+          </div>
+        {%- endif -%}
+      </div>
+    {%- endpaginate -%}
+  {%- endif -%}
+  </div>
+</section>
+
+<style>
+  #CustomHouseCollection-{{ section.id }} .ch-products :is(
+    .ch-card__creator,
+    .ch-card__vendor,
+    .ch-product-card__creator,
+    .ch-product-card__vendor,
+    .ch-product__creator,
+    .ch-product__vendor,
+    .product-card__creator,
+    .product-card__vendor,
+    .card__creator,
+    .card__vendor,
+    .card-information__vendor,
+    [class$="__creator"],
+    [class$="__vendor"],
+    [class$="-creator"],
+    [class$="-vendor"],
+    [class*="creator-name"],
+    [class*="vendor-name"],
+    [class*="creator-label"],
+    [class*="vendor-label"]
+  ) {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  #CustomHouseCollection-{{ section.id }} .ch-products :is(
+    .ch-card__creator,
+    .ch-card__vendor,
+    .ch-product-card__creator,
+    .ch-product-card__vendor,
+    .ch-product__creator,
+    .ch-product__vendor,
+    .product-card__creator,
+    .product-card__vendor,
+    .card__creator,
+    .card__vendor,
+    .card-information__vendor,
+    [class$="__creator"],
+    [class$="__vendor"],
+    [class$="-creator"],
+    [class$="-vendor"],
+    [class*="creator-name"],
+    [class*="vendor-name"],
+    [class*="creator-label"],
+    [class*="vendor-label"]
+  ) > :is(
+    svg,
+    img,
+    .icon,
+    [class*="icon"],
+    [class*="dot"],
+    [class*="mark"],
+    [class*="badge"],
+    [class*="verify"]
+  ) {
+    display: none;
+  }
+
+  #CustomHouseCollection-{{ section.id }} .ch-products :is(
+    .ch-card__creator,
+    .ch-card__vendor,
+    .ch-product-card__creator,
+    .ch-product-card__vendor,
+    .ch-product__creator,
+    .ch-product__vendor,
+    .product-card__creator,
+    .product-card__vendor,
+    .card__creator,
+    .card__vendor,
+    .card-information__vendor,
+    [class$="__creator"],
+    [class$="__vendor"],
+    [class$="-creator"],
+    [class$="-vendor"],
+    [class*="creator-name"],
+    [class*="vendor-name"],
+    [class*="creator-label"],
+    [class*="vendor-label"]
+  )::after {
+    content: "";
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 13px;
+    height: 13px;
+    flex: 0 0 13px;
+    border-radius: 50%;
+    background-color: #8b5cf6;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 12 12' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3.1 6.15 5 8.05 8.95 4.1' fill='none' stroke='white' stroke-width='1.55' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 10px 10px;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14), 0 2px 6px rgba(139, 92, 246, 0.28);
+  }
+
+  @media screen and (max-width: 749px) {
+    #CustomHouseCollection-{{ section.id }} .ch-collection__container {
+      display: flex;
+      flex-direction: column;
+    }
+
+    #CustomHouseCollection-{{ section.id }} .ch-toolbar {
+      order: 10;
+    }
+
+    #CustomHouseCollection-{{ section.id }} .ch-products {
+      order: 20;
+    }
+
+    #CustomHouseCollection-{{ section.id }} .ch-info-bar {
+      order: 30;
+    }
+
+    #CustomHouseCollection-{{ section.id }} .ch-bottom-row {
+      order: 40;
+    }
+
+    #CustomHouseCollection-{{ section.id }} .ch-pagination-center {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+    }
+
+    #CustomHouseCollection-{{ section.id }} .ch-pagination-center > *,
+    #CustomHouseCollection-{{ section.id }} .ch-pagination-center .pagination,
+    #CustomHouseCollection-{{ section.id }} .ch-pagination-center .pagination__list {
+      justify-content: center;
+      margin-left: auto;
+      margin-right: auto;
+    }
+  }
+</style>
+
+{% schema %}
+{
+  "name": "CustomHouse collection",
+  "tag": "section",
+  "class": "section-customhouse-collection",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Container width"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_custom_width",
+      "label": "Enable custom container width",
+      "default": false
+    },
+    {
+      "type": "number",
+      "id": "section_max_width",
+      "label": "Container max width in pixels",
+      "default": 1440
+    },
+    {
+      "type": "header",
+      "content": "Product source"
+    },
+    {
+      "type": "select",
+      "id": "product_source",
+      "label": "Product source",
+      "default": "current_collection",
+      "options": [
+        {
+          "value": "current_collection",
+          "label": "Current collection"
+        },
+        {
+          "value": "manual",
+          "label": "Manual product list"
+        },
+        {
+          "value": "selected_collection",
+          "label": "Selected collection"
+        }
+      ]
+    },
+    {
+      "type": "collection",
+      "id": "selected_collection",
+      "label": "Selected collection"
+    },
+    {
+      "type": "product_list",
+      "id": "manual_products",
+      "label": "Manual products",
+      "limit": 50
+    },
+    {
+      "type": "header",
+      "content": "Banner"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_banner",
+      "label": "Show banner",
+      "default": true
+    },
+    {
+      "type": "image_picker",
+      "id": "banner_image",
+      "label": "Fallback banner image",
+      "info": "Used only when the selected collection does not have a collection image."
+    },
+    {
+      "type": "select",
+      "id": "hero_image_layout",
+      "label": "Hero image display",
+      "default": "right",
+      "options": [
+        {
+          "value": "right",
+          "label": "Right side"
+        },
+        {
+          "value": "full",
+          "label": "Full hero background"
+        }
+      ]
+    },
+    {
+      "type": "inline_richtext",
+      "id": "banner_heading",
+      "label": "Heading"
+    },
+    {
+      "type": "richtext",
+      "id": "banner_description",
+      "label": "Fallback description",
+      "info": "Used only when the collection does not have a description."
+    },
+    {
+      "type": "checkbox",
+      "id": "show_products_count",
+      "label": "Show products count",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "products_count_label",
+      "label": "Products count label",
+      "default": "Products"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_creator_count",
+      "label": "Show creator count",
+      "default": true
+    },
+    {
+      "type": "number",
+      "id": "creator_count_override",
+      "label": "Creator count override",
+      "default": 0
+    },
+    {
+      "type": "text",
+      "id": "creator_count_label",
+      "label": "Creator count label",
+      "default": "Creators"
+    },
+    {
+      "type": "header",
+      "content": "Info bar"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_info_bar",
+      "label": "Show info bar",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "info_bar_label",
+      "label": "Accessibility label",
+      "default": "Marketplace benefits"
+    },
+    {
+      "type": "header",
+      "content": "Toolbar"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_toolbar",
+      "label": "Show toolbar",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_category_filter",
+      "label": "Show category filter",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_type_filter",
+      "label": "Show type filter",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_color_filter",
+      "label": "Show color filter",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_price_filter",
+      "label": "Show price filter",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_size_filter",
+      "label": "Show size filter",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_sort",
+      "label": "Show sort",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_grid_toggle",
+      "label": "Show grid/list toggle",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Grid"
+    },
+    {
+      "type": "select",
+      "id": "cards_per_row_desktop",
+      "label": "Products per row desktop",
+      "default": "4",
+      "options": [
+        {
+          "value": "2",
+          "label": "2"
+        },
+        {
+          "value": "3",
+          "label": "3"
+        },
+        {
+          "value": "4",
+          "label": "4"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "cards_per_row_tablet",
+      "label": "Products per row tablet",
+      "default": "3",
+      "options": [
+        {
+          "value": "2",
+          "label": "2"
+        },
+        {
+          "value": "3",
+          "label": "3"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "cards_per_row_mobile",
+      "label": "Products per row mobile",
+      "default": "1",
+      "options": [
+        {
+          "value": "1",
+          "label": "1"
+        },
+        {
+          "value": "2",
+          "label": "2"
+        }
+      ]
+    },
+    {
+      "type": "range",
+      "id": "maximum_rows",
+      "label": "Maximum rows",
+      "min": 1,
+      "max": 10,
+      "step": 1,
+      "default": 2
+    },
+    {
+      "type": "header",
+      "content": "Product cards"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_creator",
+      "label": "Show creator",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_rating",
+      "label": "Show rating",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_wishlist",
+      "label": "Show wishlist",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_customize_button",
+      "label": "Show customize button",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_view_product",
+      "label": "Show view product button",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_badge",
+      "label": "Show badges",
+      "default": true
+    },
+    {
+      "type": "url",
+      "id": "customize_base_url",
+      "label": "Customize base URL"
+    },
+    {
+      "type": "header",
+      "content": "CTA"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_cta",
+      "label": "Show CTA",
+      "default": true
+    },
+    {
+      "type": "inline_richtext",
+      "id": "cta_heading",
+      "label": "Heading",
+      "default": "Can't find what <strong>you want?</strong>"
+    },
+    {
+      "type": "text",
+      "id": "cta_text",
+      "label": "Description",
+      "default": "Create your own unique design and make it truly yours."
+    },
+    {
+      "type": "text",
+      "id": "cta_button_text",
+      "label": "Button text",
+      "default": "Start designing"
+    },
+    {
+      "type": "url",
+      "id": "cta_button_link",
+      "label": "Button link"
+    },
+    {
+      "type": "header",
+      "content": "Pagination"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_pagination",
+      "label": "Show pagination",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "products_per_page",
+      "label": "Products per page",
+      "min": 1,
+      "max": 50,
+      "step": 1,
+      "default": 8
+    }
+  ],
+  "blocks": [
+    {
+      "type": "info_item",
+      "name": "Info item",
+      "limit": 4,
+      "settings": [
+        {
+          "type": "select",
+          "id": "icon",
+          "label": "Icon",
+          "default": "award",
+          "options": [
+            {
+              "value": "award",
+              "label": "Award"
+            },
+            {
+              "value": "globe",
+              "label": "Globe"
+            },
+            {
+              "value": "crown",
+              "label": "Crown"
+            },
+            {
+              "value": "edit",
+              "label": "Edit"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "heading",
+          "label": "Heading",
+          "default": "Premium Embroidery"
+        },
+        {
+          "type": "text",
+          "id": "text",
+          "label": "Text",
+          "default": "Top quality materials"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "CustomHouse collection",
+      "blocks": [
+        {
+          "type": "info_item",
+          "settings": {
+            "icon": "award",
+            "heading": "Premium Embroidery",
+            "text": "Top quality materials"
+          }
+        },
+        {
+          "type": "info_item",
+          "settings": {
+            "icon": "globe",
+            "heading": "Worldwide Shipping",
+            "text": "Fast and reliable delivery"
+          }
+        },
+        {
+          "type": "info_item",
+          "settings": {
+            "icon": "crown",
+            "heading": "Creator Collections",
+            "text": "Unique designs by creators"
+          }
+        },
+        {
+          "type": "info_item",
+          "settings": {
+            "icon": "edit",
+            "heading": "Custom Made",
+            "text": "Design it your way"
+          }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

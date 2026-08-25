@@ -8,7 +8,7 @@ function normalizeTid(value: unknown) {
   if (!TID_PATTERN.test(tid)) {
     throw new DomainError(
       "INKYBAY_TID_INVALID",
-      "Enter a valid InkyBay saved-design tid.",
+      "Enter a valid PitchPrint saved-design ID.",
       422,
     );
   }
@@ -28,6 +28,10 @@ export function parseInkyBaySavedDesign(input: {
   const urlTid =
     url.searchParams.get("tid") ||
     url.searchParams.get("designTid") ||
+    url.searchParams.get("projectId") ||
+    url.searchParams.get("project_id") ||
+    url.searchParams.get("_pitchprint") ||
+    url.searchParams.get("pprint") ||
     url.searchParams.get("design_id");
   const suppliedTid = input.tid?.trim() || "";
   if (urlTid && suppliedTid && urlTid !== suppliedTid) {

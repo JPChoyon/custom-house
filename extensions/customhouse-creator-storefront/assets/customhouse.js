@@ -39,14 +39,71 @@
     });
   });
 
-  document.querySelectorAll("[data-customhouse-buy-only]").forEach((element) => {
-    document.body.classList.add("customhouse-buy-only");
-    let selectors = [];
-    try { selectors = JSON.parse(element.dataset.selectors || "[]"); } catch { selectors = []; }
-    const hide = () => selectors.forEach((selector) => {
-      try { document.querySelectorAll(selector).forEach((node) => node.classList.add("customhouse-configured-hidden")); } catch { /* Ignore invalid merchant selectors. */ }
+  const customizeText = /\b(customize|customise|open pitchprint|edit artwork|edit design|upload artwork|design now)\b/i;
+  const customizeSelector = [
+    "[data-pitchprint-customize-trigger]",
+    "[data-customhouse-pitchprint-trigger]",
+    "[data-customize]",
+    "[data-customizer]",
+    "[data-designlab]",
+    "[href*='pitchprint']",
+    "[src*='pitchprint']",
+    ".pitchprint",
+    ".pitchprint-button",
+    ".pp-button",
+    ".inkybay",
+    ".inkybay-button",
+  ].join(",");
+
+  function configuredSelectors(element) {
+    try {
+      const parsed = JSON.parse(element.dataset.selectors || "[]");
+      return Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string") : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function suppressNode(node) {
+    if (!(node instanceof Element)) return;
+    if (node.matches("[data-add-to-cart-button], [name='add'], form[action*='/cart/add'] button")) return;
+    node.setAttribute("data-customhouse-creator-locked-hidden", "true");
+    node.setAttribute("aria-hidden", "true");
+    if (node instanceof HTMLButtonElement || node instanceof HTMLAnchorElement) {
+      node.tabIndex = -1;
+    }
+  }
+
+  function suppressCustomizeControls(root, selectors) {
+    selectors.forEach((selector) => {
+      try {
+        document.querySelectorAll(selector).forEach(suppressNode);
+      } catch {
+        // Ignore invalid merchant selectors.
+      }
     });
-    hide();
-    new MutationObserver(hide).observe(document.body, { childList: true, subtree: true });
+    document.querySelectorAll(customizeSelector).forEach(suppressNode);
+    root.querySelectorAll("a, button, input[type='button'], input[type='submit']").forEach((node) => {
+      const label = [
+        node.textContent,
+        node.getAttribute("aria-label"),
+        node.getAttribute("value"),
+        node.getAttribute("title"),
+      ].filter(Boolean).join(" ");
+      if (customizeText.test(label)) suppressNode(node);
+    });
+  }
+
+  document.querySelectorAll("[data-customhouse-buy-only][data-customhouse-product-mode='creator-locked']").forEach((element) => {
+    document.body.classList.add("customhouse-buy-only");
+    const selectors = configuredSelectors(element);
+    const run = () => suppressCustomizeControls(document.body, selectors);
+    run();
+    const observer = new MutationObserver(run);
+    observer.observe(document.body, { childList: true, subtree: true });
+    setTimeout(() => {
+      run();
+      observer.disconnect();
+    }, 6000);
   });
 })();

@@ -1,0 +1,1109 @@
+{% liquid
+  assign section_id = 'customhouse-faq-accordion-' | append: section.id
+  assign container_width = section.settings.container_width | default: 1440
+  assign top_padding = section.settings.top_padding | default: 72
+  assign bottom_padding = section.settings.bottom_padding | default: 88
+  assign active_category = 'customization'
+%}
+
+<style>
+  #{{ section_id }} {
+    --customhouse-faq-accordion-bg: {{ section.settings.background_color }};
+    --customhouse-faq-accordion-heading: {{ section.settings.heading_color }};
+    --customhouse-faq-accordion-body: {{ section.settings.body_text_color }};
+    --customhouse-faq-accordion-accent: {{ section.settings.accent_color }};
+    --customhouse-faq-accordion-border: {{ section.settings.border_color }};
+    --customhouse-faq-accordion-container: {{ container_width }}px;
+    --customhouse-faq-accordion-top-padding: {{ top_padding }}px;
+    --customhouse-faq-accordion-bottom-padding: {{ bottom_padding }}px;
+    --customhouse-faq-accordion-card-radius: {{ section.settings.card_radius }}px;
+    --customhouse-faq-accordion-texture-opacity: {{ section.settings.texture_opacity | divided_by: 100.0 }};
+    --customhouse-faq-accordion-graffiti-opacity: {{ section.settings.graffiti_opacity | divided_by: 100.0 }};
+    --customhouse-faq-accordion-body-font: Inter, Arial, sans-serif;
+  }
+
+  #{{ section_id }}.customhouse-faq-accordion {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    padding-block: var(--customhouse-faq-accordion-top-padding) var(--customhouse-faq-accordion-bottom-padding);
+    color: var(--customhouse-faq-accordion-body);
+    font-family: var(--customhouse-faq-accordion-body-font);
+    background:
+      radial-gradient(circle at 50% 22%, rgba(255, 255, 255, 0.035), transparent 30%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(0, 0, 0, 0.2)),
+      var(--customhouse-faq-accordion-bg);
+  }
+
+  #{{ section_id }}.customhouse-faq-accordion::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -4;
+    opacity: var(--customhouse-faq-accordion-texture-opacity);
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 300 300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.76' numOctaves='5' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='table' tableValues='.02 .12'/%3E%3CfeFuncG type='table' tableValues='.02 .12'/%3E%3CfeFuncB type='table' tableValues='.025 .13'/%3E%3CfeFuncA type='table' tableValues='.22 .76'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E"),
+      radial-gradient(circle at 12px 12px, rgba(255,255,255,.06) 1px, transparent 1.6px);
+    background-position: center;
+    background-size: 260px 260px, 22px 22px;
+  }
+
+  #{{ section_id }}.customhouse-faq-accordion::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -3;
+    background:
+      radial-gradient(circle at center, transparent 0 44%, rgba(0, 0, 0, 0.62) 86%),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.7), transparent 24%, transparent 76%, rgba(0, 0, 0, 0.68));
+    pointer-events: none;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__container {
+    position: relative;
+    z-index: 1;
+    width: min(100% - 48px, var(--customhouse-faq-accordion-container));
+    margin-inline: auto;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__header {
+    max-width: 920px;
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__label {
+    display: block;
+    color: var(--customhouse-faq-accordion-accent);
+    font-family: var(--customhouse-faq-accordion-body-font);
+    font-size: clamp(12px, 0.9vw, 15px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    text-shadow: 0 0 18px color-mix(in srgb, var(--customhouse-faq-accordion-accent) 32%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__brush {
+    display: block;
+    width: 136px;
+    height: 9px;
+    max-width: 34vw;
+    margin: 18px auto 32px;
+    background: var(--customhouse-faq-accordion-accent);
+    border-radius: 999px;
+    clip-path: polygon(0 58%, 11% 43%, 24% 48%, 35% 22%, 51% 35%, 66% 20%, 83% 43%, 100% 39%, 87% 56%, 68% 61%, 51% 78%, 34% 62%, 18% 72%);
+    box-shadow:
+      0 0 16px color-mix(in srgb, var(--customhouse-faq-accordion-accent) 62%, transparent),
+      0 0 34px color-mix(in srgb, var(--customhouse-faq-accordion-accent) 28%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__heading {
+    margin: 0;
+    color: var(--customhouse-faq-accordion-heading);
+    font-family: Impact, "Arial Black", sans-serif;
+    font-size: clamp(38px, 4.2vw, {{ section.settings.heading_size }}px);
+    font-weight: 900;
+    line-height: 0.98;
+    letter-spacing: 0;
+    text-wrap: balance;
+    text-shadow:
+      0 4px 0 rgba(255, 255, 255, 0.08),
+      0 10px 28px rgba(0, 0, 0, 0.68);
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__description {
+    max-width: 760px;
+    margin: 24px auto 0;
+    color: var(--customhouse-faq-accordion-body);
+    font-size: clamp(15px, 1.2vw, 18px);
+    font-weight: 400;
+    line-height: 1.72;
+    text-wrap: balance;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__tabs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 22px;
+    width: min(100%, 860px);
+    margin: 46px auto 30px;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__tab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    min-height: 62px;
+    padding: 14px 22px;
+    color: color-mix(in srgb, var(--customhouse-faq-accordion-heading) 76%, transparent);
+    font-family: var(--customhouse-faq-accordion-body-font);
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.15;
+    border: 1px solid color-mix(in srgb, var(--customhouse-faq-accordion-border) 62%, transparent);
+    border-radius: 15px;
+    background: rgba(15, 15, 18, 0.72);
+    box-shadow:
+      0 18px 42px rgba(0, 0, 0, 0.32),
+      0 0 0 1px rgba(255, 255, 255, 0.025) inset;
+    cursor: pointer;
+    transition:
+      transform 220ms ease,
+      color 220ms ease,
+      border-color 220ms ease,
+      box-shadow 220ms ease,
+      background-color 220ms ease;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__tab:hover,
+  #{{ section_id }} .customhouse-faq-accordion__tab:focus-visible {
+    transform: translateY(-3px);
+    color: var(--customhouse-faq-accordion-heading);
+    border-color: color-mix(in srgb, var(--customhouse-faq-accordion-accent) 70%, var(--customhouse-faq-accordion-border));
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__tab:focus-visible,
+  #{{ section_id }} .customhouse-faq-accordion__question:focus-visible {
+    outline: 2px solid var(--customhouse-faq-accordion-accent);
+    outline-offset: 4px;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__tab[aria-pressed="true"] {
+    color: var(--customhouse-faq-accordion-heading);
+    border-color: var(--customhouse-faq-accordion-accent);
+    background: color-mix(in srgb, var(--customhouse-faq-accordion-bg) 78%, var(--customhouse-faq-accordion-accent) 22%);
+    box-shadow:
+      0 22px 52px rgba(0, 0, 0, 0.42),
+      0 0 0 1px color-mix(in srgb, var(--customhouse-faq-accordion-accent) 35%, transparent) inset,
+      0 0 34px color-mix(in srgb, var(--customhouse-faq-accordion-accent) 28%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__tab-dot {
+    width: 13px;
+    height: 13px;
+    border-radius: 999px;
+    border: 1px solid currentColor;
+    color: color-mix(in srgb, var(--customhouse-faq-accordion-heading) 68%, transparent);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__tab[aria-pressed="true"] .customhouse-faq-accordion__tab-dot {
+    color: var(--customhouse-faq-accordion-accent);
+    background: var(--customhouse-faq-accordion-accent);
+    box-shadow: 0 0 16px color-mix(in srgb, var(--customhouse-faq-accordion-accent) 62%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__card {
+    width: min(100%, {{ section.settings.accordion_width }}px);
+    margin: 0 auto;
+    padding: 22px;
+    border: 1px solid color-mix(in srgb, var(--customhouse-faq-accordion-border) 54%, rgba(255, 255, 255, 0.18));
+    border-radius: var(--customhouse-faq-accordion-card-radius);
+    background:
+      radial-gradient(circle at 18% 5%, color-mix(in srgb, var(--customhouse-faq-accordion-border) 14%, transparent), transparent 34%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.01)),
+      rgba(15, 15, 18, 0.78);
+    box-shadow:
+      0 26px 80px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+    backdrop-filter: blur(6px);
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__list {
+    display: grid;
+    gap: 14px;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__item {
+    border: 1px solid color-mix(in srgb, var(--customhouse-faq-accordion-border) 34%, rgba(255, 255, 255, 0.08));
+    border-radius: calc(var(--customhouse-faq-accordion-card-radius) - 6px);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.006)),
+      rgba(12, 12, 14, 0.78);
+    box-shadow:
+      0 18px 44px rgba(0, 0, 0, 0.28),
+      0 0 0 1px rgba(255, 255, 255, 0.018) inset;
+    overflow: hidden;
+    transition:
+      border-color 240ms ease,
+      box-shadow 240ms ease,
+      background-color 240ms ease;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__item.is-active {
+    border-color: color-mix(in srgb, var(--customhouse-faq-accordion-border) 76%, var(--customhouse-faq-accordion-accent));
+    box-shadow:
+      0 24px 56px rgba(0, 0, 0, 0.36),
+      0 0 0 1px color-mix(in srgb, var(--customhouse-faq-accordion-border) 38%, transparent) inset,
+      0 0 32px color-mix(in srgb, var(--customhouse-faq-accordion-border) 24%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__question {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 22px;
+    width: 100%;
+    min-height: 78px;
+    padding: 22px 28px;
+    color: var(--customhouse-faq-accordion-heading);
+    font-family: var(--customhouse-faq-accordion-body-font);
+    font-size: clamp(17px, 1.45vw, 22px);
+    font-weight: 800;
+    line-height: 1.25;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__state {
+    position: relative;
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--customhouse-faq-accordion-border);
+    border-radius: 50%;
+    color: var(--customhouse-faq-accordion-heading);
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+      0 0 16px color-mix(in srgb, var(--customhouse-faq-accordion-border) 26%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__state::before,
+  #{{ section_id }} .customhouse-faq-accordion__state::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 2px;
+    border-radius: 999px;
+    background: currentColor;
+    transition:
+      transform 220ms ease,
+      background-color 220ms ease;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__state::after {
+    transform: rotate(90deg);
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__item.is-active .customhouse-faq-accordion__state {
+    color: var(--customhouse-faq-accordion-accent);
+    border-color: var(--customhouse-faq-accordion-accent);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--customhouse-faq-accordion-accent) 38%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__item.is-active .customhouse-faq-accordion__state::after {
+    transform: rotate(0deg) scaleX(0);
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__chevron {
+    display: block;
+    width: 18px;
+    height: 18px;
+    border-right: 3px solid currentColor;
+    border-bottom: 3px solid currentColor;
+    transform: rotate(45deg) translateY(-3px);
+    transition:
+      transform 220ms ease,
+      color 220ms ease;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__item.is-active .customhouse-faq-accordion__chevron {
+    color: var(--customhouse-faq-accordion-accent);
+    transform: rotate(225deg) translate(-3px, -2px);
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__answer {
+    height: 0;
+    overflow: hidden;
+    transition: height 280ms ease;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__answer-inner {
+    max-width: 840px;
+    padding: 0 74px 28px 98px;
+    color: var(--customhouse-faq-accordion-body);
+    font-size: clamp(15px, 1.15vw, 18px);
+    font-weight: 400;
+    line-height: 1.7;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__answer-inner p {
+    margin: 0;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__answer-inner p + p {
+    margin-top: 12px;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__empty {
+    margin: 0;
+    padding: 26px;
+    color: var(--customhouse-faq-accordion-body);
+    text-align: center;
+    border: 1px dashed color-mix(in srgb, var(--customhouse-faq-accordion-border) 45%, transparent);
+    border-radius: calc(var(--customhouse-faq-accordion-card-radius) - 6px);
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__line-art,
+  #{{ section_id }} .customhouse-faq-accordion__graffiti {
+    position: absolute;
+    pointer-events: none;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__line-art {
+    z-index: 0;
+    color: rgba(255, 255, 255, 0.12);
+    opacity: 0.42;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__line-art--question {
+    left: max(14px, calc((100% - 1280px) / 2));
+    top: 260px;
+    width: min(18vw, 190px);
+    aspect-ratio: 1.05;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__line-art--question::before,
+  #{{ section_id }} .customhouse-faq-accordion__line-art--question::after {
+    content: "";
+    position: absolute;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__line-art--question::before {
+    inset: 10% 8% 22%;
+    border: 3px solid currentColor;
+    border-radius: 42% 42% 40% 38%;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__line-art--question::after {
+    left: 44%;
+    top: 28%;
+    width: 22%;
+    height: 34%;
+    border-radius: 50%;
+    box-shadow:
+      0 0 0 3px currentColor inset,
+      0 54px 0 -11px currentColor;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__line-art--chat {
+    right: max(12px, calc((100% - 1280px) / 2));
+    top: 188px;
+    width: min(20vw, 220px);
+    aspect-ratio: 1.2;
+    border: 3px solid currentColor;
+    border-radius: 22% 20% 18% 20%;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__line-art--chat::before {
+    content: "";
+    position: absolute;
+    inset: 30% 18% auto;
+    height: 3px;
+    border-radius: 999px;
+    background: currentColor;
+    box-shadow:
+      0 24px 0 currentColor,
+      0 48px 0 currentColor;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__graffiti {
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__graffiti::before,
+  #{{ section_id }} .customhouse-faq-accordion__graffiti::after {
+    content: "";
+    position: absolute;
+    width: clamp(190px, 18vw, 300px);
+    aspect-ratio: 2.15;
+    background-color: var(--customhouse-faq-accordion-border);
+    opacity: var(--customhouse-faq-accordion-graffiti-opacity);
+    filter: drop-shadow(0 18px 0 color-mix(in srgb, var(--customhouse-faq-accordion-border) 20%, transparent));
+    mask-image: url("data:image/svg+xml,%3Csvg width='460' height='220' viewBox='0 0 460 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='black' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 119C54 51 83 164 119 70c27-71 43 103 81 14 30-71 43 103 84 6 29-71 51 92 95 16 25-43 47-55 73-20' stroke-width='18'/%3E%3Cpath d='M30 77c34 24 70 34 116 8 52-30 94-18 135 9 60 39 104 29 158-9' stroke-width='10'/%3E%3Cpath d='M45 141c46-20 77-20 113 0 42 23 92 24 141-3 44-24 80-22 123 8' stroke-width='13'/%3E%3Cpath d='M73 37l-26 145M143 55l-21 134M226 34l-27 154M310 51l-23 132M388 58l-34 132' stroke-width='7'/%3E%3Cpath d='M64 164v42M124 154v38M196 168v29M282 154v48M351 160v32M410 149v58' stroke-width='8'/%3E%3C/g%3E%3C/svg%3E");
+    mask-position: center;
+    mask-repeat: no-repeat;
+    mask-size: contain;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg width='460' height='220' viewBox='0 0 460 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='black' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 119C54 51 83 164 119 70c27-71 43 103 81 14 30-71 43 103 84 6 29-71 51 92 95 16 25-43 47-55 73-20' stroke-width='18'/%3E%3Cpath d='M30 77c34 24 70 34 116 8 52-30 94-18 135 9 60 39 104 29 158-9' stroke-width='10'/%3E%3Cpath d='M45 141c46-20 77-20 113 0 42 23 92 24 141-3 44-24 80-22 123 8' stroke-width='13'/%3E%3Cpath d='M73 37l-26 145M143 55l-21 134M226 34l-27 154M310 51l-23 132M388 58l-34 132' stroke-width='7'/%3E%3Cpath d='M64 164v42M124 154v38M196 168v29M282 154v48M351 160v32M410 149v58' stroke-width='8'/%3E%3C/g%3E%3C/svg%3E");
+    -webkit-mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__graffiti::before {
+    top: 20px;
+    left: -24px;
+    transform: rotate(-8deg);
+  }
+
+  #{{ section_id }} .customhouse-faq-accordion__graffiti::after {
+    right: -30px;
+    bottom: 26px;
+    transform: rotate(-8deg);
+  }
+
+  @media screen and (max-width: 989px) {
+    #{{ section_id }} .customhouse-faq-accordion__tabs {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      width: min(100%, 620px);
+      gap: 16px;
+    }
+
+    #{{ section_id }} .customhouse-faq-accordion__card {
+      padding: 18px;
+    }
+
+    #{{ section_id }} .customhouse-faq-accordion__line-art {
+      opacity: 0.24;
+    }
+  }
+
+  @media screen and (max-width: 749px) {
+    #{{ section_id }}.customhouse-faq-accordion {
+      padding-block: max(48px, calc(var(--customhouse-faq-accordion-top-padding) * 0.75)) max(56px, calc(var(--customhouse-faq-accordion-bottom-padding) * 0.72));
+    }
+
+    #{{ section_id }} .customhouse-faq-accordion__container {
+      width: min(100% - 32px, var(--customhouse-faq-accordion-container));
+    }
+
+    #{{ section_id }} .customhouse-faq-accordion__tabs {
+      margin-top: 34px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    #{{ section_id }} .customhouse-faq-accordion__tab {
+      min-height: 56px;
+      padding: 12px 14px;
+      gap: 10px;
+      font-size: 15px;
+      border-radius: 13px;
+    }
+
+    #{{ section_id }} .customhouse-faq-accordion__card {
+      padding: 14px;
+      border-radius: calc(var(--customhouse-faq-accordion-card-radius) - 6px);
+    }
+
+    #{{ section_id }} .customhouse-faq-accordion__question {
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 14px;
+      min-height: 68px;
+      padding: 18px 16px;
+      font-size: 17px;
+    }
+
+    #{{ section_id }} .customhouse-faq-accordion__state {
+      width: 34px;
+      height: 34px;
+    }
+
+    #{{ section_id }} .customhouse-faq-accordion__answer-inner {
+      padding: 0 18px 22px 64px;
+    }
+
+    #{{ section_id }} .customhouse-faq-accordion__line-art {
+      display: none;
+    }
+
+    #{{ section_id }} .customhouse-faq-accordion__graffiti::before {
+      left: -76px;
+    }
+
+    #{{ section_id }} .customhouse-faq-accordion__graffiti::after {
+      right: -82px;
+      bottom: 12px;
+    }
+  }
+
+  @media screen and (max-width: 479px) {
+    #{{ section_id }} .customhouse-faq-accordion__tabs {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #{{ section_id }} .customhouse-faq-accordion__tab,
+    #{{ section_id }} .customhouse-faq-accordion__item,
+    #{{ section_id }} .customhouse-faq-accordion__state::before,
+    #{{ section_id }} .customhouse-faq-accordion__state::after,
+    #{{ section_id }} .customhouse-faq-accordion__chevron,
+    #{{ section_id }} .customhouse-faq-accordion__answer {
+      transition: none;
+    }
+
+    #{{ section_id }} .customhouse-faq-accordion__tab:hover,
+    #{{ section_id }} .customhouse-faq-accordion__tab:focus-visible {
+      transform: none;
+    }
+  }
+</style>
+
+<section
+  id="{{ section_id }}"
+  class="customhouse-faq-accordion"
+  data-customhouse-faq-accordion
+  {% if section.settings.enable_heading and section.settings.heading != blank %}
+    aria-labelledby="{{ section_id }}-heading"
+  {% elsif section.settings.label != blank %}
+    aria-label="{{ section.settings.label | escape }}"
+  {% endif %}
+>
+  {% if section.settings.enable_graffiti %}
+    <div class="customhouse-faq-accordion__graffiti" aria-hidden="true"></div>
+    <span class="customhouse-faq-accordion__line-art customhouse-faq-accordion__line-art--question" aria-hidden="true"></span>
+    <span class="customhouse-faq-accordion__line-art customhouse-faq-accordion__line-art--chat" aria-hidden="true"></span>
+  {% endif %}
+
+  <div class="customhouse-faq-accordion__container">
+    {% if section.settings.enable_heading %}
+      <div class="customhouse-faq-accordion__header">
+        {% if section.settings.label != blank %}
+          <span class="customhouse-faq-accordion__label">{{ section.settings.label | escape }}</span>
+          <span class="customhouse-faq-accordion__brush" aria-hidden="true"></span>
+        {% endif %}
+
+        {% if section.settings.heading != blank %}
+          <h2 id="{{ section_id }}-heading" class="customhouse-faq-accordion__heading">{{ section.settings.heading | escape }}</h2>
+        {% endif %}
+
+        {% if section.settings.description != blank %}
+          <div class="customhouse-faq-accordion__description">{{ section.settings.description | escape }}</div>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if section.settings.enable_tabs %}
+      <div class="customhouse-faq-accordion__tabs" aria-label="FAQ categories">
+        <button class="customhouse-faq-accordion__tab" type="button" data-faq-tab="customization" aria-pressed="true">
+          <span class="customhouse-faq-accordion__tab-dot" aria-hidden="true"></span>
+          <span>{{ section.settings.tab_customization | escape }}</span>
+        </button>
+        <button class="customhouse-faq-accordion__tab" type="button" data-faq-tab="orders" aria-pressed="false">
+          <span class="customhouse-faq-accordion__tab-dot" aria-hidden="true"></span>
+          <span>{{ section.settings.tab_orders | escape }}</span>
+        </button>
+        <button class="customhouse-faq-accordion__tab" type="button" data-faq-tab="creators" aria-pressed="false">
+          <span class="customhouse-faq-accordion__tab-dot" aria-hidden="true"></span>
+          <span>{{ section.settings.tab_creators | escape }}</span>
+        </button>
+        <button class="customhouse-faq-accordion__tab" type="button" data-faq-tab="shipping" aria-pressed="false">
+          <span class="customhouse-faq-accordion__tab-dot" aria-hidden="true"></span>
+          <span>{{ section.settings.tab_shipping | escape }}</span>
+        </button>
+      </div>
+    {% endif %}
+
+    <div class="customhouse-faq-accordion__card">
+      <div class="customhouse-faq-accordion__list">
+        {% if section.blocks.size > 0 %}
+          {% for block in section.blocks %}
+            {% liquid
+              assign block_category = block.settings.category | default: 'customization'
+              assign is_initial_category = false
+              if section.settings.enable_tabs
+                if block_category == active_category
+                  assign is_initial_category = true
+                endif
+              else
+                assign is_initial_category = true
+              endif
+            %}
+
+            <div
+              class="customhouse-faq-accordion__item{% unless is_initial_category %} is-hidden{% endunless %}"
+              data-faq-item
+              data-faq-category="{{ block_category | escape }}"
+              {{ block.shopify_attributes }}
+              {% unless is_initial_category %}hidden{% endunless %}
+            >
+              <button
+                class="customhouse-faq-accordion__question"
+                type="button"
+                id="{{ section_id }}-question-{{ block.id }}"
+                aria-expanded="false"
+                aria-controls="{{ section_id }}-answer-{{ block.id }}"
+              >
+                <span class="customhouse-faq-accordion__state" aria-hidden="true"></span>
+                <span>{{ block.settings.question | escape }}</span>
+                <span class="customhouse-faq-accordion__chevron" aria-hidden="true"></span>
+              </button>
+
+              <div
+                class="customhouse-faq-accordion__answer"
+                id="{{ section_id }}-answer-{{ block.id }}"
+                role="region"
+                aria-labelledby="{{ section_id }}-question-{{ block.id }}"
+              >
+                <div class="customhouse-faq-accordion__answer-inner">
+                  {{ block.settings.answer }}
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <p class="customhouse-faq-accordion__empty">Add FAQ blocks in the Theme Editor.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  (() => {
+    const initFaqAccordion = (section) => {
+      if (!section || section.dataset.faqAccordionReady === "true") return;
+      section.dataset.faqAccordionReady = "true";
+
+      const tabs = Array.from(section.querySelectorAll("[data-faq-tab]"));
+      const items = Array.from(section.querySelectorAll("[data-faq-item]"));
+      const buttons = Array.from(section.querySelectorAll(".customhouse-faq-accordion__question"));
+      const tabsEnabled = tabs.length > 0;
+
+      const closeItem = (item) => {
+        const button = item.querySelector(".customhouse-faq-accordion__question");
+        const answer = item.querySelector(".customhouse-faq-accordion__answer");
+        item.classList.remove("is-active");
+        if (button) button.setAttribute("aria-expanded", "false");
+        if (answer) answer.style.height = "0px";
+      };
+
+      const openItem = (item) => {
+        const button = item.querySelector(".customhouse-faq-accordion__question");
+        const answer = item.querySelector(".customhouse-faq-accordion__answer");
+        items.forEach((candidate) => {
+          if (candidate !== item) closeItem(candidate);
+        });
+        item.classList.add("is-active");
+        if (button) button.setAttribute("aria-expanded", "true");
+        if (answer) {
+          answer.style.height = `${answer.scrollHeight}px`;
+        }
+      };
+
+      const visibleItems = () => items.filter((item) => !item.hidden);
+
+      const activateCategory = (category) => {
+        tabs.forEach((tab) => {
+          const isActive = tab.dataset.faqTab === category;
+          tab.setAttribute("aria-pressed", isActive ? "true" : "false");
+        });
+
+        items.forEach((item) => {
+          const shouldShow = !tabsEnabled || item.dataset.faqCategory === category;
+          item.hidden = !shouldShow;
+          item.classList.toggle("is-hidden", !shouldShow);
+          closeItem(item);
+        });
+
+        const firstVisibleItem = visibleItems()[0];
+        if (firstVisibleItem) openItem(firstVisibleItem);
+      };
+
+      buttons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const item = button.closest("[data-faq-item]");
+          if (!item) return;
+          const isOpen = item.classList.contains("is-active");
+          items.forEach(closeItem);
+          if (!isOpen) openItem(item);
+        });
+      });
+
+      tabs.forEach((tab, index) => {
+        tab.addEventListener("click", () => activateCategory(tab.dataset.faqTab));
+        tab.addEventListener("keydown", (event) => {
+          if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+          event.preventDefault();
+          let nextIndex = index;
+          if (event.key === "ArrowRight") nextIndex = (index + 1) % tabs.length;
+          if (event.key === "ArrowLeft") nextIndex = (index - 1 + tabs.length) % tabs.length;
+          if (event.key === "Home") nextIndex = 0;
+          if (event.key === "End") nextIndex = tabs.length - 1;
+          tabs[nextIndex].focus();
+          activateCategory(tabs[nextIndex].dataset.faqTab);
+        });
+      });
+
+      window.addEventListener("resize", () => {
+        const activeItem = section.querySelector("[data-faq-item].is-active");
+        const answer = activeItem && activeItem.querySelector(".customhouse-faq-accordion__answer");
+        if (answer) answer.style.height = `${answer.scrollHeight}px`;
+      });
+
+      if (tabsEnabled) {
+        const activeTab = tabs.find((tab) => tab.getAttribute("aria-pressed") === "true") || tabs[0];
+        activateCategory(activeTab.dataset.faqTab);
+      } else {
+        items.forEach((item) => {
+          item.hidden = false;
+          item.classList.remove("is-hidden");
+          closeItem(item);
+        });
+        if (items[0]) openItem(items[0]);
+      }
+    };
+
+    const boot = () => {
+      document.querySelectorAll("[data-customhouse-faq-accordion]").forEach(initFaqAccordion);
+    };
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", boot);
+    } else {
+      boot();
+    }
+
+    document.addEventListener("shopify:section:load", (event) => {
+      initFaqAccordion(event.target.querySelector("[data-customhouse-faq-accordion]"));
+    });
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "FAQ accordion",
+  "tag": "section",
+  "class": "section-customhouse-faq-accordion",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "enable_heading",
+      "label": "Enable section heading",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_tabs",
+      "label": "Enable category tabs",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_graffiti",
+      "label": "Enable graffiti accents",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "label",
+      "label": "Section label",
+      "default": "FREQUENTLY ASKED QUESTIONS"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Everything You Need to Know"
+    },
+    {
+      "type": "textarea",
+      "id": "description",
+      "label": "Description",
+      "default": "Here are answers to some of the most common questions about CustomHouse, product customization, creator collections, and order fulfillment."
+    },
+    {
+      "type": "text",
+      "id": "tab_customization",
+      "label": "Customization tab label",
+      "default": "Customization"
+    },
+    {
+      "type": "text",
+      "id": "tab_orders",
+      "label": "Orders tab label",
+      "default": "Orders"
+    },
+    {
+      "type": "text",
+      "id": "tab_creators",
+      "label": "Creators tab label",
+      "default": "Creators"
+    },
+    {
+      "type": "text",
+      "id": "tab_shipping",
+      "label": "Shipping tab label",
+      "default": "Shipping"
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "range",
+      "id": "container_width",
+      "label": "Container width",
+      "min": 960,
+      "max": 1600,
+      "step": 20,
+      "unit": "px",
+      "default": 1440
+    },
+    {
+      "type": "range",
+      "id": "accordion_width",
+      "label": "Accordion width",
+      "min": 760,
+      "max": 1120,
+      "step": 20,
+      "unit": "px",
+      "default": 1060
+    },
+    {
+      "type": "range",
+      "id": "top_padding",
+      "label": "Top padding",
+      "min": 40,
+      "max": 140,
+      "step": 4,
+      "unit": "px",
+      "default": 72
+    },
+    {
+      "type": "range",
+      "id": "bottom_padding",
+      "label": "Bottom padding",
+      "min": 40,
+      "max": 160,
+      "step": 4,
+      "unit": "px",
+      "default": 88
+    },
+    {
+      "type": "range",
+      "id": "card_radius",
+      "label": "Card radius",
+      "min": 12,
+      "max": 30,
+      "step": 1,
+      "unit": "px",
+      "default": 18
+    },
+    {
+      "type": "range",
+      "id": "heading_size",
+      "label": "Heading size",
+      "min": 44,
+      "max": 84,
+      "step": 2,
+      "unit": "px",
+      "default": 60
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background color",
+      "default": "#0E0E10"
+    },
+    {
+      "type": "color",
+      "id": "heading_color",
+      "label": "Heading color",
+      "default": "#FFFFFF"
+    },
+    {
+      "type": "color",
+      "id": "body_text_color",
+      "label": "Body text color",
+      "default": "#BFC0C5"
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Accent color",
+      "default": "#D7FF2F"
+    },
+    {
+      "type": "color",
+      "id": "border_color",
+      "label": "Border color",
+      "default": "#6D42B8"
+    },
+    {
+      "type": "header",
+      "content": "Background detail"
+    },
+    {
+      "type": "range",
+      "id": "texture_opacity",
+      "label": "Concrete texture opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 55
+    },
+    {
+      "type": "range",
+      "id": "graffiti_opacity",
+      "label": "Graffiti opacity",
+      "min": 0,
+      "max": 40,
+      "step": 1,
+      "unit": "%",
+      "default": 24
+    }
+  ],
+  "blocks": [
+    {
+      "type": "faq_item",
+      "name": "FAQ item",
+      "settings": [
+        {
+          "type": "select",
+          "id": "category",
+          "label": "Category",
+          "default": "customization",
+          "options": [
+            {
+              "value": "customization",
+              "label": "Customization"
+            },
+            {
+              "value": "orders",
+              "label": "Orders"
+            },
+            {
+              "value": "creators",
+              "label": "Creators"
+            },
+            {
+              "value": "shipping",
+              "label": "Shipping"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "question",
+          "label": "Question",
+          "default": "How do I customize a product?"
+        },
+        {
+          "type": "richtext",
+          "id": "answer",
+          "label": "Answer",
+          "default": "<p>Choose your product, launch the design experience, add your artwork, text, or logo, preview the final result, and then place your order.</p>"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "FAQ accordion",
+      "blocks": [
+        {
+          "type": "faq_item",
+          "settings": {
+            "category": "customization",
+            "question": "How do I customize a product?",
+            "answer": "<p>Choose your product, launch the design experience, add your artwork, text, or logo, preview the final result, and then place your order.</p>"
+          }
+        },
+        {
+          "type": "faq_item",
+          "settings": {
+            "category": "customization",
+            "question": "Can I upload my own logo or artwork?",
+            "answer": "<p>Yes. You can upload your own logo, artwork, or design files during customization. Use the clearest file available so production can preserve the detail.</p>"
+          }
+        },
+        {
+          "type": "faq_item",
+          "settings": {
+            "category": "customization",
+            "question": "Can I preview my design before ordering?",
+            "answer": "<p>Yes. The customization experience lets you review your product preview before checkout so you can confirm the placement, scale, and overall look.</p>"
+          }
+        },
+        {
+          "type": "faq_item",
+          "settings": {
+            "category": "orders",
+            "question": "How long does production take?",
+            "answer": "<p>Production timing depends on the product and order volume. Most custom orders move into production after the design file has been checked and approved.</p>"
+          }
+        },
+        {
+          "type": "faq_item",
+          "settings": {
+            "category": "orders",
+            "question": "Can I change my order after placing it?",
+            "answer": "<p>Contact support as quickly as possible. If production has not started, the team may be able to help update details before the order moves forward.</p>"
+          }
+        },
+        {
+          "type": "faq_item",
+          "settings": {
+            "category": "orders",
+            "question": "What happens if my design file has an issue?",
+            "answer": "<p>If a file issue is found, CustomHouse will contact you with the next steps so the artwork can be corrected before fulfillment continues.</p>"
+          }
+        },
+        {
+          "type": "faq_item",
+          "settings": {
+            "category": "creators",
+            "question": "Can I become a creator?",
+            "answer": "<p>Yes. Creators can apply or contact the CustomHouse team to discuss collection ideas, audience fit, and product opportunities.</p>"
+          }
+        },
+        {
+          "type": "faq_item",
+          "settings": {
+            "category": "creators",
+            "question": "How do creator collections work?",
+            "answer": "<p>Creator collections are curated product drops built around a creator's artwork, brand, or community. CustomHouse helps turn the concept into ready-to-order merchandise.</p>"
+          }
+        },
+        {
+          "type": "faq_item",
+          "settings": {
+            "category": "creators",
+            "question": "Do creators earn commission or credits?",
+            "answer": "<p>Creator reward structures can vary by collection or partnership. The CustomHouse team will confirm the details during onboarding.</p>"
+          }
+        },
+        {
+          "type": "faq_item",
+          "settings": {
+            "category": "shipping",
+            "question": "Do you ship worldwide?",
+            "answer": "<p>CustomHouse supports shipping to many locations. Available delivery options and costs are shown during checkout based on your shipping address.</p>"
+          }
+        },
+        {
+          "type": "faq_item",
+          "settings": {
+            "category": "shipping",
+            "question": "How can I contact support?",
+            "answer": "<p>You can contact support through the site's contact form or support email. Include your order number when possible so the team can help faster.</p>"
+          }
+        },
+        {
+          "type": "faq_item",
+          "settings": {
+            "category": "shipping",
+            "question": "How do I track my order?",
+            "answer": "<p>Once your order ships, tracking details are sent to the email used at checkout. Use that link to follow the delivery status.</p>"
+          }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

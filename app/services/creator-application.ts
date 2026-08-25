@@ -1,6 +1,54 @@
 import { DomainError, normalizeHttpsUrl } from "./domain.ts";
 
-export interface CreatorApplicationInput { legalName: string; displayName: string; country: string; city: string; bio: string; portfolioUrl?: string; socialLinks?: string[]; profileImageUrl?: string; message?: string; termsAccepted: boolean }
+export const CREATOR_PLATFORMS = [
+  "Instagram",
+  "TikTok",
+  "YouTube",
+  "Facebook",
+  "Website",
+  "Other",
+] as const;
+
+export const CREATOR_AUDIENCE_RANGES = [
+  "Under 1K",
+  "1K-10K",
+  "10K-50K",
+  "50K-100K",
+  "100K-500K",
+  "500K+",
+] as const;
+
+export const CREATOR_CATEGORIES = [
+  "Streetwear",
+  "Sports",
+  "Gaming",
+  "Art",
+  "Lifestyle",
+  "Music",
+  "Humor",
+  "Other",
+] as const;
+
+export interface CreatorApplicationInput {
+  legalName?: string;
+  displayName: string;
+  emailSnapshot?: string;
+  country?: string;
+  city?: string;
+  bio: string;
+  primaryPlatform?: string;
+  primaryProfileUrl?: string;
+  audienceRange?: string;
+  categories?: string[];
+  portfolioUrl?: string;
+  aboutWork?: string;
+  socialLinks?: string[];
+  profileImageUrl?: string;
+  message?: string;
+  referralCode?: string;
+  termsAccepted: boolean;
+  accuracyConfirmed?: boolean;
+}
 
 function cleanText(value: string, name: string, min: number, max: number): string {
   const normalized = Array.from(value, (character) => { const code = character.charCodeAt(0); return code < 32 || code === 127 ? " " : character; }).join("").replace(/\s+/g, " ").trim();
@@ -10,8 +58,34 @@ function cleanText(value: string, name: string, min: number, max: number): strin
 
 export function validateCreatorApplication(input: CreatorApplicationInput) {
   if (!input.termsAccepted) throw new DomainError("TERMS_REQUIRED", "You must accept the creator terms.");
+  if (input.accuracyConfirmed === false) throw new DomainError("ACCURACY_REQUIRED", "Confirm the application details are accurate.");
+  const primaryPlatform = input.primaryPlatform
+    ? cleanChoice(input.primaryPlatform, CREATOR_PLATFORMS, "Primary platform")
+    : undefined;
+  const primaryProfileUrl = input.primaryProfileUrl
+    ? normalizeHttpsUrl(input.primaryProfileUrl)
+    : undefined;
+  if (input.primaryPlatform && !primaryProfileUrl) throw new DomainError("INVALID_PROFILE_URL", "Enter a valid primary profile URL.");
+  const audienceRange = input.audienceRange
+    ? cleanChoice(input.audienceRange, CREATOR_AUDIENCE_RANGES, "Audience size")
+    : undefined;
+  const categories = Array.from(new Set(input.categories || []))
+    .map((category) => cleanChoice(category, CREATOR_CATEGORIES, "Creator category"))
+    .slice(0, 8);
+  if (input.primaryPlatform && !categories.length) throw new DomainError("CATEGORIES_REQUIRED", "Choose at least one creator category.");
   const profileImageUrl = input.profileImageUrl ? (input.profileImageUrl.startsWith("gid://shopify/MediaImage/") ? input.profileImageUrl : normalizeHttpsUrl(input.profileImageUrl)) : undefined;
-  return { legalName: cleanText(input.legalName, "Legal name", 2, 120), displayName: cleanText(input.displayName, "Display name", 2, 80), country: cleanText(input.country, "Country", 2, 80), city: cleanText(input.city, "City", 1, 100), bio: cleanText(input.bio, "Biography", 10, 1000), portfolioUrl: input.portfolioUrl ? normalizeHttpsUrl(input.portfolioUrl) : undefined, socialLinks: (input.socialLinks || []).filter(Boolean).slice(0, 5).map((url) => normalizeHttpsUrl(url)), profileImageUrl, message: input.message?.trim() ? cleanText(input.message, "Message", 1, 1000) : undefined, termsAcceptedAt: new Date() };
+  const socialLinks = [
+    ...(primaryProfileUrl ? [primaryProfileUrl] : []),
+    ...(input.socialLinks || []),
+  ];
+  return { legalName: input.legalName?.trim() ? cleanText(input.legalName, "Legal name", 2, 120) : undefined, displayName: cleanText(input.displayName, "Display name", 2, 80), emailSnapshot: input.emailSnapshot?.trim() ? cleanText(input.emailSnapshot, "Email", 3, 254) : undefined, country: input.country?.trim() ? cleanText(input.country, "Country", 2, 80) : undefined, city: input.city?.trim() ? cleanText(input.city, "City", 1, 100) : undefined, bio: cleanText(input.bio, "Biography", 10, 500), primaryPlatform, primaryProfileUrl, audienceRange, categories, portfolioUrl: input.portfolioUrl ? normalizeHttpsUrl(input.portfolioUrl) : undefined, aboutWork: input.aboutWork?.trim() ? cleanText(input.aboutWork, "About your work", 1, 1000) : undefined, socialLinks: socialLinks.filter(Boolean).slice(0, 5).map((url) => normalizeHttpsUrl(url)), profileImageUrl, message: input.message?.trim() ? cleanText(input.message, "Message", 1, 1000) : undefined, termsAcceptedAt: new Date() };
+}
+
+function cleanChoice<T extends readonly string[]>(value: string | undefined, choices: T, name: string): T[number] {
+  const normalized = String(value || "").trim();
+  const match = choices.find((choice) => choice.toLowerCase() === normalized.toLowerCase());
+  if (!match) throw new DomainError("INVALID_INPUT", `${name} is invalid.`);
+  return match;
 }
 
 export function validateProfileImage(bytes: Uint8Array, mimeType: string, size: number): void {

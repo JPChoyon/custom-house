@@ -343,7 +343,7 @@ export async function synchronizeCreatorDesign(
   if (design.provider !== "INKYBAY") {
     throw new DomainError(
       "DESIGN_PROVIDER_UNSUPPORTED",
-      "Only InkyBay creator designs can be published by this release.",
+      "Only PitchPrint creator designs can be published by this release.",
       409,
     );
   }

@@ -73,10 +73,10 @@ export function inkyBayWorkspaceHtml(input: {
   <main class="shell">
     <header class="hero"><div><div class="eyebrow">Custom House Creator</div><h1>${escapeHtml(
       input.data.creator.displayName,
-    )}'s design workspace</h1><p>Create in InkyBay, then safely publish the fixed artwork to your collection.</p></div><span class="pill" id="status-pill">${escapeHtml(
+    )}'s design workspace</h1><p>Create in PitchPrint, then safely publish the fixed artwork to your collection.</p></div><span class="pill" id="status-pill">${escapeHtml(
       input.data.status,
     )}</span></header>
-    <nav class="steps" aria-label="Publishing steps"><div class="step"><b>1</b>Product</div><div class="step"><b>2</b>Design in InkyBay</div><div class="step"><b>3</b>Saved design</div><div class="step"><b>4</b>Listing & files</div><div class="step"><b>5</b>Publish</div></nav>
+    <nav class="steps" aria-label="Publishing steps"><div class="step"><b>1</b>Product</div><div class="step"><b>2</b>Design in PitchPrint</div><div class="step"><b>3</b>Saved design</div><div class="step"><b>4</b>Listing & files</div><div class="step"><b>5</b>Publish</div></nav>
     <div class="layout" id="workspace">
       <aside class="card">${image}<h2>${escapeHtml(
         input.data.product.title,
@@ -84,12 +84,12 @@ export function inkyBayWorkspaceHtml(input: {
         input.data.expiresAt?.toLocaleString() || "soon",
       )}.</p><div class="actions"><a class="button secondary" href="${escapeHtml(
         input.data.product.inkyBayProductUrl,
-      )}" target="_blank" rel="noopener">Open InkyBay Designer</a></div><p class="muted">Create and save the design in the product's existing InkyBay DesignLab. Copy the saved-design URL, then return here. This manual bridge does not claim an unsupported InkyBay API.</p></aside>
+      )}" target="_blank" rel="noopener">Open PitchPrint Designer</a></div><p class="muted">Create and save the design in the product's existing PitchPrint designer. Copy the saved-design URL, then return here. This manual bridge does not claim an unsupported PitchPrint API.</p></aside>
       <section class="card stack">
         <form id="details-form" class="stack">
-          <label class="field">InkyBay saved-design URL<input name="savedDesignUrl" type="url" required value="${escapeHtml(
+          <label class="field">PitchPrint saved-design URL<input name="savedDesignUrl" type="url" required value="${escapeHtml(
             input.data.savedDesignUrl || "",
-          )}" placeholder="https://…?tid=…"><small>Only configured Shopify/InkyBay HTTPS hosts are accepted.</small></label>
+          )}" placeholder="https://...?projectId=..."><small>Only configured Shopify/PitchPrint HTTPS hosts are accepted.</small></label>
           <label class="field">Saved design tid<input name="tid" required maxlength="200" value="${escapeHtml(
             input.data.tid || "",
           )}"></label>

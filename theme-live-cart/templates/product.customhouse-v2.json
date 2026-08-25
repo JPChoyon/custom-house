@@ -1,0 +1,48 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "main": {
+      "type": "customhouse-product-page-v2",
+      "settings": {
+        "container_width": 1440,
+        "top_padding": 28,
+        "bottom_padding": 72,
+        "enable_graffiti_accents": true,
+        "gallery_max_height_desktop": 500,
+        "gallery_max_height_mobile": 300,
+        "customizer_button_text": "Customize This Product",
+        "customizer_app_hook": "inkybay-customizer",
+        "show_dynamic_checkout_buttons": true,
+        "show_sticky_mobile_cta": true,
+        "show_benefit_cards": true,
+        "show_how_it_works": true,
+        "show_accordions": true,
+        "show_product_recommendations": true,
+        "recommendation_heading": "More From CustomHouse",
+        "recommendation_button_text": "View Product",
+        "background_color": "#0F0F11",
+        "card_background_color": "#18181B",
+        "heading_color": "#FFFFFF",
+        "body_text_color": "#C6C6CC",
+        "accent_color": "#D7FF2F",
+        "border_color": "#6D42B8",
+        "button_primary_background": "#8D2FFF",
+        "button_primary_text": "#FFFFFF",
+        "button_secondary_background": "#0F0F11",
+        "button_secondary_text": "#FFFFFF",
+        "card_radius": 18
+      }
+    }
+  },
+  "order": [
+    "main"
+  ]
+}

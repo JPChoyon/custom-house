@@ -1,0 +1,1300 @@
+{% liquid
+  assign section_id = 'GraffitiDesignHero-' | append: section.id
+  assign desktop_image = section.settings.desktop_image
+  assign mobile_image = section.settings.mobile_image
+  assign image_alt = section.settings.image_alt | default: desktop_image.alt | escape
+%}
+
+<section
+  id="{{ section_id }}"
+  class="
+    graffiti-design-hero
+    graffiti-design-hero--height-{{ section.settings.height_mode }}
+    graffiti-design-hero--heading-{{ section.settings.heading_font_style }}
+    {% if section.settings.heading_nowrap_desktop %}graffiti-design-hero--heading-nowrap-desktop{% endif %}
+    {% if section.settings.button_grunge_shape %}graffiti-design-hero--button-grunge{% endif %}
+  "
+  style="
+    --gdh-desktop-height: {{ section.settings.desktop_height }}px;
+    --gdh-tablet-height: {{ section.settings.tablet_height }}px;
+    --gdh-mobile-height: {{ section.settings.mobile_height }}px;
+    --gdh-desktop-ratio: {{ desktop_image.aspect_ratio | default: 2.9227 }};
+    --gdh-mobile-ratio: {{ mobile_image.aspect_ratio | default: desktop_image.aspect_ratio | default: 1.25 }};
+    --gdh-media-position-desktop: {{ section.settings.desktop_image_position }};
+    --gdh-media-position-mobile: {{ section.settings.mobile_image_position }};
+    --gdh-media-scale-desktop: {{ section.settings.desktop_image_zoom | divided_by: 100.0 }};
+    --gdh-media-scale-mobile: {{ section.settings.mobile_image_zoom | divided_by: 100.0 }};
+    --gdh-bg: {{ section.settings.fallback_background }};
+    --gdh-overlay-color: {{ section.settings.overlay_color }};
+    --gdh-overlay-opacity: {{ section.settings.overlay_opacity | divided_by: 100.0 }};
+    --gdh-content-x: {{ section.settings.content_horizontal }};
+    --gdh-content-y: {{ section.settings.content_vertical }};
+    --gdh-content-x-mobile: {{ section.settings.mobile_content_horizontal }};
+    --gdh-content-y-mobile: {{ section.settings.mobile_content_vertical }};
+    --gdh-content-offset-x: {{ section.settings.content_offset_x }}px;
+    --gdh-content-offset-y: {{ section.settings.content_offset_y }}px;
+    --gdh-content-offset-x-mobile: {{ section.settings.mobile_content_offset_x }}px;
+    --gdh-content-offset-y-mobile: {{ section.settings.mobile_content_offset_y }}px;
+    --gdh-content-area-width: {{ section.settings.content_area_width }}px;
+    --gdh-content-area-width-mobile: {{ section.settings.mobile_content_area_width }}px;
+    --gdh-content-width: {{ section.settings.content_max_width }}px;
+    --gdh-pad-x: {{ section.settings.desktop_padding_x }}px;
+    --gdh-pad-y: {{ section.settings.desktop_padding_y }}px;
+    --gdh-pad-x-mobile: {{ section.settings.mobile_padding_x }}px;
+    --gdh-pad-y-mobile: {{ section.settings.mobile_padding_y }}px;
+    --gdh-text-align: {{ section.settings.text_alignment }};
+    --gdh-text-align-mobile: {{ section.settings.mobile_text_alignment }};
+    --gdh-heading-color: {{ section.settings.heading_color }};
+    --gdh-heading-size: {{ section.settings.heading_size }}px;
+    --gdh-heading-size-mobile: {{ section.settings.mobile_heading_size }}px;
+    --gdh-heading-line-height: {{ section.settings.heading_line_height | divided_by: 100.0 }};
+    --gdh-heading-letter-spacing: {{ section.settings.heading_letter_spacing }}px;
+    --gdh-subheading-color: {{ section.settings.subheading_color }};
+    --gdh-subheading-size: {{ section.settings.subheading_size }}px;
+    --gdh-subheading-size-mobile: {{ section.settings.mobile_subheading_size }}px;
+    --gdh-subheading-gap: {{ section.settings.subheading_gap }}px;
+    --gdh-subheading-gap-mobile: {{ section.settings.mobile_subheading_gap }}px;
+    --gdh-subheading-offset-x: {{ section.settings.subheading_offset_x }}px;
+    --gdh-subheading-offset-y: {{ section.settings.subheading_offset_y }}px;
+    --gdh-subheading-offset-x-mobile: {{ section.settings.mobile_subheading_offset_x }}px;
+    --gdh-subheading-offset-y-mobile: {{ section.settings.mobile_subheading_offset_y }}px;
+    --gdh-button-bg: {{ section.settings.button_background }};
+    --gdh-button-text: {{ section.settings.button_text_color }};
+    --gdh-button-border: {{ section.settings.button_border_color }};
+    --gdh-button-border-width: {{ section.settings.button_border_width }}px;
+    --gdh-button-width: {{ section.settings.button_width }}px;
+    --gdh-button-width-mobile: {{ section.settings.mobile_button_width }}px;
+    --gdh-button-height: {{ section.settings.button_height }}px;
+    --gdh-button-height-mobile: {{ section.settings.mobile_button_height }}px;
+    --gdh-button-gap: {{ section.settings.button_gap }}px;
+    --gdh-button-gap-mobile: {{ section.settings.mobile_button_gap }}px;
+    --gdh-button-offset-x: {{ section.settings.button_offset_x }}px;
+    --gdh-button-offset-y: {{ section.settings.button_offset_y }}px;
+    --gdh-button-offset-x-mobile: {{ section.settings.mobile_button_offset_x }}px;
+    --gdh-button-offset-y-mobile: {{ section.settings.mobile_button_offset_y }}px;
+    --gdh-button-radius: {{ section.settings.button_radius }}px;
+    --gdh-button-font-size: {{ section.settings.button_font_size }}px;
+    --gdh-button-font-size-mobile: {{ section.settings.mobile_button_font_size }}px;
+    --gdh-button-shadow: {{ section.settings.button_shadow_color }};
+    --gdh-button-shadow-opacity: {{ section.settings.button_shadow_opacity | divided_by: 100.0 }};
+    --gdh-button-shadow-depth: {{ section.settings.button_shadow_depth }}px;
+    --gdh-top-line-color: {{ section.settings.top_line_color }};
+    --gdh-top-line-opacity: {{ section.settings.top_line_opacity | divided_by: 100.0 }};
+    --gdh-top-line-size: {{ section.settings.top_line_thickness }}px;
+    --gdh-top-line-offset: {{ section.settings.top_line_offset }}px;
+    --gdh-bottom-line-color: {{ section.settings.bottom_line_color }};
+    --gdh-bottom-line-opacity: {{ section.settings.bottom_line_opacity | divided_by: 100.0 }};
+    --gdh-bottom-line-size: {{ section.settings.bottom_line_thickness }}px;
+    --gdh-bottom-line-offset: {{ section.settings.bottom_line_offset }}px;
+  "
+>
+  <div class="graffiti-design-hero__frame">
+    <div class="graffiti-design-hero__media">
+      {% if desktop_image != blank %}
+        <picture>
+          {% if mobile_image != blank %}
+            <source
+              media="(max-width: 749px)"
+              srcset="
+                {{ mobile_image | image_url: width: 375 }} 375w,
+                {{ mobile_image | image_url: width: 550 }} 550w,
+                {{ mobile_image | image_url: width: 750 }} 750w,
+                {{ mobile_image | image_url: width: 1100 }} 1100w
+              "
+              sizes="100vw"
+            >
+          {% endif %}
+          <img
+            src="{{ desktop_image | image_url: width: 1600 }}"
+            srcset="
+              {{ desktop_image | image_url: width: 750 }} 750w,
+              {{ desktop_image | image_url: width: 1100 }} 1100w,
+              {{ desktop_image | image_url: width: 1500 }} 1500w,
+              {{ desktop_image | image_url: width: 2000 }} 2000w,
+              {{ desktop_image | image_url: width: 2600 }} 2600w
+            "
+            sizes="100vw"
+            width="{{ desktop_image.width }}"
+            height="{{ desktop_image.height }}"
+            alt="{{ image_alt }}"
+            loading="{{ section.settings.image_loading }}"
+          >
+        </picture>
+      {% else %}
+        <div class="graffiti-design-hero__placeholder">
+          {{ 'lifestyle-1' | placeholder_svg_tag: 'placeholder-svg' }}
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="graffiti-design-hero__shade"></div>
+
+    {% if section.settings.full_banner_link != blank %}
+      <a
+        class="graffiti-design-hero__full-link"
+        href="{{ section.settings.full_banner_link }}"
+        aria-label="{{ section.settings.full_banner_aria_label | default: section.settings.button_label | default: section.settings.heading | strip_html | escape }}"
+      ></a>
+    {% endif %}
+
+    {% if section.settings.show_content %}
+      <div class="graffiti-design-hero__content-area">
+        <div class="graffiti-design-hero__content">
+          {% if section.settings.heading != blank %}
+            <h2 class="graffiti-design-hero__heading">
+              {{ section.settings.heading | escape | newline_to_br }}
+            </h2>
+          {% endif %}
+
+          {% if section.settings.subheading != blank %}
+            <div class="graffiti-design-hero__subheading">
+              {{ section.settings.subheading | escape | newline_to_br }}
+            </div>
+          {% endif %}
+
+          {% if section.settings.button_label != blank %}
+            <a
+              class="graffiti-design-hero__button"
+              {% if section.settings.button_link != blank %}
+                href="{{ section.settings.button_link }}"
+              {% else %}
+                role="link"
+                aria-disabled="true"
+              {% endif %}
+            >
+              {{ section.settings.button_label | escape }}
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</section>
+
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=Rubik+Wet+Paint&display=swap");
+
+  #{{ section_id }} {
+    display: block;
+    position: relative;
+    left: 50%;
+    width: 100vw;
+    width: 100dvw;
+    max-width: 100vw;
+    max-width: 100dvw;
+    margin-left: -50vw;
+    margin-left: -50dvw;
+    margin-right: -50vw;
+    margin-right: -50dvw;
+    background: var(--gdh-bg);
+  }
+
+  #shopify-section-{{ section.id }},
+  #shopify-section-{{ section.id }}.section,
+  #shopify-section-{{ section.id }}.section-graffiti-design-hero {
+    width: 100%;
+    max-width: none;
+    padding-left: 0;
+    padding-right: 0;
+    overflow: visible;
+  }
+
+  #{{ section_id }} *,
+  #{{ section_id }} *::before,
+  #{{ section_id }} *::after {
+    box-sizing: border-box;
+  }
+
+  #{{ section_id }} .graffiti-design-hero__frame {
+    position: relative;
+    isolation: isolate;
+    width: 100%;
+    min-height: var(--gdh-desktop-height);
+    overflow: hidden;
+    background: var(--gdh-bg);
+  }
+
+  #{{ section_id }}.graffiti-design-hero--height-adapt .graffiti-design-hero__frame {
+    aspect-ratio: var(--gdh-desktop-ratio);
+    min-height: 0;
+  }
+
+  #{{ section_id }} .graffiti-design-hero__frame::before,
+  #{{ section_id }} .graffiti-design-hero__frame::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 4;
+    pointer-events: none;
+  }
+
+  #{{ section_id }} .graffiti-design-hero__frame::before {
+    top: var(--gdh-top-line-offset);
+    height: var(--gdh-top-line-size);
+    background: var(--gdh-top-line-color);
+    opacity: var(--gdh-top-line-opacity);
+    box-shadow: 0 1px 3px rgba(255, 255, 255, 0.18);
+  }
+
+  #{{ section_id }} .graffiti-design-hero__frame::after {
+    bottom: var(--gdh-bottom-line-offset);
+    height: var(--gdh-bottom-line-size);
+    background: var(--gdh-bottom-line-color);
+    opacity: var(--gdh-bottom-line-opacity);
+    box-shadow:
+      0 -1px 0 rgba(42, 11, 88, 0.86),
+      0 2px 3px rgba(0, 0, 0, 0.55);
+  }
+
+  #{{ section_id }} .graffiti-design-hero__media,
+  #{{ section_id }} .graffiti-design-hero__media picture,
+  #{{ section_id }} .graffiti-design-hero__placeholder,
+  #{{ section_id }} .graffiti-design-hero__shade {
+    position: absolute;
+    inset: 0;
+  }
+
+  #{{ section_id }} .graffiti-design-hero__media {
+    z-index: 0;
+  }
+
+  #{{ section_id }} .graffiti-design-hero__media img,
+  #{{ section_id }} .graffiti-design-hero__placeholder svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: var(--gdh-media-position-desktop);
+    transform: scale(var(--gdh-media-scale-desktop));
+    transform-origin: var(--gdh-media-position-desktop);
+  }
+
+  #{{ section_id }} .graffiti-design-hero__placeholder {
+    background:
+      linear-gradient(90deg, rgba(7, 9, 14, 0.96), rgba(13, 15, 20, 0.56)),
+      radial-gradient(circle at 78% 45%, rgba(173, 255, 0, 0.42), transparent 18rem),
+      radial-gradient(circle at 56% 74%, rgba(141, 61, 255, 0.42), transparent 15rem),
+      #111318;
+  }
+
+  #{{ section_id }} .graffiti-design-hero__placeholder svg {
+    opacity: 0.18;
+    filter: grayscale(1) contrast(1.4);
+  }
+
+  #{{ section_id }} .graffiti-design-hero__shade {
+    z-index: 1;
+    background: var(--gdh-overlay-color);
+    opacity: var(--gdh-overlay-opacity);
+    pointer-events: none;
+  }
+
+  #{{ section_id }} .graffiti-design-hero__full-link {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: block;
+  }
+
+  #{{ section_id }} .graffiti-design-hero__content-area {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: flex;
+    align-items: var(--gdh-content-y);
+    justify-content: var(--gdh-content-x);
+    width: min(100%, var(--gdh-content-area-width));
+    margin-inline: auto;
+    pointer-events: none;
+  }
+
+  #{{ section_id }} .graffiti-design-hero__content {
+    position: relative;
+    width: min(100%, var(--gdh-content-width));
+    padding: var(--gdh-pad-y) var(--gdh-pad-x);
+    text-align: var(--gdh-text-align);
+    transform: translate(var(--gdh-content-offset-x), var(--gdh-content-offset-y));
+    pointer-events: auto;
+  }
+
+  #{{ section_id }} .graffiti-design-hero__heading {
+    margin: 0;
+    color: var(--gdh-heading-color);
+    font-family: Impact, Haettenschweiler, "Arial Black", sans-serif;
+    font-size: var(--gdh-heading-size);
+    font-weight: 900;
+    line-height: var(--gdh-heading-line-height);
+    letter-spacing: var(--gdh-heading-letter-spacing);
+    text-transform: uppercase;
+    white-space: normal;
+    text-shadow:
+      0 2px 0 rgba(0, 0, 0, 0.44),
+      0 6px 15px rgba(0, 0, 0, 0.5);
+    filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.12));
+  }
+
+  #{{ section_id }}.graffiti-design-hero--heading-graffiti .graffiti-design-hero__heading {
+    font-family: "Rubik Wet Paint", Impact, Haettenschweiler, "Arial Black", sans-serif;
+  }
+
+  #{{ section_id }}.graffiti-design-hero--heading-block .graffiti-design-hero__heading {
+    font-family: "Arial Black", Impact, Haettenschweiler, sans-serif;
+  }
+
+  #{{ section_id }}.graffiti-design-hero--heading-nowrap-desktop .graffiti-design-hero__heading {
+    white-space: nowrap;
+  }
+
+  #{{ section_id }} .graffiti-design-hero__subheading {
+    margin-top: calc(var(--gdh-subheading-gap) + var(--gdh-subheading-offset-y));
+    margin-left: var(--gdh-subheading-offset-x);
+    color: var(--gdh-subheading-color);
+    font-family: Impact, Haettenschweiler, "Arial Black", sans-serif;
+    font-size: var(--gdh-subheading-size);
+    font-weight: 900;
+    line-height: 1;
+    text-transform: uppercase;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.32);
+  }
+
+  #{{ section_id }} .graffiti-design-hero__button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: min(100%, var(--gdh-button-width));
+    min-height: var(--gdh-button-height);
+    margin-top: calc(var(--gdh-button-gap) + var(--gdh-button-offset-y));
+    margin-left: var(--gdh-button-offset-x);
+    padding: 10px 18px;
+    border: var(--gdh-button-border-width) solid var(--gdh-button-border);
+    border-radius: var(--gdh-button-radius);
+    background:
+      linear-gradient(0deg, rgba(70, 92, 0, 0.14), rgba(255, 255, 255, 0.08)),
+      radial-gradient(circle at 14% 28%, rgba(0, 0, 0, 0.2) 0 1px, transparent 2px),
+      radial-gradient(circle at 76% 69%, rgba(0, 0, 0, 0.16) 0 1px, transparent 2px),
+      var(--gdh-button-bg);
+    color: var(--gdh-button-text);
+    font-family: Impact, Haettenschweiler, "Arial Black", sans-serif;
+    font-size: var(--gdh-button-font-size);
+    font-weight: 900;
+    line-height: 1;
+    text-align: center;
+    text-decoration: none;
+    text-transform: uppercase;
+    box-shadow:
+      inset 0 0 0 2px rgba(83, 111, 0, 0.18),
+      0 var(--gdh-button-shadow-depth) 0 rgba(0, 0, 0, 0.3),
+      0 10px 18px rgba(0, 0, 0, 0.22);
+    transition: transform 180ms ease, filter 180ms ease;
+  }
+
+  #{{ section_id }}.graffiti-design-hero--button-grunge .graffiti-design-hero__button {
+    clip-path: polygon(0 2%, 99% 0, 100% 93%, 1% 100%);
+  }
+
+  #{{ section_id }} .graffiti-design-hero__button::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background:
+      repeating-linear-gradient(
+        -2deg,
+        transparent 0 8px,
+        rgba(0, 0, 0, 0.08) 9px 10px,
+        transparent 11px 17px
+      ),
+      var(--gdh-button-shadow);
+    opacity: var(--gdh-button-shadow-opacity);
+    mix-blend-mode: multiply;
+    pointer-events: none;
+  }
+
+  #{{ section_id }} .graffiti-design-hero__button:hover {
+    transform: translateY(-2px);
+    filter: saturate(1.08) brightness(1.03);
+  }
+
+  #{{ section_id }} .graffiti-design-hero__button:focus-visible,
+  #{{ section_id }} .graffiti-design-hero__full-link:focus-visible {
+    outline: 3px solid currentColor;
+    outline-offset: 4px;
+  }
+
+  @media screen and (max-width: 989px) {
+    #{{ section_id }} .graffiti-design-hero__frame {
+      min-height: var(--gdh-tablet-height);
+    }
+  }
+
+  @media screen and (max-width: 749px) {
+    #{{ section_id }} .graffiti-design-hero__frame {
+      min-height: var(--gdh-mobile-height);
+    }
+
+    #{{ section_id }}.graffiti-design-hero--height-adapt .graffiti-design-hero__frame {
+      aspect-ratio: var(--gdh-mobile-ratio);
+      min-height: 0;
+    }
+
+    #{{ section_id }} .graffiti-design-hero__media img,
+    #{{ section_id }} .graffiti-design-hero__placeholder svg {
+      object-position: var(--gdh-media-position-mobile);
+      transform: scale(var(--gdh-media-scale-mobile));
+      transform-origin: var(--gdh-media-position-mobile);
+    }
+
+    #{{ section_id }} .graffiti-design-hero__content-area {
+      align-items: var(--gdh-content-y-mobile);
+      justify-content: var(--gdh-content-x-mobile);
+      width: min(100%, var(--gdh-content-area-width-mobile));
+    }
+
+    #{{ section_id }} .graffiti-design-hero__content {
+      width: min(100%, var(--gdh-content-width));
+      padding: var(--gdh-pad-y-mobile) var(--gdh-pad-x-mobile);
+      text-align: var(--gdh-text-align-mobile);
+      transform: translate(var(--gdh-content-offset-x-mobile), var(--gdh-content-offset-y-mobile));
+    }
+
+    #{{ section_id }} .graffiti-design-hero__heading {
+      font-size: var(--gdh-heading-size-mobile);
+      line-height: var(--gdh-heading-line-height);
+      white-space: normal;
+    }
+
+    #{{ section_id }} .graffiti-design-hero__subheading {
+      margin-top: calc(var(--gdh-subheading-gap-mobile) + var(--gdh-subheading-offset-y-mobile));
+      margin-left: var(--gdh-subheading-offset-x-mobile);
+      font-size: var(--gdh-subheading-size-mobile);
+    }
+
+    #{{ section_id }} .graffiti-design-hero__button {
+      width: min(100%, var(--gdh-button-width-mobile));
+      min-height: var(--gdh-button-height-mobile);
+      margin-top: calc(var(--gdh-button-gap-mobile) + var(--gdh-button-offset-y-mobile));
+      margin-left: var(--gdh-button-offset-x-mobile);
+      font-size: var(--gdh-button-font-size-mobile);
+    }
+  }
+</style>
+
+{% schema %}
+{
+  "name": "Graffiti design hero",
+  "tag": "section",
+  "class": "section-graffiti-design-hero",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Images"
+    },
+    {
+      "type": "image_picker",
+      "id": "desktop_image",
+      "label": "Desktop image"
+    },
+    {
+      "type": "image_picker",
+      "id": "mobile_image",
+      "label": "Mobile image"
+    },
+    {
+      "type": "text",
+      "id": "image_alt",
+      "label": "Image alt text"
+    },
+    {
+      "type": "select",
+      "id": "desktop_image_position",
+      "label": "Desktop image position",
+      "default": "center center",
+      "options": [
+        { "value": "left top", "label": "Left top" },
+        { "value": "left center", "label": "Left center" },
+        { "value": "left bottom", "label": "Left bottom" },
+        { "value": "center top", "label": "Center top" },
+        { "value": "center center", "label": "Center center" },
+        { "value": "center bottom", "label": "Center bottom" },
+        { "value": "right top", "label": "Right top" },
+        { "value": "right center", "label": "Right center" },
+        { "value": "right bottom", "label": "Right bottom" }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "mobile_image_position",
+      "label": "Mobile image position",
+      "default": "center center",
+      "options": [
+        { "value": "left top", "label": "Left top" },
+        { "value": "left center", "label": "Left center" },
+        { "value": "left bottom", "label": "Left bottom" },
+        { "value": "center top", "label": "Center top" },
+        { "value": "center center", "label": "Center center" },
+        { "value": "center bottom", "label": "Center bottom" },
+        { "value": "right top", "label": "Right top" },
+        { "value": "right center", "label": "Right center" },
+        { "value": "right bottom", "label": "Right bottom" }
+      ]
+    },
+    {
+      "type": "range",
+      "id": "desktop_image_zoom",
+      "label": "Desktop image zoom",
+      "min": 100,
+      "max": 160,
+      "step": 1,
+      "unit": "%",
+      "default": 100
+    },
+    {
+      "type": "range",
+      "id": "mobile_image_zoom",
+      "label": "Mobile image zoom",
+      "min": 100,
+      "max": 180,
+      "step": 1,
+      "unit": "%",
+      "default": 100
+    },
+    {
+      "type": "select",
+      "id": "image_loading",
+      "label": "Image loading",
+      "default": "eager",
+      "options": [
+        { "value": "eager", "label": "Eager" },
+        { "value": "lazy", "label": "Lazy" }
+      ]
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "select",
+      "id": "height_mode",
+      "label": "Height mode",
+      "default": "custom",
+      "options": [
+        { "value": "custom", "label": "Custom height" },
+        { "value": "adapt", "label": "Adapt to image" }
+      ]
+    },
+    {
+      "type": "range",
+      "id": "desktop_height",
+      "label": "Desktop height",
+      "min": 240,
+      "max": 760,
+      "step": 10,
+      "unit": "px",
+      "default": 440
+    },
+    {
+      "type": "range",
+      "id": "tablet_height",
+      "label": "Tablet height",
+      "min": 240,
+      "max": 700,
+      "step": 10,
+      "unit": "px",
+      "default": 390
+    },
+    {
+      "type": "range",
+      "id": "mobile_height",
+      "label": "Mobile height",
+      "min": 260,
+      "max": 680,
+      "step": 10,
+      "unit": "px",
+      "default": 420
+    },
+    {
+      "type": "range",
+      "id": "desktop_padding_x",
+      "label": "Desktop left and right padding",
+      "min": 0,
+      "max": 160,
+      "step": 4,
+      "unit": "px",
+      "default": 36
+    },
+    {
+      "type": "range",
+      "id": "desktop_padding_y",
+      "label": "Desktop top and bottom padding",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "default": 48
+    },
+    {
+      "type": "range",
+      "id": "mobile_padding_x",
+      "label": "Mobile left and right padding",
+      "min": 0,
+      "max": 80,
+      "step": 2,
+      "unit": "px",
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "mobile_padding_y",
+      "label": "Mobile top and bottom padding",
+      "min": 0,
+      "max": 100,
+      "step": 2,
+      "unit": "px",
+      "default": 32
+    },
+    {
+      "type": "color",
+      "id": "fallback_background",
+      "label": "Fallback background",
+      "default": "#101217"
+    },
+    {
+      "type": "header",
+      "content": "Overlay"
+    },
+    {
+      "type": "color",
+      "id": "overlay_color",
+      "label": "Overlay color",
+      "default": "#000000"
+    },
+    {
+      "type": "range",
+      "id": "overlay_opacity",
+      "label": "Overlay opacity",
+      "min": 0,
+      "max": 80,
+      "step": 1,
+      "unit": "%",
+      "default": 0
+    },
+    {
+      "type": "color",
+      "id": "top_line_color",
+      "label": "Top line color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "range",
+      "id": "top_line_opacity",
+      "label": "Top line opacity",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%",
+      "default": 70
+    },
+    {
+      "type": "range",
+      "id": "top_line_thickness",
+      "label": "Top line thickness",
+      "min": 0,
+      "max": 12,
+      "step": 1,
+      "unit": "px",
+      "default": 4
+    },
+    {
+      "type": "range",
+      "id": "top_line_offset",
+      "label": "Top line distance from top",
+      "min": 0,
+      "max": 80,
+      "step": 1,
+      "unit": "px",
+      "default": 8
+    },
+    {
+      "type": "color",
+      "id": "bottom_line_color",
+      "label": "Bottom line color",
+      "default": "#8a37ff"
+    },
+    {
+      "type": "range",
+      "id": "bottom_line_opacity",
+      "label": "Bottom line opacity",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%",
+      "default": 90
+    },
+    {
+      "type": "range",
+      "id": "bottom_line_thickness",
+      "label": "Bottom line thickness",
+      "min": 0,
+      "max": 16,
+      "step": 1,
+      "unit": "px",
+      "default": 5
+    },
+    {
+      "type": "range",
+      "id": "bottom_line_offset",
+      "label": "Bottom line distance from bottom",
+      "min": 0,
+      "max": 80,
+      "step": 1,
+      "unit": "px",
+      "default": 18
+    },
+    {
+      "type": "header",
+      "content": "Content"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_content",
+      "label": "Show editable content",
+      "default": true
+    },
+    {
+      "type": "textarea",
+      "id": "heading",
+      "label": "Heading",
+      "default": "STARTA\nSKAPANDET NU!"
+    },
+    {
+      "type": "textarea",
+      "id": "subheading",
+      "label": "Subheading",
+      "default": "LÄTT, SNABBT & 100% DU"
+    },
+    {
+      "type": "text",
+      "id": "button_label",
+      "label": "Button label",
+      "default": "BÖRJA DESIGN!"
+    },
+    {
+      "type": "url",
+      "id": "button_link",
+      "label": "Button link"
+    },
+    {
+      "type": "url",
+      "id": "full_banner_link",
+      "label": "Full banner link"
+    },
+    {
+      "type": "text",
+      "id": "full_banner_aria_label",
+      "label": "Full banner accessibility label"
+    },
+    {
+      "type": "range",
+      "id": "content_max_width",
+      "label": "Text block max width",
+      "min": 280,
+      "max": 720,
+      "step": 10,
+      "unit": "px",
+      "default": 620
+    },
+    {
+      "type": "range",
+      "id": "content_area_width",
+      "label": "Desktop content area width",
+      "min": 320,
+      "max": 1800,
+      "step": 20,
+      "unit": "px",
+      "default": 1800
+    },
+    {
+      "type": "range",
+      "id": "mobile_content_area_width",
+      "label": "Mobile content area width",
+      "min": 280,
+      "max": 750,
+      "step": 10,
+      "unit": "px",
+      "default": 750
+    },
+    {
+      "type": "header",
+      "content": "Fine text position"
+    },
+    {
+      "type": "range",
+      "id": "content_offset_x",
+      "label": "Desktop text block move right/left",
+      "min": -300,
+      "max": 300,
+      "step": 10,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "content_offset_y",
+      "label": "Desktop text block move down/up",
+      "min": -220,
+      "max": 220,
+      "step": 5,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "mobile_content_offset_x",
+      "label": "Mobile text block move right/left",
+      "min": -180,
+      "max": 180,
+      "step": 5,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "mobile_content_offset_y",
+      "label": "Mobile text block move down/up",
+      "min": -180,
+      "max": 180,
+      "step": 5,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "select",
+      "id": "content_horizontal",
+      "label": "Desktop horizontal position",
+      "default": "flex-start",
+      "options": [
+        { "value": "flex-start", "label": "Left" },
+        { "value": "center", "label": "Center" },
+        { "value": "flex-end", "label": "Right" }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "content_vertical",
+      "label": "Desktop vertical position",
+      "default": "flex-start",
+      "options": [
+        { "value": "flex-start", "label": "Top" },
+        { "value": "center", "label": "Middle" },
+        { "value": "flex-end", "label": "Bottom" }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "text_alignment",
+      "label": "Desktop text alignment",
+      "default": "left",
+      "options": [
+        { "value": "left", "label": "Left" },
+        { "value": "center", "label": "Center" },
+        { "value": "right", "label": "Right" }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "mobile_content_horizontal",
+      "label": "Mobile horizontal position",
+      "default": "center",
+      "options": [
+        { "value": "flex-start", "label": "Left" },
+        { "value": "center", "label": "Center" },
+        { "value": "flex-end", "label": "Right" }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "mobile_content_vertical",
+      "label": "Mobile vertical position",
+      "default": "center",
+      "options": [
+        { "value": "flex-start", "label": "Top" },
+        { "value": "center", "label": "Middle" },
+        { "value": "flex-end", "label": "Bottom" }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "mobile_text_alignment",
+      "label": "Mobile text alignment",
+      "default": "center",
+      "options": [
+        { "value": "left", "label": "Left" },
+        { "value": "center", "label": "Center" },
+        { "value": "right", "label": "Right" }
+      ]
+    },
+    {
+      "type": "header",
+      "content": "Subheading position"
+    },
+    {
+      "type": "range",
+      "id": "subheading_gap",
+      "label": "Desktop subheading gap",
+      "min": 0,
+      "max": 90,
+      "step": 1,
+      "unit": "px",
+      "default": 18
+    },
+    {
+      "type": "range",
+      "id": "subheading_offset_x",
+      "label": "Desktop subheading move right/left",
+      "min": -220,
+      "max": 220,
+      "step": 10,
+      "unit": "px",
+      "default": 70
+    },
+    {
+      "type": "range",
+      "id": "subheading_offset_y",
+      "label": "Desktop subheading move down/up",
+      "min": -80,
+      "max": 100,
+      "step": 2,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "mobile_subheading_gap",
+      "label": "Mobile subheading gap",
+      "min": 0,
+      "max": 70,
+      "step": 1,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "mobile_subheading_offset_x",
+      "label": "Mobile subheading move right/left",
+      "min": -140,
+      "max": 140,
+      "step": 5,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "mobile_subheading_offset_y",
+      "label": "Mobile subheading move down/up",
+      "min": -70,
+      "max": 90,
+      "step": 2,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "header",
+      "content": "Typography"
+    },
+    {
+      "type": "color",
+      "id": "heading_color",
+      "label": "Heading color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "select",
+      "id": "heading_font_style",
+      "label": "Heading font style",
+      "default": "graffiti",
+      "options": [
+        { "value": "graffiti", "label": "Graffiti paint" },
+        { "value": "impact", "label": "Impact" },
+        { "value": "block", "label": "Block" }
+      ]
+    },
+    {
+      "type": "checkbox",
+      "id": "heading_nowrap_desktop",
+      "label": "Keep desktop heading on one line",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "heading_size",
+      "label": "Desktop heading size",
+      "min": 28,
+      "max": 110,
+      "step": 1,
+      "unit": "px",
+      "default": 74
+    },
+    {
+      "type": "range",
+      "id": "mobile_heading_size",
+      "label": "Mobile heading size",
+      "min": 24,
+      "max": 72,
+      "step": 1,
+      "unit": "px",
+      "default": 42
+    },
+    {
+      "type": "range",
+      "id": "heading_line_height",
+      "label": "Heading line height",
+      "min": 75,
+      "max": 130,
+      "step": 1,
+      "unit": "%",
+      "default": 88
+    },
+    {
+      "type": "range",
+      "id": "heading_letter_spacing",
+      "label": "Heading letter spacing",
+      "min": 0,
+      "max": 20,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "color",
+      "id": "subheading_color",
+      "label": "Subheading color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "range",
+      "id": "subheading_size",
+      "label": "Desktop subheading size",
+      "min": 14,
+      "max": 44,
+      "step": 1,
+      "unit": "px",
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "mobile_subheading_size",
+      "label": "Mobile subheading size",
+      "min": 12,
+      "max": 34,
+      "step": 1,
+      "unit": "px",
+      "default": 18
+    },
+    {
+      "type": "header",
+      "content": "Button"
+    },
+    {
+      "type": "color",
+      "id": "button_background",
+      "label": "Button background",
+      "default": "#b7ff00"
+    },
+    {
+      "type": "color",
+      "id": "button_text_color",
+      "label": "Button text",
+      "default": "#111111"
+    },
+    {
+      "type": "color",
+      "id": "button_border_color",
+      "label": "Button border",
+      "default": "#a5e900"
+    },
+    {
+      "type": "range",
+      "id": "button_border_width",
+      "label": "Button border width",
+      "min": 0,
+      "max": 8,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "button_width",
+      "label": "Desktop button width",
+      "min": 140,
+      "max": 460,
+      "step": 5,
+      "unit": "px",
+      "default": 350
+    },
+    {
+      "type": "range",
+      "id": "mobile_button_width",
+      "label": "Mobile button width",
+      "min": 140,
+      "max": 360,
+      "step": 5,
+      "unit": "px",
+      "default": 275
+    },
+    {
+      "type": "range",
+      "id": "button_height",
+      "label": "Desktop button height",
+      "min": 42,
+      "max": 96,
+      "step": 2,
+      "unit": "px",
+      "default": 76
+    },
+    {
+      "type": "range",
+      "id": "mobile_button_height",
+      "label": "Mobile button height",
+      "min": 40,
+      "max": 86,
+      "step": 2,
+      "unit": "px",
+      "default": 62
+    },
+    {
+      "type": "header",
+      "content": "Button position"
+    },
+    {
+      "type": "range",
+      "id": "button_gap",
+      "label": "Desktop button gap",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 22
+    },
+    {
+      "type": "range",
+      "id": "button_offset_x",
+      "label": "Desktop button move right/left",
+      "min": -220,
+      "max": 220,
+      "step": 10,
+      "unit": "px",
+      "default": 70
+    },
+    {
+      "type": "range",
+      "id": "button_offset_y",
+      "label": "Desktop button move down/up",
+      "min": -80,
+      "max": 120,
+      "step": 2,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "mobile_button_gap",
+      "label": "Mobile button gap",
+      "min": 0,
+      "max": 80,
+      "step": 1,
+      "unit": "px",
+      "default": 18
+    },
+    {
+      "type": "range",
+      "id": "mobile_button_offset_x",
+      "label": "Mobile button move right/left",
+      "min": -140,
+      "max": 140,
+      "step": 10,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "mobile_button_offset_y",
+      "label": "Mobile button move down/up",
+      "min": -70,
+      "max": 100,
+      "step": 2,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "button_radius",
+      "label": "Button radius",
+      "min": 0,
+      "max": 30,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "button_font_size",
+      "label": "Desktop button text size",
+      "min": 14,
+      "max": 42,
+      "step": 1,
+      "unit": "px",
+      "default": 31
+    },
+    {
+      "type": "range",
+      "id": "mobile_button_font_size",
+      "label": "Mobile button text size",
+      "min": 13,
+      "max": 34,
+      "step": 1,
+      "unit": "px",
+      "default": 22
+    },
+    {
+      "type": "color",
+      "id": "button_shadow_color",
+      "label": "Button texture color",
+      "default": "#6b8b00"
+    },
+    {
+      "type": "range",
+      "id": "button_shadow_opacity",
+      "label": "Button texture opacity",
+      "min": 0,
+      "max": 35,
+      "step": 1,
+      "unit": "%",
+      "default": 8
+    },
+    {
+      "type": "range",
+      "id": "button_shadow_depth",
+      "label": "Button shadow depth",
+      "min": 0,
+      "max": 14,
+      "step": 1,
+      "unit": "px",
+      "default": 4
+    },
+    {
+      "type": "checkbox",
+      "id": "button_grunge_shape",
+      "label": "Use rough button shape",
+      "default": true
+    }
+  ],
+  "presets": [
+    {
+      "name": "Graffiti design hero"
+    }
+  ]
+}
+{% endschema %}

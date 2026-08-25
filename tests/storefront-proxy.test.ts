@@ -62,6 +62,7 @@ test("base proxy route provides an unsigned production-safe health response", as
   );
   assert.equal(response.status, 200);
   assert.deepEqual(await json(response), {
+    ok: true,
     success: true,
     message: "Custom House Shopify App Proxy is working",
   });
@@ -72,6 +73,16 @@ test("catch-all child routes are parsed deterministically", () => {
   assert.deepEqual(parseProxyRoute("creator/john-doe"), {
     kind: "creator",
     creatorHandle: "john-doe",
+  });
+  assert.deepEqual(parseProxyRoute("creator/john-doe/products/cmabc123456789012345"), {
+    kind: "creatorProduct",
+    creatorHandle: "john-doe",
+    creatorProductId: "cmabc123456789012345",
+  });
+  assert.deepEqual(parseProxyRoute("creator/john-doe/products/cmabc123456789012345/prepare-cart"), {
+    kind: "creatorProductCart",
+    creatorHandle: "john-doe",
+    creatorProductId: "cmabc123456789012345",
   });
   assert.deepEqual(parseProxyRoute("design/abc123"), {
     kind: "design",
@@ -85,8 +96,8 @@ test("catch-all child routes are parsed deterministically", () => {
 
 test("valid Shopify-style signature reaches a protected GET route", async () => {
   const response = await handleStorefrontProxy(
-    new Request(signedUrl("/proxy/design/abc123")),
-    "design/abc123",
+    new Request(signedUrl("/proxy")),
+    "",
     verifyTestSignature,
   );
   assert.equal(response.status, 200);
@@ -104,6 +115,7 @@ test("invalid proxy signature is rejected safely", async () => {
   );
   assert.equal(response.status, 403);
   assert.deepEqual(await json(response), {
+    ok: false,
     success: false,
     error: {
       code: "INVALID_PROXY_SIGNATURE",
@@ -159,6 +171,40 @@ test("signed POST requests are supported on the base route", async () => {
     verifyTestSignature,
   );
   assert.equal(response.status, 200);
+});
+
+test("prepare-cart malformed requests return JSON, never an HTML document", async () => {
+  const authenticator: ProxyAuthenticator = async (request) => {
+    const context = await verifyTestSignature(request);
+    return {
+      ...context,
+      client: {
+        async request() {
+          throw new Error("should not reach Shopify for malformed JSON");
+        },
+      },
+    };
+  };
+  const response = await handleStorefrontProxy(
+    new Request(
+      signedUrl(
+        "/proxy/creators/john-doe/products/cmabc123456789012345/prepare-cart",
+      ),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: "{",
+      },
+    ),
+    "creators/john-doe/products/cmabc123456789012345/prepare-cart",
+    authenticator,
+  );
+
+  assert.equal(response.status, 400);
+  assert.match(response.headers.get("content-type") || "", /application\/json/);
+  const body = await json(response);
+  assert.equal(body.ok, false);
+  assert.equal((body.error as { code: string }).code, "INVALID_JSON");
 });
 
 test("unsupported methods return a structured 405 response", async () => {

@@ -7,6 +7,7 @@ export async function action({ request }: ActionFunctionArgs) {
   await db.$transaction([
     db.session.deleteMany({ where: { shop } }),
     db.creatorSaleAdjustment.deleteMany({ where: { shop } }),
+    db.creatorOrderItem.deleteMany({ where: { shop } }),
     db.creatorSale.deleteMany({ where: { shop } }),
     db.creatorApplication.deleteMany({ where: { shop } }),
     db.designSubmission.deleteMany({ where: { shop } }),

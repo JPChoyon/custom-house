@@ -1,0 +1,1145 @@
+{% liquid
+  assign section_id = 'customhouse-article-' | append: section.id
+  assign container_width = section.settings.container_width | default: 1440
+  assign top_padding = section.settings.top_padding | default: 40
+  assign bottom_padding = section.settings.bottom_padding | default: 96
+  assign blog_url = blog.url | default: routes.root_url
+  assign share_url = shop.url | append: article.url | url_encode
+  assign share_title = article.title | url_encode
+%}
+
+<style>
+  #{{ section_id }} {
+    --customhouse-article-bg: {{ section.settings.background_color }};
+    --customhouse-article-card-bg: {{ section.settings.card_background_color }};
+    --customhouse-article-heading: {{ section.settings.heading_color }};
+    --customhouse-article-body: {{ section.settings.body_text_color }};
+    --customhouse-article-accent: {{ section.settings.accent_color }};
+    --customhouse-article-border: {{ section.settings.border_color }};
+    --customhouse-article-muted: color-mix(in srgb, var(--customhouse-article-body) 72%, transparent);
+    --customhouse-article-container: {{ container_width }}px;
+    --customhouse-article-top-padding: {{ top_padding }}px;
+    --customhouse-article-bottom-padding: {{ bottom_padding }}px;
+    --customhouse-article-radius: {{ section.settings.card_radius }}px;
+    --customhouse-article-body-font: Inter, Arial, sans-serif;
+  }
+
+  #{{ section_id }}.customhouse-article {
+    position: relative;
+    isolation: isolate;
+    overflow: visible;
+    padding-block: var(--customhouse-article-top-padding) var(--customhouse-article-bottom-padding);
+    color: var(--customhouse-article-body);
+    font-family: var(--customhouse-article-body-font);
+    background:
+      radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.035), transparent 28%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(0, 0, 0, 0.28)),
+      var(--customhouse-article-bg);
+  }
+
+  #{{ section_id }}.customhouse-article::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -4;
+    opacity: 0.55;
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 300 300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.76' numOctaves='5' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='table' tableValues='.02 .12'/%3E%3CfeFuncG type='table' tableValues='.02 .12'/%3E%3CfeFuncB type='table' tableValues='.025 .13'/%3E%3CfeFuncA type='table' tableValues='.20 .62'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E"),
+      radial-gradient(circle at 12px 12px, rgba(255,255,255,.055) 1px, transparent 1.6px);
+    background-position: center;
+    background-size: 260px 260px, 22px 22px;
+    pointer-events: none;
+  }
+
+  #{{ section_id }}.customhouse-article::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -3;
+    background:
+      radial-gradient(circle at center, transparent 0 48%, rgba(0, 0, 0, 0.58) 88%),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.72), transparent 20%, transparent 80%, rgba(0, 0, 0, 0.7));
+    pointer-events: none;
+  }
+
+  #{{ section_id }} .customhouse-article__container {
+    position: relative;
+    z-index: 1;
+    width: min(100% - 48px, var(--customhouse-article-container));
+    margin-inline: auto;
+  }
+
+  #{{ section_id }} .customhouse-article__layout,
+  #{{ section_id }} .customhouse-article__main,
+  #{{ section_id }} .customhouse-article__card,
+  #{{ section_id }} .customhouse-article__inner,
+  #{{ section_id }} .customhouse-article__content {
+    min-width: 0;
+  }
+
+  #{{ section_id }} .customhouse-article__graffiti {
+    position: absolute;
+    z-index: -1;
+    width: clamp(110px, 16vw, 230px);
+    height: clamp(74px, 10vw, 150px);
+    color: var(--customhouse-article-border);
+    opacity: 0.16;
+    pointer-events: none;
+  }
+
+  #{{ section_id }} .customhouse-article__graffiti--left {
+    top: 96px;
+    left: max(-86px, -5vw);
+    transform: rotate(-13deg);
+  }
+
+  #{{ section_id }} .customhouse-article__graffiti--right {
+    right: max(-92px, -5.5vw);
+    bottom: 118px;
+    transform: rotate(11deg);
+  }
+
+  #{{ section_id }} .customhouse-article__topbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 24px;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 22px;
+  }
+
+  #{{ section_id }} .customhouse-article__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--customhouse-article-muted);
+    font-size: 13px;
+    font-weight: 850;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-decoration: none;
+    text-transform: uppercase;
+    transition: color 180ms ease, transform 180ms ease;
+  }
+
+  #{{ section_id }} .customhouse-article__back:hover,
+  #{{ section_id }} .customhouse-article__back:focus-visible {
+    color: var(--customhouse-article-accent);
+    transform: translateX(-3px);
+  }
+
+  #{{ section_id }} .customhouse-article__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--customhouse-article-accent);
+    font-size: clamp(12px, 0.9vw, 15px);
+    font-weight: 950;
+    line-height: 1.1;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    text-shadow: 0 0 18px color-mix(in srgb, var(--customhouse-article-accent) 34%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-article__eyebrow::before {
+    content: "";
+    width: 58px;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--customhouse-article-accent);
+    clip-path: polygon(0 58%, 11% 43%, 24% 48%, 35% 22%, 51% 35%, 66% 20%, 83% 43%, 100% 39%, 87% 56%, 68% 61%, 51% 78%, 34% 62%, 18% 72%);
+    box-shadow:
+      0 0 16px color-mix(in srgb, var(--customhouse-article-accent) 58%, transparent),
+      0 0 34px color-mix(in srgb, var(--customhouse-article-accent) 24%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-article__layout {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(0, 4fr);
+    gap: clamp(32px, 3vw, 40px);
+    align-items: start;
+  }
+
+  #{{ section_id }} .customhouse-article__toc-card,
+  #{{ section_id }} .customhouse-article__card,
+  #{{ section_id }} .customhouse-article__cta {
+    border: 1px solid color-mix(in srgb, var(--customhouse-article-border) 58%, rgba(255, 255, 255, 0.12));
+    border-radius: var(--customhouse-article-radius);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.008)),
+      var(--customhouse-article-card-bg);
+    box-shadow:
+      0 26px 70px rgba(0, 0, 0, 0.48),
+      0 0 0 1px rgba(255, 255, 255, 0.025) inset,
+      0 0 34px color-mix(in srgb, var(--customhouse-article-border) 14%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-article__toc-card {
+    position: sticky;
+    top: 100px;
+    align-self: start;
+    padding: 22px;
+  }
+
+  #{{ section_id }} .customhouse-article__toc-heading {
+    margin: 0 0 16px;
+    color: var(--customhouse-article-heading);
+    font-size: 13px;
+    font-weight: 950;
+    line-height: 1.2;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  #{{ section_id }} .customhouse-article__toc-list {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  #{{ section_id }} .customhouse-article__toc-empty {
+    margin: 0;
+    color: var(--customhouse-article-muted);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  #{{ section_id }} .customhouse-article__toc-link {
+    display: block;
+    padding: 9px 0 9px 14px;
+    color: var(--customhouse-article-muted);
+    font-size: 14px;
+    font-weight: 750;
+    line-height: 1.35;
+    text-decoration: none;
+    border-left: 2px solid color-mix(in srgb, var(--customhouse-article-border) 42%, transparent);
+    transition: border-color 180ms ease, color 180ms ease, transform 180ms ease;
+  }
+
+  #{{ section_id }} .customhouse-article__toc-link--h3 {
+    padding-left: 26px;
+    font-size: 13px;
+    opacity: 0.88;
+  }
+
+  #{{ section_id }} .customhouse-article__toc-link:hover,
+  #{{ section_id }} .customhouse-article__toc-link:focus-visible,
+  #{{ section_id }} .customhouse-article__toc-link.is-active {
+    color: var(--customhouse-article-accent);
+    border-color: var(--customhouse-article-accent);
+    transform: translateX(3px);
+    text-shadow: 0 0 16px color-mix(in srgb, var(--customhouse-article-accent) 28%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-article__card {
+    overflow: hidden;
+    padding: clamp(28px, 5vw, 64px);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.006)),
+      var(--customhouse-article-card-bg);
+  }
+
+  #{{ section_id }} .customhouse-article__inner {
+    width: 100%;
+    margin-inline: auto;
+  }
+
+  #{{ section_id }} .customhouse-article__title {
+    max-width: 1180px;
+    margin: 0;
+    color: var(--customhouse-article-heading);
+    font-family: Impact, "Arial Black", sans-serif;
+    font-size: clamp(36px, 4vw, 58px);
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0;
+    text-wrap: balance;
+    overflow-wrap: anywhere;
+    text-shadow:
+      0 3px 0 rgba(255, 255, 255, 0.07),
+      0 13px 32px rgba(0, 0, 0, 0.62);
+  }
+
+  #{{ section_id }} .customhouse-article__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    max-width: 930px;
+    margin: 20px auto 0;
+    padding: 0;
+    color: var(--customhouse-article-muted);
+    font-size: 13px;
+    font-weight: 750;
+    line-height: 1.3;
+    list-style: none;
+  }
+
+  #{{ section_id }} .customhouse-article__meta-item {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 8px 12px;
+    border: 1px solid color-mix(in srgb, var(--customhouse-article-border) 38%, rgba(255, 255, 255, 0.12));
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.035);
+  }
+
+  #{{ section_id }} .customhouse-article__featured {
+    position: relative;
+    overflow: hidden;
+    max-width: 930px;
+    margin: 30px auto 34px;
+    border: 1px solid color-mix(in srgb, var(--customhouse-article-border) 55%, rgba(255, 255, 255, 0.14));
+    border-radius: calc(var(--customhouse-article-radius) * 0.86);
+    background: var(--customhouse-article-card-bg);
+    box-shadow:
+      0 24px 60px rgba(0, 0, 0, 0.42),
+      0 0 32px color-mix(in srgb, var(--customhouse-article-border) 16%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-article__featured::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+    pointer-events: none;
+  }
+
+  #{{ section_id }} .customhouse-article__featured-image {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    height: auto;
+    object-fit: cover;
+  }
+
+  #{{ section_id }} .customhouse-article__content {
+    max-width: 930px;
+    margin-inline: auto;
+    color: var(--customhouse-article-body);
+    font-size: clamp(16px, 1.08vw, 18px);
+    line-height: 1.82;
+    overflow-wrap: break-word;
+    word-break: normal;
+  }
+
+  #{{ section_id }} .customhouse-article__content * {
+    max-width: 100%;
+  }
+
+  #{{ section_id }} .customhouse-article__content > *:first-child {
+    margin-top: 0;
+  }
+
+  #{{ section_id }} .customhouse-article__content > *:last-child {
+    margin-bottom: 0;
+  }
+
+  #{{ section_id }} .customhouse-article__content h2,
+  #{{ section_id }} .customhouse-article__content h3,
+  #{{ section_id }} .customhouse-article__content h4 {
+    position: relative;
+    scroll-margin-top: 118px;
+    margin: 1.65em 0 0.6em;
+    color: var(--customhouse-article-heading);
+    font-family: var(--customhouse-article-body-font);
+    font-weight: 900;
+    line-height: 1.16;
+    letter-spacing: 0;
+    text-wrap: balance;
+  }
+
+  #{{ section_id }} .customhouse-article__content h2 {
+    padding-left: 18px;
+    font-size: clamp(27px, 2.6vw, 42px);
+  }
+
+  #{{ section_id }} .customhouse-article__content h2::before {
+    content: "";
+    position: absolute;
+    top: 0.18em;
+    bottom: 0.18em;
+    left: 0;
+    width: 5px;
+    border-radius: 999px;
+    background: var(--customhouse-article-accent);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--customhouse-article-accent) 42%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-article__content h3 {
+    font-size: clamp(22px, 2vw, 31px);
+  }
+
+  #{{ section_id }} .customhouse-article__content h4 {
+    color: color-mix(in srgb, var(--customhouse-article-heading) 88%, var(--customhouse-article-accent));
+    font-size: clamp(18px, 1.5vw, 23px);
+  }
+
+  #{{ section_id }} .customhouse-article__content p {
+    margin: 0 0 1.25em;
+  }
+
+  #{{ section_id }} .customhouse-article__content strong,
+  #{{ section_id }} .customhouse-article__content b {
+    color: var(--customhouse-article-heading);
+    font-weight: 900;
+  }
+
+  #{{ section_id }} .customhouse-article__content a {
+    color: var(--customhouse-article-accent);
+    font-weight: 800;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.22em;
+    transition: color 180ms ease, text-shadow 180ms ease;
+  }
+
+  #{{ section_id }} .customhouse-article__content a:hover,
+  #{{ section_id }} .customhouse-article__content a:focus-visible {
+    color: color-mix(in srgb, var(--customhouse-article-accent) 84%, #ffffff);
+    text-shadow: 0 0 18px color-mix(in srgb, var(--customhouse-article-accent) 28%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-article__content ul,
+  #{{ section_id }} .customhouse-article__content ol {
+    margin: 0 0 1.35em;
+    padding-left: 1.35em;
+  }
+
+  #{{ section_id }} .customhouse-article__content li {
+    margin: 0.5em 0;
+    padding-left: 0.16em;
+  }
+
+  #{{ section_id }} .customhouse-article__content li::marker {
+    color: var(--customhouse-article-accent);
+    font-weight: 900;
+  }
+
+  #{{ section_id }} .customhouse-article__content blockquote {
+    margin: 2em 0;
+    padding: clamp(22px, 3vw, 34px);
+    color: var(--customhouse-article-heading);
+    font-size: clamp(19px, 1.7vw, 26px);
+    font-weight: 850;
+    line-height: 1.45;
+    border: 1px solid color-mix(in srgb, var(--customhouse-article-border) 60%, rgba(255, 255, 255, 0.14));
+    border-left: 5px solid var(--customhouse-article-accent);
+    border-radius: calc(var(--customhouse-article-radius) * 0.72);
+    background: rgba(255, 255, 255, 0.035);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24);
+  }
+
+  #{{ section_id }} .customhouse-article__content img {
+    display: block;
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    margin: 2em auto;
+    border: 1px solid color-mix(in srgb, var(--customhouse-article-border) 46%, rgba(255, 255, 255, 0.12));
+    border-radius: calc(var(--customhouse-article-radius) * 0.78);
+    box-shadow: 0 22px 52px rgba(0, 0, 0, 0.38);
+  }
+
+  #{{ section_id }} .customhouse-article__content iframe,
+  #{{ section_id }} .customhouse-article__content video {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    margin: 2em auto;
+    border-radius: calc(var(--customhouse-article-radius) * 0.78);
+  }
+
+  #{{ section_id }} .customhouse-article__content table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    margin: 2em 0;
+    overflow-x: auto;
+    border-collapse: collapse;
+    color: var(--customhouse-article-body);
+    font-size: 15px;
+    white-space: nowrap;
+  }
+
+  #{{ section_id }} .customhouse-article__content th,
+  #{{ section_id }} .customhouse-article__content td {
+    padding: 14px 16px;
+    border: 1px solid color-mix(in srgb, var(--customhouse-article-border) 44%, rgba(255, 255, 255, 0.12));
+    text-align: left;
+  }
+
+  #{{ section_id }} .customhouse-article__content th {
+    color: var(--customhouse-article-heading);
+    background: color-mix(in srgb, var(--customhouse-article-border) 18%, transparent);
+    font-weight: 900;
+  }
+
+  #{{ section_id }} .customhouse-article__footer-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 930px;
+    margin: 30px auto 0;
+    padding-top: 24px;
+    border-top: 1px solid color-mix(in srgb, var(--customhouse-article-border) 36%, rgba(255, 255, 255, 0.1));
+  }
+
+  #{{ section_id }} .customhouse-article__share {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+
+  #{{ section_id }} .customhouse-article__share-label {
+    color: var(--customhouse-article-muted);
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  #{{ section_id }} .customhouse-article__share-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 9px 13px;
+    color: var(--customhouse-article-heading);
+    font-size: 13px;
+    font-weight: 850;
+    line-height: 1;
+    text-decoration: none;
+    border: 1px solid color-mix(in srgb, var(--customhouse-article-border) 42%, rgba(255, 255, 255, 0.12));
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.028);
+    transition: border-color 180ms ease, color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  }
+
+  #{{ section_id }} .customhouse-article__share-link:hover,
+  #{{ section_id }} .customhouse-article__share-link:focus-visible {
+    color: var(--customhouse-article-accent);
+    border-color: var(--customhouse-article-accent);
+    box-shadow: 0 0 22px color-mix(in srgb, var(--customhouse-article-accent) 18%, transparent);
+    transform: translateY(-2px);
+  }
+
+  #{{ section_id }} .customhouse-article__cta {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 24px;
+    align-items: center;
+    margin-top: 28px;
+    padding: clamp(24px, 3.6vw, 38px);
+  }
+
+  #{{ section_id }} .customhouse-article__cta-heading {
+    margin: 0 0 8px;
+    color: var(--customhouse-article-heading);
+    font-family: Impact, "Arial Black", sans-serif;
+    font-size: clamp(28px, 3vw, 44px);
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0;
+  }
+
+  #{{ section_id }} .customhouse-article__cta-text {
+    max-width: 650px;
+    margin: 0;
+    color: var(--customhouse-article-muted);
+    font-size: 15px;
+    line-height: 1.65;
+  }
+
+  #{{ section_id }} .customhouse-article__cta-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: 14px 22px;
+    color: #0F0F11;
+    font-size: 14px;
+    font-weight: 950;
+    line-height: 1;
+    text-align: center;
+    text-decoration: none;
+    text-transform: uppercase;
+    border: 1px solid var(--customhouse-article-accent);
+    border-radius: 999px;
+    background: var(--customhouse-article-accent);
+    box-shadow:
+      0 14px 34px rgba(0, 0, 0, 0.32),
+      0 0 26px color-mix(in srgb, var(--customhouse-article-accent) 28%, transparent);
+    transition: transform 180ms ease, box-shadow 180ms ease;
+    white-space: nowrap;
+  }
+
+  #{{ section_id }} .customhouse-article__cta-button:hover,
+  #{{ section_id }} .customhouse-article__cta-button:focus-visible {
+    transform: translateY(-2px);
+    box-shadow:
+      0 18px 42px rgba(0, 0, 0, 0.38),
+      0 0 34px color-mix(in srgb, var(--customhouse-article-accent) 34%, transparent);
+  }
+
+  @media screen and (max-width: 989px) {
+    #{{ section_id }} .customhouse-article__layout {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 24px;
+    }
+
+    #{{ section_id }} .customhouse-article__toc-card {
+      position: relative;
+      top: auto;
+    }
+
+    #{{ section_id }} .customhouse-article__toc-list {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 4px 18px;
+    }
+
+    #{{ section_id }} .customhouse-article__cta {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  @media screen and (max-width: 749px) {
+    #{{ section_id }}.customhouse-article {
+      overflow-x: hidden;
+      overflow-x: clip;
+    }
+
+    #{{ section_id }} .customhouse-article__container {
+      width: min(100% - 24px, var(--customhouse-article-container));
+    }
+
+    #{{ section_id }} .customhouse-article__topbar {
+      align-items: flex-start;
+      flex-direction: column-reverse;
+    }
+
+    #{{ section_id }} .customhouse-article__eyebrow::before {
+      width: 44px;
+    }
+
+    #{{ section_id }} .customhouse-article__graffiti {
+      display: none;
+    }
+
+    #{{ section_id }} .customhouse-article__toc-card,
+    #{{ section_id }} .customhouse-article__card,
+    #{{ section_id }} .customhouse-article__cta {
+      border-radius: max(14px, calc(var(--customhouse-article-radius) - 4px));
+    }
+
+    #{{ section_id }} .customhouse-article__toc-card {
+      padding: 18px 16px;
+    }
+
+    #{{ section_id }} .customhouse-article__toc-list {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 4px;
+    }
+
+    #{{ section_id }} .customhouse-article__toc-link {
+      padding: 8px 0 8px 12px;
+      font-size: 13px;
+      overflow-wrap: anywhere;
+      transform: none;
+    }
+
+    #{{ section_id }} .customhouse-article__toc-link--h3 {
+      padding-left: 22px;
+    }
+
+    #{{ section_id }} .customhouse-article__card {
+      padding: 22px 16px;
+    }
+
+    #{{ section_id }} .customhouse-article__title {
+      max-width: 100%;
+      font-size: clamp(30px, 10vw, 44px);
+      line-height: 1.04;
+    }
+
+    #{{ section_id }} .customhouse-article__meta {
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    #{{ section_id }} .customhouse-article__meta-item {
+      max-width: 100%;
+      min-height: 30px;
+      padding: 7px 10px;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    #{{ section_id }} .customhouse-article__featured {
+      margin: 22px auto 26px;
+      border-radius: max(12px, calc(var(--customhouse-article-radius) - 8px));
+    }
+
+    #{{ section_id }} .customhouse-article__featured-image {
+      aspect-ratio: 4 / 3;
+    }
+
+    #{{ section_id }} .customhouse-article__content {
+      font-size: 16px;
+      line-height: 1.72;
+    }
+
+    #{{ section_id }} .customhouse-article__content h2 {
+      font-size: clamp(24px, 8vw, 32px);
+      line-height: 1.18;
+    }
+
+    #{{ section_id }} .customhouse-article__content h3 {
+      font-size: clamp(20px, 6.5vw, 26px);
+      line-height: 1.22;
+    }
+
+    #{{ section_id }} .customhouse-article__content h2 {
+      padding-left: 14px;
+    }
+
+    #{{ section_id }} .customhouse-article__content blockquote {
+      padding: 18px 16px;
+      font-size: 18px;
+    }
+
+    #{{ section_id }} .customhouse-article__content table {
+      -webkit-overflow-scrolling: touch;
+    }
+
+    #{{ section_id }} .customhouse-article__footer-actions {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    #{{ section_id }} .customhouse-article__share {
+      width: 100%;
+      align-items: stretch;
+    }
+
+    #{{ section_id }} .customhouse-article__share-link {
+      flex: 1 1 calc(50% - 10px);
+      min-width: 0;
+      padding-inline: 10px;
+    }
+
+    #{{ section_id }} .customhouse-article__cta {
+      padding: 22px 16px;
+    }
+
+    #{{ section_id }} .customhouse-article__cta-heading {
+      font-size: clamp(28px, 9vw, 38px);
+      line-height: 1.03;
+    }
+
+    #{{ section_id }} .customhouse-article__cta-button {
+      width: 100%;
+      white-space: normal;
+    }
+  }
+
+  @media screen and (max-width: 420px) {
+    #{{ section_id }} .customhouse-article__container {
+      width: min(100% - 20px, var(--customhouse-article-container));
+    }
+
+    #{{ section_id }} .customhouse-article__card,
+    #{{ section_id }} .customhouse-article__cta {
+      padding-inline: 14px;
+    }
+
+    #{{ section_id }} .customhouse-article__title {
+      font-size: clamp(28px, 9.4vw, 38px);
+    }
+
+    #{{ section_id }} .customhouse-article__share-link {
+      flex-basis: 100%;
+    }
+  }
+</style>
+
+<article id="{{ section_id }}" class="customhouse-article">
+  <div class="customhouse-article__container">
+    {% if section.settings.enable_graffiti_accents %}
+      <svg class="customhouse-article__graffiti customhouse-article__graffiti--left" viewBox="0 0 220 140" aria-hidden="true" focusable="false">
+        <path d="M18 88c30-44 58-64 84-58 18 4 20 27 1 34-32 12-62 12-70 35-6 18 18 28 44 12 38-24 58-72 90-66 24 5 24 41-2 51-19 7-42 2-56 20 18 11 52 15 88-3" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <svg class="customhouse-article__graffiti customhouse-article__graffiti--right" viewBox="0 0 220 140" aria-hidden="true" focusable="false">
+        <path d="M23 72c31-28 59-37 84-27 20 8 9 36-18 39-20 2-41-3-54 12 22 15 61 16 91-7 25-19 41-52 65-44 20 7 13 38-11 53-22 14-47 15-67 23" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    {% endif %}
+
+    <div class="customhouse-article__topbar">
+      {% if section.settings.back_to_blog_text != blank %}
+        <a class="customhouse-article__back" href="{{ blog_url }}">
+          <span aria-hidden="true">&larr;</span>
+          <span>{{ section.settings.back_to_blog_text | escape }}</span>
+        </a>
+      {% endif %}
+
+      {% if section.settings.eyebrow_text != blank %}
+        <span class="customhouse-article__eyebrow">{{ section.settings.eyebrow_text | escape }}</span>
+      {% endif %}
+    </div>
+
+    <div class="customhouse-article__layout">
+      <aside class="customhouse-article__toc-card" aria-labelledby="customhouse-article-toc-heading-{{ section.id }}">
+        <h2 id="customhouse-article-toc-heading-{{ section.id }}" class="customhouse-article__toc-heading">In This Article</h2>
+        <ol class="customhouse-article__toc-list" data-customhouse-article-toc></ol>
+        <p class="customhouse-article__toc-empty" data-customhouse-article-toc-empty>Article sections will appear here.</p>
+      </aside>
+
+      <div class="customhouse-article__main">
+        <div class="customhouse-article__card">
+          <div class="customhouse-article__inner">
+            <h1 class="customhouse-article__title">{{ article.title }}</h1>
+
+            {% if section.settings.show_article_meta %}
+              <ul class="customhouse-article__meta" aria-label="Article information">
+                {% if article.author != blank %}
+                  <li class="customhouse-article__meta-item">Posted by {{ article.author | escape }}</li>
+                {% endif %}
+                {% if article.published_at %}
+                  <li class="customhouse-article__meta-item">Published {{ article.published_at | date: "%b %d, %Y" }}</li>
+                {% endif %}
+                {% if section.settings.show_tags and article.tags.size > 0 %}
+                  {% for tag in article.tags limit: 3 %}
+                    <li class="customhouse-article__meta-item">{{ tag | escape }}</li>
+                  {% endfor %}
+                {% endif %}
+              </ul>
+            {% endif %}
+
+            {% if section.settings.show_featured_image and article.image %}
+              {% liquid
+                assign image_alt = article.image.alt | default: article.title
+              %}
+              <figure class="customhouse-article__featured">
+                {{ article.image | image_url: width: 1800 | image_tag: class: 'customhouse-article__featured-image', widths: '480, 720, 960, 1200, 1600, 1800', sizes: '(min-width: 990px) 930px, calc(100vw - 64px)', loading: 'eager', alt: image_alt }}
+              </figure>
+            {% endif %}
+
+            <div class="customhouse-article__content" data-customhouse-article-content>
+              {{ article.content }}
+            </div>
+
+            <div class="customhouse-article__footer-actions">
+              {% if section.settings.back_to_blog_text != blank %}
+                <a class="customhouse-article__back" href="{{ blog_url }}">
+                  <span aria-hidden="true">&larr;</span>
+                  <span>{{ section.settings.back_to_blog_text | escape }}</span>
+                </a>
+              {% endif %}
+
+              {% if section.settings.show_share_buttons %}
+                <nav class="customhouse-article__share" aria-label="Share this article">
+                  <span class="customhouse-article__share-label">Share</span>
+                  <a class="customhouse-article__share-link" href="https://www.facebook.com/sharer/sharer.php?u={{ share_url }}" target="_blank" rel="noopener noreferrer">Facebook</a>
+                  <a class="customhouse-article__share-link" href="https://twitter.com/intent/tweet?url={{ share_url }}&amp;text={{ share_title }}" target="_blank" rel="noopener noreferrer">X</a>
+                  <a class="customhouse-article__share-link" href="https://www.linkedin.com/shareArticle?mini=true&amp;url={{ share_url }}&amp;title={{ share_title }}" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+                </nav>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        {% if section.settings.show_bottom_cta %}
+          <aside class="customhouse-article__cta" aria-label="CustomHouse call to action">
+            <div>
+              {% if section.settings.cta_heading != blank %}
+                <h2 class="customhouse-article__cta-heading">{{ section.settings.cta_heading | escape }}</h2>
+              {% endif %}
+              {% if section.settings.cta_text != blank %}
+                <p class="customhouse-article__cta-text">{{ section.settings.cta_text | escape }}</p>
+              {% endif %}
+            </div>
+
+            {% if section.settings.cta_button_text != blank %}
+              <a class="customhouse-article__cta-button" href="{{ section.settings.cta_button_link | default: routes.root_url }}">
+                {{ section.settings.cta_button_text | escape }}
+              </a>
+            {% endif %}
+          </aside>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</article>
+
+<script>
+  (() => {
+    const section = document.getElementById({{ section_id | json }});
+    if (!section) return;
+
+    const content = section.querySelector("[data-customhouse-article-content]");
+    const toc = section.querySelector("[data-customhouse-article-toc]");
+    const empty = section.querySelector("[data-customhouse-article-toc-empty]");
+    const tocCard = section.querySelector(".customhouse-article__toc-card");
+    if (!content || !toc || !tocCard) return;
+
+    const headings = Array.from(content.querySelectorAll("h2, h3")).filter((heading) => heading.textContent.trim());
+    if (!headings.length) {
+      toc.hidden = true;
+      return;
+    }
+
+    if (empty) empty.hidden = true;
+
+    const usedIds = new Set(Array.from(document.querySelectorAll("[id]")).map((element) => element.id));
+    const toSlug = (text) => text
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
+
+    headings.forEach((heading, index) => {
+      if (!heading.id) {
+        const baseId = toSlug(heading.textContent) || `article-section-${index + 1}`;
+        let headingId = baseId;
+        let count = 2;
+
+        while (usedIds.has(headingId)) {
+          headingId = `${baseId}-${count}`;
+          count += 1;
+        }
+
+        heading.id = headingId;
+        usedIds.add(headingId);
+      }
+
+      const item = document.createElement("li");
+      const link = document.createElement("a");
+      link.className = `customhouse-article__toc-link customhouse-article__toc-link--${heading.tagName.toLowerCase()}`;
+      link.href = `#${heading.id}`;
+      link.textContent = heading.textContent.trim();
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        heading.scrollIntoView({ behavior: "smooth", block: "start" });
+        history.replaceState(null, "", `#${heading.id}`);
+      });
+
+      item.appendChild(link);
+      toc.appendChild(item);
+    });
+
+    const tocLinks = Array.from(toc.querySelectorAll(".customhouse-article__toc-link"));
+    const setActive = (id) => {
+      tocLinks.forEach((link) => {
+        link.classList.toggle("is-active", link.getAttribute("href") === `#${id}`);
+      });
+    };
+
+    if ("IntersectionObserver" in window) {
+      const observer = new IntersectionObserver((entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+
+        if (visible[0]) setActive(visible[0].target.id);
+      }, {
+        rootMargin: "-18% 0px -68% 0px",
+        threshold: 0
+      });
+
+      headings.forEach((heading) => observer.observe(heading));
+    }
+
+    setActive(headings[0].id);
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "CustomHouse article",
+  "tag": "section",
+  "class": "section-customhouse-article",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Article header"
+    },
+    {
+      "type": "text",
+      "id": "eyebrow_text",
+      "label": "Eyebrow text",
+      "default": "BLOG"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_featured_image",
+      "label": "Show featured image",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_article_meta",
+      "label": "Show article meta",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_tags",
+      "label": "Show tags",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_share_buttons",
+      "label": "Show share buttons",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "back_to_blog_text",
+      "label": "Back to blog text",
+      "default": "Back to the blog"
+    },
+    {
+      "type": "header",
+      "content": "Bottom CTA"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_bottom_cta",
+      "label": "Show bottom CTA",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "cta_heading",
+      "label": "CTA heading",
+      "default": "Redo att skapa något eget?"
+    },
+    {
+      "type": "textarea",
+      "id": "cta_text",
+      "label": "CTA text",
+      "default": "Utforska CustomHouse produkter och skapa personlig merchandise med egen design, logotyp eller text."
+    },
+    {
+      "type": "text",
+      "id": "cta_button_text",
+      "label": "CTA button text",
+      "default": "Börja Designa"
+    },
+    {
+      "type": "url",
+      "id": "cta_button_link",
+      "label": "CTA button link"
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "range",
+      "id": "container_width",
+      "label": "Container width",
+      "min": 960,
+      "max": 1600,
+      "step": 20,
+      "unit": "px",
+      "default": 1440
+    },
+    {
+      "type": "range",
+      "id": "top_padding",
+      "label": "Top padding",
+      "min": 24,
+      "max": 140,
+      "step": 4,
+      "unit": "px",
+      "default": 40
+    },
+    {
+      "type": "range",
+      "id": "bottom_padding",
+      "label": "Bottom padding",
+      "min": 32,
+      "max": 160,
+      "step": 4,
+      "unit": "px",
+      "default": 96
+    },
+    {
+      "type": "range",
+      "id": "card_radius",
+      "label": "Card radius",
+      "min": 12,
+      "max": 32,
+      "step": 1,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background color",
+      "default": "#0F0F11"
+    },
+    {
+      "type": "color",
+      "id": "card_background_color",
+      "label": "Card background color",
+      "default": "#18181B"
+    },
+    {
+      "type": "color",
+      "id": "heading_color",
+      "label": "Heading color",
+      "default": "#FFFFFF"
+    },
+    {
+      "type": "color",
+      "id": "body_text_color",
+      "label": "Body text color",
+      "default": "#C6C6CC"
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Accent color",
+      "default": "#D7FF2F"
+    },
+    {
+      "type": "color",
+      "id": "border_color",
+      "label": "Border color",
+      "default": "#6D42B8"
+    },
+    {
+      "type": "header",
+      "content": "Background detail"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_graffiti_accents",
+      "label": "Enable graffiti accents",
+      "default": true
+    }
+  ],
+  "presets": [
+    {
+      "name": "CustomHouse article"
+    }
+  ]
+}
+{% endschema %}

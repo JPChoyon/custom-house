@@ -10,7 +10,7 @@ export async function action({ request }: ActionFunctionArgs) {
     await synchronizeCustomerWebhook(shop, payload as CustomerWebhookPayload, new AdminGraphqlClient(admin));
     return new Response();
   } catch {
-    console.error("helium_customer_sync_failed", { shop });
+    console.error("legacy_customer_sync_failed", { shop });
     return new Response("Customer synchronization failed", { status: 500 });
   }
 }

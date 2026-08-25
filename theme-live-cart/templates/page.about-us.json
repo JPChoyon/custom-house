@@ -1,0 +1,377 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "main": {
+      "type": "main-page",
+      "blocks": {
+        "heading": {
+          "type": "text",
+          "name": "Title",
+          "settings": {
+            "text": "<h1>{{ closest.page.title }}</h1>",
+            "width": "100%",
+            "max_width": "normal",
+            "alignment": "left",
+            "type_preset": "h2",
+            "font": "var(--font-primary--family)",
+            "font_size": "1rem",
+            "line_height": "normal",
+            "letter_spacing": "normal",
+            "case": "none",
+            "wrap": "pretty",
+            "text_color": "",
+            "background": false,
+            "background_color": "#00000026",
+            "corner_radius": 0,
+            "padding-block-start": 0,
+            "padding-block-end": 0,
+            "padding-inline-start": 0,
+            "padding-inline-end": 0
+          },
+          "blocks": {}
+        },
+        "page-content": {
+          "type": "page-content",
+          "settings": {
+            "text_color": ""
+          },
+          "blocks": {}
+        }
+      },
+      "block_order": [
+        "heading",
+        "page-content"
+      ],
+      "disabled": true,
+      "settings": {
+        "content_direction": "column",
+        "gap": 32,
+        "background_color": "{{ settings.color_palette.background }}",
+        "padding-block-start": 40,
+        "padding-block-end": 80
+      }
+    },
+    "custom_about_us_hero_jpUCVq": {
+      "type": "custom-about-us-hero",
+      "name": "CustomHouse split hero",
+      "settings": {
+        "eyebrow": "About CustomHouse",
+        "show_rule": true,
+        "heading": "Built for Creators.\nDesigned for Everyone.",
+        "text": "<p>CustomHouse is a creator-first merchandise platform that empowers brands, creators, and businesses to design, personalize, and launch premium products with a seamless customization experience.</p>",
+        "primary_label": "Start Designing",
+        "primary_link": "",
+        "secondary_label": "Explore Collections",
+        "secondary_link": "",
+        "image": "shopify://shop_images/customhouse-right-hero-image.png",
+        "top_graphic": "shopify://shop_images/customhouse-top-paint-graphic-transparent.png",
+        "bottom_graphic": "shopify://shop_images/customhouse-bottom-paint-graphic-transparent.png",
+        "show_graphics_mobile": false,
+        "section_width_mode": "full",
+        "section_max_width": 1400,
+        "section_alignment": "center",
+        "image_width": 40,
+        "desktop_image_height": 760,
+        "content_max_width": 580,
+        "desktop_padding_y": 84,
+        "desktop_padding_x": 230,
+        "mobile_padding_y": 56,
+        "mobile_padding_x": 24,
+        "mobile_image_height": 390,
+        "mobile_order": "column-reverse",
+        "desktop_heading_size": 74,
+        "mobile_heading_size": 42,
+        "body_size": 17,
+        "mobile_body_size": 16,
+        "button_top_gap": 38,
+        "button_height": 62,
+        "background_color": "#050505",
+        "panel_background_color": "#060606",
+        "text_color": "#ffffff",
+        "body_text_color": "#d4d4d4",
+        "accent_color": "#d4ff16",
+        "primary_button_text_color": "#141414",
+        "outline_color": "#585858",
+        "texture_opacity": 50,
+        "graphic_opacity": 35,
+        "image_overlay": 25,
+        "image_edge_shadow": 60,
+        "image_position": "center center"
+      }
+    },
+    "custom_about_us_about_section_Ba8bq8": {
+      "type": "custom-about-us-about-section",
+      "blocks": {
+        "feature_yMpkbK": {
+          "type": "feature",
+          "settings": {
+            "icon": "star",
+            "title": "Premium Products",
+            "text": "<p>High-quality apparel and accessories designed for customization.</p>"
+          }
+        },
+        "feature_UgKHTG": {
+          "type": "feature",
+          "settings": {
+            "icon": "store",
+            "title": "Creator Marketplace",
+            "text": "<p>Launch and manage creator collections with ease.</p>"
+          }
+        },
+        "feature_y4tYjX": {
+          "type": "feature",
+          "settings": {
+            "icon": "edit",
+            "title": "Personalized Experience",
+            "text": "<p>Customize products with embroidery, print, and unique designs.</p>"
+          }
+        },
+        "feature_XUBLE7": {
+          "type": "feature",
+          "settings": {
+            "icon": "box",
+            "title": "Reliable Fulfillment",
+            "text": "<p>Professional production and worldwide shipping.</p>"
+          }
+        }
+      },
+      "block_order": [
+        "feature_yMpkbK",
+        "feature_UgKHTG",
+        "feature_y4tYjX",
+        "feature_XUBLE7"
+      ],
+      "name": "Creator split about",
+      "settings": {
+        "section_anchor": "creator-about",
+        "max_width": 1480,
+        "min_height": 760,
+        "media_width": 50,
+        "media_position": "left",
+        "mobile_media_position": "top",
+        "content_alignment": "left",
+        "image": "shopify://shop_images/Screenshot_42.png",
+        "image_alt": "Creator studio workspace",
+        "image_ratio": "adapt",
+        "image_focal_point": "center center",
+        "image_opacity": 100,
+        "image_overlay_opacity": 30,
+        "image_radius": 0,
+        "mobile_image_height": 360,
+        "eyebrow": "Who we are",
+        "eyebrow_line_width": 36,
+        "heading": "Built for Creators. Designed for Everyone.",
+        "text": "<p>CustomHouse is a creator-first commerce platform that makes it easy for creators, brands, businesses, and communities to launch premium personalized merchandise. We combine high-quality products, professional customization, and a seamless shopping experience into one platform.</p>",
+        "button_label": "",
+        "button_link": "",
+        "heading_max_width": 720,
+        "text_max_width": 720,
+        "heading_font": "archivo_black_n4",
+        "body_font": "assistant_n4",
+        "heading_size": 64,
+        "heading_size_mobile": 38,
+        "heading_weight": 800,
+        "heading_line_height": 92,
+        "body_size": 16,
+        "eyebrow_size": 16,
+        "feature_title_size": 13,
+        "feature_body_size": 15,
+        "background_color": "#0b0b0b",
+        "content_background_color": "#000000",
+        "content_background_opacity": 0,
+        "heading_color": "#ffffff",
+        "text_color": "#ffffff",
+        "muted_text_color": "#d5d5d5",
+        "accent_color": "#b6d331",
+        "divider_color": "#ffffff",
+        "divider_opacity": 20,
+        "icon_background_color": "#000000",
+        "icon_background_opacity": 0,
+        "button_background_color": "#000000",
+        "button_background_opacity": 0,
+        "button_text_color": "#ffffff",
+        "button_hover_text_color": "#0b0b0b",
+        "padding_top": 0,
+        "padding_bottom": 0,
+        "side_padding": 0,
+        "padding_top_tablet": 40,
+        "padding_bottom_tablet": 40,
+        "side_padding_tablet": 28,
+        "padding_top_mobile": 28,
+        "padding_bottom_mobile": 28,
+        "side_padding_mobile": 16,
+        "column_gap": 0,
+        "mobile_gap": 24,
+        "content_padding": 84,
+        "content_padding_tablet": 42,
+        "content_padding_mobile": 0,
+        "content_radius": 0,
+        "feature_columns": "2",
+        "feature_padding": 28,
+        "feature_padding_mobile": 20,
+        "icon_size": 52,
+        "icon_size_mobile": 46,
+        "button_radius": 0,
+        "full_width_button_mobile": false,
+        "show_corner_accent": true,
+        "corner_accent_opacity": 55
+      }
+    },
+    "custom_about_us_benifit_Bxh6c4": {
+      "type": "custom-about-us-benifit",
+      "blocks": {
+        "benefit_YbTMap": {
+          "type": "benefit",
+          "settings": {
+            "fallback_icon": "marketplace",
+            "title": "Creator Marketplace",
+            "text": "Launch branded collections, showcase your products, and grow your audience from one centralized platform."
+          }
+        },
+        "benefit_Fh3BMj": {
+          "type": "benefit",
+          "settings": {
+            "fallback_icon": "personalization",
+            "title": "Professional Personalization",
+            "text": "Offer embroidery, premium printing, and personalized products with an intuitive customization experience."
+          }
+        },
+        "benefit_QjGQf3": {
+          "type": "benefit",
+          "settings": {
+            "fallback_icon": "products",
+            "title": "Premium Products",
+            "text": "Choose from high-quality apparel and accessories carefully selected for creators, brands, and businesses."
+          }
+        },
+        "benefit_TgjnQJ": {
+          "type": "benefit",
+          "settings": {
+            "fallback_icon": "fulfillment",
+            "title": "Worldwide Fulfillment",
+            "text": "Reliable production, quality control, and worldwide shipping designed to support growing creator businesses."
+          }
+        }
+      },
+      "block_order": [
+        "benefit_YbTMap",
+        "benefit_Fh3BMj",
+        "benefit_QjGQf3",
+        "benefit_TgjnQJ"
+      ],
+      "name": "CustomHouse benefits",
+      "settings": {
+        "kicker": "WHY CUSTOMHOUSE",
+        "heading": "Everything You Need to Build, Customize & Sell.",
+        "body": "<p>CustomHouse brings creators, premium products, and professional personalization together in one seamless platform-making it easier than ever to launch, customize, and grow your merchandise.</p>",
+        "text_alignment": "left",
+        "background_position": "center center",
+        "overlay_opacity": 85,
+        "texture_opacity": 40,
+        "show_corner_marks": true,
+        "corner_mark_opacity": 45,
+        "background_color": "#050506",
+        "text_color": "#ffffff",
+        "body_color": "#b9b8bd",
+        "accent_color": "#a8c51f",
+        "card_background": "#08080a",
+        "card_border_color": "#66527f",
+        "card_glow_color": "#7a4fbb",
+        "icon_primary_color": "#a8c51f",
+        "icon_secondary_color": "#7b4ac2",
+        "heading_font": "sans_serif_n4",
+        "heading_weight": 800,
+        "heading_transform": "none",
+        "heading_size": 78,
+        "mobile_heading_size": 42,
+        "kicker_size": 15,
+        "body_size": 18,
+        "card_heading_font": "sans_serif_n4",
+        "card_title_weight": 800,
+        "card_title_size": 24,
+        "card_text_size": 16,
+        "content_width": 1500,
+        "text_max_width": 1500,
+        "padding_top": 112,
+        "padding_bottom": 92,
+        "mobile_padding_top": 68,
+        "mobile_padding_bottom": 56,
+        "cards_top_spacing": 44,
+        "desktop_columns": "4",
+        "mobile_card_layout": "one-column",
+        "card_gap": 32,
+        "card_min_height": 310,
+        "card_padding_x": 30,
+        "card_padding_y": 36,
+        "card_radius": 8,
+        "icon_size": 86
+      }
+    },
+    "custom_about_us_cta_BGDena": {
+      "type": "custom-about-us-cta",
+      "name": "CustomHouse neon CTA",
+      "settings": {
+        "eyebrow": "Get Started",
+        "heading": "Ready to Create Something Unique?",
+        "description": "<p>Whether you're launching your own creator collection, building a brand, or designing personalized merchandise, CustomHouse provides everything you need to create premium products with confidence.</p>",
+        "primary_button_label": "Start Designing",
+        "primary_button_link": "",
+        "secondary_button_label": "Explore Collections",
+        "secondary_button_link": "",
+        "background_image": "shopify://shop_images/customhouse-bottom-paint-graphic-transparent.png",
+        "card_background_image": "shopify://shop_images/customhouse-top-paint-graphic-transparent.png",
+        "top_graffiti_image": "shopify://shop_images/customhouse-top-graffiti.png",
+        "bottom_graffiti_image": "shopify://shop_images/customhouse-bottom-graffiti.png",
+        "background_image_opacity": 100,
+        "card_image_opacity": 100,
+        "product_image_opacity": 20,
+        "mobile_product_image_opacity": 10,
+        "graffiti_opacity": 100,
+        "background_color": "#070708",
+        "card_background_color": "#111113",
+        "heading_color": "#ffffff",
+        "text_color": "#c9c9cf",
+        "accent_color": "#b7ff18",
+        "border_color": "#7a4dff",
+        "primary_button_text_color": "#101010",
+        "secondary_button_text_color": "#ffffff",
+        "max_width": 1300,
+        "content_width": 740,
+        "section_padding_top": 150,
+        "section_padding_bottom": 160,
+        "card_min_height": 520,
+        "card_padding_y": 84,
+        "card_padding_x": 80,
+        "card_radius": 24,
+        "desktop_heading_size": 52,
+        "description_size": 18,
+        "eyebrow_size": 12,
+        "tablet_section_padding_top": 95,
+        "tablet_section_padding_bottom": 100,
+        "tablet_card_min_height": 480,
+        "tablet_card_padding_y": 70,
+        "tablet_card_padding_x": 40,
+        "mobile_section_padding_top": 70,
+        "mobile_section_padding_bottom": 75,
+        "mobile_card_min_height": 560,
+        "mobile_card_padding_y": 72,
+        "mobile_heading_size": 36
+      }
+    }
+  },
+  "order": [
+    "main",
+    "custom_about_us_hero_jpUCVq",
+    "custom_about_us_about_section_Ba8bq8",
+    "custom_about_us_benifit_Bxh6c4",
+    "custom_about_us_cta_BGDena"
+  ]
+}

@@ -17,6 +17,9 @@ async function resolveApplicationGuard(root) {
       credentials: "same-origin",
       headers: { Accept: "application/json" },
     });
+    if (!response.headers.get("content-type")?.toLowerCase().includes("application/json")) {
+      throw new Error("APPLICATION_NON_JSON_RESPONSE");
+    }
     const body = await response.json();
     if (
       response.ok &&

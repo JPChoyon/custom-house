@@ -15,6 +15,41 @@ import {
   validateCreatorApplication,
   type CreatorApplicationInput,
 } from "./creator-application";
+import {
+  ensureShopifyCreatorCollection,
+  syncCreatorCollectionStatus,
+  unpublishShopifyCreatorCollection,
+} from "./creator-collections.server";
+import { referralFieldsForCode } from "./creator-referral.server";
+
+async function syncCustomerCreatorStatusMetafield(
+  customerId: string,
+  status: CreatorStatus,
+  client: ShopifyGraphqlClient,
+) {
+  const result = await client.request<{
+    metafieldsSet: { userErrors: Array<{ message: string }> };
+  }>(
+    `#graphql mutation CustomerCreatorStatus($metafields: [MetafieldsSetInput!]!) {
+      metafieldsSet(metafields: $metafields) { userErrors { message } }
+    }`,
+    {
+      metafields: [
+        {
+          ownerId: customerId,
+          namespace: "customhouse",
+          key: "creator_status",
+          type: "single_line_text_field",
+          value: status,
+        },
+      ],
+    },
+  );
+  throwUserErrors(
+    result.metafieldsSet.userErrors,
+    "Customer creator status sync",
+  );
+}
 
 export async function createApplication(
   shop: string,
@@ -32,9 +67,8 @@ export async function createApplication(
   if (!config.creatorApplicationsEnabled) throw new DomainError("APPLICATIONS_DISABLED", "Creator applications are currently unavailable.", 503);
   const existing = await db.creator.findUnique({
     where: { shop_customerId: { shop, customerId } },
-    include: { applications: { where: { status: "PENDING" }, take: 1 } },
   });
-  if (existing?.applications.length)
+  if (existing?.status === "PENDING")
     throw new DomainError(
       "DUPLICATE_APPLICATION",
       "An active creator application already exists.",
@@ -82,6 +116,7 @@ export async function createApplication(
     tagResult.customerUpdate.userErrors,
     "Customer application tag sync",
   );
+  await syncCustomerCreatorStatusMetafield(customerId, "PENDING", client);
   let handle = slugify(value.displayName),
     suffix = 2;
   while (
@@ -90,8 +125,11 @@ export async function createApplication(
     handle = `${slugify(value.displayName)}-${suffix++}`;
   const updated = await db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`${shop}:${customerId}`}))`;
-    const pending = await tx.creatorApplication.findFirst({ where: { shop, creator: { customerId }, status: "PENDING" }, select: { id: true } });
-    if (pending) throw new DomainError("DUPLICATE_APPLICATION", "An active creator application already exists.", 409);
+    const pending = await tx.creator.findUnique({
+      where: { shop_customerId: { shop, customerId } },
+      select: { id: true, status: true },
+    });
+    if (pending?.status === "PENDING") throw new DomainError("DUPLICATE_APPLICATION", "An active creator application already exists.", 409);
     const common = {
       displayName: value.displayName,
       handle,
@@ -102,6 +140,15 @@ export async function createApplication(
       legalName: value.legalName,
       country: value.country,
       city: value.city,
+      emailSnapshot: value.emailSnapshot,
+      primaryPlatform: value.primaryPlatform,
+      primaryProfileUrl: value.primaryProfileUrl,
+      audienceRange: value.audienceRange,
+      categoriesJson: safeJson(value.categories || []),
+      aboutWork: value.aboutWork,
+      termsAcceptedAt: value.termsAcceptedAt,
+      submittedAt: new Date(),
+      reviewedAt: null,
       applicationSource: "CUSTOM_APP" as const,
       statusAuthority: "CUSTOM_APP" as const,
       status: "PENDING" as const,
@@ -110,38 +157,20 @@ export async function createApplication(
     const creator = await tx.creator.upsert({
       where: { shop_customerId: { shop, customerId } },
       update: common,
-      create: { shop, customerId, ...common },
-    });
-    const application = await tx.creatorApplication.create({
-      data: {
-        shop,
-        creatorId: creator.id,
-        answersJson: "{}",
-        legalName: value.legalName,
-        displayName: value.displayName,
-        country: value.country,
-        city: value.city,
-        bio: value.bio,
-        portfolioUrl: value.portfolioUrl,
-        socialLinksJson: safeJson(value.socialLinks),
-        profileImageUrl: value.profileImageUrl,
-        message: value.message,
-        termsAcceptedAt: value.termsAcceptedAt,
-        source: "CUSTOM_APP",
-      },
+      create: { shop, customerId, ...referralFieldsForCode(handle), ...common },
     });
     await tx.auditLog.create({
       data: {
         shop,
         actorType: "CUSTOMER",
         actorId: customerId,
-        action: "application.created",
-        entityType: "CreatorApplication",
-        entityId: application.id,
+        action: "creator.application.submitted",
+        entityType: "Creator",
+        entityId: creator.id,
         afterJson: safeJson({ source: "CUSTOM_APP", status: "PENDING" }),
       },
     });
-    return { creator, application };
+    return { creator, application: null };
   });
   return updated;
 }
@@ -157,7 +186,6 @@ export async function changeCreatorStatus(
     where: { id: creatorId, shop },
   });
   if (!creator) throw new DomainError("NOT_FOUND", "Creator not found.", 404);
-  if (next === "APPROVED") await ensureCreatorCollection(shop, creator.id, client);
   const customer = await client.request<{
     customer: { id: string; tags: string[] } | null;
   }>(`#graphql query($id: ID!) { customer(id: $id) { id tags } }`, {
@@ -175,6 +203,7 @@ export async function changeCreatorStatus(
   const add = desiredTags.filter((tag) => !customer.customer!.tags.includes(tag));
   if (remove.length) { const result = await client.request<{ tagsRemove: { userErrors: Array<{ message: string }> } }>(`#graphql mutation RemoveCreatorTags($id: ID!, $tags: [String!]!) { tagsRemove(id: $id, tags: $tags) { userErrors { message } } }`, { id: creator.customerId, tags: remove }); throwUserErrors(result.tagsRemove.userErrors, "Customer tag removal"); }
   if (add.length) { const result = await client.request<{ tagsAdd: { userErrors: Array<{ message: string }> } }>(`#graphql mutation AddCreatorTags($id: ID!, $tags: [String!]!) { tagsAdd(id: $id, tags: $tags) { userErrors { message } } }`, { id: creator.customerId, tags: add }); throwUserErrors(result.tagsAdd.userErrors, "Customer tag addition"); }
+  await syncCustomerCreatorStatusMetafield(creator.customerId, next, client);
   const now = new Date();
   const updated = await db.$transaction(async (tx) => {
     const updated = await tx.creator.update({
@@ -190,11 +219,6 @@ export async function changeCreatorStatus(
         suspensionReason: next === "SUSPENDED" ? reason : null,
       },
     });
-    if (next === "APPROVED" || next === "REJECTED")
-      await tx.creatorApplication.updateMany({
-        where: { creatorId, status: "PENDING" },
-        data: { status: next, reviewerNote: reason, reviewedAt: now },
-      });
     await tx.auditLog.create({
       data: {
         shop,
@@ -209,9 +233,71 @@ export async function changeCreatorStatus(
     return updated;
   });
   if (next === "APPROVED") {
+    await ensureShopifyCreatorCollection(shop, creator.id, client);
     try { await syncCreatorProfileMetaobject(shop, creator.id, client); }
     catch { await db.auditLog.create({ data: { shop, actorType: "SYSTEM", action: "creator.metaobject_sync_warning", entityType: "Creator", entityId: creator.id, afterJson: safeJson({ recoverable: true }) } }); }
   }
+  if (next === "SUSPENDED") {
+    await syncCreatorCollectionStatus(shop, creator.id);
+    await unpublishShopifyCreatorCollection(shop, creator.id, client);
+  }
+  if (next === "REJECTED") {
+    await syncCreatorCollectionStatus(shop, creator.id);
+  }
+  return updated;
+}
+
+export async function reactivateCreator(
+  shop: string,
+  creatorId: string,
+  client: ShopifyGraphqlClient,
+) {
+  const creator = await db.creator.findFirst({
+    where: { id: creatorId, shop },
+    include: {
+      marketplaceCollection: {
+        select: { id: true, publicHandle: true },
+      },
+    },
+  });
+  if (!creator) throw new DomainError("NOT_FOUND", "Creator not found.", 404);
+  if (creator.status !== "SUSPENDED") {
+    throw new DomainError(
+      "INVALID_STATUS",
+      "Only suspended creators can be reactivated.",
+      409,
+    );
+  }
+  const collectionBefore = creator.marketplaceCollection;
+  const updated = await changeCreatorStatus(shop, creator.id, "APPROVED", client);
+  if (collectionBefore) {
+    const collectionAfter = await db.creatorCollection.findUnique({
+      where: { creatorId: creator.id },
+      select: { id: true, publicHandle: true },
+    });
+    if (
+      collectionAfter &&
+      (collectionAfter.id !== collectionBefore.id ||
+        collectionAfter.publicHandle !== collectionBefore.publicHandle)
+    ) {
+      throw new DomainError(
+        "COLLECTION_IDENTITY_CHANGED",
+        "Creator collection identity changed during reactivation.",
+        500,
+      );
+    }
+  }
+  await db.auditLog.create({
+    data: {
+      shop,
+      actorType: "ADMIN",
+      action: "creator.reactivated",
+      entityType: "Creator",
+      entityId: creator.id,
+      beforeJson: safeJson({ status: "SUSPENDED" }),
+      afterJson: safeJson({ status: "APPROVED" }),
+    },
+  });
   return updated;
 }
 

@@ -1,0 +1,1027 @@
+{% liquid
+  assign section_id = 'customhouse-policy-page-' | append: section.id
+  assign container_width = section.settings.container_width | default: 1440
+  assign top_padding = section.settings.top_padding | default: 32
+  assign bottom_padding = section.settings.bottom_padding | default: 96
+  assign current_url = page.url | default: request.path
+  assign policy_title = page.title | downcase
+  assign policy_icon = 'document'
+
+  if policy_title contains 'privacy'
+    assign policy_icon = 'shield'
+  elsif policy_title contains 'terms of service' or policy_title contains 'service'
+    assign policy_icon = 'contract'
+  elsif policy_title contains 'refund'
+    assign policy_icon = 'refund'
+  elsif policy_title contains 'shipping'
+    assign policy_icon = 'shipping'
+  elsif policy_title contains 'cookie'
+    assign policy_icon = 'cookie'
+  elsif policy_title contains 'accessibility'
+    assign policy_icon = 'accessibility'
+  elsif policy_title contains 'creator'
+    assign policy_icon = 'creator'
+  endif
+%}
+
+<style>
+  #{{ section_id }} {
+    --customhouse-policy-bg: {{ section.settings.background_color }};
+    --customhouse-policy-card-bg: {{ section.settings.card_background_color }};
+    --customhouse-policy-heading: {{ section.settings.heading_color }};
+    --customhouse-policy-body: {{ section.settings.body_text_color }};
+    --customhouse-policy-accent: {{ section.settings.accent_color }};
+    --customhouse-policy-border: {{ section.settings.border_color }};
+    --customhouse-policy-muted: color-mix(in srgb, var(--customhouse-policy-body) 74%, transparent);
+    --customhouse-policy-container: {{ container_width }}px;
+    --customhouse-policy-top-padding: {{ top_padding }}px;
+    --customhouse-policy-bottom-padding: {{ bottom_padding }}px;
+    --customhouse-policy-radius: {{ section.settings.card_border_radius }}px;
+    --customhouse-policy-body-font: Inter, Arial, sans-serif;
+    --customhouse-policy-texture-opacity: {{ section.settings.texture_opacity | divided_by: 100.0 }};
+    --customhouse-policy-graffiti-opacity: {{ section.settings.graffiti_opacity | divided_by: 100.0 }};
+  }
+
+  #{{ section_id }}.customhouse-policy {
+    position: relative;
+    isolation: isolate;
+    overflow: visible;
+    padding-block: var(--customhouse-policy-top-padding) var(--customhouse-policy-bottom-padding);
+    color: var(--customhouse-policy-body);
+    font-family: var(--customhouse-policy-body-font);
+    background:
+      radial-gradient(circle at 50% 6%, rgba(255, 255, 255, 0.035), transparent 30%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(0, 0, 0, 0.22)),
+      var(--customhouse-policy-bg);
+  }
+
+  #{{ section_id }}.customhouse-policy::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -4;
+    opacity: var(--customhouse-policy-texture-opacity);
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 300 300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.76' numOctaves='5' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='table' tableValues='.02 .12'/%3E%3CfeFuncG type='table' tableValues='.02 .12'/%3E%3CfeFuncB type='table' tableValues='.025 .13'/%3E%3CfeFuncA type='table' tableValues='.20 .62'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E"),
+      radial-gradient(circle at 12px 12px, rgba(255,255,255,.055) 1px, transparent 1.6px);
+    background-position: center;
+    background-size: 260px 260px, 22px 22px;
+  }
+
+  #{{ section_id }}.customhouse-policy::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -3;
+    background:
+      radial-gradient(circle at center, transparent 0 48%, rgba(0, 0, 0, 0.58) 88%),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.72), transparent 21%, transparent 79%, rgba(0, 0, 0, 0.7));
+    pointer-events: none;
+  }
+
+  #{{ section_id }} .customhouse-policy__container {
+    position: relative;
+    z-index: 1;
+    width: min(100% - 48px, var(--customhouse-policy-container));
+    margin-inline: auto;
+  }
+
+  #{{ section_id }} .customhouse-policy__hero {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 0.92fr) minmax(220px, 0.58fr);
+    gap: clamp(24px, 5vw, 72px);
+    align-items: center;
+    min-height: clamp(144px, 13vw, 184px);
+    margin: 0 0 24px;
+    text-align: left;
+  }
+
+  #{{ section_id }} .customhouse-policy__eyebrow {
+    display: block;
+    color: var(--customhouse-policy-accent);
+    font-size: clamp(12px, 0.9vw, 15px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    text-shadow: 0 0 18px color-mix(in srgb, var(--customhouse-policy-accent) 34%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-policy__mark {
+    display: block;
+    width: 132px;
+    height: 8px;
+    max-width: 34vw;
+    margin: 14px 0 22px;
+    border-radius: 999px;
+    background: var(--customhouse-policy-accent);
+    clip-path: polygon(0 58%, 11% 43%, 24% 48%, 35% 22%, 51% 35%, 66% 20%, 83% 43%, 100% 39%, 87% 56%, 68% 61%, 51% 78%, 34% 62%, 18% 72%);
+    box-shadow:
+      0 0 16px color-mix(in srgb, var(--customhouse-policy-accent) 62%, transparent),
+      0 0 34px color-mix(in srgb, var(--customhouse-policy-accent) 28%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-policy__heading {
+    margin: 0;
+    color: var(--customhouse-policy-heading);
+    font-family: Impact, "Arial Black", sans-serif;
+    font-size: clamp(38px, 4.6vw, 68px);
+    font-weight: 900;
+    line-height: 0.98;
+    letter-spacing: 0;
+    text-wrap: balance;
+    text-shadow:
+      0 4px 0 rgba(255, 255, 255, 0.08),
+      0 14px 34px rgba(0, 0, 0, 0.68);
+  }
+
+  #{{ section_id }} .customhouse-policy__hero-side {
+    position: relative;
+    display: grid;
+    place-items: center;
+    justify-self: end;
+    width: clamp(108px, 11vw, 148px);
+    aspect-ratio: 1;
+    min-height: 0;
+    border: 1px solid color-mix(in srgb, var(--customhouse-policy-border) 46%, rgba(255, 255, 255, 0.12));
+    border-radius: var(--customhouse-policy-radius);
+    background:
+      radial-gradient(circle at 72% 28%, color-mix(in srgb, var(--customhouse-policy-accent) 10%, transparent), transparent 38%),
+      linear-gradient(145deg, color-mix(in srgb, var(--customhouse-policy-border) 14%, transparent), transparent 56%),
+      var(--customhouse-policy-card-bg);
+    box-shadow:
+      0 18px 42px rgba(0, 0, 0, 0.34),
+      0 0 0 1px rgba(255, 255, 255, 0.025) inset,
+      0 0 34px color-mix(in srgb, var(--customhouse-policy-border) 18%, transparent);
+    overflow: hidden;
+  }
+
+  #{{ section_id }} .customhouse-policy__hero-icon {
+    position: relative;
+    z-index: 1;
+    width: 62%;
+    height: auto;
+    color: color-mix(in srgb, var(--customhouse-policy-accent) 56%, var(--customhouse-policy-border));
+    opacity: 0.34;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+  }
+
+  #{{ section_id }} .customhouse-policy__layout {
+    display: grid;
+    grid-template-columns: minmax(230px, 310px) minmax(0, 1fr);
+    gap: 30px;
+    align-items: start;
+  }
+
+  #{{ section_id }} .customhouse-policy__layout--single {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #{{ section_id }} .customhouse-policy__sidebar {
+    position: sticky;
+    top: 100px;
+    align-self: start;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+  }
+
+  #{{ section_id }} .customhouse-policy__nav,
+  #{{ section_id }} .customhouse-policy__content-card,
+  #{{ section_id }} .customhouse-policy__cta {
+    border: 1px solid color-mix(in srgb, var(--customhouse-policy-border) 58%, rgba(255, 255, 255, 0.12));
+    border-radius: var(--customhouse-policy-radius);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.008)),
+      var(--customhouse-policy-card-bg);
+    box-shadow:
+      0 26px 70px rgba(0, 0, 0, 0.48),
+      0 0 0 1px rgba(255, 255, 255, 0.025) inset,
+      0 0 34px color-mix(in srgb, var(--customhouse-policy-border) 14%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-policy__nav {
+    padding: 22px;
+  }
+
+  #{{ section_id }} .customhouse-policy__nav-title {
+    margin: 0 0 16px;
+    color: var(--customhouse-policy-heading);
+    font-size: 14px;
+    font-weight: 900;
+    line-height: 1.2;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  #{{ section_id }} .customhouse-policy__nav-list {
+    display: grid;
+    gap: 9px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  #{{ section_id }} .customhouse-policy__nav-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: 46px;
+    padding: 12px 14px 12px 34px;
+    color: color-mix(in srgb, var(--customhouse-policy-heading) 76%, transparent);
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1.25;
+    text-decoration: none;
+    border: 1px solid color-mix(in srgb, var(--customhouse-policy-border) 24%, transparent);
+    border-radius: calc(var(--customhouse-policy-radius) - 8px);
+    background: rgba(10, 10, 12, 0.56);
+    transition:
+      color 220ms ease,
+      border-color 220ms ease,
+      background-color 220ms ease,
+      box-shadow 220ms ease,
+      transform 220ms ease;
+  }
+
+  #{{ section_id }} .customhouse-policy__nav-link::before {
+    content: "";
+    position: absolute;
+    left: 14px;
+    width: 8px;
+    height: 8px;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    color: color-mix(in srgb, var(--customhouse-policy-heading) 45%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-policy__nav-link:hover,
+  #{{ section_id }} .customhouse-policy__nav-link:focus-visible,
+  #{{ section_id }} .customhouse-policy__nav-link.is-active {
+    color: var(--customhouse-policy-heading);
+    border-color: color-mix(in srgb, var(--customhouse-policy-accent) 72%, var(--customhouse-policy-border));
+    background: color-mix(in srgb, var(--customhouse-policy-bg) 80%, var(--customhouse-policy-border) 20%);
+    box-shadow:
+      0 14px 30px rgba(0, 0, 0, 0.32),
+      0 0 22px color-mix(in srgb, var(--customhouse-policy-border) 22%, transparent);
+    transform: translateY(-1px);
+  }
+
+  #{{ section_id }} .customhouse-policy__nav-link:focus-visible,
+  #{{ section_id }} .customhouse-policy__cta-button:focus-visible,
+  #{{ section_id }} .customhouse-policy__rte a:focus-visible {
+    outline: 2px solid var(--customhouse-policy-accent);
+    outline-offset: 4px;
+  }
+
+  #{{ section_id }} .customhouse-policy__nav-link.is-active::before {
+    color: var(--customhouse-policy-accent);
+    background: var(--customhouse-policy-accent);
+    box-shadow: 0 0 14px color-mix(in srgb, var(--customhouse-policy-accent) 64%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-policy__main {
+    min-width: 0;
+  }
+
+  #{{ section_id }} .customhouse-policy__content-card {
+    overflow: hidden;
+    padding: clamp(24px, 4vw, 54px);
+  }
+
+  #{{ section_id }} .customhouse-policy__rte {
+    max-width: 920px;
+    color: var(--customhouse-policy-body);
+    font-size: clamp(15px, 1.05vw, 17px);
+    line-height: 1.82;
+    overflow-wrap: anywhere;
+  }
+
+  #{{ section_id }} .customhouse-policy__rte > *:first-child {
+    margin-top: 0;
+  }
+
+  #{{ section_id }} .customhouse-policy__rte > *:last-child {
+    margin-bottom: 0;
+  }
+
+  #{{ section_id }} .customhouse-policy__rte h2,
+  #{{ section_id }} .customhouse-policy__rte h3,
+  #{{ section_id }} .customhouse-policy__rte h4 {
+    position: relative;
+    margin: 1.55em 0 0.55em;
+    color: var(--customhouse-policy-heading);
+    font-family: var(--customhouse-policy-body-font);
+    font-weight: 900;
+    line-height: 1.16;
+    letter-spacing: 0;
+    text-wrap: balance;
+  }
+
+  #{{ section_id }} .customhouse-policy__rte h2 {
+    padding-left: 18px;
+    font-size: clamp(26px, 2.25vw, 36px);
+  }
+
+  #{{ section_id }} .customhouse-policy__rte h2::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.18em;
+    width: 5px;
+    height: 0.95em;
+    border-radius: 999px;
+    background: var(--customhouse-policy-accent);
+    box-shadow: 0 0 16px color-mix(in srgb, var(--customhouse-policy-accent) 48%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-policy__rte h3 {
+    font-size: clamp(21px, 1.8vw, 28px);
+  }
+
+  #{{ section_id }} .customhouse-policy__rte h4 {
+    color: color-mix(in srgb, var(--customhouse-policy-heading) 90%, var(--customhouse-policy-accent) 10%);
+    font-size: clamp(18px, 1.35vw, 22px);
+  }
+
+  #{{ section_id }} .customhouse-policy__rte p,
+  #{{ section_id }} .customhouse-policy__rte ul,
+  #{{ section_id }} .customhouse-policy__rte ol,
+  #{{ section_id }} .customhouse-policy__rte blockquote,
+  #{{ section_id }} .customhouse-policy__rte table {
+    margin: 0 0 1.25em;
+  }
+
+  #{{ section_id }} .customhouse-policy__rte ul,
+  #{{ section_id }} .customhouse-policy__rte ol {
+    padding-left: 1.35em;
+  }
+
+  #{{ section_id }} .customhouse-policy__rte li {
+    margin: 0.48em 0;
+    padding-left: 0.12em;
+  }
+
+  #{{ section_id }} .customhouse-policy__rte li::marker {
+    color: var(--customhouse-policy-accent);
+    font-weight: 900;
+  }
+
+  #{{ section_id }} .customhouse-policy__rte strong {
+    color: color-mix(in srgb, var(--customhouse-policy-heading) 92%, var(--customhouse-policy-accent) 8%);
+    font-weight: 900;
+  }
+
+  #{{ section_id }} .customhouse-policy__rte a {
+    color: var(--customhouse-policy-accent);
+    font-weight: 800;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+    transition: color 180ms ease, text-shadow 180ms ease;
+  }
+
+  #{{ section_id }} .customhouse-policy__rte a:hover {
+    color: color-mix(in srgb, var(--customhouse-policy-accent) 78%, #ffffff);
+    text-shadow: 0 0 12px color-mix(in srgb, var(--customhouse-policy-accent) 34%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-policy__rte blockquote {
+    padding: 20px 22px;
+    color: color-mix(in srgb, var(--customhouse-policy-heading) 84%, transparent);
+    border-left: 4px solid var(--customhouse-policy-accent);
+    border-radius: calc(var(--customhouse-policy-radius) - 8px);
+    background: rgba(10, 10, 12, 0.62);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.24);
+  }
+
+  #{{ section_id }} .customhouse-policy__rte table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    border: 1px solid color-mix(in srgb, var(--customhouse-policy-border) 48%, rgba(255, 255, 255, 0.14));
+    border-radius: calc(var(--customhouse-policy-radius) - 8px);
+    background: rgba(9, 9, 11, 0.72);
+  }
+
+  #{{ section_id }} .customhouse-policy__rte th,
+  #{{ section_id }} .customhouse-policy__rte td {
+    min-width: 160px;
+    padding: 14px 16px;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid color-mix(in srgb, var(--customhouse-policy-border) 28%, rgba(255, 255, 255, 0.1));
+  }
+
+  #{{ section_id }} .customhouse-policy__rte th {
+    color: var(--customhouse-policy-heading);
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: color-mix(in srgb, var(--customhouse-policy-border) 22%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-policy__empty {
+    margin: 0;
+    color: var(--customhouse-policy-muted);
+    font-size: 16px;
+    line-height: 1.7;
+  }
+
+  #{{ section_id }} .customhouse-policy__cta {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 24px;
+    align-items: center;
+    margin-top: 24px;
+    padding: clamp(22px, 3vw, 32px);
+  }
+
+  #{{ section_id }} .customhouse-policy__cta-heading {
+    margin: 0;
+    color: var(--customhouse-policy-heading);
+    font-size: clamp(22px, 2vw, 30px);
+    font-weight: 900;
+    line-height: 1.12;
+    text-wrap: balance;
+  }
+
+  #{{ section_id }} .customhouse-policy__cta-text {
+    max-width: 720px;
+    margin: 10px 0 0;
+    color: var(--customhouse-policy-muted);
+    font-size: 15px;
+    line-height: 1.68;
+  }
+
+  #{{ section_id }} .customhouse-policy__cta-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 50px;
+    padding: 14px 22px;
+    color: #0f0f11;
+    font-size: 14px;
+    font-weight: 900;
+    line-height: 1.15;
+    text-align: center;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border: 1px solid var(--customhouse-policy-accent);
+    border-radius: 999px;
+    background: var(--customhouse-policy-accent);
+    box-shadow:
+      0 16px 34px rgba(0, 0, 0, 0.32),
+      0 0 22px color-mix(in srgb, var(--customhouse-policy-accent) 34%, transparent);
+    transition:
+      transform 220ms ease,
+      box-shadow 220ms ease,
+      background-color 220ms ease;
+  }
+
+  #{{ section_id }} .customhouse-policy__cta-button:hover {
+    transform: translateY(-2px);
+    background: color-mix(in srgb, var(--customhouse-policy-accent) 86%, #ffffff);
+    box-shadow:
+      0 22px 42px rgba(0, 0, 0, 0.38),
+      0 0 30px color-mix(in srgb, var(--customhouse-policy-accent) 42%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-policy__graffiti {
+    position: absolute;
+    z-index: -1;
+    pointer-events: none;
+    color: color-mix(in srgb, var(--customhouse-policy-border) 72%, var(--customhouse-policy-accent));
+    opacity: var(--customhouse-policy-graffiti-opacity);
+  }
+
+  #{{ section_id }} .customhouse-policy__graffiti--left {
+    left: max(14px, calc((100% - var(--customhouse-policy-container)) / 2 - 54px));
+    top: 140px;
+    width: 160px;
+    height: 70px;
+    border: 3px solid currentColor;
+    border-radius: 44% 56% 47% 53%;
+    transform: rotate(-13deg);
+    box-shadow: 46px 36px 0 -28px currentColor;
+  }
+
+  #{{ section_id }} .customhouse-policy__graffiti--right {
+    right: max(12px, calc((100% - var(--customhouse-policy-container)) / 2 - 40px));
+    bottom: 110px;
+    width: 170px;
+    height: 82px;
+    transform: rotate(12deg);
+  }
+
+  #{{ section_id }} .customhouse-policy__graffiti--right::before,
+  #{{ section_id }} .customhouse-policy__graffiti--right::after {
+    content: "";
+    position: absolute;
+    border: 3px solid currentColor;
+  }
+
+  #{{ section_id }} .customhouse-policy__graffiti--right::before {
+    inset: 10px 42px 26px 4px;
+    border-radius: 52% 38% 42% 48%;
+  }
+
+  #{{ section_id }} .customhouse-policy__graffiti--right::after {
+    right: 0;
+    bottom: 0;
+    width: 70px;
+    height: 42px;
+    border-radius: 48% 44% 54% 40%;
+  }
+
+  @media (max-width: 989px) {
+    #{{ section_id }} .customhouse-policy__layout {
+      grid-template-columns: 1fr;
+      gap: 22px;
+    }
+
+    #{{ section_id }} .customhouse-policy__sidebar {
+      position: static;
+      max-height: none;
+      overflow: visible;
+    }
+
+    #{{ section_id }} .customhouse-policy__content-card {
+      padding: 30px;
+    }
+  }
+
+  @media (max-width: 839px) {
+    #{{ section_id }} .customhouse-policy__container {
+      width: min(100% - 32px, var(--customhouse-policy-container));
+    }
+
+    #{{ section_id }} .customhouse-policy__hero {
+      grid-template-columns: 1fr;
+      gap: 14px;
+      min-height: auto;
+      margin-bottom: 18px;
+    }
+
+    #{{ section_id }} .customhouse-policy__hero-side {
+      justify-self: start;
+      width: 76px;
+      border-radius: min(var(--customhouse-policy-radius), 16px);
+    }
+
+    #{{ section_id }} .customhouse-policy__hero-icon {
+      opacity: 0.26;
+    }
+
+    #{{ section_id }} .customhouse-policy__layout,
+    #{{ section_id }} .customhouse-policy__cta {
+      grid-template-columns: 1fr;
+    }
+
+    #{{ section_id }} .customhouse-policy__sidebar {
+      position: static;
+    }
+
+    #{{ section_id }} .customhouse-policy__content-card {
+      padding: 24px;
+    }
+
+    #{{ section_id }} .customhouse-policy__cta-button {
+      width: 100%;
+    }
+
+    #{{ section_id }} .customhouse-policy__graffiti {
+      display: none;
+    }
+  }
+
+  @media (max-width: 520px) {
+    #{{ section_id }}.customhouse-policy {
+      padding-block: calc(var(--customhouse-policy-top-padding) * 0.72) calc(var(--customhouse-policy-bottom-padding) * 0.72);
+    }
+
+    #{{ section_id }} .customhouse-policy__heading {
+      font-size: clamp(34px, 14vw, 48px);
+    }
+
+    #{{ section_id }} .customhouse-policy__nav,
+    #{{ section_id }} .customhouse-policy__content-card,
+    #{{ section_id }} .customhouse-policy__cta {
+      border-radius: min(var(--customhouse-policy-radius), 18px);
+    }
+
+    #{{ section_id }} .customhouse-policy__rte {
+      font-size: 15px;
+      line-height: 1.75;
+    }
+  }
+</style>
+
+<section id="{{ section_id }}" class="customhouse-policy" aria-labelledby="{{ section_id }}-heading">
+  {% if section.settings.enable_graffiti_accents %}
+    <span class="customhouse-policy__graffiti customhouse-policy__graffiti--left" aria-hidden="true"></span>
+    <span class="customhouse-policy__graffiti customhouse-policy__graffiti--right" aria-hidden="true"></span>
+  {% endif %}
+
+  <div class="customhouse-policy__container">
+    <header class="customhouse-policy__hero">
+      <div class="customhouse-policy__hero-copy">
+        {% if section.settings.eyebrow_text != blank %}
+          <span class="customhouse-policy__eyebrow">{{ section.settings.eyebrow_text | escape }}</span>
+          <span class="customhouse-policy__mark" aria-hidden="true"></span>
+        {% endif %}
+
+        <h1 id="{{ section_id }}-heading" class="customhouse-policy__heading">{{ page.title | escape }}</h1>
+      </div>
+
+      <div class="customhouse-policy__hero-side" aria-hidden="true">
+        {% case policy_icon %}
+          {% when 'shield' %}
+            <svg class="customhouse-policy__hero-icon" viewBox="0 0 96 96" aria-hidden="true" focusable="false">
+              <path d="M48 10 22 20v22c0 19 10.8 34.7 26 44 15.2-9.3 26-25 26-44V20L48 10Z" />
+              <path d="M36 47.5 44 55l17-19" />
+              <path d="M38 43v-7a10 10 0 0 1 20 0v7" />
+            </svg>
+          {% when 'contract' %}
+            <svg class="customhouse-policy__hero-icon" viewBox="0 0 96 96" aria-hidden="true" focusable="false">
+              <path d="M28 10h28l16 16v60H28V10Z" />
+              <path d="M56 10v18h16" />
+              <path d="M39 43h22" />
+              <path d="M39 55h22" />
+              <path d="M39 67h14" />
+              <path d="M27 74H18V24h10" />
+            </svg>
+          {% when 'refund' %}
+            <svg class="customhouse-policy__hero-icon" viewBox="0 0 96 96" aria-hidden="true" focusable="false">
+              <path d="M30 30h28a18 18 0 1 1 0 36H34" />
+              <path d="M38 18 26 30l12 12" />
+              <path d="M48 42v22" />
+              <path d="M57 47.5a9 9 0 0 0-9-5.5c-5 0-8 2.5-8 6s3 5.3 8 5.3 8 1.8 8 5.3-3 6-8 6a9.5 9.5 0 0 1-9-5.5" />
+            </svg>
+          {% when 'shipping' %}
+            <svg class="customhouse-policy__hero-icon" viewBox="0 0 96 96" aria-hidden="true" focusable="false">
+              <path d="M14 29h44v34H14V29Z" />
+              <path d="M58 41h13l11 12v10H58V41Z" />
+              <path d="M24 72a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" />
+              <path d="M68 72a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" />
+              <path d="M32 64h28" />
+              <path d="M72 43v12h10" />
+            </svg>
+          {% when 'cookie' %}
+            <svg class="customhouse-policy__hero-icon" viewBox="0 0 96 96" aria-hidden="true" focusable="false">
+              <path d="M78 52.5A30 30 0 1 1 43.5 18c1.4 9.8 9.2 17.6 19 19 1.1 7.5 7 13.4 15.5 15.5Z" />
+              <path d="M34 36h.2" />
+              <path d="M48 58h.2" />
+              <path d="M30 64h.2" />
+              <path d="M58 28h.2" />
+              <path d="M66 48h.2" />
+            </svg>
+          {% when 'accessibility' %}
+            <svg class="customhouse-policy__hero-icon" viewBox="0 0 96 96" aria-hidden="true" focusable="false">
+              <path d="M48 20a7 7 0 1 0 0-14 7 7 0 0 0 0 14Z" />
+              <path d="M20 31h56" />
+              <path d="M48 31v22" />
+              <path d="M36 84 45 54" />
+              <path d="M60 84 51 54" />
+              <path d="M31 48c5.5 3.6 11.2 5.4 17 5.4S59.5 51.6 65 48" />
+            </svg>
+          {% when 'creator' %}
+            <svg class="customhouse-policy__hero-icon" viewBox="0 0 96 96" aria-hidden="true" focusable="false">
+              <path d="M48 46a16 16 0 1 0 0-32 16 16 0 0 0 0 32Z" />
+              <path d="M20 82c3.4-17 14.3-26 28-26s24.6 9 28 26" />
+              <path d="M64 18l4-7 4 7 7 4-7 4-4 7-4-7-7-4 7-4Z" />
+            </svg>
+          {% else %}
+            <svg class="customhouse-policy__hero-icon" viewBox="0 0 96 96" aria-hidden="true" focusable="false">
+              <path d="M28 10h28l16 16v60H28V10Z" />
+              <path d="M56 10v18h16" />
+              <path d="M39 45h22" />
+              <path d="M39 57h22" />
+              <path d="M39 69h14" />
+            </svg>
+        {% endcase %}
+      </div>
+    </header>
+
+    <div class="customhouse-policy__layout{% unless section.settings.show_policy_navigation %} customhouse-policy__layout--single{% endunless %}">
+      {% if section.settings.show_policy_navigation %}
+        <aside class="customhouse-policy__sidebar" aria-label="Policy navigation">
+          <nav class="customhouse-policy__nav">
+            <h2 class="customhouse-policy__nav-title">Policies</h2>
+
+            <ul class="customhouse-policy__nav-list">
+              {% for block in section.blocks %}
+                {% if block.type == 'navigation_link' and block.settings.label != blank %}
+                  {% liquid
+                    assign nav_url = block.settings.link_url
+                    assign is_active = false
+                    if nav_url == current_url or nav_url == request.path
+                      assign is_active = true
+                    endif
+                  %}
+                  <li class="customhouse-policy__nav-item" {{ block.shopify_attributes }}>
+                    <a
+                      class="customhouse-policy__nav-link{% if is_active %} is-active{% endif %}"
+                      href="{{ nav_url | default: '#' }}"
+                      {% if is_active %}aria-current="page"{% endif %}
+                    >
+                      {{ block.settings.label | escape }}
+                    </a>
+                  </li>
+                {% endif %}
+              {% endfor %}
+            </ul>
+          </nav>
+        </aside>
+      {% endif %}
+
+      <main class="customhouse-policy__main">
+        <article class="customhouse-policy__content-card">
+          <div class="customhouse-policy__rte rte">
+            {% if page.content != blank %}
+              {{ page.content }}
+            {% elsif request.design_mode %}
+              <p class="customhouse-policy__empty">Add this policy's content in Shopify Pages. The template will render it here automatically.</p>
+            {% endif %}
+          </div>
+        </article>
+
+        {% if section.settings.show_bottom_cta %}
+          <aside class="customhouse-policy__cta" aria-label="Policy support">
+            <div class="customhouse-policy__cta-copy">
+              {% if section.settings.cta_heading != blank %}
+                <h2 class="customhouse-policy__cta-heading">{{ section.settings.cta_heading | escape }}</h2>
+              {% endif %}
+
+              {% if section.settings.cta_text != blank %}
+                <p class="customhouse-policy__cta-text">{{ section.settings.cta_text | escape }}</p>
+              {% endif %}
+            </div>
+
+            {% if section.settings.cta_button_text != blank %}
+              <a class="customhouse-policy__cta-button" href="{{ section.settings.cta_button_link | default: routes.root_url }}">
+                {{ section.settings.cta_button_text | escape }}
+              </a>
+            {% endif %}
+          </aside>
+        {% endif %}
+      </main>
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "CustomHouse policy page",
+  "tag": "section",
+  "class": "section-customhouse-policy-page",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Hero content"
+    },
+    {
+      "type": "text",
+      "id": "eyebrow_text",
+      "label": "Eyebrow text",
+      "default": "POLICY CENTER"
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_policy_navigation",
+      "label": "Show left policy navigation",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_bottom_cta",
+      "label": "Show bottom CTA",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "container_width",
+      "label": "Container width",
+      "min": 960,
+      "max": 1600,
+      "step": 20,
+      "unit": "px",
+      "default": 1440
+    },
+    {
+      "type": "range",
+      "id": "top_padding",
+      "label": "Top padding",
+      "min": 32,
+      "max": 140,
+      "step": 4,
+      "unit": "px",
+      "default": 32
+    },
+    {
+      "type": "range",
+      "id": "bottom_padding",
+      "label": "Bottom padding",
+      "min": 32,
+      "max": 160,
+      "step": 4,
+      "unit": "px",
+      "default": 96
+    },
+    {
+      "type": "range",
+      "id": "card_border_radius",
+      "label": "Card border radius",
+      "min": 12,
+      "max": 32,
+      "step": 1,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "header",
+      "content": "Bottom CTA"
+    },
+    {
+      "type": "text",
+      "id": "cta_heading",
+      "label": "CTA heading",
+      "default": "Need Help Understanding This Policy?"
+    },
+    {
+      "type": "textarea",
+      "id": "cta_text",
+      "label": "CTA text",
+      "default": "Our team can help with questions about orders, customization, creator partnerships, and support."
+    },
+    {
+      "type": "text",
+      "id": "cta_button_text",
+      "label": "CTA button text",
+      "default": "Contact Support"
+    },
+    {
+      "type": "url",
+      "id": "cta_button_link",
+      "label": "CTA button link"
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background color",
+      "default": "#0F0F11"
+    },
+    {
+      "type": "color",
+      "id": "card_background_color",
+      "label": "Card background color",
+      "default": "#151518"
+    },
+    {
+      "type": "color",
+      "id": "heading_color",
+      "label": "Heading color",
+      "default": "#FFFFFF"
+    },
+    {
+      "type": "color",
+      "id": "body_text_color",
+      "label": "Body text color",
+      "default": "#C6C6CC"
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Accent color",
+      "default": "#D7FF2F"
+    },
+    {
+      "type": "color",
+      "id": "border_color",
+      "label": "Border color",
+      "default": "#6D42B8"
+    },
+    {
+      "type": "header",
+      "content": "Background detail"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_graffiti_accents",
+      "label": "Enable graffiti accents",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "texture_opacity",
+      "label": "Concrete texture opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 55
+    },
+    {
+      "type": "range",
+      "id": "graffiti_opacity",
+      "label": "Graffiti opacity",
+      "min": 0,
+      "max": 40,
+      "step": 1,
+      "unit": "%",
+      "default": 18
+    }
+  ],
+  "blocks": [
+    {
+      "type": "navigation_link",
+      "name": "Navigation link",
+      "settings": [
+        {
+          "type": "text",
+          "id": "label",
+          "label": "Link label",
+          "default": "Policy"
+        },
+        {
+          "type": "url",
+          "id": "link_url",
+          "label": "Link URL"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "CustomHouse policy page",
+      "blocks": [
+        {
+          "type": "navigation_link",
+          "settings": {
+            "label": "Privacy Policy",
+            "link_url": "/pages/privacy-policy"
+          }
+        },
+        {
+          "type": "navigation_link",
+          "settings": {
+            "label": "Terms of Service",
+            "link_url": "/pages/terms-of-service"
+          }
+        },
+        {
+          "type": "navigation_link",
+          "settings": {
+            "label": "Refund Policy",
+            "link_url": "/pages/refund-policy"
+          }
+        },
+        {
+          "type": "navigation_link",
+          "settings": {
+            "label": "Shipping Policy",
+            "link_url": "/pages/shipping-policy"
+          }
+        },
+        {
+          "type": "navigation_link",
+          "settings": {
+            "label": "Cookie Policy",
+            "link_url": "/pages/cookie-policy"
+          }
+        },
+        {
+          "type": "navigation_link",
+          "settings": {
+            "label": "Accessibility",
+            "link_url": "/pages/accessibility"
+          }
+        },
+        {
+          "type": "navigation_link",
+          "settings": {
+            "label": "Creator Terms",
+            "link_url": "/pages/creator-terms"
+          }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

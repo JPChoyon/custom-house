@@ -87,7 +87,7 @@ function safeHosts(shop: string, configured: string) {
     ...parseJsonList(configured),
     shop.toLowerCase(),
     ...(customDomain ? [customDomain] : []),
-    "inkybay.com",
+    "pitchprint.com",
   ].filter((host) => /^[a-z0-9.-]+$/.test(host));
 }
 

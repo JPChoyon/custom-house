@@ -1,0 +1,174 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "type": "footer",
+  "name": "Footer",
+  "sections": {
+    "footer_m9NzUG": {
+      "type": "footer",
+      "blocks": {
+        "social_icon_9zcRWA": {
+          "type": "social_icon",
+          "settings": {
+            "icon": "youtube",
+            "label": "Instagram",
+            "url": ""
+          }
+        },
+        "social_icon_dVD3iL": {
+          "type": "social_icon",
+          "settings": {
+            "icon": "facebook",
+            "label": "Instagram",
+            "url": ""
+          }
+        },
+        "social_icon_gWMU4T": {
+          "type": "social_icon",
+          "settings": {
+            "icon": "instagram",
+            "label": "Instagram",
+            "url": ""
+          }
+        },
+        "utility_link_riBndg": {
+          "type": "utility_link",
+          "settings": {
+            "text": "FAQ",
+            "url": "shopify://pages/faq"
+          }
+        },
+        "utility_link_jEztLx": {
+          "type": "utility_link",
+          "settings": {
+            "text": "KONTAKT",
+            "url": "shopify://pages/contact"
+          }
+        },
+        "utility_link_XQ6xgY": {
+          "type": "utility_link",
+          "settings": {
+            "text": "VILLKOR",
+            "url": "shopify://pages/privacy-policy"
+          }
+        }
+      },
+      "block_order": [
+        "social_icon_9zcRWA",
+        "social_icon_dVD3iL",
+        "social_icon_gWMU4T",
+        "utility_link_riBndg",
+        "utility_link_jEztLx",
+        "utility_link_XQ6xgY"
+      ],
+      "name": "t:names.footer",
+      "settings": {
+        "social_heading": "FÖLJ OSS",
+        "navigation_label": "Footer quick links",
+        "content_width": 1200,
+        "min_height": 128,
+        "padding_top": 32,
+        "padding_bottom": 22,
+        "padding_x": 42,
+        "mobile_padding_x": 22,
+        "group_gap": 36,
+        "mobile_group_gap": 22,
+        "mobile_alignment": "center",
+        "background_color": "{{ settings.color_palette.foreground }}",
+        "text_color": "#f4f4f2",
+        "accent_color": "#7d3cc7",
+        "background_image": "shopify://shop_images/ChatGPT_Image_Jun_27_2026_06_10_23_PM.png",
+        "background_position": "center_center",
+        "mobile_background_position": "center_center",
+        "background_image_opacity": 70,
+        "texture_opacity": 65,
+        "show_top_line": true,
+        "top_line_height": 3,
+        "top_line_offset": 20,
+        "top_line_inset": 0,
+        "top_line_opacity": 85,
+        "label_font_size": 18,
+        "link_font_size": 21,
+        "mobile_label_font_size": 16,
+        "mobile_link_font_size": 16,
+        "text_weight": "800",
+        "icon_size": 28,
+        "mobile_icon_size": 26,
+        "icon_gap": 13,
+        "link_gap": 22,
+        "show_separators": true
+      }
+    },
+    "footer_utilities_jLGE8U": {
+      "type": "footer-utilities",
+      "blocks": {
+        "footer_copyright_jweRK8": {
+          "type": "footer-copyright",
+          "settings": {
+            "show_powered_by": true,
+            "text_color": "",
+            "font_size": "0.75rem",
+            "case": "none"
+          },
+          "blocks": {}
+        },
+        "footer_policy_list_VCdnpa": {
+          "type": "footer-policy-list",
+          "settings": {
+            "text_color": "",
+            "font_size": "0.75rem",
+            "case": "none"
+          },
+          "blocks": {}
+        },
+        "social_links_Ew63Kq": {
+          "type": "social-links",
+          "settings": {
+            "icon_color": "",
+            "facebook_url": "https://www.facebook.com/",
+            "instagram_url": "https://www.instagram.com/",
+            "youtube_url": "https://www.youtube.com/",
+            "tiktok_url": "https://www.tiktok.com/",
+            "twitter_url": "https://x.com/",
+            "threads_url": "",
+            "linkedin_url": "",
+            "bluesky_url": "",
+            "snapchat_url": "",
+            "pinterest_url": "",
+            "tumblr_url": "",
+            "vimeo_url": "",
+            "custom_url": ""
+          },
+          "blocks": {}
+        }
+      },
+      "block_order": [
+        "footer_copyright_jweRK8",
+        "footer_policy_list_VCdnpa",
+        "social_links_Ew63Kq"
+      ],
+      "disabled": true,
+      "name": "t:names.utilities",
+      "settings": {
+        "section_width": "page-width",
+        "gap": 24,
+        "background_color": "{{ settings.color_palette.background }}",
+        "divider_thickness": 1,
+        "divider_color": "{{ settings.color_palette.color2 }}",
+        "padding-block-start": 20,
+        "padding-block-end": 48
+      }
+    }
+  },
+  "order": [
+    "footer_m9NzUG",
+    "footer_utilities_jLGE8U"
+  ]
+}

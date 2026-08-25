@@ -8,5 +8,6 @@ export async function authenticateStorefrontProxy(
   return {
     shop: context.shop,
     customerId: context.customerId,
+    client: context.client,
   };
 }

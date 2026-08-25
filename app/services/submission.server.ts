@@ -1,14 +1,19 @@
 import db from "../db.server";
-import { DomainError, parseJsonList, slugify } from "./domain";
+import { DomainError, parseJsonList } from "./domain";
 import { submissionKey } from "./idempotency.server";
 import {
-  ManualInkyBayProvider,
+  ManualPitchPrintProvider,
   type ManualDesignInput,
 } from "./design-provider.server";
 import type { ShopifyGraphqlClient } from "./shopify-graphql.server";
 import { normalizeCustomerGid } from "./helium-sync.server";
-import { countActiveCollectionProducts } from "./creator-collection-products.server";
-import { creatorSalesOverview } from "./creator-sales.server";
+import {
+  creatorSalesOverview,
+  reconcileRecentPaidCreatorSales,
+} from "./creator-sales.server";
+import { referralEarningsForAuthenticatedCreator } from "./creator-referral-earnings.server";
+import { getCreatorCollectionStorefrontUrl } from "./creator-storefront-urls";
+import { payoutDashboardForCreator } from "./payouts.server";
 
 export async function createSubmission(
   shop: string,
@@ -27,9 +32,12 @@ export async function createSubmission(
       403,
     );
   const config = await db.shopConfig.findUnique({ where: { shop } });
-  const normalized = new ManualInkyBayProvider().normalize(
+  const normalized = new ManualPitchPrintProvider().normalize(
     input,
-    parseJsonList(config?.inkybayAllowedHostsJson ?? "[]"),
+    [
+      ...parseJsonList(config?.inkybayAllowedHostsJson ?? "[]"),
+      "pitchprint.com",
+    ],
   );
   const result = await client.request<{
     product: {
@@ -91,72 +99,114 @@ export async function createSubmission(
 export async function creatorDashboard(
   shop: string,
   customerId: string,
-  client?: ShopifyGraphqlClient,
+  _client?: ShopifyGraphqlClient,
 ) {
   customerId = normalizeCustomerGid(customerId);
-  const [creator, config] = await Promise.all([
-    db.creator.findUnique({
-      where: { shop_customerId: { shop, customerId } },
-      include: {
-        applications: { orderBy: { createdAt: "desc" }, take: 1 },
-        submissions: { orderBy: { createdAt: "desc" }, take: 20 },
+  const creator = await db.creator.findUnique({
+    where: { shop_customerId: { shop, customerId } },
+    include: {
+      submissions: { orderBy: { createdAt: "desc" }, take: 20 },
+      marketplaceCollection: {
+        select: {
+          id: true,
+          publicHandle: true,
+          status: true,
+        },
       },
-    }),
-    db.shopConfig.findUnique({
-      where: { shop },
-      select: { collectionHandleSuffix: true },
-    }),
-  ]);
+    },
+  });
 
   if (!creator) {
     return { state: "NOT_APPLIED" as const, creatorFound: false };
   }
 
-  const collectionUrl = creator.collectionId
-    ? `/collections/${creator.handle}-${slugify(config?.collectionHandleSuffix ?? "designs")}`
-    : null;
-  const publishedProducts = creator.submissions.filter(
-    (submission) =>
-      submission.status === "PUBLISHED" && submission.createdProductId,
+  const collectionUrl = getCreatorCollectionStorefrontUrl(
+    creator.marketplaceCollection,
   );
-  let publishedProductsCount = publishedProducts.length;
-
-  if (client && creator.collectionId) {
+  const displayName =
+    creator.displayName || creator.legalName || "Creator";
+  const legalName = creator.legalName;
+  const bio = creator.bio;
+  const portfolioUrl = creator.portfolioUrl || creator.primaryProfileUrl;
+  const profileImageUrl = creator.profileImageUrl;
+  const socialLinksJson = creator.socialLinksJson;
+  const city = creator.city;
+  const country = creator.country;
+  const primaryPlatform = creator.primaryPlatform;
+  const primaryProfileUrl = creator.primaryProfileUrl;
+  const audienceRange = creator.audienceRange;
+  const categoriesJson = creator.categoriesJson;
+  const aboutWork = creator.aboutWork;
+  if (_client) {
     try {
-      publishedProductsCount = await countActiveCollectionProducts(
-        client,
-        creator.collectionId,
-      );
+      await reconcileRecentPaidCreatorSales({
+        shop,
+        creatorId: creator.id,
+        client: _client,
+      });
     } catch {
-      // Keep the dashboard available if Shopify is temporarily unavailable.
-      // The GraphQL abstraction records a safe diagnostic without response data.
+      // Dashboard sales still render from stored webhook data if live reconciliation fails.
     }
   }
-  const sales = await creatorSalesOverview(creator.id);
+
+  const [sales, referrals, payouts] = await Promise.all([
+    creatorSalesOverview(creator.id),
+    referralEarningsForAuthenticatedCreator({
+      shop,
+      authenticatedCreatorId: creator.id,
+      page: 1,
+      pageSize: 25,
+    }),
+    payoutDashboardForCreator({ shop, creatorId: creator.id }),
+  ]);
 
   return {
     state: creator.externalSyncConflict ? "SYNC_CONFLICT" as const : creator.status,
     creatorFound: true,
-    displayName: creator.displayName,
-    bio: creator.bio,
-    portfolioUrl: creator.portfolioUrl,
-    profileImageUrl: creator.profileImageUrl,
+    displayName,
+    legalName,
+    city,
+    country,
+    bio,
+    portfolioUrl,
+    profileImageUrl,
+    socialLinksJson,
+    primaryPlatform,
+    primaryProfileUrl,
+    audienceRange,
+    categoriesJson,
+    aboutWork,
+    termsAccepted: Boolean(creator.termsAcceptedAt),
     handle: creator.handle,
+    referralCode: creator.referralCode,
     status: creator.status,
     collectionUrl,
+    storefrontCollectionUrl: collectionUrl,
+    collection: creator.marketplaceCollection
+      ? {
+          id: creator.marketplaceCollection.id,
+          publicHandle: creator.marketplaceCollection.publicHandle,
+          publicUrl: collectionUrl,
+        }
+      : null,
     rejectionReason: creator.rejectionReason,
     suspensionReason: creator.suspensionReason,
-    applicationStatus: creator.applications[0]?.status ?? null,
+    applicationStatus: creator.submittedAt ? creator.status : null,
     overview: {
       totalSales: sales.totalSales,
       totalEarnings: sales.totalEarnings,
+      productEarnings: sales.productEarnings,
+      referralEarnings: sales.referralEarnings,
+      unifiedEarnings: sales.unifiedEarnings,
       ordersCount: sales.ordersCount,
       itemsSoldCount: sales.itemsSoldCount,
       commissionRatePercent: sales.commissionRatePercent,
-      collectionsCount: creator.collectionId ? 1 : 0,
-      publishedProductsCount,
+      collectionsCount: creator.marketplaceCollection ? 1 : 0,
+      publishedProductsCount: sales.publishedProductsCount,
     },
     topSellingProducts: sales.topSellingProducts,
+    referrals,
+    payouts,
     submissions: creator.submissions.map(
       ({
         id,

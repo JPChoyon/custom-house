@@ -18,6 +18,7 @@ export type VerifiedInkyBayProduct = {
 export function inkyBayProductContract(input: {
   productType: string | null;
   inkyBayEnabled: boolean;
+  pitchPrintEnabled?: boolean;
   creatorPublishingEnabled: boolean;
   tags: string[];
 }) {
@@ -26,10 +27,18 @@ export function inkyBayProductContract(input: {
     input.productType === "creator_fixed" || tags.has("creator-fixed");
   const hasLegacyInkyBayTag =
     tags.has("inkybay-designlab") || tags.has("inkybay-options");
+  const hasPitchPrintTag =
+    tags.has("pitchprint") ||
+    tags.has("pitchprint-enabled") ||
+    tags.has("pitchprint-designlab") ||
+    tags.has("pitchprint-options");
   const isGlobalCustomizable = Boolean(
     !isCreatorFixed &&
-    ((input.productType === "global_customizable" && input.inkyBayEnabled) ||
-      hasLegacyInkyBayTag),
+    ((input.productType === "global_customizable" &&
+      (input.inkyBayEnabled || input.pitchPrintEnabled)) ||
+      Boolean(input.pitchPrintEnabled) ||
+      hasLegacyInkyBayTag ||
+      hasPitchPrintTag),
   );
   return {
     isCreatorFixed,
@@ -62,6 +71,7 @@ export async function verifyInkyBayGlobalProduct(
       featuredImage: { url: string } | null;
       productType: { value: string } | null;
       inkybayEnabled: { value: string } | null;
+      pitchprintEnabled: { value: string } | null;
       creatorPublishingEnabled: { value: string } | null;
       legacyOrigin: { value: string } | null;
       legacyMode: { value: string } | null;
@@ -81,6 +91,7 @@ export async function verifyInkyBayGlobalProduct(
         featuredImage { url }
         productType: metafield(namespace: "customhouse", key: "product_type") { value }
         inkybayEnabled: metafield(namespace: "customhouse", key: "inkybay_enabled") { value }
+        pitchprintEnabled: metafield(namespace: "customhouse", key: "pitchprint_enabled") { value }
         creatorPublishingEnabled: metafield(namespace: "customhouse", key: "creator_publishing_enabled") { value }
         legacyOrigin: metafield(namespace: "customhouse", key: "product_origin") { value }
         legacyMode: metafield(namespace: "customhouse", key: "design_mode") { value }
@@ -103,6 +114,8 @@ export async function verifyInkyBayGlobalProduct(
           : product.productType?.value || null,
         inkyBayEnabled:
           legacyGlobal || product.inkybayEnabled?.value === "true",
+        pitchPrintEnabled:
+          legacyGlobal || product.pitchprintEnabled?.value === "true",
         creatorPublishingEnabled:
           product.creatorPublishingEnabled?.value === "true",
         tags: product.tags,

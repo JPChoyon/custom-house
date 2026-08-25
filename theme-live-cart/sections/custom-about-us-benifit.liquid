@@ -1,0 +1,966 @@
+{% liquid
+  assign section_id = 'customhouse-benefits-' | append: section.id
+  assign bg_image = section.settings.background_image
+%}
+
+<section
+  id="{{ section_id }}"
+  class="ch-benefits ch-benefits--{{ section.settings.mobile_card_layout }}"
+  {{ section.shopify_attributes }}
+  style="
+    --ch-bg: {{ section.settings.background_color }};
+    --ch-text: {{ section.settings.text_color }};
+    --ch-muted: {{ section.settings.body_color }};
+    --ch-accent: {{ section.settings.accent_color }};
+    --ch-card-bg: {{ section.settings.card_background }};
+    --ch-card-border: {{ section.settings.card_border_color }};
+    --ch-card-glow: {{ section.settings.card_glow_color }};
+    --ch-icon-primary: {{ section.settings.icon_primary_color }};
+    --ch-icon-secondary: {{ section.settings.icon_secondary_color }};
+    --ch-overlay-opacity: {{ section.settings.overlay_opacity | divided_by: 100.0 }};
+    --ch-text-width: {{ section.settings.text_max_width }}px;
+    --ch-content-width: {{ section.settings.content_width }}px;
+    --ch-card-radius: {{ section.settings.card_radius }}px;
+    --ch-card-min-height: {{ section.settings.card_min_height }}px;
+    --ch-pad-top: {{ section.settings.padding_top }}px;
+    --ch-pad-bottom: {{ section.settings.padding_bottom }}px;
+    --ch-mobile-pad-top: {{ section.settings.mobile_padding_top }}px;
+    --ch-mobile-pad-bottom: {{ section.settings.mobile_padding_bottom }}px;
+    --ch-card-gap: {{ section.settings.card_gap }}px;
+    --ch-heading-size: {{ section.settings.heading_size }}px;
+    --ch-heading-weight: {{ section.settings.heading_weight }};
+    --ch-mobile-heading-size: {{ section.settings.mobile_heading_size }}px;
+    --ch-kicker-size: {{ section.settings.kicker_size }}px;
+    --ch-body-size: {{ section.settings.body_size }}px;
+    --ch-card-title-size: {{ section.settings.card_title_size }}px;
+    --ch-card-title-weight: {{ section.settings.card_title_weight }};
+    --ch-card-text-size: {{ section.settings.card_text_size }}px;
+  "
+>
+  {% if bg_image != blank %}
+    <div
+      class="ch-benefits__background"
+      style="background-image: url('{{ bg_image | image_url: width: 2400 }}');"
+      aria-hidden="true"
+    ></div>
+  {% endif %}
+
+  <div class="ch-benefits__texture" aria-hidden="true"></div>
+  <div class="ch-benefits__overlay" aria-hidden="true"></div>
+
+  {% if section.settings.show_corner_marks %}
+    <div class="ch-benefits__mark ch-benefits__mark--top" aria-hidden="true"></div>
+    <div class="ch-benefits__mark ch-benefits__mark--bottom" aria-hidden="true"></div>
+  {% endif %}
+
+  <div class="ch-benefits__inner">
+    <div class="ch-benefits__copy ch-benefits__copy--{{ section.settings.text_alignment }}">
+      {% if section.settings.kicker != blank %}
+        <div class="ch-benefits__kicker">
+          <span>{{ section.settings.kicker }}</span>
+        </div>
+      {% endif %}
+
+      {% if section.settings.heading != blank %}
+        <h2 class="ch-benefits__heading">{{ section.settings.heading }}</h2>
+      {% endif %}
+
+      {% if section.settings.body != blank %}
+        <div class="ch-benefits__body">{{ section.settings.body }}</div>
+      {% endif %}
+    </div>
+
+    {% if section.blocks.size > 0 %}
+      <div class="ch-benefits__grid ch-benefits__grid--{{ section.settings.desktop_columns }}">
+        {% for block in section.blocks %}
+          {% liquid
+            assign fallback_icon = block.settings.fallback_icon
+            if fallback_icon == blank
+              assign fallback_icon = 'marketplace'
+            endif
+          %}
+
+          <article class="ch-benefits__card" {{ block.shopify_attributes }}>
+            <div class="ch-benefits__icon ch-benefits__icon--{{ fallback_icon }}">
+              {% if block.settings.icon_image != blank %}
+                <img
+                  src="{{ block.settings.icon_image | image_url: width: 180 }}"
+                  alt="{{ block.settings.icon_image.alt | escape }}"
+                  loading="lazy"
+                  width="{{ block.settings.icon_image.width }}"
+                  height="{{ block.settings.icon_image.height }}"
+                >
+              {% else %}
+                {% case fallback_icon %}
+                  {% when 'personalization' %}
+                    <svg viewBox="0 0 96 96" role="img" aria-label="{{ block.settings.title | escape }}">
+                      <circle class="ch-icon-main" cx="43" cy="55" r="28"/>
+                      <path class="ch-icon-main" d="M57 21c5-3 12 0 12 7 0 4-3 7-7 7"/>
+                      <path class="ch-icon-accent" d="M58 24l15 8-8 15"/>
+                      <path class="ch-icon-main" d="M60 26L38 73"/>
+                      <path class="ch-icon-accent" d="M28 42l8 8m0-8l-8 8M27 61l8 8m0-8l-8 8M44 53l8 8m0-8l-8 8"/>
+                    </svg>
+                  {% when 'products' %}
+                    <svg viewBox="0 0 96 96" role="img" aria-label="{{ block.settings.title | escape }}">
+                      <path class="ch-icon-main" d="M47 29c0-6 5-11 11-11s10 4 10 9c0 9-15 9-15 19"/>
+                      <path class="ch-icon-main" d="M53 46l-9-8-23 14 9 16 10-5v22h34V63l10 5 9-16-23-14-9 8H53z"/>
+                      <path class="ch-icon-accent" d="M42 58v22h25V58"/>
+                      <path class="ch-icon-accent" d="M46 63v12M56 63v12M56 69h8"/>
+                    </svg>
+                  {% when 'fulfillment' %}
+                    <svg viewBox="0 0 96 96" role="img" aria-label="{{ block.settings.title | escape }}">
+                      <path class="ch-icon-main" d="M17 31l30-16 31 16-31 17-30-17z"/>
+                      <path class="ch-icon-main" d="M17 31v34l30 16 31-16V31M47 48v33"/>
+                      <path class="ch-icon-accent" d="M35 22l31 17v16l-12-7V32L23 46"/>
+                      <circle class="ch-icon-card-fill ch-icon-accent" cx="72" cy="67" r="18"/>
+                      <path class="ch-icon-accent" d="M55 67h34M72 49c8 8 8 28 0 36M72 49c-8 8-8 28 0 36"/>
+                    </svg>
+                  {% else %}
+                    <svg viewBox="0 0 96 96" role="img" aria-label="{{ block.settings.title | escape }}">
+                      <path class="ch-icon-main" d="M25 36h46l6 15H19l6-15z"/>
+                      <path class="ch-icon-accent" d="M21 51c0 6 10 6 10 0 0 6 10 6 10 0 0 6 10 6 10 0 0 6 10 6 10 0 0 6 10 6 10 0"/>
+                      <path class="ch-icon-main" d="M26 52v30h45V52M35 82V62h15v20M56 63h10v10H56z"/>
+                      <path class="ch-icon-main" d="M31 36v-7h34v7"/>
+                    </svg>
+                {% endcase %}
+              {% endif %}
+            </div>
+
+            {% if block.settings.title != blank %}
+              <h3 class="ch-benefits__card-title">{{ block.settings.title }}</h3>
+            {% endif %}
+
+            {% if block.settings.text != blank %}
+              <div class="ch-benefits__card-text">{{ block.settings.text }}</div>
+            {% endif %}
+          </article>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+</section>
+
+<style>
+  {{ section.settings.heading_font | font_face: font_display: 'swap' }}
+  {{ section.settings.card_heading_font | font_face: font_display: 'swap' }}
+
+  #{{ section_id }} {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background: var(--ch-bg);
+    color: var(--ch-text);
+    padding: var(--ch-pad-top) 20px var(--ch-pad-bottom);
+  }
+
+  #{{ section_id }} .ch-benefits__background,
+  #{{ section_id }} .ch-benefits__texture,
+  #{{ section_id }} .ch-benefits__overlay,
+  #{{ section_id }} .ch-benefits__mark {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  #{{ section_id }} .ch-benefits__background {
+    z-index: -4;
+    background-position: {{ section.settings.background_position }};
+    background-size: cover;
+    background-repeat: no-repeat;
+  }
+
+  #{{ section_id }} .ch-benefits__texture {
+    z-index: -3;
+    opacity: {{ section.settings.texture_opacity | divided_by: 100.0 }};
+    background-image:
+      radial-gradient(circle at 18% 84%, rgba(170, 209, 28, .26) 0 1px, transparent 1.5px),
+      radial-gradient(circle at 78% 15%, rgba(120, 70, 189, .32) 0 1px, transparent 1.5px),
+      linear-gradient(135deg, rgba(255, 255, 255, .05) 25%, transparent 25%),
+      linear-gradient(45deg, rgba(255, 255, 255, .035) 25%, transparent 25%);
+    background-size: 44px 44px, 58px 58px, 6px 6px, 7px 7px;
+    mix-blend-mode: screen;
+  }
+
+  #{{ section_id }} .ch-benefits__overlay {
+    z-index: -2;
+    background:
+      radial-gradient(circle at 88% 6%, rgba(103, 63, 168, .25), transparent 24%),
+      radial-gradient(circle at 5% 92%, rgba(135, 160, 28, .16), transparent 26%),
+      rgba(0, 0, 0, var(--ch-overlay-opacity));
+  }
+
+  #{{ section_id }} .ch-benefits__mark {
+    z-index: -1;
+    width: 260px;
+    height: 132px;
+    opacity: {{ section.settings.corner_mark_opacity | divided_by: 100.0 }};
+    background:
+      repeating-linear-gradient(112deg, transparent 0 18px, rgba(123, 75, 190, .7) 18px 29px, transparent 29px 42px),
+      radial-gradient(circle, rgba(123, 75, 190, .45) 0 1px, transparent 1px);
+    background-size: auto, 12px 12px;
+    transform: rotate(-13deg);
+    filter: blur(.1px);
+  }
+
+  #{{ section_id }} .ch-benefits__mark--top {
+    inset: -44px -52px auto auto;
+  }
+
+  #{{ section_id }} .ch-benefits__mark--bottom {
+    inset: auto auto -54px -68px;
+  }
+
+  #{{ section_id }} .ch-benefits__inner {
+    width: min(100%, var(--ch-content-width));
+    margin: 0 auto;
+  }
+
+  #{{ section_id }} .ch-benefits__copy {
+    width: min(100%, var(--ch-text-width));
+    max-width: 100%;
+  }
+
+  #{{ section_id }} .ch-benefits__copy--center {
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  #{{ section_id }} .ch-benefits__copy--right {
+    margin-left: auto;
+    text-align: right;
+  }
+
+  #{{ section_id }} .ch-benefits__kicker {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 14px;
+    margin: 0 0 25px;
+    color: var(--ch-accent);
+    font-size: var(--ch-kicker-size);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+  }
+
+  #{{ section_id }} .ch-benefits__kicker::after {
+    content: "";
+    width: 56px;
+    height: 3px;
+    background: currentColor;
+  }
+
+  #{{ section_id }} .ch-benefits__copy--center .ch-benefits__kicker {
+    align-items: center;
+  }
+
+  #{{ section_id }} .ch-benefits__copy--right .ch-benefits__kicker {
+    align-items: flex-end;
+  }
+
+  #{{ section_id }} .ch-benefits__heading {
+    margin: 0;
+    max-width: 100%;
+    color: var(--ch-text);
+    font-family: {{ section.settings.heading_font.family }}, {{ section.settings.heading_font.fallback_families }};
+    font-style: {{ section.settings.heading_font.style }};
+    font-weight: var(--ch-heading-weight);
+    font-size: var(--ch-heading-size);
+    line-height: .93;
+    letter-spacing: 0;
+    text-transform: {{ section.settings.heading_transform }};
+    text-wrap: balance;
+  }
+
+  #{{ section_id }} .ch-benefits__body {
+    width: 100%;
+    max-width: 100%;
+    margin-top: 26px;
+    color: var(--ch-muted);
+    font-size: var(--ch-body-size);
+    line-height: 1.55;
+    font-weight: 500;
+  }
+
+  #{{ section_id }} .ch-benefits__copy--center .ch-benefits__body {
+    margin-inline: auto;
+  }
+
+  #{{ section_id }} .ch-benefits__copy--right .ch-benefits__body {
+    margin-left: auto;
+  }
+
+  #{{ section_id }} .ch-benefits__grid {
+    display: grid;
+    gap: var(--ch-card-gap);
+    margin-top: {{ section.settings.cards_top_spacing }}px;
+  }
+
+  #{{ section_id }} .ch-benefits__grid--2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #{{ section_id }} .ch-benefits__grid--3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  #{{ section_id }} .ch-benefits__grid--4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  #{{ section_id }} .ch-benefits__card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: var(--ch-card-min-height);
+    padding: {{ section.settings.card_padding_y }}px {{ section.settings.card_padding_x }}px;
+    border: 1px solid color-mix(in srgb, var(--ch-card-border) 78%, transparent);
+    border-radius: var(--ch-card-radius);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, .025), rgba(255, 255, 255, .005)),
+      var(--ch-card-bg);
+    box-shadow:
+      0 0 34px color-mix(in srgb, var(--ch-card-glow) 22%, transparent),
+      inset 0 1px 0 rgba(255, 255, 255, .05);
+    text-align: center;
+  }
+
+  #{{ section_id }} .ch-benefits__icon {
+    width: {{ section.settings.icon_size }}px;
+    height: {{ section.settings.icon_size }}px;
+    margin-bottom: 22px;
+    color: var(--ch-icon-primary);
+  }
+
+  #{{ section_id }} .ch-benefits__icon svg,
+  #{{ section_id }} .ch-benefits__icon img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  #{{ section_id }} .ch-benefits__icon svg {
+    overflow: visible;
+  }
+
+  #{{ section_id }} .ch-benefits__icon .ch-icon-main,
+  #{{ section_id }} .ch-benefits__icon .ch-icon-accent {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 3;
+    vector-effect: non-scaling-stroke;
+  }
+
+  #{{ section_id }} .ch-benefits__icon .ch-icon-main {
+    stroke: var(--ch-icon-primary);
+  }
+
+  #{{ section_id }} .ch-benefits__icon .ch-icon-accent {
+    stroke: var(--ch-icon-secondary);
+  }
+
+  #{{ section_id }} .ch-benefits__icon .ch-icon-card-fill {
+    fill: var(--ch-card-bg);
+  }
+
+  #{{ section_id }} .ch-benefits__card-title {
+    margin: 0;
+    color: var(--ch-text);
+    font-family: {{ section.settings.card_heading_font.family }}, {{ section.settings.card_heading_font.fallback_families }};
+    font-style: {{ section.settings.card_heading_font.style }};
+    font-weight: var(--ch-card-title-weight);
+    font-size: var(--ch-card-title-size);
+    line-height: 1.04;
+    letter-spacing: 0;
+  }
+
+  #{{ section_id }} .ch-benefits__card-text {
+    margin-top: 16px;
+    color: var(--ch-muted);
+    font-size: var(--ch-card-text-size);
+    line-height: 1.48;
+    font-weight: 500;
+  }
+
+  @media screen and (max-width: 1180px) {
+    #{{ section_id }} .ch-benefits__grid--4 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media screen and (max-width: 860px) {
+    #{{ section_id }} {
+      padding: var(--ch-mobile-pad-top) 16px var(--ch-mobile-pad-bottom);
+    }
+
+    #{{ section_id }} .ch-benefits__heading {
+      font-size: var(--ch-mobile-heading-size);
+    }
+
+    #{{ section_id }} .ch-benefits__grid,
+    #{{ section_id }} .ch-benefits__grid--2,
+    #{{ section_id }} .ch-benefits__grid--3,
+    #{{ section_id }} .ch-benefits__grid--4 {
+      grid-template-columns: 1fr;
+    }
+
+    #{{ section_id }}.ch-benefits--two-columns .ch-benefits__grid,
+    #{{ section_id }}.ch-benefits--two-columns .ch-benefits__grid--2,
+    #{{ section_id }}.ch-benefits--two-columns .ch-benefits__grid--3,
+    #{{ section_id }}.ch-benefits--two-columns .ch-benefits__grid--4 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    #{{ section_id }} .ch-benefits__card {
+      min-height: auto;
+    }
+  }
+
+  @media screen and (max-width: 560px) {
+    #{{ section_id }} {
+      padding-inline: 14px;
+    }
+
+    #{{ section_id }} .ch-benefits__kicker {
+      gap: 10px;
+      margin-bottom: 19px;
+    }
+
+    #{{ section_id }} .ch-benefits__heading {
+      line-height: .98;
+    }
+
+    #{{ section_id }} .ch-benefits__body {
+      margin-top: 18px;
+      font-size: max(14px, calc(var(--ch-body-size) - 2px));
+    }
+
+    #{{ section_id }} .ch-benefits__grid {
+      margin-top: 34px;
+      gap: 14px;
+    }
+
+    #{{ section_id }}.ch-benefits--two-columns .ch-benefits__card {
+      padding: 22px 10px;
+    }
+
+    #{{ section_id }}.ch-benefits--two-columns .ch-benefits__icon {
+      width: min({{ section.settings.icon_size }}px, 58px);
+      height: min({{ section.settings.icon_size }}px, 58px);
+      margin-bottom: 15px;
+    }
+
+    #{{ section_id }}.ch-benefits--two-columns .ch-benefits__card-title {
+      font-size: max(15px, calc(var(--ch-card-title-size) - 6px));
+    }
+
+    #{{ section_id }}.ch-benefits--two-columns .ch-benefits__card-text {
+      font-size: max(12px, calc(var(--ch-card-text-size) - 3px));
+    }
+  }
+
+  @supports not (color: color-mix(in srgb, black, transparent)) {
+    #{{ section_id }} .ch-benefits__card {
+      border-color: var(--ch-card-border);
+      box-shadow: 0 0 26px rgba(118, 83, 161, .2);
+    }
+  }
+</style>
+
+{% schema %}
+{
+  "name": "CustomHouse benefits",
+  "tag": "section",
+  "class": "section-customhouse-benefits",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Content"
+    },
+    {
+      "type": "text",
+      "id": "kicker",
+      "label": "Kicker",
+      "default": "WHY CUSTOMHOUSE"
+    },
+    {
+      "type": "inline_richtext",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Everything You Need to Build, Customize & Sell."
+    },
+    {
+      "type": "richtext",
+      "id": "body",
+      "label": "Body",
+      "default": "<p>CustomHouse brings creators, premium products, and professional personalization together in one seamless platform-making it easier than ever to launch, customize, and grow your merchandise.</p>"
+    },
+    {
+      "type": "select",
+      "id": "text_alignment",
+      "label": "Text alignment",
+      "default": "left",
+      "options": [
+        { "value": "left", "label": "Left" },
+        { "value": "center", "label": "Center" },
+        { "value": "right", "label": "Right" }
+      ]
+    },
+    {
+      "type": "header",
+      "content": "Background"
+    },
+    {
+      "type": "image_picker",
+      "id": "background_image",
+      "label": "Background image"
+    },
+    {
+      "type": "select",
+      "id": "background_position",
+      "label": "Background position",
+      "default": "center center",
+      "options": [
+        { "value": "center center", "label": "Center" },
+        { "value": "top center", "label": "Top" },
+        { "value": "bottom center", "label": "Bottom" },
+        { "value": "left center", "label": "Left" },
+        { "value": "right center", "label": "Right" }
+      ]
+    },
+    {
+      "type": "range",
+      "id": "overlay_opacity",
+      "label": "Dark overlay opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 85
+    },
+    {
+      "type": "range",
+      "id": "texture_opacity",
+      "label": "Texture opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 40
+    },
+    {
+      "type": "checkbox",
+      "id": "show_corner_marks",
+      "label": "Show purple corner marks",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "corner_mark_opacity",
+      "label": "Corner mark opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 45
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background",
+      "default": "#050506"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Heading and card title",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "body_color",
+      "label": "Body text",
+      "default": "#b9b8bd"
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Accent",
+      "default": "#a8c51f"
+    },
+    {
+      "type": "color",
+      "id": "card_background",
+      "label": "Card background",
+      "default": "#08080a"
+    },
+    {
+      "type": "color",
+      "id": "card_border_color",
+      "label": "Card border",
+      "default": "#66527f"
+    },
+    {
+      "type": "color",
+      "id": "card_glow_color",
+      "label": "Card glow",
+      "default": "#7a4fbb"
+    },
+    {
+      "type": "color",
+      "id": "icon_primary_color",
+      "label": "Icon primary",
+      "default": "#a8c51f"
+    },
+    {
+      "type": "color",
+      "id": "icon_secondary_color",
+      "label": "Icon secondary",
+      "default": "#7b4ac2"
+    },
+    {
+      "type": "header",
+      "content": "Typography"
+    },
+    {
+      "type": "font_picker",
+      "id": "heading_font",
+      "label": "Heading font",
+      "default": "helvetica_n4"
+    },
+    {
+      "type": "range",
+      "id": "heading_weight",
+      "label": "Heading weight",
+      "min": 400,
+      "max": 900,
+      "step": 100,
+      "default": 800
+    },
+    {
+      "type": "select",
+      "id": "heading_transform",
+      "label": "Heading text transform",
+      "default": "none",
+      "options": [
+        { "value": "none", "label": "None" },
+        { "value": "uppercase", "label": "Uppercase" },
+        { "value": "capitalize", "label": "Capitalize" }
+      ]
+    },
+    {
+      "type": "range",
+      "id": "heading_size",
+      "label": "Main heading size",
+      "min": 44,
+      "max": 110,
+      "step": 2,
+      "unit": "px",
+      "default": 78
+    },
+    {
+      "type": "range",
+      "id": "mobile_heading_size",
+      "label": "Mobile main heading size",
+      "min": 30,
+      "max": 58,
+      "step": 1,
+      "unit": "px",
+      "default": 42
+    },
+    {
+      "type": "range",
+      "id": "kicker_size",
+      "label": "Subheading size",
+      "min": 10,
+      "max": 22,
+      "step": 1,
+      "unit": "px",
+      "default": 15
+    },
+    {
+      "type": "range",
+      "id": "body_size",
+      "label": "Body size",
+      "min": 13,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 18
+    },
+    {
+      "type": "font_picker",
+      "id": "card_heading_font",
+      "label": "Card title font",
+      "default": "helvetica_n4"
+    },
+    {
+      "type": "range",
+      "id": "card_title_weight",
+      "label": "Card title weight",
+      "min": 400,
+      "max": 900,
+      "step": 100,
+      "default": 800
+    },
+    {
+      "type": "range",
+      "id": "card_title_size",
+      "label": "Card title size",
+      "min": 16,
+      "max": 34,
+      "step": 1,
+      "unit": "px",
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "card_text_size",
+      "label": "Card text size",
+      "min": 12,
+      "max": 22,
+      "step": 1,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "range",
+      "id": "content_width",
+      "label": "Content width",
+      "min": 900,
+      "max": 1500,
+      "step": 20,
+      "unit": "px",
+      "default": 1280
+    },
+    {
+      "type": "range",
+      "id": "text_max_width",
+      "label": "Text max width",
+      "min": 300,
+      "max": 1500,
+      "step": 20,
+      "unit": "px",
+      "default": 900
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "label": "Desktop top padding",
+      "min": 40,
+      "max": 180,
+      "step": 4,
+      "unit": "px",
+      "default": 112
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "label": "Desktop bottom padding",
+      "min": 40,
+      "max": 180,
+      "step": 4,
+      "unit": "px",
+      "default": 92
+    },
+    {
+      "type": "range",
+      "id": "mobile_padding_top",
+      "label": "Mobile top padding",
+      "min": 28,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "default": 68
+    },
+    {
+      "type": "range",
+      "id": "mobile_padding_bottom",
+      "label": "Mobile bottom padding",
+      "min": 28,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "default": 56
+    },
+    {
+      "type": "range",
+      "id": "cards_top_spacing",
+      "label": "Cards top spacing",
+      "min": 24,
+      "max": 90,
+      "step": 2,
+      "unit": "px",
+      "default": 44
+    },
+    {
+      "type": "select",
+      "id": "desktop_columns",
+      "label": "Desktop columns",
+      "default": "4",
+      "options": [
+        { "value": "2", "label": "2 columns" },
+        { "value": "3", "label": "3 columns" },
+        { "value": "4", "label": "4 columns" }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "mobile_card_layout",
+      "label": "Mobile card layout",
+      "default": "one-column",
+      "options": [
+        { "value": "one-column", "label": "1 column" },
+        { "value": "two-columns", "label": "2 columns" }
+      ]
+    },
+    {
+      "type": "range",
+      "id": "card_gap",
+      "label": "Card gap",
+      "min": 10,
+      "max": 48,
+      "step": 2,
+      "unit": "px",
+      "default": 32
+    },
+    {
+      "type": "range",
+      "id": "card_min_height",
+      "label": "Card minimum height",
+      "min": 220,
+      "max": 380,
+      "step": 10,
+      "unit": "px",
+      "default": 310
+    },
+    {
+      "type": "range",
+      "id": "card_padding_x",
+      "label": "Card horizontal padding",
+      "min": 16,
+      "max": 54,
+      "step": 2,
+      "unit": "px",
+      "default": 30
+    },
+    {
+      "type": "range",
+      "id": "card_padding_y",
+      "label": "Card vertical padding",
+      "min": 24,
+      "max": 70,
+      "step": 2,
+      "unit": "px",
+      "default": 36
+    },
+    {
+      "type": "range",
+      "id": "card_radius",
+      "label": "Card border radius",
+      "min": 0,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 8
+    },
+    {
+      "type": "range",
+      "id": "icon_size",
+      "label": "Icon size",
+      "min": 48,
+      "max": 116,
+      "step": 2,
+      "unit": "px",
+      "default": 86
+    }
+  ],
+  "blocks": [
+    {
+      "type": "benefit",
+      "name": "Benefit card",
+      "settings": [
+        {
+          "type": "image_picker",
+          "id": "icon_image",
+          "label": "Custom icon image"
+        },
+        {
+          "type": "select",
+          "id": "fallback_icon",
+          "label": "Fallback icon",
+          "default": "marketplace",
+          "options": [
+            { "value": "marketplace", "label": "Creator marketplace" },
+            { "value": "personalization", "label": "Personalization" },
+            { "value": "products", "label": "Premium products" },
+            { "value": "fulfillment", "label": "Worldwide fulfillment" }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "title",
+          "label": "Title",
+          "default": "Creator Marketplace"
+        },
+        {
+          "type": "textarea",
+          "id": "text",
+          "label": "Text",
+          "default": "Launch branded collections, showcase your products, and grow your audience from one centralized platform."
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "CustomHouse benefits",
+      "blocks": [
+        {
+          "type": "benefit",
+          "settings": {
+            "fallback_icon": "marketplace",
+            "title": "Creator Marketplace",
+            "text": "Launch branded collections, showcase your products, and grow your audience from one centralized platform."
+          }
+        },
+        {
+          "type": "benefit",
+          "settings": {
+            "fallback_icon": "personalization",
+            "title": "Professional Personalization",
+            "text": "Offer embroidery, premium printing, and personalized products with an intuitive customization experience."
+          }
+        },
+        {
+          "type": "benefit",
+          "settings": {
+            "fallback_icon": "products",
+            "title": "Premium Products",
+            "text": "Choose from high-quality apparel and accessories carefully selected for creators, brands, and businesses."
+          }
+        },
+        {
+          "type": "benefit",
+          "settings": {
+            "fallback_icon": "fulfillment",
+            "title": "Worldwide Fulfillment",
+            "text": "Reliable production, quality control, and worldwide shipping designed to support growing creator businesses."
+          }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

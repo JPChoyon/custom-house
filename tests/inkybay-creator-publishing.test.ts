@@ -15,15 +15,15 @@ import { inkyBayProductContract } from "../app/services/inkybay/inkybay-product.
 
 process.env.DESIGN_SIGNING_SECRET = "i".repeat(48);
 
-test("saved InkyBay URL extracts a tid from an allowlisted HTTPS host", () => {
+test("saved PitchPrint URL extracts a project ID from an allowlisted HTTPS host", () => {
   assert.deepEqual(
     parseInkyBaySavedDesign({
       savedDesignUrl:
-        "https://customhouse.se/products/shirt?tid=design_12345#ignored",
-      allowedHosts: ["customhouse.se", "inkybay.com"],
+        "https://pitchprint.com/products/shirt?projectId=design_12345#ignored",
+      allowedHosts: ["customhouse.se", "pitchprint.com"],
     }),
     {
-      savedDesignUrl: "https://customhouse.se/products/shirt?tid=design_12345",
+      savedDesignUrl: "https://pitchprint.com/products/shirt?projectId=design_12345",
       tid: "design_12345",
     },
   );
@@ -171,7 +171,7 @@ test("workspace requires private production artwork and documents manual bridge"
   assert.match(html, /name="productionArtwork"/);
   assert.match(
     html,
-    /manual bridge does not claim an unsupported InkyBay API/i,
+    /manual bridge does not claim an unsupported PitchPrint API/i,
   );
   assert.match(html, /Publish to My Collection/);
   assert.match(html, /X-Customhouse-Session-Token/);
@@ -206,27 +206,35 @@ test("live product section gates the direct creator action through production pr
   assert.match(section, /creatorActionBound/);
   assert.match(section, /shopify:section:load/);
   assert.match(section, /idempotencyKey: sessionKey\(root\)/);
-  assert.match(section, /current_inkybay_enabled == true/);
+  assert.match(section, /current_pitchprint_enabled == true/);
   assert.match(section, /current_creator_publishing_enabled == true/);
-  assert.match(section, /inkybay-designlab/);
-  assert.match(section, /inkybay-options/);
+  assert.match(section, /pitchprint-designlab/);
+  assert.match(section, /pitchprint-options/);
   assert.match(section, /creator_fixed/);
   assert.match(section, /creator-fixed/);
   assert.doesNotMatch(section, /customhouse-inkybay-preview/);
   assert.doesNotMatch(section, /localStorage|customerId|logged_in_customer_id/);
 
-  assert.match(details, /data-inkybay-customize-trigger/);
-  assert.match(details, /if is_inkybay_designer_product/);
-  assert.match(details, /is_creator_fixed_product/);
-  assert.match(details, /customhouse_inkybay_enabled == true/);
-  assert.match(details, /if \(isInkyBayDesignerProduct\)/);
+  assert.doesNotMatch(details, /Customize this product/);
+  assert.doesNotMatch(details, /if is_inkybay_designer_product/);
+  assert.doesNotMatch(details, /isPitchPrintDesignerProduct/);
+  assert.doesNotMatch(details, /findPitchPrintCustomizeButton/);
+  assert.match(details, /data-customhouse-pitchprint-required/);
+  assert.match(details, /form \| payment_button/);
+  assert.match(details, /data-color-option-value/);
+  assert.match(details, /getVariantForOptionValue/);
+  assert.match(details, /syncVariantImage\(selectedVariant\)/);
+  assert.match(details, /premium:gallery:show/);
+  assert.match(details, /option_name_handle contains 'farg'/);
+  assert.doesNotMatch(details, /inkybay\.com\/shopify\/js\/inkybay\.js/);
 });
 
-test("InkyBay product contract supports legacy tags and always excludes creator-fixed", () => {
+test("PitchPrint product contract supports new and legacy tags and always excludes creator-fixed", () => {
   assert.deepEqual(
     inkyBayProductContract({
       productType: "global_customizable",
       inkyBayEnabled: true,
+      pitchPrintEnabled: false,
       creatorPublishingEnabled: true,
       tags: [],
     }),
@@ -240,8 +248,9 @@ test("InkyBay product contract supports legacy tags and always excludes creator-
     inkyBayProductContract({
       productType: null,
       inkyBayEnabled: false,
+      pitchPrintEnabled: true,
       creatorPublishingEnabled: true,
-      tags: ["inkybay-designlab"],
+      tags: [],
     }).isGlobalCustomizable,
     true,
   );
@@ -249,8 +258,9 @@ test("InkyBay product contract supports legacy tags and always excludes creator-
     inkyBayProductContract({
       productType: null,
       inkyBayEnabled: false,
+      pitchPrintEnabled: false,
       creatorPublishingEnabled: false,
-      tags: ["inkybay-options"],
+      tags: ["pitchprint-options"],
     }).creatorPublishingEnabled,
     false,
   );
@@ -258,8 +268,9 @@ test("InkyBay product contract supports legacy tags and always excludes creator-
     inkyBayProductContract({
       productType: "creator_fixed",
       inkyBayEnabled: true,
+      pitchPrintEnabled: true,
       creatorPublishingEnabled: true,
-      tags: ["inkybay-designlab"],
+      tags: ["pitchprint-designlab"],
     }).isGlobalCustomizable,
     false,
   );
@@ -267,8 +278,9 @@ test("InkyBay product contract supports legacy tags and always excludes creator-
     inkyBayProductContract({
       productType: "global_customizable",
       inkyBayEnabled: true,
+      pitchPrintEnabled: true,
       creatorPublishingEnabled: true,
-      tags: ["creator-fixed", "inkybay-options"],
+      tags: ["creator-fixed", "pitchprint-options"],
     }).isGlobalCustomizable,
     false,
   );

@@ -1,2 +1,11 @@
-{% if product.metafields.customhouse.product_origin.value == 'creator' and product.metafields.customhouse.design_mode.value == 'buy_only' %}<div class="customhouse-card"><form method="post" action="{{ routes.cart_add_url }}"><label class="customhouse-field">Variant<select name="id">{% for variant in product.variants %}<option value="{{ variant.id }}"{% unless variant.available %} disabled{% endunless %}>{{ variant.title | escape }} — {{ variant.price | money }}</option>{% endfor %}</select></label><label class="customhouse-field">Quantity<input type="number" name="quantity" min="1" value="1"></label><button type="submit">{{ block.settings.button }}</button></form></div>{% endif %}
+{% liquid
+  assign product_origin = product.metafields.customhouse.product_origin.value | downcase
+  assign design_mode = product.metafields.customhouse.design_mode.value | downcase
+  assign design_status = product.metafields.customhouse.design_status.value | downcase
+  assign is_creator_locked_product = false
+  if product_origin == 'creator' and design_mode == 'buy_only' and design_status == 'published'
+    assign is_creator_locked_product = true
+  endif
+%}
+{% if is_creator_locked_product %}<div class="customhouse-card"><form method="post" action="{{ routes.cart_add_url }}"><label class="customhouse-field">Variant<select name="id">{% for variant in product.variants %}<option value="{{ variant.id }}"{% unless variant.available %} disabled{% endunless %}>{{ variant.title | escape }} - {{ variant.price | money }}</option>{% endfor %}</select></label><label class="customhouse-field">Quantity<input type="number" name="quantity" min="1" value="1"></label><button type="submit">{{ block.settings.button }}</button></form></div>{% endif %}
 {% schema %}{"name":"Buy-only Product Form","target":"section","settings":[{"type":"text","id":"button","label":"Button","default":"Add to cart"}]}{% endschema %}

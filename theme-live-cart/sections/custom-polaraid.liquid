@@ -1,0 +1,1135 @@
+{%- liquid
+  assign section_id = 'InspiredPolaroidGallery-' | append: section.id
+  assign desktop_bg = section.settings.background_image
+  assign mobile_bg = section.settings.mobile_background_image
+  assign fill_content_width = true
+  if section.settings.fill_content_width == false
+    assign fill_content_width = false
+  endif
+  assign desktop_columns = section.blocks.size
+  if desktop_columns == 0
+    assign desktop_columns = 1
+  endif
+  if desktop_columns > 4
+    assign desktop_columns = 4
+  endif
+  assign tablet_columns = desktop_columns
+  if tablet_columns > 2
+    assign tablet_columns = 2
+  endif
+-%}
+
+{%- style -%}
+  {{ section.settings.heading_font | font_face: font_display: 'swap' }}
+  {{ section.settings.subheading_font | font_face: font_display: 'swap' }}
+  {{ section.settings.caption_font | font_face: font_display: 'swap' }}
+
+  #{{ section_id }} {
+    --ipg-page-width: {{ section.settings.page_width }}px;
+    --ipg-padding-top: {{ section.settings.padding_top }}px;
+    --ipg-padding-bottom: {{ section.settings.padding_bottom }}px;
+    --ipg-mobile-padding-top: {{ section.settings.mobile_padding_top }}px;
+    --ipg-mobile-padding-bottom: {{ section.settings.mobile_padding_bottom }}px;
+    --ipg-bg-color: {{ section.settings.background_color }};
+    --ipg-overlay-color: {{ section.settings.overlay_color }};
+    --ipg-overlay-opacity: {{ section.settings.overlay_opacity | divided_by: 100.0 }};
+    --ipg-grain-opacity: {{ section.settings.grain_opacity | divided_by: 100.0 }};
+    --ipg-paint-opacity: {{ section.settings.paint_opacity | divided_by: 100.0 }};
+    --ipg-left-paint: {{ section.settings.left_paint_color }};
+    --ipg-right-paint: {{ section.settings.right_paint_color }};
+    --ipg-heading-color: {{ section.settings.heading_color }};
+    --ipg-subheading-color: {{ section.settings.subheading_color }};
+    --ipg-line-color: {{ section.settings.line_color }};
+    --ipg-accent-color: {{ section.settings.accent_color }};
+    --ipg-card-bg: {{ section.settings.card_background }};
+    --ipg-card-border: {{ section.settings.card_border_color }};
+    --ipg-card-shadow-opacity: {{ section.settings.card_shadow_opacity | divided_by: 100.0 }};
+    --ipg-caption-color: {{ section.settings.caption_color }};
+    --ipg-photo-fit: {{ section.settings.image_fit }};
+    --ipg-image-ratio: {{ section.settings.image_ratio }};
+    --ipg-card-width: {{ section.settings.card_width }}px;
+    --ipg-card-gap: {{ section.settings.card_gap }}px;
+    --ipg-desktop-columns: {{ desktop_columns }};
+    --ipg-tablet-columns: {{ tablet_columns }};
+    --ipg-mobile-columns: {{ section.settings.mobile_columns }};
+    --ipg-heading-font-family: {{ section.settings.heading_font.family }}, {{ section.settings.heading_font.fallback_families }};
+    --ipg-heading-font-weight: {{ section.settings.heading_weight }};
+    --ipg-heading-font-style: {{ section.settings.heading_font.style }};
+    --ipg-subheading-font-family: {{ section.settings.subheading_font.family }}, {{ section.settings.subheading_font.fallback_families }};
+    --ipg-subheading-font-weight: {{ section.settings.subheading_weight }};
+    --ipg-subheading-font-style: {{ section.settings.subheading_font.style }};
+    --ipg-caption-font-family: {{ section.settings.caption_font.family }}, {{ section.settings.caption_font.fallback_families }};
+    --ipg-caption-font-weight: {{ section.settings.caption_weight }};
+    --ipg-caption-font-style: {{ section.settings.caption_font.style }};
+  }
+
+  #{{ section_id }} .inspired-polaroid-gallery {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    width: 100%;
+    max-width: none;
+    padding: var(--ipg-padding-top) 20px var(--ipg-padding-bottom);
+    color: var(--ipg-heading-color);
+    background-color: var(--ipg-bg-color);
+    {%- if desktop_bg != blank -%}
+      background-image: url({{ desktop_bg | image_url: width: 2400 }});
+      background-size: cover;
+      background-position: {{ section.settings.background_position }};
+      background-repeat: no-repeat;
+    {%- else -%}
+      background-image:
+        radial-gradient(circle at 7% 48%, rgba(196, 83, 55, 0.44), transparent 18%),
+        radial-gradient(circle at 94% 55%, rgba(188, 190, 206, 0.34), transparent 20%),
+        radial-gradient(circle at 16% 72%, rgba(41, 119, 154, 0.34), transparent 19%),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.09), transparent 12%, transparent 88%, rgba(255, 255, 255, 0.08)),
+        linear-gradient(180deg, #161a23 0%, #0d1119 48%, #161922 100%);
+      background-size: cover;
+      background-position: center;
+    {%- endif -%}
+  }
+
+  #{{ section_id }} .inspired-polaroid-gallery::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    background:
+      repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.16) 0 1px, transparent 1px 7px),
+      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.09) 0 1px, transparent 1px 11px),
+      radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.16), transparent 30%);
+    mix-blend-mode: screen;
+    opacity: var(--ipg-grain-opacity);
+    pointer-events: none;
+  }
+
+  #{{ section_id }} .inspired-polaroid-gallery::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+      linear-gradient(90deg, color-mix(in srgb, var(--ipg-left-paint) {{ section.settings.paint_opacity }}%, transparent), transparent 24%, transparent 76%, color-mix(in srgb, var(--ipg-right-paint) {{ section.settings.paint_opacity }}%, transparent)),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 18%, transparent 82%, rgba(0, 0, 0, 0.22));
+    opacity: 1;
+    pointer-events: none;
+  }
+
+  #{{ section_id }} .inspired-polaroid-gallery__overlay {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--ipg-overlay-color);
+    opacity: var(--ipg-overlay-opacity);
+    pointer-events: none;
+  }
+
+  #{{ section_id }} .inspired-polaroid-gallery__inner {
+    position: relative;
+    width: 100%;
+    max-width: var(--ipg-page-width);
+    margin: 0 auto;
+  }
+
+  #{{ section_id }} .inspired-polaroid-gallery__header {
+    width: min(100%, {{ section.settings.header_width }}px);
+    margin: 0 auto {{ section.settings.header_spacing }}px;
+    text-align: center;
+  }
+
+  #{{ section_id }} .inspired-polaroid-gallery__heading-row {
+    display: grid;
+    grid-template-columns: minmax(24px, 1fr) auto minmax(24px, 1fr);
+    align-items: center;
+    gap: 16px;
+    margin: 0 auto;
+  }
+
+  #{{ section_id }} .inspired-polaroid-gallery__heading-row::before,
+  #{{ section_id }} .inspired-polaroid-gallery__heading-row::after {
+    content: "";
+    height: {{ section.settings.line_thickness }}px;
+    background: var(--ipg-line-color);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.22);
+    opacity: {{ section.settings.line_opacity | divided_by: 100.0 }};
+  }
+
+  #{{ section_id }} .inspired-polaroid-gallery__title-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  #{{ section_id }} .inspired-polaroid-gallery__title {
+    margin: 0;
+    color: var(--ipg-heading-color);
+    font-family: var(--ipg-heading-font-family);
+    font-size: clamp({{ section.settings.mobile_heading_size }}px, 4vw, {{ section.settings.heading_size }}px);
+    font-style: var(--ipg-heading-font-style);
+    font-weight: var(--ipg-heading-font-weight);
+    letter-spacing: {{ section.settings.heading_letter_spacing }}px;
+    line-height: 0.95;
+    text-transform: {{ section.settings.heading_transform }};
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.22);
+  }
+
+  #{{ section_id }} .inspired-polaroid-gallery__accent {
+    position: relative;
+    display: {% if section.settings.show_accent %}inline-grid{% else %}none{% endif %};
+    width: 28px;
+    height: 26px;
+    flex: 0 0 auto;
+  }
+
+  #{{ section_id }} .inspired-polaroid-gallery__accent::before,
+  #{{ section_id }} .inspired-polaroid-gallery__accent::after {
+    content: "";
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: var(--ipg-accent-color);
+    transform: rotate(45deg);
+    border-radius: 1px;
+  }
+
+  #{{ section_id }} .inspired-polaroid-gallery__accent::before {
+    top: 0;
+    left: 0;
+  }
+
+  #{{ section_id }} .inspired-polaroid-gallery__accent::after {
+    right: 2px;
+    bottom: 1px;
+  }
+
+  #{{ section_id }} .inspired-polaroid-gallery__subtitle {
+    margin: {{ section.settings.subheading_top_spacing }}px 0 0;
+    color: var(--ipg-subheading-color);
+    font-family: var(--ipg-subheading-font-family);
+    font-size: clamp({{ section.settings.mobile_subheading_size }}px, 2vw, {{ section.settings.subheading_size }}px);
+    font-style: var(--ipg-subheading-font-style);
+    font-weight: var(--ipg-subheading-font-weight);
+    letter-spacing: 0;
+    line-height: 1.2;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.24);
+  }
+
+  #{{ section_id }} .inspired-polaroid-gallery__grid {
+    display: {% if fill_content_width %}grid{% else %}flex{% endif %};
+    {% if fill_content_width %}
+      grid-template-columns: repeat(var(--ipg-desktop-columns), minmax(0, 1fr));
+    {% else %}
+      flex-wrap: wrap;
+    {% endif %}
+    align-items: flex-start;
+    justify-content: center;
+    gap: var(--ipg-card-gap);
+    width: 100%;
+    max-width: var(--ipg-page-width);
+    margin: 0;
+    margin-inline: auto;
+    padding: 0;
+    list-style: none;
+  }
+
+  #{{ section_id }} .inspired-polaroid-gallery__item {
+    {% if fill_content_width %}
+      width: 100%;
+    {% else %}
+      flex: 0 0 min(100%, var(--ipg-card-width));
+      width: var(--ipg-card-width);
+      max-width: 100%;
+    {% endif %}
+    min-width: 0;
+    transform: rotate(var(--ipg-rotate));
+    transform-origin: center center;
+    transition: transform 180ms ease, z-index 180ms ease;
+  }
+
+  #{{ section_id }} .inspired-polaroid-gallery__item:hover {
+    z-index: 2;
+    transform: translateY(-5px) rotate(calc(var(--ipg-rotate) * 0.55));
+  }
+
+  #{{ section_id }} .inspired-polaroid-gallery__card {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    padding: {{ section.settings.card_padding }}px {{ section.settings.card_padding }}px {{ section.settings.caption_area_height }}px;
+    color: inherit;
+    text-decoration: none;
+    background: var(--ipg-card-bg);
+    border: {{ section.settings.card_border_width }}px solid var(--ipg-card-border);
+    box-shadow:
+      0 16px 24px rgba(0, 0, 0, calc(var(--ipg-card-shadow-opacity) * 0.6)),
+      0 2px 0 rgba(255, 255, 255, 0.28) inset;
+    overflow: hidden;
+  }
+
+  #{{ section_id }} .inspired-polaroid-gallery__image-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: var(--ipg-image-ratio);
+    overflow: hidden;
+    background: rgba(12, 14, 18, 0.12);
+  }
+
+  #{{ section_id }} .inspired-polaroid-gallery__image,
+  #{{ section_id }} .inspired-polaroid-gallery__placeholder {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: var(--ipg-photo-fit);
+  }
+
+  #{{ section_id }} .inspired-polaroid-gallery__placeholder {
+    background: #d9d9d9;
+    fill: rgba(0, 0, 0, 0.22);
+  }
+
+  #{{ section_id }} .inspired-polaroid-gallery__caption {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: {{ section.settings.caption_area_height | minus: 8 }}px;
+    margin: 8px 0 -{{ section.settings.caption_area_height | minus: 36 }}px;
+    color: var(--ipg-caption-color);
+    font-family: var(--ipg-caption-font-family);
+    font-size: clamp({{ section.settings.mobile_caption_size }}px, 2.4vw, {{ section.settings.caption_size }}px);
+    font-style: var(--ipg-caption-font-style);
+    font-weight: var(--ipg-caption-font-weight);
+    letter-spacing: 0;
+    line-height: 1;
+    text-align: center;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.2);
+    transform: rotate({{ section.settings.caption_rotation }}deg);
+    word-break: break-word;
+  }
+
+  @media screen and (max-width: 989px) {
+    {% if fill_content_width %}
+      #{{ section_id }} .inspired-polaroid-gallery__grid {
+        grid-template-columns: repeat(var(--ipg-tablet-columns), minmax(0, 1fr));
+      }
+    {% else %}
+      #{{ section_id }} .inspired-polaroid-gallery__item {
+        flex-basis: min(var(--ipg-card-width), calc((100% - var(--ipg-card-gap)) / 2));
+        width: min(var(--ipg-card-width), calc((100% - var(--ipg-card-gap)) / 2));
+      }
+    {% endif %}
+  }
+
+  @media screen and (max-width: 749px) {
+    #{{ section_id }} .inspired-polaroid-gallery {
+      padding: var(--ipg-mobile-padding-top) 14px var(--ipg-mobile-padding-bottom);
+      {%- if mobile_bg != blank -%}
+        background-image: url({{ mobile_bg | image_url: width: 1100 }});
+        background-size: cover;
+        background-position: {{ section.settings.mobile_background_position }};
+      {%- endif -%}
+    }
+
+    #{{ section_id }} .inspired-polaroid-gallery__header {
+      margin-bottom: {{ section.settings.mobile_header_spacing }}px;
+    }
+
+    #{{ section_id }} .inspired-polaroid-gallery__heading-row {
+      grid-template-columns: minmax(18px, 1fr) auto minmax(18px, 1fr);
+      gap: 10px;
+    }
+
+    #{{ section_id }} .inspired-polaroid-gallery__title-wrap {
+      gap: 8px;
+      max-width: 100%;
+    }
+
+    #{{ section_id }} .inspired-polaroid-gallery__title {
+      max-width: 72vw;
+    }
+
+    #{{ section_id }} .inspired-polaroid-gallery__accent {
+      width: 20px;
+      height: 19px;
+    }
+
+    #{{ section_id }} .inspired-polaroid-gallery__accent::before,
+    #{{ section_id }} .inspired-polaroid-gallery__accent::after {
+      width: 9px;
+      height: 9px;
+    }
+
+    #{{ section_id }} .inspired-polaroid-gallery__grid {
+      display: grid;
+      grid-template-columns: repeat(var(--ipg-mobile-columns), minmax(0, 1fr));
+      gap: {{ section.settings.mobile_card_gap }}px;
+      align-items: start;
+    }
+
+    #{{ section_id }} .inspired-polaroid-gallery__item {
+      width: 100%;
+      max-width: 100%;
+      transform: rotate(var(--ipg-mobile-rotate));
+    }
+
+    #{{ section_id }} .inspired-polaroid-gallery__item:hover {
+      transform: translateY(-3px) rotate(calc(var(--ipg-mobile-rotate) * 0.45));
+    }
+
+    #{{ section_id }} .inspired-polaroid-gallery__card {
+      padding: {{ section.settings.mobile_card_padding }}px {{ section.settings.mobile_card_padding }}px {{ section.settings.mobile_caption_area_height }}px;
+    }
+
+    #{{ section_id }} .inspired-polaroid-gallery__caption {
+      min-height: {{ section.settings.mobile_caption_area_height | minus: 6 }}px;
+      margin: 7px 0 -{{ section.settings.mobile_caption_area_height | minus: 30 }}px;
+    }
+  }
+
+  @supports not (color: color-mix(in srgb, #000 50%, transparent)) {
+    #{{ section_id }} .inspired-polaroid-gallery::after {
+      background:
+        linear-gradient(90deg, rgba(160, 70, 48, var(--ipg-paint-opacity)), transparent 24%, transparent 76%, rgba(210, 210, 220, var(--ipg-paint-opacity))),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 18%, transparent 82%, rgba(0, 0, 0, 0.22));
+    }
+  }
+{%- endstyle -%}
+
+<section id="{{ section_id }}" class="shopify-section-inspired-polaroid-gallery">
+  <div class="inspired-polaroid-gallery">
+    <div class="inspired-polaroid-gallery__overlay"></div>
+
+    <div class="inspired-polaroid-gallery__inner">
+      {%- if section.settings.heading != blank or section.settings.subheading != blank -%}
+        <div class="inspired-polaroid-gallery__header">
+          {%- if section.settings.heading != blank -%}
+            <div class="inspired-polaroid-gallery__heading-row">
+              <div class="inspired-polaroid-gallery__title-wrap">
+                <h2 class="inspired-polaroid-gallery__title">{{ section.settings.heading | escape }}</h2>
+                <span class="inspired-polaroid-gallery__accent" aria-hidden="true"></span>
+              </div>
+            </div>
+          {%- endif -%}
+
+          {%- if section.settings.subheading != blank -%}
+            <p class="inspired-polaroid-gallery__subtitle">{{ section.settings.subheading | escape }}</p>
+          {%- endif -%}
+        </div>
+      {%- endif -%}
+
+      <ul class="inspired-polaroid-gallery__grid" role="list">
+        {%- for block in section.blocks -%}
+          {%- liquid
+            assign image_alt = block.settings.alt_text | default: block.settings.caption | escape
+            assign loading = 'lazy'
+            if forloop.first
+              assign loading = 'eager'
+            endif
+          -%}
+          <li
+            class="inspired-polaroid-gallery__item"
+            style="--ipg-rotate: {{ block.settings.rotation }}deg; --ipg-mobile-rotate: {{ block.settings.mobile_rotation }}deg;"
+            {{ block.shopify_attributes }}
+          >
+            {%- if block.settings.link != blank -%}
+              <a class="inspired-polaroid-gallery__card" href="{{ block.settings.link }}">
+            {%- else -%}
+              <div class="inspired-polaroid-gallery__card">
+            {%- endif -%}
+
+              <div class="inspired-polaroid-gallery__image-wrap">
+                {%- if block.settings.image != blank -%}
+                  {{
+                    block.settings.image
+                    | image_url: width: 900
+                    | image_tag:
+                      class: 'inspired-polaroid-gallery__image',
+                      loading: loading,
+                      widths: '220, 320, 440, 600, 760, 900',
+                      sizes: '(max-width: 749px) 48vw, (max-width: 989px) 30vw, 260px',
+                      alt: image_alt
+                  }}
+                {%- else -%}
+                  {{ 'image' | placeholder_svg_tag: 'inspired-polaroid-gallery__placeholder' }}
+                {%- endif -%}
+              </div>
+
+              {%- if block.settings.caption != blank -%}
+                <div class="inspired-polaroid-gallery__caption">{{ block.settings.caption | escape }}</div>
+              {%- endif -%}
+
+            {%- if block.settings.link != blank -%}
+              </a>
+            {%- else -%}
+              </div>
+            {%- endif -%}
+          </li>
+        {%- endfor -%}
+      </ul>
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "Inspired polaroid gallery",
+  "tag": "section",
+  "class": "section-inspired-polaroid-gallery",
+  "max_blocks": 8,
+  "settings": [
+    {
+      "type": "header",
+      "content": "Content"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "BLI INSPIRERAD"
+    },
+    {
+      "type": "text",
+      "id": "subheading",
+      "label": "Subheading",
+      "default": "Kolla in v\u00e5ra kunders grymma skapelser!"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_accent",
+      "label": "Show green diamond accent",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Background"
+    },
+    {
+      "type": "image_picker",
+      "id": "background_image",
+      "label": "Desktop background image"
+    },
+    {
+      "type": "image_picker",
+      "id": "mobile_background_image",
+      "label": "Mobile background image"
+    },
+    {
+      "type": "select",
+      "id": "background_position",
+      "label": "Desktop background position",
+      "default": "center center",
+      "options": [
+        { "value": "center center", "label": "Center" },
+        { "value": "top center", "label": "Top" },
+        { "value": "bottom center", "label": "Bottom" },
+        { "value": "left center", "label": "Left" },
+        { "value": "right center", "label": "Right" }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "mobile_background_position",
+      "label": "Mobile background position",
+      "default": "center center",
+      "options": [
+        { "value": "center center", "label": "Center" },
+        { "value": "top center", "label": "Top" },
+        { "value": "bottom center", "label": "Bottom" },
+        { "value": "left center", "label": "Left" },
+        { "value": "right center", "label": "Right" }
+      ]
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Fallback background color",
+      "default": "#111620"
+    },
+    {
+      "type": "color",
+      "id": "overlay_color",
+      "label": "Overlay color",
+      "default": "#000000"
+    },
+    {
+      "type": "range",
+      "id": "overlay_opacity",
+      "label": "Overlay opacity",
+      "min": 0,
+      "max": 80,
+      "step": 5,
+      "unit": "%",
+      "default": 10
+    },
+    {
+      "type": "range",
+      "id": "grain_opacity",
+      "label": "Grunge texture opacity",
+      "min": 0,
+      "max": 80,
+      "step": 5,
+      "unit": "%",
+      "default": 35
+    },
+    {
+      "type": "range",
+      "id": "paint_opacity",
+      "label": "Side paint opacity",
+      "min": 0,
+      "max": 70,
+      "step": 5,
+      "unit": "%",
+      "default": 35
+    },
+    {
+      "type": "color",
+      "id": "left_paint_color",
+      "label": "Left paint color",
+      "default": "#b54e37"
+    },
+    {
+      "type": "color",
+      "id": "right_paint_color",
+      "label": "Right paint color",
+      "default": "#d7d7df"
+    },
+    {
+      "type": "header",
+      "content": "Typography"
+    },
+    {
+      "type": "font_picker",
+      "id": "heading_font",
+      "label": "Heading font",
+      "default": "assistant_n4"
+    },
+    {
+      "type": "font_picker",
+      "id": "subheading_font",
+      "label": "Subheading font",
+      "default": "assistant_n4"
+    },
+    {
+      "type": "font_picker",
+      "id": "caption_font",
+      "label": "Caption font",
+      "default": "assistant_n4"
+    },
+    {
+      "type": "select",
+      "id": "heading_weight",
+      "label": "Heading weight",
+      "default": "800",
+      "options": [
+        { "value": "400", "label": "Regular" },
+        { "value": "500", "label": "Medium" },
+        { "value": "600", "label": "Semi bold" },
+        { "value": "700", "label": "Bold" },
+        { "value": "800", "label": "Extra bold" },
+        { "value": "900", "label": "Black" }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "subheading_weight",
+      "label": "Subheading weight",
+      "default": "700",
+      "options": [
+        { "value": "400", "label": "Regular" },
+        { "value": "500", "label": "Medium" },
+        { "value": "600", "label": "Semi bold" },
+        { "value": "700", "label": "Bold" },
+        { "value": "800", "label": "Extra bold" },
+        { "value": "900", "label": "Black" }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "caption_weight",
+      "label": "Caption weight",
+      "default": "700",
+      "options": [
+        { "value": "400", "label": "Regular" },
+        { "value": "500", "label": "Medium" },
+        { "value": "600", "label": "Semi bold" },
+        { "value": "700", "label": "Bold" },
+        { "value": "800", "label": "Extra bold" },
+        { "value": "900", "label": "Black" }
+      ]
+    },
+    {
+      "type": "range",
+      "id": "heading_size",
+      "label": "Desktop heading size",
+      "min": 24,
+      "max": 72,
+      "step": 1,
+      "unit": "px",
+      "default": 42
+    },
+    {
+      "type": "range",
+      "id": "mobile_heading_size",
+      "label": "Mobile heading size",
+      "min": 18,
+      "max": 44,
+      "step": 1,
+      "unit": "px",
+      "default": 28
+    },
+    {
+      "type": "select",
+      "id": "heading_transform",
+      "label": "Heading text transform",
+      "default": "uppercase",
+      "options": [
+        { "value": "none", "label": "None" },
+        { "value": "uppercase", "label": "Uppercase" },
+        { "value": "capitalize", "label": "Capitalize" }
+      ]
+    },
+    {
+      "type": "range",
+      "id": "heading_letter_spacing",
+      "label": "Heading letter spacing",
+      "min": 0,
+      "max": 4,
+      "step": 0.5,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "subheading_size",
+      "label": "Desktop subheading size",
+      "min": 12,
+      "max": 34,
+      "step": 1,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "mobile_subheading_size",
+      "label": "Mobile subheading size",
+      "min": 11,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 15
+    },
+    {
+      "type": "range",
+      "id": "caption_size",
+      "label": "Desktop caption size",
+      "min": 14,
+      "max": 40,
+      "step": 1,
+      "unit": "px",
+      "default": 27
+    },
+    {
+      "type": "range",
+      "id": "mobile_caption_size",
+      "label": "Mobile caption size",
+      "min": 12,
+      "max": 28,
+      "step": 1,
+      "unit": "px",
+      "default": 18
+    },
+    {
+      "type": "range",
+      "id": "caption_rotation",
+      "label": "Caption handwriting tilt",
+      "min": -6,
+      "max": 6,
+      "step": 1,
+      "unit": "deg",
+      "default": -2
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "heading_color",
+      "label": "Heading color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "subheading_color",
+      "label": "Subheading color",
+      "default": "#f4f4f4"
+    },
+    {
+      "type": "color",
+      "id": "line_color",
+      "label": "Heading line color",
+      "default": "#f7f7f7"
+    },
+    {
+      "type": "range",
+      "id": "line_opacity",
+      "label": "Heading line opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 80
+    },
+    {
+      "type": "range",
+      "id": "line_thickness",
+      "label": "Heading line thickness",
+      "min": 1,
+      "max": 6,
+      "step": 1,
+      "unit": "px",
+      "default": 2
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Accent diamond color",
+      "default": "#b8e200"
+    },
+    {
+      "type": "color",
+      "id": "card_background",
+      "label": "Polaroid paper color",
+      "default": "#f4f3ed"
+    },
+    {
+      "type": "color",
+      "id": "card_border_color",
+      "label": "Polaroid border color",
+      "default": "#dfded7"
+    },
+    {
+      "type": "color",
+      "id": "caption_color",
+      "label": "Caption color",
+      "default": "#191919"
+    },
+    {
+      "type": "range",
+      "id": "card_shadow_opacity",
+      "label": "Card shadow opacity",
+      "min": 0,
+      "max": 80,
+      "step": 5,
+      "unit": "%",
+      "default": 30
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "range",
+      "id": "page_width",
+      "label": "Content max width",
+      "min": 900,
+      "max": 1600,
+      "step": 20,
+      "unit": "px",
+      "default": 1120
+    },
+    {
+      "type": "checkbox",
+      "id": "fill_content_width",
+      "label": "Resize polaroids with content width",
+      "info": "Turn this on when you want the content width slider to visibly resize the full gallery row. Turn it off to use the fixed desktop card width instead.",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "header_width",
+      "label": "Header max width",
+      "min": 500,
+      "max": 1300,
+      "step": 20,
+      "unit": "px",
+      "default": 920
+    },
+    {
+      "type": "range",
+      "id": "header_spacing",
+      "label": "Desktop space below header",
+      "min": 10,
+      "max": 70,
+      "step": 1,
+      "unit": "px",
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "mobile_header_spacing",
+      "label": "Mobile space below header",
+      "min": 10,
+      "max": 60,
+      "step": 1,
+      "unit": "px",
+      "default": 22
+    },
+    {
+      "type": "range",
+      "id": "subheading_top_spacing",
+      "label": "Space above subheading",
+      "min": 0,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 8
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "label": "Desktop top padding",
+      "min": 0,
+      "max": 120,
+      "step": 2,
+      "unit": "px",
+      "default": 42
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "label": "Desktop bottom padding",
+      "min": 0,
+      "max": 120,
+      "step": 2,
+      "unit": "px",
+      "default": 38
+    },
+    {
+      "type": "range",
+      "id": "mobile_padding_top",
+      "label": "Mobile top padding",
+      "min": 0,
+      "max": 100,
+      "step": 2,
+      "unit": "px",
+      "default": 34
+    },
+    {
+      "type": "range",
+      "id": "mobile_padding_bottom",
+      "label": "Mobile bottom padding",
+      "min": 0,
+      "max": 100,
+      "step": 2,
+      "unit": "px",
+      "default": 36
+    },
+    {
+      "type": "header",
+      "content": "Polaroids"
+    },
+    {
+      "type": "range",
+      "id": "card_width",
+      "label": "Desktop card width",
+      "min": 160,
+      "max": 340,
+      "step": 5,
+      "unit": "px",
+      "default": 235
+    },
+    {
+      "type": "range",
+      "id": "card_gap",
+      "label": "Desktop card gap",
+      "min": 0,
+      "max": 60,
+      "step": 2,
+      "unit": "px",
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "mobile_card_gap",
+      "label": "Mobile card gap",
+      "min": 8,
+      "max": 34,
+      "step": 1,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "select",
+      "id": "mobile_columns",
+      "label": "Mobile columns",
+      "default": "2",
+      "options": [
+        { "value": "1", "label": "1 column" },
+        { "value": "2", "label": "2 columns" }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "image_ratio",
+      "label": "Photo ratio",
+      "default": "1 / 0.88",
+      "options": [
+        { "value": "1 / 1", "label": "Square" },
+        { "value": "1 / 0.88", "label": "Polaroid landscape" },
+        { "value": "4 / 3", "label": "Landscape" },
+        { "value": "3 / 4", "label": "Portrait" }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "image_fit",
+      "label": "Photo fit",
+      "default": "cover",
+      "options": [
+        { "value": "cover", "label": "Cover" },
+        { "value": "contain", "label": "Contain" }
+      ]
+    },
+    {
+      "type": "range",
+      "id": "card_padding",
+      "label": "Desktop paper padding",
+      "min": 6,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "mobile_card_padding",
+      "label": "Mobile paper padding",
+      "min": 5,
+      "max": 18,
+      "step": 1,
+      "unit": "px",
+      "default": 9
+    },
+    {
+      "type": "range",
+      "id": "caption_area_height",
+      "label": "Desktop caption area height",
+      "min": 38,
+      "max": 90,
+      "step": 1,
+      "unit": "px",
+      "default": 55
+    },
+    {
+      "type": "range",
+      "id": "mobile_caption_area_height",
+      "label": "Mobile caption area height",
+      "min": 32,
+      "max": 74,
+      "step": 1,
+      "unit": "px",
+      "default": 44
+    },
+    {
+      "type": "range",
+      "id": "card_border_width",
+      "label": "Paper border width",
+      "min": 0,
+      "max": 8,
+      "step": 1,
+      "unit": "px",
+      "default": 1
+    }
+  ],
+  "blocks": [
+    {
+      "type": "photo",
+      "name": "Polaroid",
+      "settings": [
+        {
+          "type": "image_picker",
+          "id": "image",
+          "label": "Image"
+        },
+        {
+          "type": "text",
+          "id": "caption",
+          "label": "Caption",
+          "default": "Street Vibes"
+        },
+        {
+          "type": "text",
+          "id": "alt_text",
+          "label": "Image alt text"
+        },
+        {
+          "type": "url",
+          "id": "link",
+          "label": "Optional link"
+        },
+        {
+          "type": "range",
+          "id": "rotation",
+          "label": "Desktop rotation",
+          "min": -10,
+          "max": 10,
+          "step": 1,
+          "unit": "deg",
+          "default": -1
+        },
+        {
+          "type": "range",
+          "id": "mobile_rotation",
+          "label": "Mobile rotation",
+          "min": -8,
+          "max": 8,
+          "step": 1,
+          "unit": "deg",
+          "default": -1
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Inspired polaroid gallery",
+      "blocks": [
+        {
+          "type": "photo",
+          "settings": {
+            "caption": "Street Vibes",
+            "rotation": 1,
+            "mobile_rotation": -1
+          }
+        },
+        {
+          "type": "photo",
+          "settings": {
+            "caption": "Summer Feels",
+            "rotation": -3,
+            "mobile_rotation": 2
+          }
+        },
+        {
+          "type": "photo",
+          "settings": {
+            "caption": "Squad Goals",
+            "rotation": 0,
+            "mobile_rotation": -2
+          }
+        },
+        {
+          "type": "photo",
+          "settings": {
+            "caption": "Retro Style",
+            "rotation": -1,
+            "mobile_rotation": 1
+          }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

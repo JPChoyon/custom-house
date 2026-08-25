@@ -1,0 +1,1328 @@
+{% liquid
+  assign section_id = 'customhouse-cart-' | append: section.id
+  assign container_width = section.settings.container_width | default: 1440
+  assign top_padding = section.settings.top_padding | default: 56
+  assign bottom_padding = section.settings.bottom_padding | default: 72
+  assign continue_link = section.settings.continue_shopping_link | default: routes.all_products_collection_url
+%}
+
+{% capture cart_page_more_blocks_content %}
+  <div class="cart-page__more-blocks">
+    {%- content_for 'blocks' -%}
+  </div>
+{% endcapture %}
+
+<style>
+  #{{ section_id }} {
+    --customhouse-cart-bg: #0F0F11;
+    --customhouse-cart-card: #18181B;
+    --customhouse-cart-card-soft: color-mix(in srgb, var(--customhouse-cart-card) 86%, #050506);
+    --customhouse-cart-text: #FFFFFF;
+    --customhouse-cart-muted: #B8B8B8;
+    --customhouse-cart-accent: #C8FF16;
+    --customhouse-cart-border: #7B3FF2;
+    --customhouse-cart-border-soft: rgba(123, 63, 242, 0.55);
+    --customhouse-cart-button: #C8FF16;
+    --customhouse-cart-container: {{ container_width }}px;
+    --customhouse-cart-top-padding: {{ top_padding }}px;
+    --customhouse-cart-bottom-padding: {{ bottom_padding }}px;
+    --customhouse-cart-radius: {{ section.settings.card_radius }}px;
+    --customhouse-cart-texture-opacity: {{ section.settings.texture_opacity | divided_by: 100.0 }};
+    --customhouse-cart-graffiti-opacity: {{ section.settings.graffiti_opacity | divided_by: 100.0 }};
+    --customhouse-cart-body-font: Inter, Arial, sans-serif;
+  }
+
+  #{{ section_id }},
+  #{{ section_id }} * {
+    box-sizing: border-box;
+  }
+
+  #{{ section_id }}.customhouse-cart {
+    position: relative;
+    isolation: isolate;
+    overflow: visible;
+    width: 100%;
+    margin: 0;
+    padding-block: var(--customhouse-cart-top-padding) var(--customhouse-cart-bottom-padding);
+    color: var(--customhouse-cart-text) !important;
+    font-family: var(--customhouse-cart-body-font);
+    background:
+      linear-gradient(180deg, rgba(8, 8, 10, 0.96), rgba(8, 8, 10, 0.98)),
+      var(--customhouse-cart-bg) !important;
+    background-color: var(--customhouse-cart-bg) !important;
+  }
+
+  #{{ section_id }}.customhouse-cart :where(p, span, div, a, button, label, li, h1, h2, h3, small, strong, s) {
+    font-family: var(--customhouse-cart-body-font);
+  }
+
+  #{{ section_id }}.customhouse-cart :where(p, span, div, li, label, small, strong) {
+    color: inherit;
+  }
+
+  #{{ section_id }}.customhouse-cart::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -4;
+    opacity: var(--customhouse-cart-texture-opacity);
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 300 300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.76' numOctaves='5' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='table' tableValues='.02 .12'/%3E%3CfeFuncG type='table' tableValues='.02 .12'/%3E%3CfeFuncB type='table' tableValues='.025 .13'/%3E%3CfeFuncA type='table' tableValues='.20 .64'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E"),
+      repeating-linear-gradient(90deg, rgba(255,255,255,.028) 0 1px, transparent 1px 7px);
+    background-position: center, center;
+    background-size: 260px 260px, 8px 100%;
+    pointer-events: none;
+  }
+
+  #{{ section_id }}.customhouse-cart::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -3;
+    background:
+      linear-gradient(180deg, rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0) 34%, rgba(0, 0, 0, 0.12)),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.62), transparent 24%, transparent 76%, rgba(0, 0, 0, 0.6));
+    pointer-events: none;
+  }
+
+  #{{ section_id }} .customhouse-cart__graffiti {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  #{{ section_id }} .customhouse-cart__graffiti::before,
+  #{{ section_id }} .customhouse-cart__graffiti::after {
+    content: "";
+    position: absolute;
+    width: clamp(190px, 18vw, 300px);
+    aspect-ratio: 2.15;
+    background-color: var(--customhouse-cart-border);
+    opacity: var(--customhouse-cart-graffiti-opacity);
+    filter: drop-shadow(0 18px 0 color-mix(in srgb, var(--customhouse-cart-border) 18%, transparent));
+    mask-image: url("data:image/svg+xml,%3Csvg width='460' height='220' viewBox='0 0 460 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='black' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 119C54 51 83 164 119 70c27-71 43 103 81 14 30-71 43 103 84 6 29-71 51 92 95 16 25-43 47-55 73-20' stroke-width='18'/%3E%3Cpath d='M30 77c34 24 70 34 116 8 52-30 94-18 135 9 60 39 104 29 158-9' stroke-width='10'/%3E%3Cpath d='M45 141c46-20 77-20 113 0 42 23 92 24 141-3 44-24 80-22 123 8' stroke-width='13'/%3E%3Cpath d='M73 37l-26 145M143 55l-21 134M226 34l-27 154M310 51l-23 132M388 58l-34 132' stroke-width='7'/%3E%3Cpath d='M64 164v42M124 154v38M196 168v29M282 154v48M351 160v32M410 149v58' stroke-width='8'/%3E%3C/g%3E%3C/svg%3E");
+    mask-position: center;
+    mask-repeat: no-repeat;
+    mask-size: contain;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg width='460' height='220' viewBox='0 0 460 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='black' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 119C54 51 83 164 119 70c27-71 43 103 81 14 30-71 43 103 84 6 29-71 51 92 95 16 25-43 47-55 73-20' stroke-width='18'/%3E%3Cpath d='M30 77c34 24 70 34 116 8 52-30 94-18 135 9 60 39 104 29 158-9' stroke-width='10'/%3E%3Cpath d='M45 141c46-20 77-20 113 0 42 23 92 24 141-3 44-24 80-22 123 8' stroke-width='13'/%3E%3Cpath d='M73 37l-26 145M143 55l-21 134M226 34l-27 154M310 51l-23 132M388 58l-34 132' stroke-width='7'/%3E%3Cpath d='M64 164v42M124 154v38M196 168v29M282 154v48M351 160v32M410 149v58' stroke-width='8'/%3E%3C/g%3E%3C/svg%3E");
+    -webkit-mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+  }
+
+  #{{ section_id }} .customhouse-cart__graffiti::before {
+    top: 18px;
+    left: -42px;
+    transform: rotate(-8deg);
+  }
+
+  #{{ section_id }} .customhouse-cart__graffiti::after {
+    right: -52px;
+    bottom: 18px;
+    transform: rotate(-8deg);
+  }
+
+  #{{ section_id }} .customhouse-cart__container {
+    position: relative;
+    z-index: 1;
+    width: min(100% - 48px, var(--customhouse-cart-container));
+    margin-inline: auto;
+  }
+
+  #{{ section_id }} .customhouse-cart__title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+
+  #{{ section_id }} .customhouse-cart__title-group {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+  }
+
+  #{{ section_id }} .customhouse-cart__heading {
+    margin: 0;
+    color: var(--customhouse-cart-text) !important;
+    font-family: Impact, "Arial Black", sans-serif;
+    font-size: clamp(42px, 5vw, 74px);
+    font-weight: 900;
+    line-height: 0.96;
+    letter-spacing: 0;
+    text-transform: uppercase;
+    text-shadow:
+      0 4px 0 rgba(255, 255, 255, 0.08),
+      0 14px 34px rgba(0, 0, 0, 0.68);
+  }
+
+  #{{ section_id }} .customhouse-cart__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 42px;
+    min-height: 42px;
+    padding: 9px 13px;
+    color: #0f0f11;
+    font-size: 14px;
+    font-weight: 900;
+    line-height: 1;
+    border-radius: 999px;
+    background: var(--customhouse-cart-accent);
+    box-shadow: 0 0 22px color-mix(in srgb, var(--customhouse-cart-accent) 42%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-cart__continue,
+  #{{ section_id }} .customhouse-cart__empty-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 46px;
+    padding: 12px 18px;
+    color: var(--customhouse-cart-text) !important;
+    font-family: var(--customhouse-cart-body-font);
+    font-size: 13px;
+    font-weight: 900;
+    line-height: 1.15;
+    letter-spacing: 0.08em;
+    text-align: center;
+    text-decoration: none;
+    text-transform: uppercase;
+    border: 1px solid var(--customhouse-cart-border-soft);
+    border-radius: 999px;
+    background: #121214 !important;
+    box-shadow:
+      0 14px 34px rgba(0, 0, 0, 0.3),
+      0 0 20px color-mix(in srgb, var(--customhouse-cart-border) 18%, transparent);
+    transition:
+      transform 220ms ease,
+      border-color 220ms ease,
+      color 220ms ease,
+      box-shadow 220ms ease,
+      background-color 220ms ease;
+  }
+
+  #{{ section_id }} .customhouse-cart__continue:hover,
+  #{{ section_id }} .customhouse-cart__continue:focus-visible,
+  #{{ section_id }} .customhouse-cart__empty-button:hover,
+  #{{ section_id }} .customhouse-cart__empty-button:focus-visible {
+    transform: translateY(-2px);
+    color: var(--customhouse-cart-accent) !important;
+    border-color: var(--customhouse-cart-accent);
+    box-shadow:
+      0 18px 40px rgba(0, 0, 0, 0.38),
+      0 0 28px color-mix(in srgb, var(--customhouse-cart-accent) 24%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-cart__form {
+    margin: 0;
+  }
+
+  #{{ section_id }} .customhouse-cart__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 65fr) minmax(320px, 35fr);
+    gap: clamp(32px, 3vw, 40px);
+    align-items: start;
+  }
+
+  #{{ section_id }} .customhouse-cart__card {
+    color: var(--customhouse-cart-text) !important;
+    border: 1px solid var(--customhouse-cart-border-soft);
+    border-radius: var(--customhouse-cart-radius);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.026), rgba(0, 0, 0, 0.12)),
+      var(--customhouse-cart-card) !important;
+    background-color: var(--customhouse-cart-card) !important;
+    box-shadow:
+      0 26px 70px rgba(0, 0, 0, 0.48),
+      0 0 0 1px rgba(255, 255, 255, 0.025) inset,
+      0 0 28px rgba(123, 63, 242, 0.16);
+  }
+
+  #{{ section_id }} .customhouse-cart__items-card {
+    min-width: 0;
+    padding: clamp(20px, 2.5vw, 34px);
+  }
+
+  #{{ section_id }} .customhouse-cart__summary {
+    position: sticky;
+    top: 100px;
+    align-self: start;
+    max-height: calc(100vh - 120px);
+    overflow: auto;
+    padding: clamp(24px, 2.6vw, 36px);
+  }
+
+  #{{ section_id }} .customhouse-cart__items-list {
+    display: grid;
+    gap: 18px;
+  }
+
+  #{{ section_id }} .customhouse-cart__item {
+    display: grid;
+    grid-template-columns: minmax(104px, 128px) minmax(0, 1fr) minmax(150px, 0.28fr);
+    gap: 22px;
+    align-items: center;
+    padding: 0 0 18px;
+    border-bottom: 1px solid color-mix(in srgb, var(--customhouse-cart-border) 28%, rgba(255, 255, 255, 0.12));
+  }
+
+  #{{ section_id }} .customhouse-cart__item:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  #{{ section_id }} .customhouse-cart__media-link,
+  #{{ section_id }} .customhouse-cart__media-placeholder {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border: 1px solid rgba(123, 63, 242, 0.42);
+    border-radius: calc(var(--customhouse-cart-radius) - 8px);
+    background: #070708 !important;
+    box-shadow:
+      0 18px 38px rgba(0, 0, 0, 0.32),
+      0 0 0 1px rgba(255, 255, 255, 0.025) inset;
+  }
+
+  #{{ section_id }} .customhouse-cart__image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  #{{ section_id }} .customhouse-cart__product {
+    min-width: 0;
+  }
+
+  #{{ section_id }} .customhouse-cart__product-title {
+    display: inline-block;
+    margin: 0;
+    color: var(--customhouse-cart-text) !important;
+    font-size: clamp(17px, 1.35vw, 21px);
+    font-weight: 900;
+    line-height: 1.22;
+    text-decoration: none;
+    text-wrap: balance;
+    transition: color 180ms ease, text-shadow 180ms ease;
+  }
+
+  #{{ section_id }} .customhouse-cart__product-title:hover,
+  #{{ section_id }} .customhouse-cart__product-title:focus-visible {
+    color: var(--customhouse-cart-accent) !important;
+    text-shadow: 0 0 12px color-mix(in srgb, var(--customhouse-cart-accent) 28%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-cart__meta,
+  #{{ section_id }} .customhouse-cart__properties,
+  #{{ section_id }} .customhouse-cart__discounts {
+    display: grid;
+    gap: 6px;
+    margin: 10px 0 0;
+    padding: 0;
+    color: var(--customhouse-cart-muted) !important;
+    font-size: 13px;
+    line-height: 1.5;
+    list-style: none;
+  }
+
+  #{{ section_id }} .customhouse-cart__meta-item,
+  #{{ section_id }} .customhouse-cart__property,
+  #{{ section_id }} .customhouse-cart__discount {
+    overflow-wrap: anywhere;
+  }
+
+  #{{ section_id }} .customhouse-cart__property-name {
+    color: color-mix(in srgb, var(--customhouse-cart-text) 82%, transparent) !important;
+    font-weight: 800;
+  }
+
+  #{{ section_id }} .customhouse-cart__properties a {
+    color: var(--customhouse-cart-accent) !important;
+    font-weight: 800;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+  }
+
+  #{{ section_id }} .customhouse-cart__discount {
+    color: color-mix(in srgb, var(--customhouse-cart-accent) 86%, #ffffff) !important;
+    font-weight: 800;
+  }
+
+  #{{ section_id }} .customhouse-cart__actions {
+    display: grid;
+    justify-items: end;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  #{{ section_id }} .customhouse-cart__price-stack {
+    display: grid;
+    gap: 5px;
+    justify-items: end;
+    color: var(--customhouse-cart-text) !important;
+    font-weight: 900;
+    line-height: 1.2;
+    text-align: right;
+  }
+
+  #{{ section_id }} .customhouse-cart__compare-price {
+    color: color-mix(in srgb, var(--customhouse-cart-muted) 82%, transparent) !important;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: line-through;
+  }
+
+  #{{ section_id }} .customhouse-cart__quantity {
+    display: grid;
+    grid-template-columns: 42px minmax(42px, auto) 42px;
+    align-items: center;
+    min-height: 44px;
+    overflow: hidden;
+    color: var(--customhouse-cart-text) !important;
+    border: 1px solid rgba(123, 63, 242, 0.52);
+    border-radius: 999px;
+    background: #101012 !important;
+    box-shadow:
+      0 10px 24px rgba(0, 0, 0, 0.25),
+      0 0 16px color-mix(in srgb, var(--customhouse-cart-border) 14%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-cart__quantity-button,
+  #{{ section_id }} .customhouse-cart__quantity-value {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    color: var(--customhouse-cart-text) !important;
+    font-family: var(--customhouse-cart-body-font);
+    font-size: 15px;
+    font-weight: 900;
+    line-height: 1;
+    text-align: center;
+    text-decoration: none;
+  }
+
+  #{{ section_id }} .customhouse-cart__quantity-button {
+    color: var(--customhouse-cart-accent) !important;
+    transition:
+      background-color 180ms ease,
+      color 180ms ease;
+  }
+
+  #{{ section_id }} .customhouse-cart__quantity-button:hover,
+  #{{ section_id }} .customhouse-cart__quantity-button:focus-visible {
+    color: #0f0f11 !important;
+    background: var(--customhouse-cart-accent) !important;
+  }
+
+  #{{ section_id }} .customhouse-cart__remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    color: color-mix(in srgb, var(--customhouse-cart-text) 76%, transparent) !important;
+    text-decoration: none;
+    border: 1px solid rgba(123, 63, 242, 0.42);
+    border-radius: 999px;
+    background: #101012 !important;
+    transition:
+      color 180ms ease,
+      border-color 180ms ease,
+      transform 180ms ease,
+      box-shadow 180ms ease;
+  }
+
+  #{{ section_id }} .customhouse-cart__remove:hover,
+  #{{ section_id }} .customhouse-cart__remove:focus-visible {
+    color: var(--customhouse-cart-accent) !important;
+    border-color: var(--customhouse-cart-accent);
+    transform: translateY(-1px);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--customhouse-cart-accent) 22%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-cart__remove-icon {
+    width: 17px;
+    height: 17px;
+    pointer-events: none;
+  }
+
+  #{{ section_id }} .customhouse-cart__summary-heading {
+    margin: 0 0 20px;
+    color: var(--customhouse-cart-text) !important;
+    font-size: clamp(22px, 2vw, 30px);
+    font-weight: 900;
+    line-height: 1.12;
+    letter-spacing: 0;
+  }
+
+  #{{ section_id }} .customhouse-cart__summary-rows {
+    display: grid;
+    gap: 13px;
+    margin-bottom: 18px;
+  }
+
+  #{{ section_id }} .customhouse-cart__summary-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 18px;
+    min-height: 42px;
+    padding: 13px 0;
+    color: var(--customhouse-cart-muted) !important;
+    font-size: 14px;
+    line-height: 1.35;
+    border-bottom: 1px solid color-mix(in srgb, var(--customhouse-cart-border) 26%, rgba(255, 255, 255, 0.12));
+  }
+
+  #{{ section_id }} .customhouse-cart__summary-row--total {
+    color: var(--customhouse-cart-text) !important;
+    font-size: 16px;
+    font-weight: 900;
+  }
+
+  #{{ section_id }} .customhouse-cart__summary-value {
+    color: var(--customhouse-cart-text) !important;
+    font-weight: 900;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  #{{ section_id }} .customhouse-cart__summary-value--discount {
+    color: var(--customhouse-cart-accent) !important;
+  }
+
+  #{{ section_id }} .customhouse-cart__summary-note {
+    margin: 0 0 18px;
+    color: var(--customhouse-cart-muted) !important;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  #{{ section_id }} .customhouse-cart__checkout {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 56px;
+    margin: 4px 0 0;
+    padding: 15px 22px;
+    color: #0f0f11 !important;
+    font-family: var(--customhouse-cart-body-font);
+    font-size: 14px;
+    font-weight: 900;
+    line-height: 1.15;
+    letter-spacing: 0.08em;
+    text-align: center;
+    text-transform: uppercase;
+    border: 1px solid var(--customhouse-cart-button);
+    border-radius: 999px;
+    background: var(--customhouse-cart-button) !important;
+    box-shadow:
+      0 18px 36px rgba(0, 0, 0, 0.34),
+      0 0 26px color-mix(in srgb, var(--customhouse-cart-button) 36%, transparent);
+    cursor: pointer;
+    transition:
+      transform 220ms ease,
+      box-shadow 220ms ease,
+      background-color 220ms ease;
+  }
+
+  #{{ section_id }} .customhouse-cart__checkout:hover,
+  #{{ section_id }} .customhouse-cart__checkout:focus-visible {
+    transform: translateY(-2px);
+    background: color-mix(in srgb, var(--customhouse-cart-button) 86%, #ffffff) !important;
+    box-shadow:
+      0 22px 44px rgba(0, 0, 0, 0.4),
+      0 0 34px color-mix(in srgb, var(--customhouse-cart-button) 44%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-cart__additional-checkout {
+    margin-top: 12px;
+  }
+
+  #{{ section_id }} .customhouse-cart__additional-checkout .shopify-cleanslate {
+    color: initial;
+  }
+
+  #{{ section_id }} .customhouse-cart__additional-checkout,
+  #{{ section_id }} .customhouse-cart__additional-checkout * {
+    color: revert;
+    font-family: revert;
+  }
+
+  #{{ section_id }} .customhouse-cart__trust-list {
+    display: grid;
+    gap: 10px;
+    margin: 20px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  #{{ section_id }} .customhouse-cart__trust-item {
+    position: relative;
+    padding-left: 18px;
+    color: color-mix(in srgb, var(--customhouse-cart-text) 82%, transparent) !important;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.35;
+  }
+
+  #{{ section_id }} .customhouse-cart__trust-item::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.48em;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--customhouse-cart-accent);
+    box-shadow: 0 0 13px color-mix(in srgb, var(--customhouse-cart-accent) 58%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-cart__empty-card {
+    max-width: 820px;
+    margin-inline: auto;
+    padding: clamp(30px, 5vw, 64px);
+    text-align: center;
+  }
+
+  #{{ section_id }} .customhouse-cart__empty-card .customhouse-cart__title-group {
+    justify-content: center;
+  }
+
+  #{{ section_id }} .customhouse-cart__empty-text {
+    max-width: 560px;
+    margin: 18px auto 28px;
+    color: var(--customhouse-cart-muted) !important;
+    font-size: clamp(15px, 1.2vw, 17px);
+    line-height: 1.65;
+  }
+
+  #{{ section_id }} a:focus-visible,
+  #{{ section_id }} button:focus-visible {
+    outline: 2px solid var(--customhouse-cart-accent);
+    outline-offset: 4px;
+  }
+
+  @media screen and (max-width: 989px) {
+    #{{ section_id }} .customhouse-cart__layout {
+      grid-template-columns: 1fr;
+    }
+
+    #{{ section_id }} .customhouse-cart__summary {
+      position: static;
+      max-height: none;
+      overflow: visible;
+    }
+  }
+
+  @media screen and (max-width: 749px) {
+    #{{ section_id }}.customhouse-cart {
+      padding-block: max(36px, calc(var(--customhouse-cart-top-padding) * 0.72)) max(44px, calc(var(--customhouse-cart-bottom-padding) * 0.72));
+    }
+
+    #{{ section_id }} .customhouse-cart__container {
+      width: min(100% - 32px, var(--customhouse-cart-container));
+    }
+
+    #{{ section_id }} .customhouse-cart__title-row {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    #{{ section_id }} .customhouse-cart__title-group {
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+    }
+
+    #{{ section_id }} .customhouse-cart__heading {
+      font-size: clamp(36px, 13vw, 52px);
+      overflow-wrap: anywhere;
+    }
+
+    #{{ section_id }} .customhouse-cart__continue,
+    #{{ section_id }} .customhouse-cart__empty-button {
+      width: 100%;
+    }
+
+    #{{ section_id }} .customhouse-cart__items-card,
+    #{{ section_id }} .customhouse-cart__summary {
+      padding: 18px;
+      border-radius: min(var(--customhouse-cart-radius), 18px);
+    }
+
+    #{{ section_id }} .customhouse-cart__item {
+      grid-template-columns: 92px minmax(0, 1fr);
+      grid-template-areas:
+        "media product"
+        "media actions";
+      gap: 12px 14px;
+      align-items: start;
+      width: 100%;
+      padding-bottom: 16px;
+    }
+
+    #{{ section_id }} .customhouse-cart__media {
+      grid-area: media;
+    }
+
+    #{{ section_id }} .customhouse-cart__media-link,
+    #{{ section_id }} .customhouse-cart__media-placeholder {
+      width: 92px;
+      max-width: 100%;
+    }
+
+    #{{ section_id }} .customhouse-cart__product {
+      grid-area: product;
+      align-self: start;
+    }
+
+    #{{ section_id }} .customhouse-cart__product-title {
+      font-size: 16px;
+      line-height: 1.18;
+    }
+
+    #{{ section_id }} .customhouse-cart__meta,
+    #{{ section_id }} .customhouse-cart__properties,
+    #{{ section_id }} .customhouse-cart__discounts {
+      margin-top: 7px;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    #{{ section_id }} .customhouse-cart__actions {
+      grid-area: actions;
+      display: grid;
+      grid-template-columns: minmax(122px, max-content) 38px;
+      align-items: center;
+      justify-content: start;
+      justify-items: start;
+      gap: 9px;
+      width: 100%;
+    }
+
+    #{{ section_id }} .customhouse-cart__price-stack {
+      grid-column: 1 / -1;
+      justify-items: start;
+      text-align: left;
+      gap: 3px;
+      font-size: 14px;
+    }
+
+    #{{ section_id }} .customhouse-cart__quantity {
+      justify-self: start;
+      width: 132px;
+      min-height: 38px;
+      grid-template-columns: 38px 56px 38px;
+    }
+
+    #{{ section_id }} .customhouse-cart__remove {
+      justify-self: start;
+      width: 38px;
+      height: 38px;
+    }
+
+    #{{ section_id }} .customhouse-cart__quantity-button,
+    #{{ section_id }} .customhouse-cart__quantity-value {
+      min-height: 38px;
+      font-size: 14px;
+    }
+
+    #{{ section_id }} .customhouse-cart__summary-row {
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    #{{ section_id }} .customhouse-cart__checkout,
+    #{{ section_id }} .customhouse-cart__additional-checkout,
+    #{{ section_id }} .customhouse-cart__additional-checkout :is(div, iframe, button) {
+      max-width: 100%;
+    }
+
+    #{{ section_id }} .customhouse-cart__graffiti::before {
+      left: -76px;
+      top: 2px;
+    }
+
+    #{{ section_id }} .customhouse-cart__graffiti::after {
+      right: -82px;
+      bottom: 10px;
+    }
+  }
+
+  @media screen and (max-width: 420px) {
+    #{{ section_id }} .customhouse-cart__item {
+      grid-template-columns: 84px minmax(0, 1fr);
+      gap: 11px 13px;
+    }
+
+    #{{ section_id }} .customhouse-cart__media-link,
+    #{{ section_id }} .customhouse-cart__media-placeholder {
+      width: 84px;
+    }
+
+    #{{ section_id }} .customhouse-cart__product-title {
+      font-size: 15px;
+    }
+
+    #{{ section_id }} .customhouse-cart__actions {
+      grid-template-columns: 124px 36px;
+      gap: 8px;
+    }
+
+    #{{ section_id }} .customhouse-cart__quantity {
+      width: 124px;
+      min-height: 36px;
+      grid-template-columns: 36px 52px 36px;
+    }
+
+    #{{ section_id }} .customhouse-cart__remove {
+      width: 36px;
+      height: 36px;
+    }
+
+    #{{ section_id }} .customhouse-cart__quantity-button,
+    #{{ section_id }} .customhouse-cart__quantity-value {
+      min-height: 36px;
+      font-size: 13px;
+    }
+
+    #{{ section_id }} .customhouse-cart__badge {
+      min-width: 36px;
+      min-height: 36px;
+      padding: 8px 11px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #{{ section_id }} .customhouse-cart__continue,
+    #{{ section_id }} .customhouse-cart__empty-button,
+    #{{ section_id }} .customhouse-cart__product-title,
+    #{{ section_id }} .customhouse-cart__quantity-button,
+    #{{ section_id }} .customhouse-cart__remove,
+    #{{ section_id }} .customhouse-cart__checkout {
+      transition: none;
+    }
+
+    #{{ section_id }} .customhouse-cart__continue:hover,
+    #{{ section_id }} .customhouse-cart__empty-button:hover,
+    #{{ section_id }} .customhouse-cart__remove:hover,
+    #{{ section_id }} .customhouse-cart__checkout:hover {
+      transform: none;
+    }
+  }
+</style>
+
+<section id="{{ section_id }}" class="customhouse-cart{% if cart.empty? %} customhouse-cart--empty{% endif %}" aria-labelledby="{{ section_id }}-heading">
+  {% if section.settings.enable_graffiti_accents %}
+    <div class="customhouse-cart__graffiti" aria-hidden="true"></div>
+  {% endif %}
+
+  <div class="customhouse-cart__container">
+    {% if cart.empty? %}
+      <div class="customhouse-cart__empty-card customhouse-cart__card">
+        <div class="customhouse-cart__title-group">
+          <h1 id="{{ section_id }}-heading" class="customhouse-cart__heading">
+            {{ section.settings.cart_heading | escape }}
+          </h1>
+          <span class="customhouse-cart__badge" aria-label="{{ cart.item_count }} items in cart">{{ cart.item_count }}</span>
+        </div>
+
+        {% if section.settings.empty_cart_text != blank %}
+          <p class="customhouse-cart__empty-text">{{ section.settings.empty_cart_text | escape }}</p>
+        {% endif %}
+
+        {% if section.settings.continue_shopping_label != blank %}
+          <a class="customhouse-cart__empty-button" href="{{ continue_link }}">
+            {{ section.settings.continue_shopping_label | escape }}
+          </a>
+        {% endif %}
+      </div>
+    {% else %}
+      <header class="customhouse-cart__title-row">
+        <div class="customhouse-cart__title-group">
+          <h1 id="{{ section_id }}-heading" class="customhouse-cart__heading">
+            {{ section.settings.cart_heading | escape }}
+          </h1>
+          <span class="customhouse-cart__badge" aria-label="{{ cart.item_count }} items in cart">{{ cart.item_count }}</span>
+        </div>
+
+        {% if section.settings.continue_shopping_label != blank %}
+          <a class="customhouse-cart__continue" href="{{ continue_link }}">
+            {{ section.settings.continue_shopping_label | escape }}
+          </a>
+        {% endif %}
+      </header>
+
+      <form class="customhouse-cart__form" action="{{ routes.cart_url }}" method="post" novalidate>
+        <div class="customhouse-cart__layout">
+          <div class="customhouse-cart__items-card customhouse-cart__card" aria-label="Cart items">
+            <div class="customhouse-cart__items-list">
+              {% for item in cart.items %}
+                {% liquid
+                  assign previous_quantity = item.quantity | minus: 1
+                  assign next_quantity = item.quantity | plus: 1
+                  assign line_index = forloop.index
+                  assign image_alt = item.image.alt | default: item.product.title | escape
+                  assign creator_product_id = item.properties['_creator_product_id']
+                  assign creator_preview = item.properties['_creator_preview_url']
+                  assign has_creator_preview = false
+                  assign creator_preview_https = creator_preview | slice: 0, 8
+                  if creator_product_id != blank and creator_preview_https == 'https://'
+                    assign has_creator_preview = true
+                  endif
+
+                  assign pitchprint_preview = item.properties['_pitchprint_preview']
+                  assign has_pitchprint_preview = false
+                  assign pitchprint_preview_https = pitchprint_preview | slice: 0, 8
+                  assign pitchprint_preview_http = pitchprint_preview | slice: 0, 7
+                  if pitchprint_preview_https == 'https://'
+                    assign has_pitchprint_preview = true
+                  elsif pitchprint_preview_http == 'http://'
+                    assign has_pitchprint_preview = true
+                  endif
+                %}
+
+                <article class="customhouse-cart__item">
+                  <div class="customhouse-cart__media">
+                    {% if has_creator_preview %}
+                      {% liquid
+                        assign fallback_image_url = ''
+                        if item.image
+                          assign fallback_image_url = item.image | image_url: width: 300
+                        endif
+                      %}
+                      <a class="customhouse-cart__media-link" href="{{ item.url }}" tabindex="-1" aria-hidden="true">
+                        <img
+                          src="{{ creator_preview | escape }}"
+                          loading="lazy"
+                          class="customhouse-cart__image"
+                          width="300"
+                          height="300"
+                          alt="{{ item.product.title | escape }}"
+                          {% if fallback_image_url != blank %}
+                            onerror="this.onerror=null;this.src='{{ fallback_image_url | escape }}';"
+                          {% endif %}
+                        >
+                      </a>
+                    {% elsif has_pitchprint_preview %}
+                      <a class="customhouse-cart__media-link" href="{{ item.url }}" tabindex="-1" aria-hidden="true">
+                        <img
+                          src="{{ pitchprint_preview | escape }}"
+                          loading="lazy"
+                          class="customhouse-cart__image"
+                          width="300"
+                          height="300"
+                          alt="{{ item.product.title | escape }}"
+                        >
+                      </a>
+                    {% elsif item.image %}
+                      <a class="customhouse-cart__media-link" href="{{ item.url }}" tabindex="-1" aria-hidden="true">
+                        {{ item.image | image_url: width: 300 | image_tag: loading: 'lazy', widths: '120, 180, 240, 300', class: 'customhouse-cart__image', alt: image_alt }}
+                      </a>
+                    {% else %}
+                      <span class="customhouse-cart__media-placeholder" aria-hidden="true"></span>
+                    {% endif %}
+                  </div>
+
+                  <div class="customhouse-cart__product">
+                    <a class="customhouse-cart__product-title" href="{{ item.url }}">
+                      {{ item.product.title | escape }}
+                    </a>
+
+                    {% unless item.product.has_only_default_variant %}
+                      <ul class="customhouse-cart__meta">
+                        {% for option in item.options_with_values %}
+                          <li class="customhouse-cart__meta-item">{{ option.name | escape }}: {{ option.value | escape }}</li>
+                        {% endfor %}
+                      </ul>
+                    {% endunless %}
+
+                    {% liquid
+                      assign has_visible_properties = false
+                      for property in item.properties
+                        assign property_first_char = property.first | slice: 0
+                        if property.last != blank and property_first_char != '_'
+                          assign has_visible_properties = true
+                          break
+                        endif
+                      endfor
+                    %}
+                    {% if has_visible_properties %}
+                      <ul class="customhouse-cart__properties">
+                        {% for property in item.properties %}
+                          {% assign property_first_char = property.first | slice: 0 %}
+                          {% if property.last != blank and property_first_char != '_' %}
+                            <li class="customhouse-cart__property">
+                              <span class="customhouse-cart__property-name">{{ property.first | escape }}:</span>
+                              {% if property.last contains '/uploads/' %}
+                                <a href="{{ property.last }}" target="_blank" rel="noopener">{{ property.last | split: '/' | last }}</a>
+                              {% else %}
+                                {{ property.last | escape }}
+                              {% endif %}
+                            </li>
+                          {% endif %}
+                        {% endfor %}
+                      </ul>
+                    {% endif %}
+
+                    {% if item.line_level_discount_allocations.size > 0 %}
+                      <ul class="customhouse-cart__discounts">
+                        {% for discount_allocation in item.line_level_discount_allocations %}
+                          <li class="customhouse-cart__discount">
+                            {{ discount_allocation.discount_application.title | escape }} (-{{ discount_allocation.amount | money }})
+                          </li>
+                        {% endfor %}
+                      </ul>
+                    {% endif %}
+                  </div>
+
+                  <div class="customhouse-cart__actions">
+                    <div class="customhouse-cart__price-stack">
+                      {% if item.original_line_price > item.final_line_price %}
+                        <span class="customhouse-cart__compare-price">{{ item.original_line_price | money }}</span>
+                      {% endif %}
+                      <span class="customhouse-cart__price">{{ item.final_line_price | money }}</span>
+                    </div>
+
+                    <div class="customhouse-cart__quantity" aria-label="Quantity for {{ item.product.title | escape }}">
+                      <a
+                        class="customhouse-cart__quantity-button"
+                        href="{{ routes.cart_change_url }}?line={{ line_index }}&quantity={{ previous_quantity }}"
+                        aria-label="Decrease quantity for {{ item.product.title | escape }}"
+                      >
+                        -
+                      </a>
+                      <span class="customhouse-cart__quantity-value" aria-live="polite">{{ item.quantity }}</span>
+                      <a
+                        class="customhouse-cart__quantity-button"
+                        href="{{ routes.cart_change_url }}?line={{ line_index }}&quantity={{ next_quantity }}"
+                        aria-label="Increase quantity for {{ item.product.title | escape }}"
+                      >
+                        +
+                      </a>
+                    </div>
+
+                    <a
+                      class="customhouse-cart__remove"
+                      href="{{ item.url_to_remove }}"
+                      aria-label="Remove {{ item.product.title | escape }}"
+                    >
+                      <svg class="customhouse-cart__remove-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                        <path d="M3 6h18"></path>
+                        <path d="M8 6V4h8v2"></path>
+                        <path d="M19 6l-1 14H6L5 6"></path>
+                        <path d="M10 11v5"></path>
+                        <path d="M14 11v5"></path>
+                      </svg>
+                    </a>
+                  </div>
+                </article>
+              {% endfor %}
+            </div>
+          </div>
+
+          <aside class="customhouse-cart__summary customhouse-cart__card" aria-labelledby="{{ section_id }}-summary-heading">
+            {% if section.settings.summary_heading != blank %}
+              <h2 id="{{ section_id }}-summary-heading" class="customhouse-cart__summary-heading">
+                {{ section.settings.summary_heading | escape }}
+              </h2>
+            {% endif %}
+
+            <div class="customhouse-cart__summary-rows">
+              <div class="customhouse-cart__summary-row">
+                <span>{{ section.settings.discount_label | escape }}</span>
+                <span class="customhouse-cart__summary-value customhouse-cart__summary-value--discount">
+                  {% if cart.cart_level_discount_applications.size > 0 %}
+                    {% for discount_application in cart.cart_level_discount_applications %}
+                      -{{ discount_application.total_allocated_amount | money }}{% unless forloop.last %}<br>{% endunless %}
+                    {% endfor %}
+                  {% else %}
+                    {{ 0 | money }}
+                  {% endif %}
+                </span>
+              </div>
+
+              <div class="customhouse-cart__summary-row customhouse-cart__summary-row--total">
+                <span>{{ section.settings.subtotal_label | escape }}</span>
+                <span class="customhouse-cart__summary-value">{{ cart.total_price | money }}</span>
+              </div>
+            </div>
+
+            {% if section.settings.shipping_tax_note != blank %}
+              <p class="customhouse-cart__summary-note">{{ section.settings.shipping_tax_note | escape }}</p>
+            {% endif %}
+
+            <button class="customhouse-cart__checkout" type="submit" name="checkout">
+              {{ section.settings.checkout_label | escape }}
+            </button>
+
+            {% if additional_checkout_buttons %}
+              <div class="customhouse-cart__additional-checkout additional-checkout-buttons">
+                {{ content_for_additional_checkout_buttons }}
+              </div>
+            {% endif %}
+
+            <ul class="customhouse-cart__trust-list" aria-label="Checkout benefits">
+              {% if section.settings.trust_note_1 != blank %}
+                <li class="customhouse-cart__trust-item">{{ section.settings.trust_note_1 | escape }}</li>
+              {% endif %}
+              {% if section.settings.trust_note_2 != blank %}
+                <li class="customhouse-cart__trust-item">{{ section.settings.trust_note_2 | escape }}</li>
+              {% endif %}
+              {% if section.settings.trust_note_3 != blank %}
+                <li class="customhouse-cart__trust-item">{{ section.settings.trust_note_3 | escape }}</li>
+              {% endif %}
+            </ul>
+          </aside>
+        </div>
+      </form>
+    {% endif %}
+  </div>
+</section>
+
+{{ cart_page_more_blocks_content }}
+
+{% schema %}
+{
+  "name": "t:names.cart",
+  "disabled_on": {
+    "groups": ["header", "footer"]
+  },
+  "blocks": [
+    {
+      "type": "@theme"
+    },
+    {
+      "type": "@app"
+    },
+    {
+      "type": "text"
+    },
+    {
+      "type": "icon"
+    },
+    {
+      "type": "image"
+    },
+    {
+      "type": "button"
+    },
+    {
+      "type": "video"
+    },
+    {
+      "type": "group"
+    },
+    {
+      "type": "spacer"
+    }
+  ],
+  "settings": [
+    {
+      "type": "text",
+      "id": "cart_heading",
+      "label": "Cart heading text",
+      "default": "Varukorg"
+    },
+    {
+      "type": "text",
+      "id": "continue_shopping_label",
+      "label": "Continue shopping label",
+      "default": "Fortsätt handla"
+    },
+    {
+      "type": "url",
+      "id": "continue_shopping_link",
+      "label": "Continue shopping link"
+    },
+    {
+      "type": "text",
+      "id": "summary_heading",
+      "label": "Summary heading",
+      "default": "Ordersammanfattning"
+    },
+    {
+      "type": "text",
+      "id": "discount_label",
+      "label": "Discount label",
+      "default": "Rabatt"
+    },
+    {
+      "type": "text",
+      "id": "subtotal_label",
+      "label": "Subtotal label",
+      "default": "Beräknad totalsumma"
+    },
+    {
+      "type": "text",
+      "id": "checkout_label",
+      "label": "Checkout button label",
+      "default": "Betala"
+    },
+    {
+      "type": "textarea",
+      "id": "shipping_tax_note",
+      "label": "Shipping and tax note",
+      "default": "Tullavgifter och skatter ingår. Frakt beräknas i kassan."
+    },
+    {
+      "type": "textarea",
+      "id": "empty_cart_text",
+      "label": "Empty cart text",
+      "default": "Din varukorg är tom. Utforska CustomHouse och bygg något som känns som ditt."
+    },
+    {
+      "type": "text",
+      "id": "trust_note_1",
+      "label": "Trust note 1",
+      "default": "Säker betalning"
+    },
+    {
+      "type": "text",
+      "id": "trust_note_2",
+      "label": "Trust note 2",
+      "default": "Anpassade produkter"
+    },
+    {
+      "type": "text",
+      "id": "trust_note_3",
+      "label": "Trust note 3",
+      "default": "Support inom 24 timmar"
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "range",
+      "id": "container_width",
+      "label": "Container width",
+      "min": 960,
+      "max": 1600,
+      "step": 20,
+      "unit": "px",
+      "default": 1440
+    },
+    {
+      "type": "range",
+      "id": "top_padding",
+      "label": "Top padding",
+      "min": 24,
+      "max": 140,
+      "step": 4,
+      "unit": "px",
+      "default": 56
+    },
+    {
+      "type": "range",
+      "id": "bottom_padding",
+      "label": "Bottom padding",
+      "min": 24,
+      "max": 160,
+      "step": 4,
+      "unit": "px",
+      "default": 72
+    },
+    {
+      "type": "range",
+      "id": "card_radius",
+      "label": "Card radius",
+      "min": 12,
+      "max": 32,
+      "step": 1,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background color",
+      "default": "#0F0F11"
+    },
+    {
+      "type": "color",
+      "id": "card_background_color",
+      "label": "Card background color",
+      "default": "#18181B"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text color",
+      "default": "#FFFFFF"
+    },
+    {
+      "type": "color",
+      "id": "muted_text_color",
+      "label": "Muted text color",
+      "default": "#B8B8B8"
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Accent color",
+      "default": "#C8FF16"
+    },
+    {
+      "type": "color",
+      "id": "border_color",
+      "label": "Border color",
+      "default": "#7B3FF2"
+    },
+    {
+      "type": "color",
+      "id": "button_color",
+      "label": "Button color",
+      "default": "#C8FF16"
+    },
+    {
+      "type": "header",
+      "content": "Background detail"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_graffiti_accents",
+      "label": "Enable graffiti accents",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "texture_opacity",
+      "label": "Concrete texture opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 55
+    },
+    {
+      "type": "range",
+      "id": "graffiti_opacity",
+      "label": "Graffiti opacity",
+      "min": 0,
+      "max": 40,
+      "step": 1,
+      "unit": "%",
+      "default": 18
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,108 @@
+{%- liquid
+  assign product = product_card_product
+  assign current_variant = product.selected_or_first_available_variant
+  assign creator = product.metafields.custom.creator | default: product.metafields.customhouse.creator | default: product.vendor
+  assign badge_label = blank
+  assign tag_list = product.tags | join: ',' | downcase
+
+  if section_settings.show_badge
+    if product.metafields.custom.badge != blank
+      assign badge_label = product.metafields.custom.badge
+    elsif product.metafields.customhouse.badge != blank
+      assign badge_label = product.metafields.customhouse.badge
+    elsif tag_list contains 'best seller'
+      assign badge_label = 'Best Seller'
+    elsif tag_list contains 'limited'
+      assign badge_label = 'Limited'
+    elsif tag_list contains 'new drop'
+      assign badge_label = 'New Drop'
+    endif
+  endif
+
+  assign rating_value = product.metafields.reviews.rating.value.rating | default: product.metafields.custom.rating | default: product.metafields.customhouse.rating | default: 0
+  assign rating_count = product.metafields.reviews.rating_count | default: product.metafields.custom.rating_count | default: product.metafields.customhouse.rating_count
+  assign rating_rounded = rating_value | round
+
+  assign customize_url = product.metafields.custom.customize_url | default: product.metafields.customhouse.customize_url
+  if customize_url == blank and section_settings.customize_base_url != blank
+    assign customize_url = section_settings.customize_base_url | append: '?product=' | append: product.handle
+  endif
+  if customize_url == blank
+    assign customize_url = product.url
+  endif
+-%}
+
+<article class="ch-product-card" data-product-id="{{ product.id }}">
+  <a class="ch-product-card__image-link" href="{{ product.url }}" aria-label="{{ product.title | escape }}">
+    {%- if product.featured_media != blank -%}
+      {{
+        product.featured_media
+        | image_url: width: 900
+        | image_tag:
+          loading: 'lazy',
+          widths: '320, 480, 640, 760, 900',
+          sizes: '(min-width: 1200px) 24vw, (min-width: 750px) 45vw, 92vw',
+          class: 'ch-product-card__image'
+      }}
+    {%- else -%}
+      {{ 'product-1' | placeholder_svg_tag: 'ch-product-card__placeholder' }}
+    {%- endif -%}
+  </a>
+
+  {%- if badge_label != blank -%}
+    <span class="ch-product-card__badge">{{ badge_label | escape }}</span>
+  {%- endif -%}
+
+  {%- if section_settings.show_wishlist -%}
+    <button type="button" class="ch-product-card__wishlist" aria-label="Add {{ product.title | escape }} to wishlist" aria-pressed="false" data-ch-wishlist>
+      <svg viewBox="0 0 24 24" focusable="false"><path d="M12 21.1 4.7 14A6.7 6.7 0 0 1 3 9.5 5.5 5.5 0 0 1 12 5a5.5 5.5 0 0 1 9 4.5 6.7 6.7 0 0 1-1.7 4.5L12 21.1Zm-5.8-8.6 5.8 5.7 5.8-5.7a4.7 4.7 0 0 0 1.2-3A3.5 3.5 0 0 0 12.9 7l-.9 1.2L11.1 7A3.5 3.5 0 0 0 5 9.5c0 1.1.4 2.2 1.2 3Z"/></svg>
+    </button>
+  {%- endif -%}
+
+  <div class="ch-product-card__body">
+    {%- if section_settings.show_creator and creator != blank -%}
+      <p class="ch-product-card__creator">
+        {{ creator | escape }}
+        {% comment %} <span aria-label="Verified creator" title="Verified creator" style="display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin-left: 5px; border-radius: 50%; background: #1da1f2; color: #ffffff; font-size: 12px; font-weight: 700; line-height: 18px; vertical-align: middle; flex: 0 0 18px;">&#10003;</span> {% endcomment %}
+      </p>
+    {%- endif -%}
+
+    <h2 class="ch-product-card__title">
+      <a href="{{ product.url }}">{{ product.title | escape }}</a>
+    </h2>
+
+    <div class="ch-product-card__meta">
+      {%- if section_settings.show_rating -%}
+        <div class="ch-rating" aria-label="{{ rating_value }} out of 5 stars">
+          {%- for index in (1..5) -%}
+            <span class="{% if index <= rating_rounded %}is-filled{% endif %}">&#9733;</span>
+          {%- endfor -%}
+          {%- if rating_count != blank -%}
+            <em>({{ rating_count }})</em>
+          {%- endif -%}
+        </div>
+      {%- endif -%}
+
+      <p class="ch-product-card__price">
+        {%- if product.price_varies -%}
+          {{ product.price_min | money }}+
+        {%- else -%}
+          {{ current_variant.price | money }}
+        {%- endif -%}
+      </p>
+    </div>
+
+    <div class="ch-product-card__actions">
+      {%- if section_settings.show_customize_button -%}
+        <a class="ch-button ch-button--ghost" href="{{ customize_url }}">Customize</a>
+      {%- endif -%}
+
+      {%- if section_settings.show_view_product -%}
+        <a class="ch-button ch-button--dark" href="{{ product.url }}">
+          View Product
+          <span aria-hidden="true">-></span>
+        </a>
+      {%- endif -%}
+    </div>
+  </div>
+</article>

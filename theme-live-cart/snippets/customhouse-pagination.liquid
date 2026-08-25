@@ -1,0 +1,35 @@
+{%- liquid
+  assign current_page = paginate.current_page | append: ''
+-%}
+
+<nav class="ch-pagination" role="navigation" aria-label="Pagination">
+  {%- if paginate.previous -%}
+    <a class="ch-pagination__arrow" href="{{ paginate.previous.url }}" aria-label="Previous page">
+      <svg viewBox="0 0 24 24" focusable="false"><path d="m15.4 5.4 1.4 1.4-5.2 5.2 5.2 5.2-1.4 1.4L8.8 12l6.6-6.6Z"/></svg>
+    </a>
+  {%- else -%}
+    <span class="ch-pagination__arrow is-disabled" aria-disabled="true">
+      <svg viewBox="0 0 24 24" focusable="false"><path d="m15.4 5.4 1.4 1.4-5.2 5.2 5.2 5.2-1.4 1.4L8.8 12l6.6-6.6Z"/></svg>
+    </span>
+  {%- endif -%}
+
+  {%- for part in paginate.parts -%}
+    {%- if part.is_link -%}
+      <a href="{{ part.url }}" class="ch-pagination__item" aria-label="Go to page {{ part.title }}">{{ part.title }}</a>
+    {%- elsif part.title == current_page -%}
+      <span class="ch-pagination__item is-active" aria-current="page">{{ part.title }}</span>
+    {%- else -%}
+      <span class="ch-pagination__item">{{ part.title }}</span>
+    {%- endif -%}
+  {%- endfor -%}
+
+  {%- if paginate.next -%}
+    <a class="ch-pagination__arrow" href="{{ paginate.next.url }}" aria-label="Next page">
+      <svg viewBox="0 0 24 24" focusable="false"><path d="m8.6 18.6-1.4-1.4 5.2-5.2-5.2-5.2 1.4-1.4 6.6 6.6-6.6 6.6Z"/></svg>
+    </a>
+  {%- else -%}
+    <span class="ch-pagination__arrow is-disabled" aria-disabled="true">
+      <svg viewBox="0 0 24 24" focusable="false"><path d="m8.6 18.6-1.4-1.4 5.2-5.2-5.2-5.2 1.4-1.4 6.6 6.6-6.6 6.6Z"/></svg>
+    </span>
+  {%- endif -%}
+</nav>
