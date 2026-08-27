@@ -69,6 +69,52 @@
 
   const getRootProductId = (root) => String(root?.querySelector?.('[data-marked-product-actions]')?.dataset.productId || '').trim();
 
+  const selectedProductionMethod = (root) => {
+    const option = root?.querySelector?.('[data-production-method-option]:checked');
+    return String(option?.value || '').trim();
+  };
+
+  const selectedVariantSelections = (snapshot) => {
+    const variantId = Number(snapshot?.variantId || 0);
+    const quantity = Math.max(1, Number(snapshot?.quantity || 1));
+    return [{ variantId: String(variantId), quantity }];
+  };
+
+  const parseProductionPricing = (root) => {
+    const source = root?.querySelector?.('[data-marked-product-actions]')?.dataset.productionMethodPricing || '';
+    if (!source) return null;
+    try {
+      return JSON.parse(source);
+    } catch {
+      return null;
+    }
+  };
+
+  const formatMinorMoney = (minor, currency) => {
+    const amount = Number(minor || 0) / 100;
+    try {
+      return new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: currency || 'SEK',
+      }).format(amount);
+    } catch {
+      return `${amount.toFixed(2)} ${currency || ''}`.trim();
+    }
+  };
+
+  const updateProductionMethodDisplay = (root) => {
+    const total = root?.querySelector?.('[data-production-method-total]');
+    if (!total) return;
+    const config = parseProductionPricing(root);
+    const method = selectedProductionMethod(root);
+    const methodConfig = config?.methods?.[method];
+    if (!methodConfig) {
+      total.textContent = '';
+      return;
+    }
+    total.textContent = `Printing surcharge: ${formatMinorMoney(methodConfig.surchargeMinor, config.currency)} per item`;
+  };
+
   const captureSnapshotFromRoot = (root, message = 'Variant snapshot', triggerMatched = false) => {
     const form = root?.querySelector?.(formSelector);
     const variantInput = form?.querySelector?.('input[name="id"]');
@@ -88,7 +134,14 @@
       return null;
     }
 
-    state.snapshot = { root, form, variantId, quantity, productId: getRootProductId(root) };
+    const productionMethod = selectedProductionMethod(root);
+    if (!productionMethod) {
+      warn('Missing production method');
+      setStatus(root, 'Please choose a printing method before customizing.', true);
+      return null;
+    }
+
+    state.snapshot = { root, form, variantId, quantity, productId: getRootProductId(root), productionMethod };
     log(message, detail);
     setStatus(root, '', false);
     return state.snapshot;
@@ -148,24 +201,6 @@
     return;
   }
 
-  const properties = {
-    _pitchprint: projectId,
-  };
-
-  if (previewUrl) {
-    properties._pitchprint_preview = previewUrl;
-  }
-
-  const payload = {
-    items: [
-      {
-        id: variantId,
-        quantity,
-        properties,
-      },
-    ],
-  };
-
   state.inFlight = true;
 
   log('Cart add started');
@@ -177,6 +212,35 @@
   );
 
   try {
+    const prepareResponse = await fetch(route('/apps/customhouse/api/public-production-cart'), {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        shopifyProductId: snapshot.productId,
+        pitchprintProjectId: projectId,
+        productionMethod: snapshot.productionMethod,
+        selections: selectedVariantSelections(snapshot),
+        previewUrl,
+      }),
+    });
+    const prepared = await prepareResponse.json().catch(() => ({}));
+    if (!prepareResponse.ok || !prepared?.data?.items) {
+      throw new Error(
+        prepared?.error?.message ||
+        prepared?.message ||
+        'Production pricing could not be prepared.'
+      );
+    }
+    const payload = {
+      items: prepared.data.items,
+    };
+    if (!payload.items.some((item) => item?.properties?._customhouse_fee_key)) {
+      throw new Error('Production fee line is missing.');
+    }
     await new Promise((resolve, reject) => {
       const request = new XMLHttpRequest();
 
@@ -371,6 +435,15 @@
       requestAnimationFrame(ensurePitchPrintListener);
     }
   }, true);
+
+  document.addEventListener('change', (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    const root = target?.closest?.('[data-production-method-option]')?.closest?.(rootSelector);
+    if (!root) return;
+    updateProductionMethodDisplay(root);
+  });
+
+  document.querySelectorAll(rootSelector).forEach(updateProductionMethodDisplay);
 
   log('Initialized');
   ensurePitchPrintListener();

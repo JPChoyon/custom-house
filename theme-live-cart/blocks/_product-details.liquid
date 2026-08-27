@@ -104,6 +104,7 @@
       class="marked-product-actions"
       data-marked-product-actions
       data-product-variants="{{ product.variants | json | escape }}"
+      data-production-method-pricing="{{ product.metafields.customhouse.production_method_pricing.value | json | escape }}"
       data-size-option-position="{{ size_option_position }}"
       data-color-option-position="{{ color_option_position }}"
       data-product-id="{{ product.id }}"
@@ -203,6 +204,27 @@
           </div>
         </div>
       </div>
+
+      {%- if is_pitchprint_required_product -%}
+        <div class="marked-product-actions__block marked-product-actions__block--production-method" data-production-method-section>
+          <p class="marked-product-actions__label">Printing Method:</p>
+          <div class="marked-product-actions__production-methods" role="radiogroup" aria-label="Printing Method">
+            <label class="marked-product-actions__production-method">
+              <input type="radio" name="productionMethod" value="EMBROIDERY" data-production-method-option checked>
+              <span>Embroidery</span>
+            </label>
+            <label class="marked-product-actions__production-method">
+              <input type="radio" name="productionMethod" value="DTF" data-production-method-option>
+              <span>DTF</span>
+            </label>
+            <label class="marked-product-actions__production-method">
+              <input type="radio" name="productionMethod" value="DTG" data-production-method-option>
+              <span>DTG</span>
+            </label>
+          </div>
+          <p class="marked-product-actions__production-total" data-production-method-total></p>
+        </div>
+      {%- endif -%}
 
       {% form 'product', product, id: product_form_id, class: 'marked-product-form', novalidate: 'novalidate', data-customhouse-pitchprint-form: is_pitchprint_required_product %}
         <input
@@ -383,6 +405,53 @@
 
   #ProductInformation-{{ section.id }} .marked-product-actions__block--color {
     margin-block-end: 18px !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__block--production-method {
+    margin-block-end: 18px !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__production-methods {
+    display: flex !important;
+    width: 100% !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__production-method {
+    display: inline-flex !important;
+    min-height: 42px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 1px solid rgba(145, 42, 255, 0.75) !important;
+    border-radius: 8px !important;
+    padding: 7px 14px !important;
+    background: transparent !important;
+    color: #9d4dff !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    cursor: pointer !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__production-method:has(input:checked) {
+    border-color: #9b36ff !important;
+    background: #7825e8 !important;
+    color: #fff !important;
+    box-shadow: 0 0 0 1px rgba(155, 54, 255, 0.45), 0 8px 18px rgba(120, 37, 232, 0.28) !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__production-method input {
+    position: absolute !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__production-total {
+    margin: 8px 0 0 !important;
+    color: rgba(255, 255, 255, 0.72) !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
   }
 
   #ProductInformation-{{ section.id }} .marked-product-actions__color-header {
