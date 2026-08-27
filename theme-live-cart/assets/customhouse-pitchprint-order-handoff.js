@@ -5,6 +5,7 @@
     propertyHookInstalled: false,
     propertyHookUnavailable: false,
     snapshot: null,
+    config: null,
     inFlight: false,
     handledProjects: new Set(),
   };
@@ -68,6 +69,158 @@
   };
 
   const getRootProductId = (root) => String(root?.querySelector?.('[data-marked-product-actions]')?.dataset.productId || '').trim();
+
+  const METHOD_DETAILS = {
+    EMBROIDERY: {
+      id: 'embroidery',
+      label: 'Embroidery',
+      maxWidthCm: 8,
+      maxHeightCm: 8,
+    },
+    DTF: {
+      id: 'dtf',
+      label: 'DTF printing',
+      maxWidthCm: 35,
+      maxHeightCm: 40,
+    },
+    DTG: {
+      id: 'dtg',
+      label: 'DTG printing',
+      maxWidthCm: 35,
+      maxHeightCm: 40,
+    },
+  };
+
+  const parseJson = (value, fallback = null) => {
+    try {
+      return JSON.parse(value || '');
+    } catch {
+      return fallback;
+    }
+  };
+
+  const normalizeVariantId = (value) => {
+    const text = String(value || '').trim();
+    const match = text.match(/(\d+)$/);
+    return match ? match[1] : text;
+  };
+
+  const optionValues = (actions, position, selector) => {
+    if (!Number.isFinite(position) || position <= 0) return [];
+    const values = Array.from(actions.querySelectorAll(selector))
+      .map((element) => String(element.dataset.colorOptionValue || element.dataset.sizeOptionValue || '').trim())
+      .filter(Boolean);
+    return Array.from(new Set(values));
+  };
+
+  const selectedVariantId = (actions) => {
+    const form = actions?.querySelector?.(formSelector);
+    return String(
+      form?.querySelector?.('input[name="id"]')?.value ||
+      actions?.dataset.initialVariantId ||
+      ''
+    ).trim();
+  };
+
+  const selectedQuantity = (actions) => {
+    const form = actions?.querySelector?.(formSelector);
+    const quantityInput = form?.querySelector?.('input[name="quantity"]') || actions?.querySelector?.('.marked-product-actions__qty-input[name="quantity"]');
+    const quantity = Number(quantityInput?.value || actions?.dataset.initialQuantity || 1);
+    return Number.isFinite(quantity) && quantity > 0 ? Math.floor(quantity) : 1;
+  };
+
+  const normalizeProductionMethods = (pricing) => {
+    const methods = pricing?.productionMethodPricing || {};
+    return Object.keys(METHOD_DETAILS).map((code) => {
+      const detail = METHOD_DETAILS[code];
+      const configured = methods[code] || (Array.isArray(pricing?.productionMethods)
+        ? pricing.productionMethods.find((method) => String(method?.id || '').toUpperCase() === code)
+        : null);
+      const surchargeMinor = Number(configured?.surchargeMinor || 0);
+      return {
+        id: detail.id,
+        label: detail.label,
+        surchargeMinor: Number.isFinite(surchargeMinor) && surchargeMinor > 0 ? Math.round(surchargeMinor) : 0,
+        maxWidthCm: detail.maxWidthCm,
+        maxHeightCm: detail.maxHeightCm,
+      };
+    });
+  };
+
+  const buildProductConfig = (root) => {
+    const actions = root?.querySelector?.('[data-marked-product-actions]');
+    if (!actions || actions.dataset.customhousePitchprintRequired !== 'true') return null;
+
+    const rawPricing = actions.querySelector('[data-customhouse-production-pricing-json]')?.textContent || '';
+    const pricing = parseJson(rawPricing, null);
+    const productionMethods = normalizeProductionMethods(pricing);
+    if (!productionMethods.some((method) => method.surchargeMinor > 0)) return null;
+
+    const variants = parseJson(actions.dataset.productVariants, []).map((variant) => ({
+      id: normalizeVariantId(variant.id),
+      gid: String(variant.admin_graphql_api_id || variant.gid || ''),
+      title: variant.title || '',
+      price: variant.price,
+      priceMinor: Number(variant.price || 0),
+      available: variant.available !== false,
+      options: Array.isArray(variant.options) ? variant.options : [variant.option1, variant.option2, variant.option3].filter(Boolean),
+    }));
+    const sizePosition = Number(actions.dataset.sizeOptionPosition || 0);
+    const colorPosition = Number(actions.dataset.colorOptionPosition || 0);
+
+    return {
+      version: 1,
+      productId: String(actions.dataset.productId || ''),
+      productHandle: String(actions.dataset.productHandle || ''),
+      productTitle: String(actions.dataset.productTitle || ''),
+      currency: String(pricing?.currency || actions.dataset.currency || 'SEK').toUpperCase(),
+      variants,
+      colors: optionValues(actions, colorPosition, '[data-color-option-value]'),
+      sizes: optionValues(actions, sizePosition, '[data-size-option-value]'),
+      selectedColor: String(actions.dataset.selectedColor || ''),
+      selectedSize: String(actions.dataset.selectedSize || ''),
+      initialVariantId: selectedVariantId(actions),
+      initialQuantity: selectedQuantity(actions),
+      productionMethods,
+      productionMethodPricing: Object.fromEntries(
+        productionMethods.map((method) => [
+          method.id,
+          {
+            label: method.label,
+            surchargeMinor: method.surchargeMinor,
+            maxWidthCm: method.maxWidthCm,
+            maxHeightCm: method.maxHeightCm,
+          },
+        ])
+      ),
+    };
+  };
+
+  const refreshPublicConfig = () => {
+    const root = document.querySelector(rootSelector);
+    const config = buildProductConfig(root);
+    if (!config) return null;
+    state.config = config;
+    window.CustomHousePublicPitchPrintConfig = config;
+    log('Public PitchPrint config ready', {
+      productId: config.productId,
+      productionMethods: config.productionMethods.map((method) => ({
+        id: method.id,
+        surchargeMinor: method.surchargeMinor,
+      })),
+    });
+    return config;
+  };
+
+  const respondWithProductConfig = (targetWindow) => {
+    const config = refreshPublicConfig();
+    if (!config || !targetWindow || typeof targetWindow.postMessage !== 'function') return false;
+    targetWindow.postMessage({
+      type: 'CUSTOMHOUSE_PP_ORDER_CONFIG_DATA',
+      payload: config,
+    }, '*');
+    return true;
+  };
 
   const captureSnapshotFromRoot = (root, message = 'Variant snapshot', triggerMatched = false) => {
     const form = root?.querySelector?.(formSelector);
@@ -372,6 +525,19 @@
     }
   }, true);
 
+  window.addEventListener('message', (event) => {
+    const message = event?.data || {};
+    if (message?.type !== 'CUSTOMHOUSE_PP_ORDER_CONFIG_REQUEST') return;
+    respondWithProductConfig(event.source);
+  });
+
+  window.addEventListener('customhouse:pitchprint-order-config-request', (event) => {
+    const detail = event?.detail || {};
+    const targetWindow = detail.contentWindow || detail.source || detail.iframe?.contentWindow || detail.targetWindow || null;
+    respondWithProductConfig(targetWindow);
+  });
+
   log('Initialized');
+  refreshPublicConfig();
   ensurePitchPrintListener();
 })();

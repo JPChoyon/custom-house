@@ -40,6 +40,7 @@
       assign color_option_name = 'Color'
       assign color_option_position = 0
       assign selected_color_value = blank
+      assign production_method_pricing = product.metafields.customhouse.production_method_pricing.value
 
       if product_type == 'creator_fixed' or product.tags contains 'creator-fixed'
         assign is_creator_fixed_product = true
@@ -108,6 +109,12 @@
       data-color-option-position="{{ color_option_position }}"
       data-product-id="{{ product.id }}"
       data-product-handle="{{ product.handle | escape }}"
+      data-product-title="{{ product.title | escape }}"
+      data-currency="{{ cart.currency.iso_code | default: localization.country.currency.iso_code | default: shop.currency | escape }}"
+      data-selected-color="{{ selected_color_value | escape }}"
+      data-selected-size="{{ selected_size_value | escape }}"
+      data-initial-variant-id="{{ selected_variant.id }}"
+      data-initial-quantity="1"
       data-force-allow-purchase="{% if force_allow_purchase %}true{% else %}false{% endif %}"
       {% if is_pitchprint_required_product %}
         data-customhouse-pitchprint-required="true"
@@ -260,6 +267,14 @@
         </div>
       {% endform %}
 
+      {% if is_pitchprint_required_product and production_method_pricing != blank %}
+        <script
+          type="application/json"
+          data-customhouse-production-pricing-json
+        >
+          {{ production_method_pricing | json }}
+        </script>
+      {% endif %}
 
     </div>
 

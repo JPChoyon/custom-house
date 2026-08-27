@@ -660,7 +660,7 @@ test("hidden fee merchandise sync is app managed per public product", () => {
   assert.match(service, /dtgFeeVariantId/);
 });
 
-test("storefront-data contract is backend-owned and PitchPrint-side files are untouched here", () => {
+test("storefront PitchPrint bridge exposes trusted product pricing config", () => {
   const proxyRoute = readFileSync(
     "app/routes/proxy.api.public-production-cart.tsx",
     "utf8",
@@ -674,11 +674,47 @@ test("storefront-data contract is backend-owned and PitchPrint-side files are un
   assert.match(proxyRoute, /proxyContext\(request,\s*false\)/);
   assert.match(proxyRoute, /preparePublicProductionCart/);
   assert.match(proxyRoute, /apiData/);
-  assert.doesNotMatch(productDetails, /data-production-method-section/);
-  assert.doesNotMatch(productDetails, /data-production-method-option/);
-  assert.doesNotMatch(handoff, /public-production-cart/);
+  assert.match(productDetails, /product\.metafields\.customhouse\.production_method_pricing\.value/);
+  assert.match(productDetails, /data-customhouse-production-pricing-json/);
+  assert.match(productDetails, /data-product-variants/);
+  assert.match(productDetails, /data-product-handle/);
+  assert.match(productDetails, /data-selected-color/);
+  assert.match(productDetails, /data-selected-size/);
+  assert.match(productDetails, /data-initial-variant-id/);
+  assert.match(productDetails, /is_pitchprint_required_product and production_method_pricing != blank/);
+  assert.match(handoff, /window\.CustomHousePublicPitchPrintConfig = config/);
+  assert.match(handoff, /CUSTOMHOUSE_PP_ORDER_CONFIG_REQUEST/);
+  assert.match(handoff, /CUSTOMHOUSE_PP_ORDER_CONFIG_DATA/);
+  assert.match(handoff, /customhouse:pitchprint-order-config-request/);
+  assert.match(handoff, /surchargeMinor/);
+  assert.match(handoff, /maxWidthCm: 8/);
+  assert.match(handoff, /maxHeightCm: 40/);
+  assert.doesNotMatch(handoff, /CUSTOMHOUSE_PP_PRODUCTION_METHODS/);
   assert.doesNotMatch(handoff, /browserSurchargeMinor/);
   assert.doesNotMatch(handoff, /browserTotalMinor/);
+});
+
+test("storefront bridge maps saved 10 20 30 values to PitchPrint minor-unit payload", () => {
+  const payload = productionPricingBridgePayload({
+    currency: "SEK",
+    methods: [
+      { method: "EMBROIDERY", label: "Embroidery", surcharge: parseSurchargeInput("10") },
+      { method: "DTF", label: "DTF printing", surcharge: parseSurchargeInput("20") },
+      { method: "DTG", label: "DTG printing", surcharge: parseSurchargeInput("30") },
+    ],
+  });
+
+  const productionMethods = payload.productionMethods.map((method) => ({
+    id: method.id.toLowerCase(),
+    label: method.label,
+    surchargeMinor: method.surchargeMinor,
+  }));
+
+  assert.deepEqual(productionMethods, [
+    { id: "embroidery", label: "Embroidery", surchargeMinor: 1000 },
+    { id: "dtf", label: "DTF printing", surchargeMinor: 2000 },
+    { id: "dtg", label: "DTG printing", surchargeMinor: 3000 },
+  ]);
 });
 
 test("theme cart is not changed by admin/backend production pricing work", () => {
