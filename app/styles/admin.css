@@ -3495,6 +3495,24 @@ button:disabled {
   gap: 13px;
 }
 
+.settings-subheading {
+  margin: 18px 0 10px;
+  color: #111827;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.production-pricing-form {
+  gap: 14px;
+}
+
+.production-pricing-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
 .settings-toggle-row {
   display: flex;
   align-items: center;
@@ -3978,6 +3996,10 @@ button:disabled {
 
   .settings-card--wide {
     grid-row: auto;
+  }
+
+  .production-pricing-fields {
+    grid-template-columns: 1fr;
   }
 }
 

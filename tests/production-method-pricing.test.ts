@@ -76,13 +76,44 @@ test("production method display config serializes minor units", () => {
 
 test("admin products page exposes pricing only for public customizable products", () => {
   const source = readFileSync("app/routes/app.products.tsx", "utf8");
+  const appShell = readFileSync("app/routes/app.tsx", "utf8");
 
   assert.match(source, /save-production-pricing/);
   assert.match(source, /product_type/);
+  assert.match(source, /product_origin/);
+  assert.match(source, /design_mode/);
+  assert.match(source, /tags/);
   assert.match(source, /global_customizable/);
+  assert.match(source, /pitchprint-options/);
+  assert.match(source, /isLegacyGlobalCustomizable/);
   assert.match(source, /rowDefaults/);
   assert.match(source, /"0\.00"/);
-  assert.doesNotMatch(source, /creator_fixed[\s\S]*name="embroiderySurcharge"/);
+  assert.match(source, /Production Pricing/);
+  assert.match(source, /Embroidery/);
+  assert.match(source, /DTF/);
+  assert.match(source, /DTG/);
+  assert.match(source, /Save Production Pricing/);
+  assert.match(appShell, /href="\/app\/products"[\s\S]*Products/);
+});
+
+test("admin products regression keeps pricing controls visible without an existing row", () => {
+  const source = readFileSync("app/routes/app.products.tsx", "utf8");
+
+  assert.match(source, /const pricing = rowDefaults\(pricingByProduct\[product\.id\]\)/);
+  assert.match(source, /defaultValue=\{pricing\.embroiderySurcharge\}/);
+  assert.match(source, /defaultValue=\{pricing\.dtfSurcharge\}/);
+  assert.match(source, /defaultValue=\{pricing\.dtgSurcharge\}/);
+  assert.match(source, /embroiderySurcharge: row\?\.embroiderySurcharge \?\? "0\.00"/);
+  assert.match(source, /dtfSurcharge: row\?\.dtfSurcharge \?\? "0\.00"/);
+  assert.match(source, /dtgSurcharge: row\?\.dtgSurcharge \?\? "0\.00"/);
+});
+
+test("admin product eligibility excludes creator buy-only products", () => {
+  const source = readFileSync("app/routes/app.products.tsx", "utf8");
+
+  assert.match(source, /product\.origin\?\.value === "creator"/);
+  assert.match(source, /product\.mode\?\.value === "buy_only"/);
+  assert.match(source, /!isCreatorFixed/);
 });
 
 test("admin save flow surfaces Shopify sync failures", () => {

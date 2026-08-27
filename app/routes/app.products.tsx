@@ -13,6 +13,7 @@ type ProductRow = {
   title: string;
   handle: string;
   status: string;
+  tags: string[];
   productType: { value: string } | null;
   pitchprintEnabled: { value: string } | null;
   origin: { value: string } | null;
@@ -34,12 +35,31 @@ type PricingDefaults = {
 };
 
 function isPublicCustomizableProduct(product: {
+  tags?: string[];
   productType: { value: string } | null;
   pitchprintEnabled: { value: string } | null;
+  origin?: { value: string } | null;
+  mode?: { value: string } | null;
 }) {
+  const tags = new Set((product.tags || []).map((tag) => tag.trim().toLowerCase()));
+  const isCreatorFixed =
+    product.productType?.value === "creator_fixed" ||
+    tags.has("creator-fixed") ||
+    product.origin?.value === "creator" ||
+    product.mode?.value === "buy_only";
+  const isLegacyGlobalCustomizable =
+    product.origin?.value === "global" && product.mode?.value === "customizable";
+  const hasPitchPrintSignal =
+    product.pitchprintEnabled?.value === "true" ||
+    tags.has("pitchprint") ||
+    tags.has("pitchprint-enabled") ||
+    tags.has("pitchprint-designlab") ||
+    tags.has("pitchprint-options");
   return (
-    product.productType?.value === "global_customizable" &&
-    product.pitchprintEnabled?.value === "true"
+    !isCreatorFixed &&
+    (isLegacyGlobalCustomizable ||
+      (product.productType?.value === "global_customizable" && hasPitchPrintSignal) ||
+      hasPitchPrintSignal)
   );
 }
 
@@ -68,15 +88,20 @@ async function verifyPublicCustomizableProduct(
   const data = await client.request<{
     product: {
       id: string;
+      tags: string[];
       productType: { value: string } | null;
       pitchprintEnabled: { value: string } | null;
+      origin: { value: string } | null;
+      mode: { value: string } | null;
     } | null;
   }>(
     `#graphql query ProductionPricingProductEligibility($id: ID!) {
       product(id: $id) {
-        id
+        id tags
         productType: metafield(namespace: "customhouse", key: "product_type") { value }
         pitchprintEnabled: metafield(namespace: "customhouse", key: "pitchprint_enabled") { value }
+        origin: metafield(namespace: "customhouse", key: "product_origin") { value }
+        mode: metafield(namespace: "customhouse", key: "design_mode") { value }
       }
     }`,
     { id: productId },
@@ -97,7 +122,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     query MarketplaceProducts {
       products(first: 100, query: "status:active") {
         nodes {
-          id title handle status
+          id title handle status tags
           productType: metafield(namespace: "customhouse", key: "product_type") { value }
           pitchprintEnabled: metafield(namespace: "customhouse", key: "pitchprint_enabled") { value }
           origin: metafield(namespace: "customhouse", key: "product_origin") { value }
@@ -224,6 +249,7 @@ export default function Products() {
                         </p>
                       </div>
                     </div>
+                    <h3 className="settings-subheading">Production Pricing</h3>
                     {active ? (
                       <s-banner tone={actionData.ok ? "success" : "critical"}>
                         <strong>{actionData.message}</strong>
@@ -232,7 +258,7 @@ export default function Products() {
                         ) : null}
                       </s-banner>
                     ) : null}
-                    <Form method="post" className="settings-field-stack">
+                    <Form method="post" className="settings-field-stack production-pricing-form">
                       <input
                         type="hidden"
                         name="intent"
@@ -244,39 +270,41 @@ export default function Products() {
                         value={product.id}
                       />
                       <input type="hidden" name="currency" value={currency} />
-                      <label>
-                        <span>Embroidery extra price</span>
-                        <input
-                          name="embroiderySurcharge"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          defaultValue={pricing.embroiderySurcharge}
-                        />
-                        <small>Additional {currency} per item.</small>
-                      </label>
-                      <label>
-                        <span>DTF extra price</span>
-                        <input
-                          name="dtfSurcharge"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          defaultValue={pricing.dtfSurcharge}
-                        />
-                        <small>Additional {currency} per item.</small>
-                      </label>
-                      <label>
-                        <span>DTG extra price</span>
-                        <input
-                          name="dtgSurcharge"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          defaultValue={pricing.dtgSurcharge}
-                        />
-                        <small>Additional {currency} per item.</small>
-                      </label>
+                      <div className="production-pricing-fields">
+                        <label>
+                          <span>Embroidery</span>
+                          <input
+                            name="embroiderySurcharge"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            defaultValue={pricing.embroiderySurcharge}
+                          />
+                          <small>{currency}</small>
+                        </label>
+                        <label>
+                          <span>DTF</span>
+                          <input
+                            name="dtfSurcharge"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            defaultValue={pricing.dtfSurcharge}
+                          />
+                          <small>{currency}</small>
+                        </label>
+                        <label>
+                          <span>DTG</span>
+                          <input
+                            name="dtgSurcharge"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            defaultValue={pricing.dtgSurcharge}
+                          />
+                          <small>{currency}</small>
+                        </label>
+                      </div>
                       <button
                         type="submit"
                         className="settings-secondary-button"

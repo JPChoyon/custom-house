@@ -21,6 +21,7 @@ export default function App() {
         <s-link href="/app">Dashboard</s-link>
         <s-link href="/app/creators">Creators</s-link>
         <s-link href="/app/referrals">Referrals</s-link>
+        <s-link href="/app/products">Products</s-link>
         <s-link href="/app/creator-products">Creator Products</s-link>
         <s-link href="/app/creator-orders">Creator Orders</s-link>
         <s-link href="/app/payouts">Payouts</s-link>
