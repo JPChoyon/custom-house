@@ -3,7 +3,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   parseSurchargeInput,
+  productionPricingBridgePayload,
   pricingConfigToMetafieldValue,
+  saveProductionPricing,
 } from "../app/services/production-method-pricing.server.ts";
 import {
   calculateTrustedProductionTotal,
@@ -66,9 +68,10 @@ test("production method display config serializes minor units", () => {
 
   assert.equal(value.version, 1);
   assert.equal(value.currency, "SEK");
-  assert.equal(value.methods.EMBROIDERY.surchargeMinor, 5000);
-  assert.equal(value.methods.DTF.surchargeMinor, 3000);
-  assert.equal(value.methods.DTG.surchargeMinor, 2000);
+  assert.equal(value.productionMethodPricing.EMBROIDERY.surchargeMinor, 5000);
+  assert.equal(value.productionMethodPricing.DTF.surchargeMinor, 3000);
+  assert.equal(value.productionMethodPricing.DTG.surchargeMinor, 2000);
+  assert.equal(value.productionMethods[1].label, "DTF printing");
 });
 
 test("admin products page exposes pricing only for public customizable products", () => {
@@ -77,6 +80,8 @@ test("admin products page exposes pricing only for public customizable products"
   assert.match(source, /save-production-pricing/);
   assert.match(source, /product_type/);
   assert.match(source, /global_customizable/);
+  assert.match(source, /rowDefaults/);
+  assert.match(source, /"0\.00"/);
   assert.doesNotMatch(source, /creator_fixed[\s\S]*name="embroiderySurcharge"/);
 });
 
@@ -89,6 +94,97 @@ test("admin save flow surfaces Shopify sync failures", () => {
   assert.match(service, /metafieldsSet/);
   assert.match(service, /partial/i);
   assert.match(service, /production_method_pricing/);
+});
+
+test("saving production pricing is isolated per public product", async () => {
+  const rows = new Map<string, any>();
+  const database = {
+    productionMethodSetting: {
+      async findMany() {
+        return [];
+      },
+    },
+    publicProductProductionPricing: {
+      async findUnique(args: any) {
+        const key = args.where.shopKey_shopifyProductId.shopifyProductId;
+        return rows.get(key) || null;
+      },
+      async upsert(args: any) {
+        const key = args.where.shopKey_shopifyProductId.shopifyProductId;
+        const existing = rows.get(key);
+        const data = existing ? { ...existing, ...args.update } : {
+          id: `pricing-${rows.size + 1}`,
+          shopKey: args.create.shopKey,
+          shopifyProductId: args.create.shopifyProductId,
+          embroideryFeeVariantId: null,
+          dtfFeeVariantId: null,
+          dtgFeeVariantId: null,
+          ...args.create,
+        };
+        rows.set(key, data);
+        return data;
+      },
+      async update(args: any) {
+        const row = [...rows.values()].find((item) => item.id === args.where.id);
+        const updated = { ...row, ...args.data };
+        rows.set(updated.shopifyProductId, updated);
+        return updated;
+      },
+      async findMany() {
+        return [...rows.values()];
+      },
+    },
+  };
+  const client = {
+    async request<T>(_query: string, variables?: any) {
+      if (variables?.metafields) return { metafieldsSet: { userErrors: [] } } as T;
+      return {
+        productSet: {
+          product: {
+            id: "gid://shopify/Product/fee",
+            title: "Fee",
+            parentProductId: { value: variables?.input?.metafields?.[0]?.value },
+            variants: {
+              nodes: [
+                { id: "gid://shopify/ProductVariant/9001", title: "Embroidery Production Fee" },
+                { id: "gid://shopify/ProductVariant/9002", title: "DTF Production Fee" },
+                { id: "gid://shopify/ProductVariant/9003", title: "DTG Production Fee" },
+              ],
+            },
+          },
+          userErrors: [],
+        },
+      } as T;
+    },
+  };
+
+  await saveProductionPricing(
+    "shop.test",
+    {
+      shopifyProductId: "gid://shopify/Product/100",
+      currency: "SEK",
+      embroidery: "50.00",
+      dtf: "30.00",
+      dtg: "20.00",
+    },
+    client,
+    database,
+  );
+  await saveProductionPricing(
+    "shop.test",
+    {
+      shopifyProductId: "gid://shopify/Product/101",
+      currency: "SEK",
+      embroidery: "5.00",
+      dtf: "3.00",
+      dtg: "2.00",
+    },
+    client,
+    database,
+  );
+
+  assert.equal(rows.get("gid://shopify/Product/100").embroiderySurcharge.toFixed(2), "50.00");
+  assert.equal(rows.get("gid://shopify/Product/101").embroiderySurcharge.toFixed(2), "5.00");
 });
 
 const fakePricingDb = {
@@ -106,6 +202,21 @@ const fakePricingDb = {
         dtgFeeVariantId: "gid://shopify/ProductVariant/9003",
       };
     },
+  },
+};
+
+const creatorLockedProductClient = {
+  async request<T>() {
+    return {
+      product: {
+        id: "gid://shopify/Product/200",
+        productType: { value: "creator_fixed" },
+        pitchprintEnabled: { value: "true" },
+        origin: { value: "creator" },
+        mode: { value: "buy_only" },
+        variants: { nodes: [] },
+      },
+    } as T;
   },
 };
 
@@ -185,6 +296,57 @@ test("trusted cart prep ignores browser price tampering", async () => {
   assert.equal(cart.items[0]?.id, "1");
   assert.equal(cart.items[1]?.id, "9001");
   assert.equal(cart.items[1]?.quantity, 1);
+});
+
+test("production pricing bridge payload contains only trusted minor-unit values", () => {
+  const payload = productionPricingBridgePayload({
+    currency: "sek",
+    methods: [
+      {
+        method: "EMBROIDERY",
+        label: "Browser label ignored",
+        surcharge: parseSurchargeInput("50.00"),
+      },
+      {
+        method: "DTF",
+        label: "Browser label ignored",
+        surcharge: parseSurchargeInput("30.00"),
+      },
+      {
+        method: "DTG",
+        label: "Browser label ignored",
+        surcharge: parseSurchargeInput("20.00"),
+      },
+    ],
+  });
+
+  assert.equal(payload.currency, "SEK");
+  assert.deepEqual(payload.productionMethods, [
+    { id: "EMBROIDERY", label: "Embroidery", surchargeMinor: 5000 },
+    { id: "DTF", label: "DTF printing", surchargeMinor: 3000 },
+    { id: "DTG", label: "DTG printing", surchargeMinor: 2000 },
+  ]);
+  assert.equal(payload.productionMethodPricing.EMBROIDERY.surchargeMinor, 5000);
+});
+
+test("creator buy-only products are excluded from production pricing cart prep", async () => {
+  await assert.rejects(
+    () =>
+      preparePublicProductionCart(
+        "shop.test",
+        {
+          shopifyProductId: "gid://shopify/Product/200",
+          pitchprintProjectId: "pp_123",
+          productionMethod: "EMBROIDERY",
+          selections: [
+            { variantId: "gid://shopify/ProductVariant/1", quantity: 1 },
+          ],
+        },
+        creatorLockedProductClient,
+        fakePricingDb,
+      ),
+    /public customizable products/i,
+  );
 });
 
 test("trusted cart prep supports multi-size fee quantity", async () => {
@@ -281,42 +443,32 @@ test("hidden fee merchandise sync is app managed per public product", () => {
   assert.match(service, /dtgFeeVariantId/);
 });
 
-test("storefront exposes production method pricing without trusting browser money", () => {
-  const productDetails = readFileSync(
-    "theme-live-cart/blocks/_product-details.liquid",
-    "utf8",
-  );
-  const handoff = readFileSync(
-    "theme-live-cart/assets/customhouse-pitchprint-order-handoff.js",
-    "utf8",
-  );
+test("storefront-data contract is backend-owned and PitchPrint-side files are untouched here", () => {
   const proxyRoute = readFileSync(
     "app/routes/proxy.api.public-production-cart.tsx",
     "utf8",
   );
+  const productDetails = readFileSync("theme-live-cart/blocks/_product-details.liquid", "utf8");
+  const handoff = readFileSync(
+    "theme-live-cart/assets/customhouse-pitchprint-order-handoff.js",
+    "utf8",
+  );
 
-  assert.match(productDetails, /data-production-method-pricing/);
-  assert.match(productDetails, /data-production-method-section/);
-  assert.match(productDetails, /data-production-method-option/);
-  assert.match(handoff, /public-production-cart/);
-  assert.match(handoff, /productionMethod/);
-  assert.match(handoff, /selections/);
-  assert.match(handoff, /data-production-method-option/);
-  assert.match(handoff, /_customhouse_fee_key/);
-  assert.doesNotMatch(handoff, /browserSurchargeMinor/);
-  assert.doesNotMatch(handoff, /browserTotalMinor/);
   assert.match(proxyRoute, /proxyContext\(request,\s*false\)/);
   assert.match(proxyRoute, /preparePublicProductionCart/);
+  assert.match(proxyRoute, /apiData/);
+  assert.doesNotMatch(productDetails, /data-production-method-section/);
+  assert.doesNotMatch(productDetails, /data-production-method-option/);
+  assert.doesNotMatch(handoff, /public-production-cart/);
+  assert.doesNotMatch(handoff, /browserSurchargeMinor/);
+  assert.doesNotMatch(handoff, /browserTotalMinor/);
 });
 
-test("theme cart keeps production fee lines paired with base product quantities", () => {
+test("theme cart is not changed by admin/backend production pricing work", () => {
   const cartItems = readFileSync(
     "theme-live-cart/assets/component-cart-items.js",
     "utf8",
   );
 
-  assert.match(cartItems, /reconcileCustomHouseProductionFees/);
-  assert.match(cartItems, /_customhouse_fee_key/);
-  assert.match(cartItems, /_customhouse_production_fee/);
-  assert.match(cartItems, /cart\/update\.js/);
+  assert.doesNotMatch(cartItems, /reconcileCustomHouseProductionFees/);
 });

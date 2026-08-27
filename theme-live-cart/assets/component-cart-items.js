@@ -284,7 +284,6 @@ export class CartItemsComponent extends createViewEventElement(Component) {
         });
 
         this.#updateCartQuantitySelectorButtonStates();
-        this.reconcileCustomHouseProductionFees(parsedResponseText);
       })
       .catch((error) => {
         console.error(error);
@@ -380,7 +379,6 @@ export class CartItemsComponent extends createViewEventElement(Component) {
 
           // Update button states for all cart quantity selectors after morph
           this.#updateCartQuantitySelectorButtonStates();
-          this.reconcileCustomHouseProductionFees({ items: detail?.items || [] });
         } else {
           sectionRenderer.renderSection(this.sectionId, { cache: false, ...morphOptions });
         }
@@ -436,59 +434,6 @@ export class CartItemsComponent extends createViewEventElement(Component) {
   #updateCartQuantitySelectorButtonStates() {
     for (const selector of document.querySelectorAll('cart-quantity-selector-component')) {
       /** @type {any} */ (selector).updateButtonStates?.();
-    }
-  }
-
-  /**
-   * Keeps Custom House production fee lines at the same total quantity as their
-   * paired base product lines.
-   * @param {{items?: Array<any>}} [cart]
-   */
-  async reconcileCustomHouseProductionFees(cart) {
-    const items = Array.isArray(cart?.items) ? cart.items : [];
-    if (!items.length) return;
-
-    const baseQuantities = new Map();
-    const feeLines = [];
-
-    for (const item of items) {
-      const properties = item?.properties || {};
-      const feeKey = properties._customhouse_fee_key;
-      if (!feeKey) continue;
-
-      if (properties._customhouse_production_fee === 'true') {
-        feeLines.push(item);
-        continue;
-      }
-
-      baseQuantities.set(
-        feeKey,
-        (baseQuantities.get(feeKey) || 0) + Math.max(0, Number(item.quantity || 0))
-      );
-    }
-
-    const updates = {};
-    for (const feeLine of feeLines) {
-      const feeKey = feeLine?.properties?._customhouse_fee_key;
-      const desiredQuantity = baseQuantities.get(feeKey) || 0;
-      if (Number(feeLine.quantity || 0) === desiredQuantity) continue;
-      const lineKey = feeLine.key || feeLine.id || feeLine.variant_id;
-      if (lineKey) updates[lineKey] = desiredQuantity;
-    }
-
-    if (!Object.keys(updates).length) return;
-
-    try {
-      const cartUpdateUrl = Theme.routes.cart_update_url || '/cart/update.js';
-      await fetch(cartUpdateUrl, fetchConfig('json', {
-        body: JSON.stringify({ updates }),
-      }));
-      sectionRenderer.renderSection(this.sectionId, {
-        cache: false,
-        mode: this.isDrawer ? 'hydration' : 'full',
-      });
-    } catch (error) {
-      if (error?.name !== 'AbortError') console.warn('[cart-items] Production fee reconciliation failed:', error);
     }
   }
 

@@ -66,10 +66,31 @@ type PricingConfigMethod = {
   surcharge: Prisma.Decimal;
 };
 
+export type ProductionPricingBridgeMethod = {
+  id: ProductionMethodCode;
+  label: string;
+  surchargeMinor: number;
+};
+
+export type ProductionPricingBridgePayload = {
+  version: 1;
+  currency: string;
+  productionMethods: ProductionPricingBridgeMethod[];
+  productionMethodPricing: Record<
+    ProductionMethodCode,
+    { label: string; surchargeMinor: number }
+  >;
+};
+
 const FEE_PRODUCT_TAG = "customhouse-production-fee";
 const FEE_PRODUCT_TITLE_PREFIX = "Custom House Production Fee";
 const FEE_PRODUCT_OPTION_NAME = "Production Method";
 const FEE_PRODUCT_METAFIELD_KEY = "production_fee_parent_product_id";
+const METHOD_LABELS: Record<ProductionMethodCode, string> = {
+  EMBROIDERY: "Embroidery",
+  DTF: "DTF printing",
+  DTG: "DTG printing",
+};
 
 type ProductionFeeVariantNode = {
   id: string;
@@ -161,20 +182,37 @@ export function pricingConfigToMetafieldValue(input: {
   currency: string;
   methods: PricingConfigMethod[];
 }) {
-  const methods = Object.fromEntries(
-    input.methods.map((method) => [
-      cleanProductionMethod(method.method),
-      {
-        label: method.label,
-        surchargeMinor: Number(decimalToMinor(method.surcharge)),
-      },
-    ]),
+  return safeJson(productionPricingBridgePayload(input));
+}
+
+export function productionPricingBridgePayload(input: {
+  currency: string;
+  methods: PricingConfigMethod[];
+}): ProductionPricingBridgePayload {
+  const currency = input.currency.trim().toUpperCase() || "SEK";
+  const byMethod = new Map(
+    input.methods.map((method) => [cleanProductionMethod(method.method), method]),
   );
-  return safeJson({
-    version: 1,
-    currency: input.currency.trim().toUpperCase() || "SEK",
-    methods,
+  const productionMethods = PRODUCTION_METHODS.map((method) => {
+    const config = byMethod.get(method);
+    const label = METHOD_LABELS[method];
+    return {
+      id: method,
+      label,
+      surchargeMinor: Number(decimalToMinor(config?.surcharge ?? new Prisma.Decimal(0))),
+    };
   });
+  return {
+    version: 1,
+    currency,
+    productionMethods,
+    productionMethodPricing: Object.fromEntries(
+      productionMethods.map((method) => [
+        method.id,
+        { label: method.label, surchargeMinor: method.surchargeMinor },
+      ]),
+    ) as ProductionPricingBridgePayload["productionMethodPricing"],
+  };
 }
 
 async function methodSettings(
@@ -192,8 +230,8 @@ async function methodSettings(
       description: "",
       enabled: true,
     },
-    DTF: { method: "DTF", label: "DTF", description: "", enabled: true },
-    DTG: { method: "DTG", label: "DTG", description: "", enabled: true },
+    DTF: { method: "DTF", label: METHOD_LABELS.DTF, description: "", enabled: true },
+    DTG: { method: "DTG", label: METHOD_LABELS.DTG, description: "", enabled: true },
   };
   for (const row of rows) {
     fallback[cleanProductionMethod(row.method)] = row;
