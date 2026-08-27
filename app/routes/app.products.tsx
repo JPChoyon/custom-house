@@ -191,7 +191,7 @@ export async function action({ request }: ActionFunctionArgs) {
       message: result.message,
       details: [
         result.saved ? "Saved" : null,
-        result.shopifySynced ? "Shopify synced" : null,
+        result.shopifySynced ? "Shopify config synced" : null,
         result.productionFeeSynced ? "Production fee synced" : null,
         ...result.errors,
       ].filter((item): item is string => Boolean(item)),

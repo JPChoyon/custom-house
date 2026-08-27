@@ -1,4 +1,15 @@
 export interface GraphqlResponse<T> { data?: T; errors?: Array<{ message: string }> }
+function safeGraphqlErrorMessage(
+  errors: Array<{ message: string }> | undefined,
+  operation: string,
+) {
+  if (!errors?.length) return `${operation} failed.`;
+  return `${operation} failed: ${errors
+    .map((error) => error.message)
+    .join("; ")
+    .replace(/\s+/g, " ")
+    .slice(0, 500)}`;
+}
 export interface ShopifyGraphqlResult<T> {
   data?: T;
   errors: Array<{ message: string }>;
@@ -31,14 +42,14 @@ export class AdminGraphqlClient implements ShopifyGraphqlClient {
       const response = await this.admin.graphql(document, { variables });
       const body = await response.json() as GraphqlResponse<T>;
       if (!response.ok || body.errors?.length || !body.data)
-        throw new Error("Shopify Admin API request failed.");
+        throw new Error(safeGraphqlErrorMessage(body.errors, operation));
       return body.data;
-    } catch {
+    } catch (error) {
       safeDiagnostic("graphql_failure", "failed", {
         correlationId: id,
         operation,
       });
-      throw new Error("Shopify Admin API request failed.");
+      throw new Error(error instanceof Error ? error.message : `${operation} failed.`);
     }
   }
 

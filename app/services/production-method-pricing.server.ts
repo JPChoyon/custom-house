@@ -331,7 +331,6 @@ export async function syncProductionFeeMerchandise(
             ],
             price: pricing.embroiderySurcharge.toFixed(2),
             taxable: true,
-            requiresShipping: false,
           },
           {
             optionValues: [
@@ -339,7 +338,6 @@ export async function syncProductionFeeMerchandise(
             ],
             price: pricing.dtfSurcharge.toFixed(2),
             taxable: true,
-            requiresShipping: false,
           },
           {
             optionValues: [
@@ -347,7 +345,6 @@ export async function syncProductionFeeMerchandise(
             ],
             price: pricing.dtgSurcharge.toFixed(2),
             taxable: true,
-            requiresShipping: false,
           },
         ],
         metafields: [
@@ -491,7 +488,11 @@ export async function saveProductionPricing(
     await syncProductionPricingMetafield(client, input.shopifyProductId, metafieldValue);
     shopifySynced = true;
   } catch (error) {
-    errors.push(error instanceof Error ? error.message : "Shopify metafield sync failed.");
+    errors.push(
+      `Shopify config sync failed: ${
+        error instanceof Error ? error.message : "Unknown error."
+      }`,
+    );
   }
 
   try {
@@ -499,7 +500,11 @@ export async function saveProductionPricing(
     pricing = feeSync.pricing;
     productionFeeSynced = feeSync.synced;
   } catch (error) {
-    errors.push(error instanceof Error ? error.message : "Production fee sync failed.");
+    errors.push(
+      `Production fee sync failed: ${
+        error instanceof Error ? error.message : "Unknown error."
+      }`,
+    );
   }
 
   return {
@@ -509,7 +514,7 @@ export async function saveProductionPricing(
     status: shopifySynced && productionFeeSynced ? "saved" : "partial",
     message:
       shopifySynced && productionFeeSynced
-        ? "Saved. Shopify synced. Production fee synced."
+        ? "Saved. Shopify config synced. Production fee synced."
         : "Saved with a partial sync error.",
     errors,
     pricing,

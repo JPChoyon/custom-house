@@ -2,10 +2,15 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  AdminGraphqlClient,
+  throwUserErrors,
+} from "../app/services/shopify-graphql.server.ts";
+import {
   parseSurchargeInput,
   productionPricingBridgePayload,
   pricingConfigToMetafieldValue,
   saveProductionPricing,
+  syncProductionFeeMerchandise,
 } from "../app/services/production-method-pricing.server.ts";
 import {
   calculateTrustedProductionTotal,
@@ -125,6 +130,8 @@ test("admin save flow surfaces Shopify sync failures", () => {
   assert.match(service, /metafieldsSet/);
   assert.match(service, /partial/i);
   assert.match(service, /production_method_pricing/);
+  assert.match(service, /Production fee sync failed:/);
+  assert.doesNotMatch(service, /requiresShipping/);
 });
 
 test("saving production pricing is isolated per public product", async () => {
@@ -216,6 +223,185 @@ test("saving production pricing is isolated per public product", async () => {
 
   assert.equal(rows.get("gid://shopify/Product/100").embroiderySurcharge.toFixed(2), "50.00");
   assert.equal(rows.get("gid://shopify/Product/101").embroiderySurcharge.toFixed(2), "5.00");
+});
+
+test("production fee sync uses supported productSet variant input and maps prices", async () => {
+  const pricing = {
+    id: "pricing-a",
+    shopKey: "shop.test",
+    shopifyProductId: "gid://shopify/Product/100",
+    embroiderySurcharge: parseSurchargeInput("10.00"),
+    dtfSurcharge: parseSurchargeInput("20.00"),
+    dtgSurcharge: parseSurchargeInput("30.00"),
+    embroideryFeeVariantId: null,
+    dtfFeeVariantId: null,
+    dtgFeeVariantId: null,
+  };
+  let productSetInput: any;
+  const database = {
+    publicProductProductionPricing: {
+      async findUnique() {
+        return pricing;
+      },
+      async findMany() {
+        return [pricing];
+      },
+      async upsert() {
+        return pricing;
+      },
+      async update(args: any) {
+        return { ...pricing, ...args.data };
+      },
+    },
+    productionMethodSetting: {
+      async findMany() {
+        return [];
+      },
+    },
+  };
+  const client = {
+    async request<T>(query: string, variables?: any) {
+      if (query.includes("query CustomHouseProductionFeeProduct")) {
+        return { products: { nodes: [] } } as T;
+      }
+      productSetInput = variables.input;
+      return {
+        productSet: {
+          product: {
+            id: "gid://shopify/Product/fee",
+            title: "Fee",
+            parentProductId: { value: pricing.shopifyProductId },
+            variants: {
+              nodes: [
+                { id: "gid://shopify/ProductVariant/9001", title: "Embroidery Production Fee" },
+                { id: "gid://shopify/ProductVariant/9002", title: "DTF Production Fee" },
+                { id: "gid://shopify/ProductVariant/9003", title: "DTG Production Fee" },
+              ],
+            },
+          },
+          userErrors: [],
+        },
+      } as T;
+    },
+  };
+
+  const result = await syncProductionFeeMerchandise("shop.test", pricing, client, database);
+
+  assert.equal(result.synced, true);
+  assert.deepEqual(
+    productSetInput.variants.map((variant: any) => variant.price),
+    ["10.00", "20.00", "30.00"],
+  );
+  assert.equal(productSetInput.variants.some((variant: any) => "requiresShipping" in variant), false);
+  assert.equal(result.pricing.embroideryFeeVariantId, "gid://shopify/ProductVariant/9001");
+  assert.equal(result.pricing.dtfFeeVariantId, "gid://shopify/ProductVariant/9002");
+  assert.equal(result.pricing.dtgFeeVariantId, "gid://shopify/ProductVariant/9003");
+});
+
+test("Shopify GraphQL and user errors are surfaced clearly", async () => {
+  const admin = {
+    async graphql() {
+      return new Response(
+        JSON.stringify({
+          errors: [
+            {
+              message:
+                "Variable $input of type ProductSetInput! was provided invalid value for variants.0.requiresShipping (Field is not defined on ProductVariantSetInput)",
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    },
+  };
+  const client = new AdminGraphqlClient(admin);
+
+  await assert.rejects(
+    () =>
+      client.request(
+        "mutation CustomHouseProductionFeeProductSet($input: ProductSetInput!) { productSet(input: $input) { userErrors { message } } }",
+        { input: {} },
+      ),
+    /requiresShipping.*ProductVariantSetInput/,
+  );
+  assert.throws(
+    () =>
+      throwUserErrors(
+        [{ message: "Variant price is invalid." }],
+        "Production fee merchandise",
+      ),
+    /Production fee merchandise failed: Variant price is invalid/,
+  );
+});
+
+test("partial production fee failure keeps saved DB values", async () => {
+  const rows = new Map<string, any>();
+  const database = {
+    productionMethodSetting: {
+      async findMany() {
+        return [];
+      },
+    },
+    publicProductProductionPricing: {
+      async findUnique(args: any) {
+        return rows.get(args.where.shopKey_shopifyProductId.shopifyProductId) || null;
+      },
+      async findMany() {
+        return [...rows.values()];
+      },
+      async upsert(args: any) {
+        const key = args.where.shopKey_shopifyProductId.shopifyProductId;
+        const row = {
+          id: "pricing-a",
+          shopKey: args.create.shopKey,
+          shopifyProductId: key,
+          embroideryFeeVariantId: null,
+          dtfFeeVariantId: null,
+          dtgFeeVariantId: null,
+          ...(rows.get(key) || args.create),
+          ...args.update,
+        };
+        rows.set(key, row);
+        return row;
+      },
+      async update() {
+        throw new Error("Should not update mapping after fee failure");
+      },
+    },
+  };
+  const client = {
+    async request<T>(query: string) {
+      if (query.includes("metafieldsSet")) {
+        return { metafieldsSet: { userErrors: [] } } as T;
+      }
+      if (query.includes("query CustomHouseProductionFeeProduct")) {
+        return { products: { nodes: [] } } as T;
+      }
+      throw new Error("Variable $input invalid: requiresShipping is not defined.");
+    },
+  };
+
+  const result = await saveProductionPricing(
+    "shop.test",
+    {
+      shopifyProductId: "gid://shopify/Product/100",
+      currency: "SEK",
+      embroidery: "10.00",
+      dtf: "20.00",
+      dtg: "30.00",
+    },
+    client,
+    database,
+  );
+
+  const row = rows.get("gid://shopify/Product/100");
+  assert.equal(result.status, "partial");
+  assert.equal(result.shopifySynced, true);
+  assert.equal(result.productionFeeSynced, false);
+  assert.match(result.errors.join(" "), /Production fee sync failed: Variable \$input invalid/);
+  assert.equal(row.embroiderySurcharge.toFixed(2), "10.00");
+  assert.equal(row.dtfSurcharge.toFixed(2), "20.00");
+  assert.equal(row.dtgSurcharge.toFixed(2), "30.00");
 });
 
 const fakePricingDb = {
