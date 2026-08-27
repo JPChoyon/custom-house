@@ -1608,6 +1608,19 @@ test("creator product foundation does not move commission data into CreatorProdu
   assert.doesNotMatch(creatorProductBlock, /commission|earning|payout/i);
 });
 
+test("admin creator products list avoids PitchPrint variant selection columns", () => {
+  const route = readFileSync("app/routes/app.creator-products.tsx", "utf8");
+  const service = readFileSync("app/services/creator-products.server.ts", "utf8");
+  const adminList =
+    service.match(/export async function listCreatorProductsForAdmin[\s\S]*?export async function moderateCreatorProductAsAdmin/)?.[0] || "";
+
+  assert.match(adminList, /select: \{/);
+  assert.doesNotMatch(adminList, /baseProductVariantsJson/);
+  assert.doesNotMatch(adminList, /designVariantSelectionsJson/);
+  assert.doesNotMatch(route, /Sizes \/ Amount/);
+  assert.doesNotMatch(route, /variantSelections/);
+});
+
 test("PitchPrint clone credentials stay in server-only code", () => {
   const cloneService = readFileSync(
     "app/services/pitchprint-clone.server.ts",

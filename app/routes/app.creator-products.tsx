@@ -28,27 +28,6 @@ function projectLabel(value: string | null) {
   return value.length > 14 ? `${value.slice(0, 8)}...${value.slice(-4)}` : value;
 }
 
-function variantSelections(value: string | null | undefined) {
-  try {
-    const parsed = JSON.parse(value || "[]");
-    return Array.isArray(parsed)
-      ? parsed.filter(
-          (
-            item,
-          ): item is { variantId: string; size: string; quantity: number } =>
-            item &&
-            typeof item === "object" &&
-            typeof item.variantId === "string" &&
-            typeof item.size === "string" &&
-            Number.isSafeInteger(item.quantity) &&
-            item.quantity > 0,
-        )
-      : [];
-  } catch {
-    return [];
-  }
-}
-
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session } = await authenticate.admin(request);
   const url = new URL(request.url);
@@ -132,11 +111,6 @@ export default function CreatorProductsAdmin() {
             <div className="creator-application-list">
               {products.map((product) => (
                 <article className="creator-application-card" key={product.id}>
-                  {(() => {
-                    const selections = variantSelections(product.designVariantSelectionsJson);
-                    const total = selections.reduce((sum, item) => sum + item.quantity, 0);
-                    return (
-                      <>
                   <div className="creator-application-main">
                     {product.previewUrl?.startsWith("https://") ? (
                       <img src={product.previewUrl} alt="" />
@@ -158,12 +132,6 @@ export default function CreatorProductsAdmin() {
                     <p>Customer: {product.creator.customerId}</p>
                     <p>Base product: {product.shopifyProductId}</p>
                     <p>PitchPrint project: {projectLabel(product.pitchprintProjectId)}</p>
-                    <p>
-                      Sizes / Amount:{" "}
-                      {selections.length
-                        ? `${selections.map((item) => `${item.size} ${item.quantity}`).join(", ")} (Total: ${total})`
-                        : "-"}
-                    </p>
                     {product.publishedShopifyProductId ? (
                       <p>Shopify product: {product.publishedShopifyProductId}</p>
                     ) : null}
@@ -215,9 +183,6 @@ export default function CreatorProductsAdmin() {
                       </Form>
                     </div>
                   ) : null}
-                      </>
-                    );
-                  })()}
                 </article>
               ))}
             </div>
