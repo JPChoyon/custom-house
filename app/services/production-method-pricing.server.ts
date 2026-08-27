@@ -70,6 +70,8 @@ export type ProductionPricingBridgeMethod = {
   id: ProductionMethodCode;
   label: string;
   surchargeMinor: number;
+  feeVariantId?: string;
+  feeVariantGid?: string;
 };
 
 export type ProductionPricingBridgePayload = {
@@ -78,7 +80,12 @@ export type ProductionPricingBridgePayload = {
   productionMethods: ProductionPricingBridgeMethod[];
   productionMethodPricing: Record<
     ProductionMethodCode,
-    { label: string; surchargeMinor: number }
+    {
+      label: string;
+      surchargeMinor: number;
+      feeVariantId?: string;
+      feeVariantGid?: string;
+    }
   >;
 };
 
@@ -106,6 +113,11 @@ type ProductionFeeProductNode = {
 
 function methodKey(method: string) {
   return method.trim().toUpperCase();
+}
+
+function numericShopifyId(value: string | null | undefined) {
+  const text = String(value || "").trim();
+  return text.match(/(\d+)$/)?.[1] || "";
 }
 
 export function cleanProductionMethod(method: unknown): ProductionMethodCode {
@@ -181,6 +193,10 @@ export function feeVariantIdForMethod(
 export function pricingConfigToMetafieldValue(input: {
   currency: string;
   methods: PricingConfigMethod[];
+  pricing?: Pick<
+    PublicProductProductionPricingRecord,
+    "embroideryFeeVariantId" | "dtfFeeVariantId" | "dtgFeeVariantId"
+  >;
 }) {
   return safeJson(productionPricingBridgePayload(input));
 }
@@ -188,6 +204,10 @@ export function pricingConfigToMetafieldValue(input: {
 export function productionPricingBridgePayload(input: {
   currency: string;
   methods: PricingConfigMethod[];
+  pricing?: Pick<
+    PublicProductProductionPricingRecord,
+    "embroideryFeeVariantId" | "dtfFeeVariantId" | "dtgFeeVariantId"
+  >;
 }): ProductionPricingBridgePayload {
   const currency = input.currency.trim().toUpperCase() || "SEK";
   const byMethod = new Map(
@@ -196,11 +216,20 @@ export function productionPricingBridgePayload(input: {
   const productionMethods = PRODUCTION_METHODS.map((method) => {
     const config = byMethod.get(method);
     const label = METHOD_LABELS[method];
-    return {
+    const feeVariantGid = feeVariantIdForMethod(input.pricing ?? {
+      embroideryFeeVariantId: null,
+      dtfFeeVariantId: null,
+      dtgFeeVariantId: null,
+    }, method) ?? "";
+    const feeVariantId = numericShopifyId(feeVariantGid);
+    const payload: ProductionPricingBridgeMethod = {
       id: method,
       label,
       surchargeMinor: Number(decimalToMinor(config?.surcharge ?? new Prisma.Decimal(0))),
     };
+    if (feeVariantId) payload.feeVariantId = feeVariantId;
+    if (feeVariantGid) payload.feeVariantGid = feeVariantGid;
+    return payload;
   });
   return {
     version: 1,
@@ -209,10 +238,21 @@ export function productionPricingBridgePayload(input: {
     productionMethodPricing: Object.fromEntries(
       productionMethods.map((method) => [
         method.id,
-        { label: method.label, surchargeMinor: method.surchargeMinor },
+        {
+          label: method.label,
+          surchargeMinor: method.surchargeMinor,
+          ...(method.feeVariantId ? { feeVariantId: method.feeVariantId } : {}),
+          ...(method.feeVariantGid ? { feeVariantGid: method.feeVariantGid } : {}),
+        },
       ]),
     ) as ProductionPricingBridgePayload["productionMethodPricing"],
   };
+}
+
+function missingRequiredFeeVariantMethods(payload: ProductionPricingBridgePayload) {
+  return payload.productionMethods
+    .filter((method) => method.surchargeMinor > 0 && !method.feeVariantId)
+    .map((method) => method.label);
 }
 
 async function methodSettings(
@@ -479,22 +519,6 @@ export async function saveProductionPricing(
   const errors: string[] = [];
   let shopifySynced = false;
   let productionFeeSynced = false;
-  const metafieldValue = pricingConfigToMetafieldValue({
-    currency: input.currency,
-    methods,
-  });
-
-  try {
-    await syncProductionPricingMetafield(client, input.shopifyProductId, metafieldValue);
-    shopifySynced = true;
-  } catch (error) {
-    errors.push(
-      `Shopify config sync failed: ${
-        error instanceof Error ? error.message : "Unknown error."
-      }`,
-    );
-  }
-
   try {
     const feeSync = await syncProductionFeeMerchandise(shop, pricing, client, database);
     pricing = feeSync.pricing;
@@ -505,6 +529,32 @@ export async function saveProductionPricing(
         error instanceof Error ? error.message : "Unknown error."
       }`,
     );
+  }
+
+  const metafieldValue = pricingConfigToMetafieldValue({
+    currency: input.currency,
+    methods,
+    pricing,
+  });
+  const missingFeeMethods = missingRequiredFeeVariantMethods(
+    JSON.parse(metafieldValue) as ProductionPricingBridgePayload,
+  );
+
+  if (missingFeeMethods.length > 0) {
+    errors.push(
+      `Shopify config sync failed: Production fee variant IDs missing for ${missingFeeMethods.join(", ")}.`,
+    );
+  } else {
+    try {
+      await syncProductionPricingMetafield(client, input.shopifyProductId, metafieldValue);
+      shopifySynced = true;
+    } catch (error) {
+      errors.push(
+        `Shopify config sync failed: ${
+          error instanceof Error ? error.message : "Unknown error."
+        }`,
+      );
+    }
   }
 
   return {

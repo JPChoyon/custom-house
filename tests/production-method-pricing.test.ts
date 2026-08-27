@@ -68,14 +68,26 @@ test("production method display config serializes minor units", () => {
           surcharge: parseSurchargeInput("20.00"),
         },
       ],
+      pricing: {
+        embroideryFeeVariantId: "gid://shopify/ProductVariant/9001",
+        dtfFeeVariantId: "gid://shopify/ProductVariant/9002",
+        dtgFeeVariantId: "gid://shopify/ProductVariant/9003",
+      },
     }),
   );
 
   assert.equal(value.version, 1);
   assert.equal(value.currency, "SEK");
   assert.equal(value.productionMethodPricing.EMBROIDERY.surchargeMinor, 5000);
+  assert.equal(value.productionMethodPricing.EMBROIDERY.feeVariantId, "9001");
+  assert.equal(
+    value.productionMethodPricing.EMBROIDERY.feeVariantGid,
+    "gid://shopify/ProductVariant/9001",
+  );
   assert.equal(value.productionMethodPricing.DTF.surchargeMinor, 3000);
+  assert.equal(value.productionMethodPricing.DTF.feeVariantId, "9002");
   assert.equal(value.productionMethodPricing.DTG.surchargeMinor, 2000);
+  assert.equal(value.productionMethodPricing.DTG.feeVariantId, "9003");
   assert.equal(value.productionMethods[1].label, "DTF printing");
 });
 
@@ -176,6 +188,7 @@ test("saving production pricing is isolated per public product", async () => {
   const client = {
     async request<T>(_query: string, variables?: any) {
       if (variables?.metafields) return { metafieldsSet: { userErrors: [] } } as T;
+      if (variables?.query) return { products: { nodes: [] } } as T;
       return {
         productSet: {
           product: {
@@ -223,6 +236,105 @@ test("saving production pricing is isolated per public product", async () => {
 
   assert.equal(rows.get("gid://shopify/Product/100").embroiderySurcharge.toFixed(2), "50.00");
   assert.equal(rows.get("gid://shopify/Product/101").embroiderySurcharge.toFixed(2), "5.00");
+});
+
+test("admin save writes storefront pricing metafield after fee IDs are persisted", async () => {
+  const rows = new Map<string, any>();
+  let metafieldPayload: any;
+  const database = {
+    productionMethodSetting: {
+      async findMany() {
+        return [];
+      },
+    },
+    publicProductProductionPricing: {
+      async findUnique(args: any) {
+        return rows.get(args.where.shopKey_shopifyProductId.shopifyProductId) || null;
+      },
+      async findMany() {
+        return [...rows.values()];
+      },
+      async upsert(args: any) {
+        const key = args.where.shopKey_shopifyProductId.shopifyProductId;
+        const row = {
+          id: "pricing-a",
+          shopKey: args.create.shopKey,
+          shopifyProductId: key,
+          embroideryFeeVariantId: null,
+          dtfFeeVariantId: null,
+          dtgFeeVariantId: null,
+          ...(rows.get(key) || args.create),
+          ...args.update,
+        };
+        rows.set(key, row);
+        return row;
+      },
+      async update(args: any) {
+        const row = [...rows.values()].find((item) => item.id === args.where.id);
+        const updated = { ...row, ...args.data };
+        rows.set(updated.shopifyProductId, updated);
+        return updated;
+      },
+    },
+  };
+  const client = {
+    async request<T>(query: string, variables?: any) {
+      if (query.includes("query CustomHouseProductionFeeProduct")) {
+        return { products: { nodes: [] } } as T;
+      }
+      if (query.includes("productSet")) {
+        return {
+          productSet: {
+            product: {
+              id: "gid://shopify/Product/fee",
+              title: "Fee",
+              parentProductId: { value: variables?.input?.metafields?.[0]?.value },
+              variants: {
+                nodes: [
+                  { id: "gid://shopify/ProductVariant/9001", title: "Embroidery Production Fee" },
+                  { id: "gid://shopify/ProductVariant/9002", title: "DTF Production Fee" },
+                  { id: "gid://shopify/ProductVariant/9003", title: "DTG Production Fee" },
+                ],
+              },
+            },
+            userErrors: [],
+          },
+        } as T;
+      }
+      if (query.includes("metafieldsSet")) {
+        metafieldPayload = JSON.parse(variables.metafields[0].value);
+        return { metafieldsSet: { userErrors: [] } } as T;
+      }
+      throw new Error("Unexpected Shopify operation");
+    },
+  };
+
+  const result = await saveProductionPricing(
+    "shop.test",
+    {
+      shopifyProductId: "gid://shopify/Product/100",
+      currency: "SEK",
+      embroidery: "10.00",
+      dtf: "20.00",
+      dtg: "30.00",
+    },
+    client,
+    database,
+  );
+
+  const row = rows.get("gid://shopify/Product/100");
+  assert.equal(result.status, "saved");
+  assert.equal(row.embroideryFeeVariantId, "gid://shopify/ProductVariant/9001");
+  assert.equal(row.dtfFeeVariantId, "gid://shopify/ProductVariant/9002");
+  assert.equal(row.dtgFeeVariantId, "gid://shopify/ProductVariant/9003");
+  assert.equal(metafieldPayload.productionMethods[0].surchargeMinor, 1000);
+  assert.equal(metafieldPayload.productionMethods[0].feeVariantId, "9001");
+  assert.equal(
+    metafieldPayload.productionMethods[0].feeVariantGid,
+    "gid://shopify/ProductVariant/9001",
+  );
+  assert.equal(metafieldPayload.productionMethods[1].feeVariantId, "9002");
+  assert.equal(metafieldPayload.productionMethods[2].feeVariantId, "9003");
 });
 
 test("production fee sync uses supported productSet variant input and maps prices", async () => {
@@ -396,9 +508,10 @@ test("partial production fee failure keeps saved DB values", async () => {
 
   const row = rows.get("gid://shopify/Product/100");
   assert.equal(result.status, "partial");
-  assert.equal(result.shopifySynced, true);
+  assert.equal(result.shopifySynced, false);
   assert.equal(result.productionFeeSynced, false);
   assert.match(result.errors.join(" "), /Production fee sync failed: Variable \$input invalid/);
+  assert.match(result.errors.join(" "), /Production fee variant IDs missing/);
   assert.equal(row.embroiderySurcharge.toFixed(2), "10.00");
   assert.equal(row.dtfSurcharge.toFixed(2), "20.00");
   assert.equal(row.dtgSurcharge.toFixed(2), "30.00");
@@ -687,6 +800,8 @@ test("storefront PitchPrint bridge exposes trusted product pricing config", () =
   assert.match(handoff, /CUSTOMHOUSE_PP_ORDER_CONFIG_DATA/);
   assert.match(handoff, /customhouse:pitchprint-order-config-request/);
   assert.match(handoff, /surchargeMinor/);
+  assert.match(handoff, /feeVariantId/);
+  assert.match(handoff, /feeVariantGid/);
   assert.match(handoff, /maxWidthCm: 8/);
   assert.match(handoff, /maxHeightCm: 40/);
   assert.doesNotMatch(handoff, /CUSTOMHOUSE_PP_PRODUCTION_METHODS/);
@@ -702,18 +817,43 @@ test("storefront bridge maps saved 10 20 30 values to PitchPrint minor-unit payl
       { method: "DTF", label: "DTF printing", surcharge: parseSurchargeInput("20") },
       { method: "DTG", label: "DTG printing", surcharge: parseSurchargeInput("30") },
     ],
+    pricing: {
+      embroideryFeeVariantId: "gid://shopify/ProductVariant/9001",
+      dtfFeeVariantId: "gid://shopify/ProductVariant/9002",
+      dtgFeeVariantId: "gid://shopify/ProductVariant/9003",
+    },
   });
 
   const productionMethods = payload.productionMethods.map((method) => ({
     id: method.id.toLowerCase(),
     label: method.label,
     surchargeMinor: method.surchargeMinor,
+    feeVariantId: method.feeVariantId,
+    feeVariantGid: method.feeVariantGid,
   }));
 
   assert.deepEqual(productionMethods, [
-    { id: "embroidery", label: "Embroidery", surchargeMinor: 1000 },
-    { id: "dtf", label: "DTF printing", surchargeMinor: 2000 },
-    { id: "dtg", label: "DTG printing", surchargeMinor: 3000 },
+    {
+      id: "embroidery",
+      label: "Embroidery",
+      surchargeMinor: 1000,
+      feeVariantId: "9001",
+      feeVariantGid: "gid://shopify/ProductVariant/9001",
+    },
+    {
+      id: "dtf",
+      label: "DTF printing",
+      surchargeMinor: 2000,
+      feeVariantId: "9002",
+      feeVariantGid: "gid://shopify/ProductVariant/9002",
+    },
+    {
+      id: "dtg",
+      label: "DTG printing",
+      surchargeMinor: 3000,
+      feeVariantId: "9003",
+      feeVariantGid: "gid://shopify/ProductVariant/9003",
+    },
   ]);
 });
 

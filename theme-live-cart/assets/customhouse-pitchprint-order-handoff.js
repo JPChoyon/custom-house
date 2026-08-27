@@ -137,10 +137,14 @@
         ? pricing.productionMethods.find((method) => String(method?.id || '').toUpperCase() === code)
         : null);
       const surchargeMinor = Number(configured?.surchargeMinor || 0);
+      const feeVariantGid = String(configured?.feeVariantGid || configured?.productionFeeVariantId || configured?.shopifyFeeVariantId || '').trim();
+      const feeVariantId = String(configured?.feeVariantId || normalizeVariantId(feeVariantGid)).trim();
       return {
         id: detail.id,
         label: detail.label,
         surchargeMinor: Number.isFinite(surchargeMinor) && surchargeMinor > 0 ? Math.round(surchargeMinor) : 0,
+        ...(feeVariantId ? { feeVariantId } : {}),
+        ...(feeVariantGid ? { feeVariantGid } : {}),
         maxWidthCm: detail.maxWidthCm,
         maxHeightCm: detail.maxHeightCm,
       };
@@ -188,6 +192,8 @@
           {
             label: method.label,
             surchargeMinor: method.surchargeMinor,
+            ...(method.feeVariantId ? { feeVariantId: method.feeVariantId } : {}),
+            ...(method.feeVariantGid ? { feeVariantGid: method.feeVariantGid } : {}),
             maxWidthCm: method.maxWidthCm,
             maxHeightCm: method.maxHeightCm,
           },
