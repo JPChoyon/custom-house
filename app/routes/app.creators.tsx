@@ -142,6 +142,10 @@ function safeAvatarUrl(value: string | null | undefined) {
   }
 }
 
+function safeBannerUrl(value: string | null | undefined) {
+  return safeAvatarUrl(value);
+}
+
 function socialPlatformKey(value: string | null | undefined) {
   const platform = String(value || "").toLowerCase();
   if (platform.includes("tiktok")) return "tiktok";
@@ -315,6 +319,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
           referralCode: true,
         },
       },
+      marketplaceCollection: {
+        select: {
+          publicHandle: true,
+          bannerImageUrl: true,
+          bannerTitle: true,
+          bannerSubtitle: true,
+          bannerUpdatedAt: true,
+        },
+      },
     },
   });
 
@@ -360,6 +373,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
               submissions: true,
               sales: true,
               referredCreators: true,
+            },
+          },
+          marketplaceCollection: {
+            select: {
+              publicHandle: true,
+              bannerImageUrl: true,
+              bannerTitle: true,
+              bannerSubtitle: true,
+              bannerUpdatedAt: true,
             },
           },
         },
@@ -603,6 +625,9 @@ export default function Creators() {
       page === pagination.totalPages ||
       Math.abs(page - pagination.page) <= 1,
   );
+  const selectedBannerUrl = safeBannerUrl(
+    selectedCreator?.marketplaceCollection?.bannerImageUrl,
+  );
 
   return (
     <s-page heading="Creators">
@@ -757,6 +782,38 @@ export default function Creators() {
               </Link>
             </div>
             <div className="creator-referral-detail-grid">
+              <article className="creator-referral-section creator-banner-status-card">
+                <h3>Collection Banner</h3>
+                {selectedCreator.marketplaceCollection ? (
+                  <div className="creator-banner-status">
+                    <div className="creator-banner-preview">
+                      {selectedBannerUrl ? (
+                        <img src={selectedBannerUrl} alt="" />
+                      ) : (
+                        <span>No banner</span>
+                      )}
+                    </div>
+                    <dl className="creator-detail-list">
+                      <dt>Status</dt>
+                      <dd>
+                        {selectedCreator.marketplaceCollection.bannerImageUrl ? (
+                          <span className="creator-referral-chip">Banner configured</span>
+                        ) : (
+                          <span className="creator-referral-empty">No banner</span>
+                        )}
+                      </dd>
+                      <dt>Title</dt>
+                      <dd>{selectedCreator.marketplaceCollection.bannerTitle || "Not set"}</dd>
+                      <dt>Subtitle</dt>
+                      <dd>{selectedCreator.marketplaceCollection.bannerSubtitle || "Not set"}</dd>
+                      <dt>Updated</dt>
+                      <dd>{formatDateTime(selectedCreator.marketplaceCollection.bannerUpdatedAt)}</dd>
+                    </dl>
+                  </div>
+                ) : (
+                  <p className="creator-referral-empty">No public collection yet.</p>
+                )}
+              </article>
               <article className="creator-referral-section">
                 <h3>Earnings Summary</h3>
                 <div className="creator-referral-summary">
@@ -961,6 +1018,9 @@ export default function Creators() {
                     const avatarUrl = safeAvatarUrl(creator.profileImageUrl);
                     const displayName = creator.displayName || creator.legalName || "Unnamed creator";
                     const canOpenProfile = profileUrl.startsWith("https://");
+                    const hasCollectionBanner = Boolean(
+                      creator.marketplaceCollection?.bannerImageUrl,
+                    );
                     return (
                       <tr key={creator.id}>
                         <td data-label="Creator">
@@ -1032,6 +1092,9 @@ export default function Creators() {
                               ) : (
                                 <small>Add profile</small>
                               )}
+                              <small>
+                                {hasCollectionBanner ? "Banner configured" : "No banner"}
+                              </small>
                             </div>
                           </div>
                         </td>

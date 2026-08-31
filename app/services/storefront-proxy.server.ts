@@ -135,6 +135,16 @@ function productPreviewImages(input: {
   return [...images];
 }
 
+function publicImageUrl(value: string | null | undefined) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 function publicCss() {
   return `<style>
     [data-customhouse],[data-customhouse-shell]{--ch-primary:#8a2cff;--ch-primary-2:#5b22e8;--ch-service:#c8ff00;--ch-text:#f8fafc;--ch-muted:#b8bfd0;--ch-border:rgba(255,255,255,.13);--ch-soft:#151515;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ch-text);letter-spacing:0}
@@ -158,6 +168,12 @@ function publicCss() {
     .customhouse-proxy-footer p{margin:.35rem 0 0;color:var(--ch-muted);font-size:.86rem}
     .customhouse-proxy-footer__links{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:1rem}
     .customhouse-public-page,.customhouse-product-page{width:min(1180px,calc(100vw - 2rem));margin:0 auto;padding:1rem 0 2.5rem}
+    .customhouse-public-banner{position:relative;min-height:clamp(190px,31vw,360px);display:grid;align-items:end;margin:0 0 1rem;border:1px solid rgba(255,255,255,.12);border-radius:0 0 12px 12px;overflow:hidden;background:#080809}
+    .customhouse-public-banner img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+    .customhouse-public-banner::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.64));pointer-events:none}
+    .customhouse-public-banner__copy{position:relative;z-index:1;width:min(720px,100%);padding:clamp(1rem,4vw,2.5rem);color:#fff}
+    .customhouse-public-banner__copy strong{display:block;margin:0;font-size:clamp(1.75rem,4.5vw,3.4rem);line-height:.98;text-transform:uppercase;font-family:Impact,Haettenschweiler,"Arial Narrow Bold",sans-serif;font-style:italic;font-weight:900}
+    .customhouse-public-banner__copy p{max-width:44rem;margin:.55rem 0 0;color:#e6e8ee;font-size:clamp(.95rem,1.8vw,1.1rem);line-height:1.45}
     .customhouse-public-hero{position:relative;min-height:260px;display:grid;align-content:center;gap:1.25rem;padding:2.15rem clamp(1.1rem,4vw,3rem) 2.35rem;border:1px solid rgba(255,255,255,.1);border-radius:0 0 12px 12px;background:radial-gradient(circle at 78% 20%,rgba(138,44,255,.16),transparent 28%),linear-gradient(100deg,#09090a 0%,#050506 46%,rgba(18,18,20,.92) 100%);overflow:hidden}
     .customhouse-public-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,transparent 0 52%,rgba(200,255,0,.035) 52% 56%,transparent 56%);pointer-events:none}
     .customhouse-public-hero-copy{position:relative;z-index:1;max-width:470px}
@@ -256,7 +272,7 @@ function publicCss() {
     [data-customhouse-cart-message],.customhouse-public-empty{color:var(--ch-muted)}
     @media(max-width:1100px){.customhouse-public-grid,.customhouse-more__grid{grid-template-columns:repeat(3,minmax(0,1fr))}.customhouse-public-services{grid-template-columns:repeat(2,minmax(0,1fr))}.customhouse-public-service:nth-child(3){border-left:0;border-top:1px solid var(--ch-border)}.customhouse-public-service:nth-child(4){border-top:1px solid var(--ch-border)}}
     @media(max-width:900px){.customhouse-public-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.customhouse-product-layout{grid-template-columns:1fr;gap:1.5rem}.customhouse-product-page{padding:1rem 0 2rem}.customhouse-product-gallery{display:flex;flex-direction:column-reverse;gap:.75rem}.customhouse-product-thumbs{display:flex;gap:.65rem;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:.15rem}.customhouse-product-thumb{width:76px;min-width:76px;scroll-snap-align:start}.customhouse-service-row{grid-template-columns:1fr}.customhouse-service-row span+span{border-left:0;border-top:1px solid var(--ch-border)}.customhouse-more__grid{grid-template-columns:repeat(2,minmax(0,1fr))}.customhouse-more__controls{gap:4rem}}
-    @media(max-width:760px){.customhouse-proxy-header__inner{grid-template-columns:1fr auto;align-items:center;gap:.65rem;min-height:62px}.customhouse-proxy-logo{font-size:1.08rem}.customhouse-proxy-actions a{width:36px;height:36px}.customhouse-proxy-nav{grid-column:1/-1;justify-content:flex-start;gap:.85rem;overflow-x:auto;scrollbar-width:none;padding:0 0 .75rem}.customhouse-proxy-nav::-webkit-scrollbar{display:none}.customhouse-proxy-nav a{font-size:.76rem}.customhouse-proxy-footer__inner{grid-template-columns:1fr}.customhouse-proxy-footer__links{justify-content:flex-start}.customhouse-public-page,.customhouse-product-page{width:min(100vw - 1rem,1180px)}.customhouse-public-hero{min-height:auto;padding:1.35rem 1rem 1.5rem;border-radius:0 0 10px 10px}.customhouse-public-hero h1{font-size:clamp(2.5rem,15vw,4rem)}.customhouse-public-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}.customhouse-public-stat{min-width:0;padding:.6rem .58rem;gap:.45rem}.customhouse-public-stat-icon.material-symbols-outlined{font-size:1.6rem}.customhouse-public-services{grid-template-columns:1fr}.customhouse-public-service+.customhouse-public-service{border-left:0;border-top:1px solid var(--ch-border)}.customhouse-public-service{padding:1.05rem}.customhouse-public-service-icon.material-symbols-outlined{font-size:1.7rem}.customhouse-public-toolbar{align-items:stretch;flex-direction:column}.customhouse-public-toolbar-right{width:100%;justify-content:space-between}.customhouse-public-filter,.customhouse-public-sort{width:100%;min-width:0}.customhouse-public-view{flex:0 0 auto}.customhouse-public-grid{grid-template-columns:1fr}.customhouse-product-panel h1{font-size:clamp(1.9rem,10vw,2.8rem)}.customhouse-product-media img{padding:1rem}.customhouse-option-pill{flex:1 1 auto}.customhouse-field--color .customhouse-option-pill{flex:0 1 calc(50% - .4rem)}.customhouse-more{padding:1.5rem .8rem 1rem}.customhouse-more__title::before,.customhouse-more__title::after{width:28px}.customhouse-more__grid{grid-template-columns:1fr}.customhouse-more__image{max-height:170px}.customhouse-more__card h3{font-size:.9rem}.customhouse-more__button{min-height:32px}}
+    @media(max-width:760px){.customhouse-proxy-header__inner{grid-template-columns:1fr auto;align-items:center;gap:.65rem;min-height:62px}.customhouse-proxy-logo{font-size:1.08rem}.customhouse-proxy-actions a{width:36px;height:36px}.customhouse-proxy-nav{grid-column:1/-1;justify-content:flex-start;gap:.85rem;overflow-x:auto;scrollbar-width:none;padding:0 0 .75rem}.customhouse-proxy-nav::-webkit-scrollbar{display:none}.customhouse-proxy-nav a{font-size:.76rem}.customhouse-proxy-footer__inner{grid-template-columns:1fr}.customhouse-proxy-footer__links{justify-content:flex-start}.customhouse-public-page,.customhouse-product-page{width:min(100vw - 1rem,1180px)}.customhouse-public-banner{min-height:178px;border-radius:0 0 10px 10px}.customhouse-public-banner__copy{padding:1rem}.customhouse-public-hero{min-height:auto;padding:1.35rem 1rem 1.5rem;border-radius:0 0 10px 10px}.customhouse-public-hero h1{font-size:clamp(2.5rem,15vw,4rem)}.customhouse-public-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}.customhouse-public-stat{min-width:0;padding:.6rem .58rem;gap:.45rem}.customhouse-public-stat-icon.material-symbols-outlined{font-size:1.6rem}.customhouse-public-services{grid-template-columns:1fr}.customhouse-public-service+.customhouse-public-service{border-left:0;border-top:1px solid var(--ch-border)}.customhouse-public-service{padding:1.05rem}.customhouse-public-service-icon.material-symbols-outlined{font-size:1.7rem}.customhouse-public-toolbar{align-items:stretch;flex-direction:column}.customhouse-public-toolbar-right{width:100%;justify-content:space-between}.customhouse-public-filter,.customhouse-public-sort{width:100%;min-width:0}.customhouse-public-view{flex:0 0 auto}.customhouse-public-grid{grid-template-columns:1fr}.customhouse-product-panel h1{font-size:clamp(1.9rem,10vw,2.8rem)}.customhouse-product-media img{padding:1rem}.customhouse-option-pill{flex:1 1 auto}.customhouse-field--color .customhouse-option-pill{flex:0 1 calc(50% - .4rem)}.customhouse-more{padding:1.5rem .8rem 1rem}.customhouse-more__title::before,.customhouse-more__title::after{width:28px}.customhouse-more__grid{grid-template-columns:1fr}.customhouse-more__image{max-height:170px}.customhouse-more__card h3{font-size:.9rem}.customhouse-more__button{min-height:32px}}
     @media(max-width:420px){.customhouse-proxy-header__inner,.customhouse-proxy-footer__inner{width:min(100vw - 1rem,1180px)}.customhouse-proxy-logo{font-size:1rem}.customhouse-proxy-nav{gap:.72rem}.customhouse-proxy-nav a{font-size:.7rem}.customhouse-proxy-actions a{width:34px;height:34px}.customhouse-proxy-actions .material-symbols-outlined{font-size:1.12rem}}
   </style>`;
 }
@@ -295,8 +311,41 @@ function siteFooter() {
   </footer>`;
 }
 
+function collectionBannerHtml(input: {
+  collection: {
+    bannerImageUrl?: string | null;
+    bannerTitle?: string | null;
+    bannerSubtitle?: string | null;
+  };
+  creator: { displayName: string };
+}) {
+  const imageUrl = publicImageUrl(input.collection.bannerImageUrl);
+  if (!imageUrl) return "";
+  const title = input.collection.bannerTitle?.trim();
+  const subtitle = input.collection.bannerSubtitle?.trim();
+  const alt = title || `${input.creator.displayName} collection banner`;
+
+  return `<section class="customhouse-public-banner" aria-label="Creator collection banner">
+    <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(alt)}">
+    ${
+      title || subtitle
+        ? `<div class="customhouse-public-banner__copy">
+            ${title ? `<strong>${escapeHtml(title)}</strong>` : ""}
+            ${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ""}
+          </div>`
+        : ""
+    }
+  </section>`;
+}
+
 function collectionHtml(input: {
-  collection: { publicHandle: string; displayName: string };
+  collection: {
+    publicHandle: string;
+    displayName: string;
+    bannerImageUrl?: string | null;
+    bannerTitle?: string | null;
+    bannerSubtitle?: string | null;
+  };
   creator: { displayName: string; handle: string };
   products: Array<{
     id: string;
@@ -363,6 +412,7 @@ function collectionHtml(input: {
       <body>
         ${siteHeader()}
         <main class="customhouse-public-page" data-customhouse>
+          ${collectionBannerHtml(input)}
           <header class="customhouse-public-hero">
             <div class="customhouse-public-hero-copy">
               <h1>${escapeHtml(collectionName)}</h1>
@@ -1211,6 +1261,14 @@ export async function handleStorefrontProxy(
               id: creator.id,
               handle: creator.handle,
               displayName: creator.displayName,
+            },
+            collection: {
+              publicHandle: collection.publicHandle,
+              displayName: collection.displayName,
+              bannerImageUrl: collection.bannerImageUrl,
+              bannerTitle: collection.bannerTitle,
+              bannerSubtitle: collection.bannerSubtitle,
+              bannerUpdatedAt: collection.bannerUpdatedAt,
             },
             products: products.map((product) => ({
               id: product.id,
