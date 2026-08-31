@@ -616,6 +616,10 @@ export async function getPublicCreatorCollection(
           status: true,
           profileImageUrl: true,
           bio: true,
+          portfolioUrl: true,
+          socialLinksJson: true,
+          primaryPlatform: true,
+          primaryProfileUrl: true,
         },
       },
     },
@@ -628,6 +632,10 @@ export async function getPublicCreatorCollection(
           status: string;
           profileImageUrl: string | null;
           bio: string | null;
+          portfolioUrl: string | null;
+          socialLinksJson: string | null;
+          primaryPlatform: string | null;
+          primaryProfileUrl: string | null;
         };
       })
     | null;

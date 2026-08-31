@@ -9,6 +9,10 @@ import {
   validateCollectionBannerImage,
 } from "../app/services/creator-collection-banner.server.ts";
 import { DomainError } from "../app/services/domain.ts";
+import {
+  collectionHtml,
+  publicCreatorSocialLinks,
+} from "../app/services/storefront-proxy.server.ts";
 import type { ShopifyGraphqlClient } from "../app/services/shopify-graphql.server.ts";
 
 function pngBytes(width = 1920, height = 600) {
@@ -83,6 +87,47 @@ function bannerDb() {
       },
     },
   };
+}
+
+function publicCollectionInput(overrides: {
+  collection?: Record<string, unknown>;
+  creator?: Record<string, unknown>;
+  products?: Array<Record<string, unknown>>;
+} = {}) {
+  return {
+    collection: {
+      publicHandle: "ari-designs",
+      displayName: "Ari Designs",
+      bannerImageUrl: null,
+      bannerTitle: null,
+      bannerSubtitle: null,
+      ...overrides.collection,
+    },
+    creator: {
+      displayName: "Ari",
+      handle: "ari",
+      portfolioUrl: null,
+      socialLinksJson: "[]",
+      primaryPlatform: null,
+      primaryProfileUrl: null,
+      ...overrides.creator,
+    },
+    products: overrides.products?.map((product) => ({
+      id: "creator-product-a",
+      title: "Creator Tee",
+      description: null,
+      baseProductTitle: "T-Shirt",
+      previewUrl: null,
+      previewUrls: "[]",
+      ...product,
+    })) || [],
+  };
+}
+
+async function publicCollectionMarkup(
+  overrides: Parameters<typeof publicCollectionInput>[0] = {},
+) {
+  return collectionHtml(publicCollectionInput(overrides)).text();
 }
 
 test("collection banner validation accepts wide PNG banners and rejects mismatched files", () => {
@@ -510,7 +555,7 @@ test("creator dashboard renders compact collection banner management UI", () => 
   assert.match(styles, /@media \(max-width: 520px\)[\s\S]*\.customhouse-banner-actions/s);
 });
 
-test("public creator collection loads and renders an optional banner without changing fallback hero", () => {
+test("public creator collection loads banner and existing social profile fields", () => {
   const collectionsService = readFileSync(
     "app/services/creator-collections.server.ts",
     "utf8",
@@ -524,13 +569,17 @@ test("public creator collection loads and renders an optional banner without cha
   assert.match(collectionsService, /bannerTitle: true/);
   assert.match(collectionsService, /bannerSubtitle: true/);
   assert.match(collectionsService, /bannerUpdatedAt: true/);
-  assert.match(storefront, /function collectionBannerHtml/);
-  assert.match(storefront, /customhouse-public-banner/);
-  assert.match(storefront, /object-fit:cover/);
-  assert.match(storefront, /collectionBannerHtml\(input\)/);
+  assert.match(collectionsService, /portfolioUrl: true/);
+  assert.match(collectionsService, /socialLinksJson: true/);
+  assert.match(collectionsService, /primaryPlatform: true/);
+  assert.match(collectionsService, /primaryProfileUrl: true/);
+  assert.doesNotMatch(storefront, /function collectionBannerHtml/);
+  assert.doesNotMatch(storefront, /customhouse-public-banner/);
+  assert.match(storefront, /customhouse-public-hero--with-banner/);
+  assert.match(storefront, /background-size:cover/);
+  assert.match(storefront, /background-position:center/);
   assert.match(storefront, /bannerTitle/);
-  assert.match(storefront, /\$\{input\.creator\.displayName\} collection banner/);
-  assert.match(storefront, /<header class="customhouse-public-hero">/);
+  assert.match(storefront, /socialLinks: publicSocialLinksRecord\(creator\)/);
 });
 
 test("public creator collection JSON exposes banner fields only from the loaded collection", () => {
@@ -543,6 +592,139 @@ test("public creator collection JSON exposes banner fields only from the loaded 
   assert.match(storefront, /bannerTitle: collection\.bannerTitle/);
   assert.match(storefront, /bannerSubtitle: collection\.bannerSubtitle/);
   assert.match(storefront, /bannerUpdatedAt: collection\.bannerUpdatedAt/);
+  assert.match(storefront, /socialLinks: publicSocialLinksRecord\(creator\)/);
+});
+
+test("public hero keeps default branded background when no banner is configured", async () => {
+  const markup = await publicCollectionMarkup();
+
+  assert.match(markup, /<header class="customhouse-public-hero">/);
+  assert.match(markup, /radial-gradient\(circle at 78% 20%,rgba\(138,44,255,.16\),transparent 28%\),linear-gradient\(100deg,#09090a/);
+  assert.doesNotMatch(markup, /<header class="[^"]*customhouse-public-hero--with-banner/);
+  assert.doesNotMatch(markup, /<section class="customhouse-public-banner"/);
+});
+
+test("public hero uses configured banner as the existing hero background", async () => {
+  const markup = await publicCollectionMarkup({
+    collection: {
+      bannerImageUrl: "https://cdn.shopify.com/banner.png",
+    },
+  });
+
+  assert.match(markup, /customhouse-public-hero customhouse-public-hero--with-banner/);
+  assert.match(markup, /background-image: linear-gradient\(90deg, rgba\(0,0,0,.82\)/);
+  assert.match(markup, /url\(&quot;https:\/\/cdn\.shopify\.com\/banner\.png&quot;\)/);
+  assert.doesNotMatch(markup, /<section class="customhouse-public-banner"/);
+  assert.doesNotMatch(markup, /alt="Ari collection banner"/);
+});
+
+test("public hero title uses banner title and falls back to collection title", async () => {
+  const withTitle = await publicCollectionMarkup({
+    collection: { bannerTitle: "Ari Summer Drop" },
+  });
+  const withoutTitle = await publicCollectionMarkup({
+    collection: { bannerTitle: "   " },
+  });
+
+  assert.match(withTitle, /<h1>Ari Summer Drop<\/h1>/);
+  assert.match(withoutTitle, /<h1>Ari Designs<\/h1>/);
+});
+
+test("public hero subtitle uses banner subtitle and falls back to existing tagline", async () => {
+  const withSubtitle = await publicCollectionMarkup({
+    collection: { bannerSubtitle: "Explore my latest custom designs." },
+  });
+  const withoutSubtitle = await publicCollectionMarkup({
+    collection: { bannerSubtitle: "" },
+  });
+
+  assert.match(withSubtitle, /<p>Explore my latest custom designs\.<\/p>/);
+  assert.match(withoutSubtitle, /<p>Explore every piece from Ari\. Unique creator designs, ready to purchase\.<\/p>/);
+});
+
+test("public social links render safe supported URLs and hide missing values", async () => {
+  const markup = await publicCollectionMarkup({
+    creator: {
+      socialLinksJson: JSON.stringify(["https://instagram.com/ari"]),
+    },
+  });
+
+  assert.match(markup, /customhouse-public-socials/);
+  assert.match(markup, /data-social-platform="instagram"/);
+  assert.match(markup, /href="https:\/\/instagram\.com\/ari"/);
+  assert.doesNotMatch(markup, /data-social-platform="facebook"/);
+});
+
+test("public social links reject unsafe URL schemes", async () => {
+  const markup = await publicCollectionMarkup({
+    creator: {
+      socialLinksJson: JSON.stringify([
+        "javascript:alert(1)",
+        "data:text/html,nope",
+        "https://tiktok.com/@ari",
+      ]),
+    },
+  });
+
+  assert.doesNotMatch(markup, /javascript:/);
+  assert.doesNotMatch(markup, /data:text/);
+  assert.match(markup, /data-social-platform="tiktok"/);
+});
+
+test("public social links support multiple platforms without duplicates", async () => {
+  const links = publicCreatorSocialLinks({
+    primaryPlatform: "YouTube",
+    primaryProfileUrl: "https://youtube.com/@ari",
+    socialLinksJson: JSON.stringify([
+      "https://instagram.com/ari",
+      "https://facebook.com/ari",
+      "https://tiktok.com/@ari",
+      "https://x.com/ari",
+      "https://instagram.com/ari",
+    ]),
+    portfolioUrl: "http://example.com/ari",
+  });
+
+  assert.deepEqual(
+    links.map((link) => link.platform),
+    ["youtube", "instagram", "facebook", "tiktok", "x", "website"],
+  );
+});
+
+test("public social links are scoped to the rendered creator only", async () => {
+  const creatorA = await publicCollectionMarkup({
+    creator: {
+      socialLinksJson: JSON.stringify(["https://instagram.com/creator-a"]),
+    },
+  });
+  const creatorB = await publicCollectionMarkup({
+    creator: {
+      socialLinksJson: JSON.stringify(["https://youtube.com/@creator-b"]),
+    },
+  });
+
+  assert.match(creatorA, /instagram\.com\/creator-a/);
+  assert.doesNotMatch(creatorA, /youtube\.com\/@creator-b/);
+  assert.match(creatorB, /youtube\.com\/@creator-b/);
+  assert.doesNotMatch(creatorB, /instagram\.com\/creator-a/);
+});
+
+test("public creator collection products still render with hero changes", async () => {
+  const markup = await publicCollectionMarkup({
+    products: [
+      {
+        id: "product-one",
+        title: "Creator Hoodie",
+        baseProductTitle: "Premium Hoodie",
+        previewUrl: "https://cdn.shopify.com/product.png",
+      },
+    ],
+  });
+
+  assert.match(markup, /customhouse-public-grid/);
+  assert.match(markup, /Creator Hoodie/);
+  assert.match(markup, /Premium Hoodie/);
+  assert.match(markup, /View Product/);
 });
 
 test("admin creator list and detail expose read-only collection banner status", () => {
