@@ -618,6 +618,17 @@ test("public hero uses configured banner as the existing hero background", async
   assert.doesNotMatch(markup, /alt="Ari collection banner"/);
 });
 
+test("public hero banner fills the top and bottom layout without page gaps", () => {
+  const storefront = readFileSync(
+    "app/services/storefront-proxy.server.ts",
+    "utf8",
+  );
+
+  assert.match(storefront, /\.customhouse-public-page,.customhouse-product-page\{[^}]*padding:0 0 2\.5rem/);
+  assert.match(storefront, /\.customhouse-public-hero--with-banner\{[^}]*background-size:cover[^}]*background-origin:border-box[^}]*background-clip:border-box/s);
+  assert.match(storefront, /\.customhouse-public-services\{[^}]*margin:0 0 1\.5rem/);
+});
+
 test("public hero title uses banner title and falls back to collection title", async () => {
   const withTitle = await publicCollectionMarkup({
     collection: { bannerTitle: "Ari Summer Drop" },
