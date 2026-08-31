@@ -55,6 +55,16 @@ export function validateCollectionBannerImage(
   });
 }
 
+function bannerDiagnostic(
+  outcome: "started" | "succeeded" | "failed",
+  details: Record<string, unknown>,
+) {
+  console.info("customhouse_collection_banner", {
+    outcome,
+    ...details,
+  });
+}
+
 async function bannerImageUrl(mediaId: string, client: ShopifyGraphqlClient) {
   const result = await client.request<{
     bannerImage: BannerImageMedia | null;
@@ -77,10 +87,18 @@ async function waitForBannerImageUrl(
   mediaId: string,
   client: ShopifyGraphqlClient,
 ) {
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  const delays = [350, 500, 750, 1000, 1250, 1500, 2000, 2500];
+  for (let attempt = 0; attempt < delays.length; attempt += 1) {
     const imageUrl = await bannerImageUrl(mediaId, client);
-    if (imageUrl) return imageUrl;
-    await new Promise((resolve) => setTimeout(resolve, 700));
+    if (imageUrl?.startsWith("https://")) {
+      bannerDiagnostic("succeeded", {
+        stage: "shopify_file_ready",
+        mediaId,
+        attempt: attempt + 1,
+      });
+      return imageUrl;
+    }
+    await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
   }
   return null;
 }
@@ -91,8 +109,16 @@ export async function uploadCollectionBannerImage(
   alt = "Creator collection banner",
 ) {
   const bytes = new Uint8Array(await file.arrayBuffer());
-  validateCollectionBannerImage(bytes, file.type, file.size, file.name);
-  const staged = await client.request<{
+  const info = validateCollectionBannerImage(bytes, file.type, file.size, file.name);
+  bannerDiagnostic("started", {
+    stage: "shopify_staged_upload",
+    filename: file.name.slice(0, 120),
+    mimeType: file.type,
+    size: file.size,
+    width: info.width,
+    height: info.height,
+  });
+  let staged: {
     stagedUploadsCreate: {
       stagedTargets: Array<{
         url: string;
@@ -101,88 +127,160 @@ export async function uploadCollectionBannerImage(
       }>;
       userErrors: UserError[];
     };
-  }>(
-    `#graphql mutation CreatorCollectionBannerTarget($input: [StagedUploadInput!]!) {
-      stagedUploadsCreate(input: $input) {
-        stagedTargets { url resourceUrl parameters { name value } }
-        userErrors { message }
-      }
-    }`,
-    {
-      input: [
-        {
-          resource: "IMAGE",
-          filename: file.name.slice(0, 120),
-          mimeType: file.type,
-          fileSize: String(file.size),
-          httpMethod: "POST",
-        },
-      ],
-    },
-  );
-  throwUserErrors(
-    staged.stagedUploadsCreate.userErrors,
-    "Collection banner upload preparation",
-  );
+  };
+  try {
+    staged = await client.request(
+      `#graphql mutation CreatorCollectionBannerTarget($input: [StagedUploadInput!]!) {
+        stagedUploadsCreate(input: $input) {
+          stagedTargets { url resourceUrl parameters { name value } }
+          userErrors { message }
+        }
+      }`,
+      {
+        input: [
+          {
+            resource: "IMAGE",
+            filename: file.name.slice(0, 120),
+            mimeType: file.type,
+            fileSize: String(file.size),
+            httpMethod: "POST",
+          },
+        ],
+      },
+    );
+    throwUserErrors(
+      staged.stagedUploadsCreate.userErrors,
+      "Collection banner upload preparation",
+    );
+  } catch (error) {
+    bannerDiagnostic("failed", {
+      stage: "shopify_staged_upload",
+      reason: error instanceof Error ? error.message : "unknown",
+    });
+    throw new DomainError(
+      "STAGED_UPLOAD_FAILED",
+      "Banner image upload could not be prepared.",
+      502,
+    );
+  }
   const target = staged.stagedUploadsCreate.stagedTargets[0];
   if (!target) {
+    bannerDiagnostic("failed", { stage: "shopify_staged_upload", reason: "no_target" });
     throw new DomainError(
-      "UPLOAD_FAILED",
+      "STAGED_UPLOAD_FAILED",
       "Collection banner upload could not be prepared.",
       502,
     );
   }
+  bannerDiagnostic("succeeded", {
+    stage: "shopify_staged_upload",
+    parameterCount: target.parameters.length,
+  });
   const form = new FormData();
   for (const parameter of target.parameters) {
     form.append(parameter.name, parameter.value);
   }
   form.append("file", new Blob([bytes], { type: file.type }), file.name);
-  const upload = await fetch(target.url, { method: "POST", body: form });
-  if (!upload.ok) {
+  bannerDiagnostic("started", { stage: "binary_upload", size: file.size });
+  let upload: Response;
+  try {
+    upload = await fetch(target.url, { method: "POST", body: form });
+  } catch (error) {
+    bannerDiagnostic("failed", {
+      stage: "binary_upload",
+      reason: error instanceof Error ? error.message : "network_error",
+    });
     throw new DomainError(
-      "UPLOAD_FAILED",
+      "STAGED_BINARY_UPLOAD_FAILED",
+      "Banner image upload failed.",
+      502,
+    );
+  }
+  if (!upload.ok) {
+    bannerDiagnostic("failed", {
+      stage: "binary_upload",
+      status: upload.status,
+      statusText: upload.statusText,
+    });
+    throw new DomainError(
+      "STAGED_BINARY_UPLOAD_FAILED",
       "Collection banner upload failed.",
       502,
     );
   }
-  const created = await client.request<{
+  bannerDiagnostic("succeeded", { stage: "binary_upload", status: upload.status });
+  bannerDiagnostic("started", { stage: "shopify_file_create" });
+  let created: {
     fileCreate: { files: BannerImageMedia[]; userErrors: UserError[] };
-  }>(
-    `#graphql mutation CreatorCollectionBannerCreate($files: [FileCreateInput!]!) {
-      fileCreate(files: $files) {
-        files {
-          ... on MediaImage {
-            id
-            fileStatus
-            image { url }
+  };
+  try {
+    created = await client.request(
+      `#graphql mutation CreatorCollectionBannerCreate($files: [FileCreateInput!]!) {
+        fileCreate(files: $files) {
+          files {
+            ... on MediaImage {
+              id
+              fileStatus
+              image { url }
+            }
           }
+          userErrors { message }
         }
-        userErrors { message }
-      }
-    }`,
-    {
-      files: [
-        {
-          originalSource: target.resourceUrl,
-          contentType: "IMAGE",
-          alt: cleanBannerText(alt, 120) || "Creator collection banner",
-        },
-      ],
-    },
-  );
-  throwUserErrors(created.fileCreate.userErrors, "Collection banner creation");
+      }`,
+      {
+        files: [
+          {
+            originalSource: target.resourceUrl,
+            contentType: "IMAGE",
+            alt: cleanBannerText(alt, 120) || "Creator collection banner",
+          },
+        ],
+      },
+    );
+    throwUserErrors(created.fileCreate.userErrors, "Collection banner creation");
+  } catch (error) {
+    bannerDiagnostic("failed", {
+      stage: "shopify_file_create",
+      reason: error instanceof Error ? error.message : "unknown",
+    });
+    throw new DomainError(
+      "SHOPIFY_FILE_CREATE_FAILED",
+      "Banner image could not be created in Shopify.",
+      502,
+    );
+  }
   const media = created.fileCreate.files[0];
   if (!media) {
+    bannerDiagnostic("failed", { stage: "shopify_file_create", reason: "no_media" });
     throw new DomainError(
-      "UPLOAD_FAILED",
+      "SHOPIFY_FILE_CREATE_FAILED",
       "Shopify did not create the collection banner image.",
+      502,
+    );
+  }
+  bannerDiagnostic("succeeded", {
+    stage: "shopify_file_create",
+    mediaId: media.id,
+    fileStatus: media.fileStatus,
+    hasImmediateUrl: Boolean(media.image?.url),
+  });
+  const bannerImageUrl =
+    media.image?.url || (await waitForBannerImageUrl(media.id, client));
+  if (!bannerImageUrl?.startsWith("https://")) {
+    bannerDiagnostic("failed", {
+      stage: "shopify_file_ready",
+      mediaId: media.id,
+      fileStatus: media.fileStatus,
+    });
+    throw new DomainError(
+      "SHOPIFY_FILE_NOT_READY",
+      "Banner image is still processing. Please try again in a moment.",
       502,
     );
   }
   return {
     bannerImageId: media.id,
-    bannerImageUrl:
-      media.image?.url || (await waitForBannerImageUrl(media.id, client)),
+    bannerImageUrl,
     status: media.fileStatus,
   };
 }
@@ -276,36 +374,56 @@ export async function updateCreatorCollectionBanner(input: {
   const { database, customerId, creator, collection } =
     await approvedCreatorCollection(input);
   const nextImageUrl = cleanHttpsUrl(input.bannerImageUrl);
-  const updated = await database.creatorCollection.update({
-    where: { id: collection.id },
-    data: {
-      ...(nextImageUrl !== undefined ? { bannerImageUrl: nextImageUrl } : {}),
-      bannerTitle: cleanBannerText(input.title, 120),
-      bannerSubtitle: cleanBannerText(input.subtitle, 500),
-      bannerUpdatedAt: new Date(),
-    },
-  });
-  await database.auditLog?.create({
-    data: {
-      shop: input.shop,
-      actorType: "CUSTOMER",
-      actorId: customerId,
-      action: "creator_collection.banner.updated",
-      entityType: "CreatorCollection",
-      entityId: collection.id,
-      beforeJson: safeJson({
-        hasBanner: Boolean(collection.bannerImageUrl),
-        titlePresent: Boolean(collection.bannerTitle),
-        subtitlePresent: Boolean(collection.bannerSubtitle),
-      }),
-      afterJson: safeJson({
-        creatorId: creator.id,
-        hasBanner: Boolean(updated.bannerImageUrl),
-        titlePresent: Boolean(updated.bannerTitle),
-        subtitlePresent: Boolean(updated.bannerSubtitle),
-      }),
-    },
-  });
+  let updated: BannerCollection;
+  try {
+    updated = await database.creatorCollection.update({
+      where: { id: collection.id },
+      data: {
+        ...(nextImageUrl !== undefined ? { bannerImageUrl: nextImageUrl } : {}),
+        bannerTitle: cleanBannerText(input.title, 120),
+        bannerSubtitle: cleanBannerText(input.subtitle, 500),
+        bannerUpdatedAt: new Date(),
+      },
+    });
+  } catch (error) {
+    bannerDiagnostic("failed", {
+      stage: "database_update",
+      reason: error instanceof Error ? error.message : "unknown",
+    });
+    throw new DomainError(
+      "DATABASE_UPDATE_FAILED",
+      "Collection banner could not be saved.",
+      500,
+    );
+  }
+  try {
+    await database.auditLog?.create({
+      data: {
+        shop: input.shop,
+        actorType: "CUSTOMER",
+        actorId: customerId,
+        action: "creator_collection.banner.updated",
+        entityType: "CreatorCollection",
+        entityId: collection.id,
+        beforeJson: safeJson({
+          hasBanner: Boolean(collection.bannerImageUrl),
+          titlePresent: Boolean(collection.bannerTitle),
+          subtitlePresent: Boolean(collection.bannerSubtitle),
+        }),
+        afterJson: safeJson({
+          creatorId: creator.id,
+          hasBanner: Boolean(updated.bannerImageUrl),
+          titlePresent: Boolean(updated.bannerTitle),
+          subtitlePresent: Boolean(updated.bannerSubtitle),
+        }),
+      },
+    });
+  } catch (error) {
+    bannerDiagnostic("failed", {
+      stage: "audit_log",
+      reason: error instanceof Error ? error.message : "unknown",
+    });
+  }
   return updated;
 }
 
@@ -316,29 +434,51 @@ export async function removeCreatorCollectionBanner(input: {
 }) {
   const { database, customerId, collection } =
     await approvedCreatorCollection(input);
-  const updated = await database.creatorCollection.update({
-    where: { id: collection.id },
-    data: {
-      bannerImageUrl: null,
-      bannerTitle: null,
-      bannerSubtitle: null,
-      bannerUpdatedAt: null,
-    },
-  });
-  await database.auditLog?.create({
-    data: {
-      shop: input.shop,
-      actorType: "CUSTOMER",
-      actorId: customerId,
-      action: "creator_collection.banner.removed",
-      entityType: "CreatorCollection",
-      entityId: collection.id,
-      beforeJson: safeJson({
-        hasBanner: Boolean(collection.bannerImageUrl),
-        titlePresent: Boolean(collection.bannerTitle),
-        subtitlePresent: Boolean(collection.bannerSubtitle),
-      }),
-    },
-  });
+  let updated: BannerCollection;
+  try {
+    updated = await database.creatorCollection.update({
+      where: { id: collection.id },
+      data: {
+        bannerImageUrl: null,
+        bannerTitle: null,
+        bannerSubtitle: null,
+        bannerUpdatedAt: null,
+      },
+    });
+  } catch (error) {
+    bannerDiagnostic("failed", {
+      stage: "database_update",
+      action: "remove",
+      reason: error instanceof Error ? error.message : "unknown",
+    });
+    throw new DomainError(
+      "DATABASE_UPDATE_FAILED",
+      "Collection banner could not be removed.",
+      500,
+    );
+  }
+  try {
+    await database.auditLog?.create({
+      data: {
+        shop: input.shop,
+        actorType: "CUSTOMER",
+        actorId: customerId,
+        action: "creator_collection.banner.removed",
+        entityType: "CreatorCollection",
+        entityId: collection.id,
+        beforeJson: safeJson({
+          hasBanner: Boolean(collection.bannerImageUrl),
+          titlePresent: Boolean(collection.bannerTitle),
+          subtitlePresent: Boolean(collection.bannerSubtitle),
+        }),
+      },
+    });
+  } catch (error) {
+    bannerDiagnostic("failed", {
+      stage: "audit_log",
+      action: "remove",
+      reason: error instanceof Error ? error.message : "unknown",
+    });
+  }
   return updated;
 }

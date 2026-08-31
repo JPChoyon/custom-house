@@ -9,11 +9,44 @@ import { getCreatorCollectionStorefrontUrl } from "../services/creator-storefron
 import { DomainError } from "../services/domain";
 import {
   apiData,
-  apiError,
   jsonBody,
   proxyContext,
 } from "../services/proxy.server";
 import { enforceRateLimit } from "../services/rate-limit.server";
+
+function bannerApiError(error: unknown): Response {
+  const known = error instanceof DomainError;
+  const code = known ? error.code : "UNKNOWN_ERROR";
+  const status = known ? error.status : 500;
+  console.info("customhouse_collection_banner", {
+    outcome: "failed",
+    stage: "route",
+    code,
+  });
+  return Response.json(
+    {
+      ok: false,
+      code,
+      message: known
+        ? error.message
+        : "Collection banner could not be saved.",
+      error: {
+        code,
+        message: known
+          ? error.message
+          : "Collection banner could not be saved.",
+      },
+    },
+    {
+      status,
+      headers: {
+        "Cache-Control": "no-store",
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Content-Type-Options": "nosniff",
+      },
+    },
+  );
+}
 
 function bannerPayload(collection: {
   id: string;
@@ -48,7 +81,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     });
     return apiData(bannerPayload(collection));
   } catch (error) {
-    return apiError(error);
+    return bannerApiError(error);
   }
 }
 
@@ -82,7 +115,16 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
-    const form = await request.formData();
+    let form: FormData;
+    try {
+      form = await request.formData();
+    } catch {
+      throw new DomainError(
+        "REQUEST_PARSE_FAILED",
+        "Collection banner request could not be read.",
+        400,
+      );
+    }
     if (String(form.get("intent") || "save") !== "save") {
       throw new DomainError(
         "INVALID_BANNER_ACTION",
@@ -99,13 +141,6 @@ export async function action({ request }: ActionFunctionArgs) {
         client,
         title || "Creator collection banner",
       );
-      if (!uploaded.bannerImageUrl?.startsWith("https://")) {
-        throw new DomainError(
-          "UPLOAD_FAILED",
-          "Collection banner image is still processing. Please try again.",
-          502,
-        );
-      }
       bannerImageUrl = uploaded.bannerImageUrl;
     }
 
@@ -118,7 +153,6 @@ export async function action({ request }: ActionFunctionArgs) {
     });
     return apiData(bannerPayload(collection));
   } catch (error) {
-    return apiError(error);
+    return bannerApiError(error);
   }
 }
-

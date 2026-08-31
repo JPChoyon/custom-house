@@ -2,11 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
+  creatorCollectionBannerForCustomer,
   removeCreatorCollectionBanner,
   updateCreatorCollectionBanner,
   uploadCollectionBannerImage,
   validateCollectionBannerImage,
 } from "../app/services/creator-collection-banner.server.ts";
+import { DomainError } from "../app/services/domain.ts";
 import type { ShopifyGraphqlClient } from "../app/services/shopify-graphql.server.ts";
 
 function pngBytes(width = 1920, height = 600) {
@@ -161,6 +163,166 @@ test("collection banner upload stores Shopify media and returns a display URL", 
   }
 });
 
+test("collection banner upload waits for Shopify media readiness before saving URL", async () => {
+  const originalFetch = globalThis.fetch;
+  let imagePolls = 0;
+  globalThis.fetch = async () => new Response(null, { status: 204 });
+  const client: ShopifyGraphqlClient = {
+    async request<T>(query: string) {
+      if (query.includes("stagedUploadsCreate")) {
+        return {
+          stagedUploadsCreate: {
+            stagedTargets: [
+              {
+                url: "https://uploads.shopify.test/banner",
+                resourceUrl: "https://cdn.shopify.test/staged/banner.png",
+                parameters: [{ name: "key", value: "banner.png" }],
+              },
+            ],
+            userErrors: [],
+          },
+        } as T;
+      }
+      if (query.includes("fileCreate")) {
+        return {
+          fileCreate: {
+            files: [
+              {
+                id: "gid://shopify/MediaImage/999",
+                fileStatus: "PROCESSING",
+                image: null,
+              },
+            ],
+            userErrors: [],
+          },
+        } as T;
+      }
+      if (query.includes("CreatorCollectionBannerImage")) {
+        imagePolls += 1;
+        return {
+          bannerImage: {
+            id: "gid://shopify/MediaImage/999",
+            fileStatus: imagePolls > 1 ? "READY" : "PROCESSING",
+            image: imagePolls > 1 ? { url: "https://cdn.shopify.test/banner-ready.png" } : null,
+          },
+        } as T;
+      }
+      throw new Error("Unexpected query");
+    },
+  };
+
+  try {
+    const uploaded = await uploadCollectionBannerImage(
+      new File([pngBytes()], "banner.png", { type: "image/png" }),
+      client,
+    );
+
+    assert.equal(uploaded.bannerImageUrl, "https://cdn.shopify.test/banner-ready.png");
+    assert.equal(imagePolls, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("collection banner upload surfaces staged and binary upload failures safely", async () => {
+  const stagedFailureClient: ShopifyGraphqlClient = {
+    async request<T>() {
+      return {
+        stagedUploadsCreate: {
+          stagedTargets: [],
+          userErrors: [{ message: "Denied by Shopify" }],
+        },
+      } as T;
+    },
+  };
+
+  await assert.rejects(
+    uploadCollectionBannerImage(
+      new File([pngBytes()], "banner.png", { type: "image/png" }),
+      stagedFailureClient,
+    ),
+    (error) => error instanceof DomainError && error.code === "STAGED_UPLOAD_FAILED",
+  );
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("nope", { status: 500 });
+  const binaryFailureClient: ShopifyGraphqlClient = {
+    async request<T>(query: string) {
+      if (query.includes("stagedUploadsCreate")) {
+        return {
+          stagedUploadsCreate: {
+            stagedTargets: [
+              {
+                url: "https://uploads.shopify.test/banner",
+                resourceUrl: "https://cdn.shopify.test/staged/banner.png",
+                parameters: [],
+              },
+            ],
+            userErrors: [],
+          },
+        } as T;
+      }
+      throw new Error("Unexpected query");
+    },
+  };
+
+  try {
+    await assert.rejects(
+      uploadCollectionBannerImage(
+        new File([pngBytes()], "banner.png", { type: "image/png" }),
+        binaryFailureClient,
+      ),
+      (error) => error instanceof DomainError && error.code === "STAGED_BINARY_UPLOAD_FAILED",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("collection banner upload surfaces Shopify file creation failures safely", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(null, { status: 204 });
+  const client: ShopifyGraphqlClient = {
+    async request<T>(query: string) {
+      if (query.includes("stagedUploadsCreate")) {
+        return {
+          stagedUploadsCreate: {
+            stagedTargets: [
+              {
+                url: "https://uploads.shopify.test/banner",
+                resourceUrl: "https://cdn.shopify.test/staged/banner.png",
+                parameters: [],
+              },
+            ],
+            userErrors: [],
+          },
+        } as T;
+      }
+      if (query.includes("fileCreate")) {
+        return {
+          fileCreate: {
+            files: [],
+            userErrors: [{ message: "Bad source" }],
+          },
+        } as T;
+      }
+      throw new Error("Unexpected query");
+    },
+  };
+
+  try {
+    await assert.rejects(
+      uploadCollectionBannerImage(
+        new File([pngBytes()], "banner.png", { type: "image/png" }),
+        client,
+      ),
+      (error) => error instanceof DomainError && error.code === "SHOPIFY_FILE_CREATE_FAILED",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("authenticated creator can update only their own collection banner", async () => {
   const database = bannerDb();
   const updated = await updateCreatorCollectionBanner({
@@ -177,6 +339,79 @@ test("authenticated creator can update only their own collection banner", async 
   assert.equal(updated.bannerSubtitle, "Limited pieces from Ari");
   assert.ok(updated.bannerUpdatedAt instanceof Date);
   assert.deepEqual(database.auditActions, ["creator_collection.banner.updated"]);
+});
+
+test("text-only banner save preserves an existing banner image", async () => {
+  const database = bannerDb();
+  database.collection.bannerImageUrl = "https://cdn.shopify.test/original.png";
+
+  const updated = await updateCreatorCollectionBanner({
+    shop: "customhouse.test",
+    customerId: "111",
+    title: "Renamed drop",
+    subtitle: "Fresh copy, same image",
+    database,
+  });
+
+  assert.equal(updated.bannerImageUrl, "https://cdn.shopify.test/original.png");
+  assert.equal(updated.bannerTitle, "Renamed drop");
+  assert.equal(updated.bannerSubtitle, "Fresh copy, same image");
+});
+
+test("banner image replacement updates the authenticated creator collection only", async () => {
+  const database = bannerDb();
+  database.collection.bannerImageUrl = "https://cdn.shopify.test/original.png";
+
+  await updateCreatorCollectionBanner({
+    shop: "customhouse.test",
+    customerId: "111",
+    title: "First banner",
+    bannerImageUrl: "https://cdn.shopify.test/first.png",
+    database,
+  });
+  const updated = await updateCreatorCollectionBanner({
+    shop: "customhouse.test",
+    customerId: "111",
+    title: "Replacement banner",
+    bannerImageUrl: "https://cdn.shopify.test/replacement.png",
+    database,
+  });
+
+  assert.equal(updated.creatorId, "creator-a");
+  assert.equal(updated.bannerImageUrl, "https://cdn.shopify.test/replacement.png");
+  assert.equal(updated.bannerTitle, "Replacement banner");
+});
+
+test("banner lookup is scoped to the authenticated customer collection", async () => {
+  const database = bannerDb();
+  database.collection.bannerImageUrl = "https://cdn.shopify.test/banner.png";
+
+  const collection = await creatorCollectionBannerForCustomer({
+    shop: "customhouse.test",
+    customerId: "111",
+    database,
+  });
+
+  assert.equal(collection.id, "collection-a");
+  assert.equal(collection.creatorId, "creator-a");
+  assert.equal(collection.bannerImageUrl, "https://cdn.shopify.test/banner.png");
+});
+
+test("database save failures return a safe domain error", async () => {
+  const database = bannerDb();
+  database.creatorCollection.update = async () => {
+    throw new Error("database exploded");
+  };
+
+  await assert.rejects(
+    updateCreatorCollectionBanner({
+      shop: "customhouse.test",
+      customerId: "111",
+      title: "Summer drop",
+      database,
+    }),
+    (error) => error instanceof DomainError && error.code === "DATABASE_UPDATE_FAILED",
+  );
 });
 
 test("remove banner clears the complete banner configuration for the authenticated creator", async () => {
@@ -210,6 +445,9 @@ test("creator banner proxy route uses app proxy auth and never accepts browser c
   assert.match(route, /updateCreatorCollectionBanner/);
   assert.match(route, /removeCreatorCollectionBanner/);
   assert.match(route, /bannerImage/);
+  assert.match(route, /REQUEST_PARSE_FAILED/);
+  assert.match(route, /error:\s*\{/);
+  assert.match(route, /code,/);
   assert.doesNotMatch(route, /creatorId/);
   assert.doesNotMatch(route, /searchParams\.get\(["']creatorId["']\)/);
   assert.doesNotMatch(route, /form\.get\(["']creatorId["']\)/);
@@ -245,7 +483,10 @@ test("creator dashboard renders compact collection banner management UI", () => 
   assert.match(block, /name="bannerImage"/);
   assert.match(block, /name="bannerTitle"/);
   assert.match(block, /name="bannerSubtitle"/);
-  assert.match(block, /Recommended size: 1920 x 600 px/);
+  assert.match(block, /No collection banner yet/);
+  assert.match(block, /Recommended 1920 x 600 px/);
+  assert.match(block, /data-dashboard-banner-selected/);
+  assert.match(block, /data-dashboard-banner-updated/);
   assert.match(block, /data-dashboard-banner-remove/);
   assert.match(block, /data-dashboard-action-modal/);
 
@@ -255,14 +496,18 @@ test("creator dashboard renders compact collection banner management UI", () => 
   assert.match(script, /saveCollectionBanner/);
   assert.match(script, /removeCollectionBanner/);
   assert.match(script, /data-dashboard-banner-preview-image/);
+  assert.match(script, /formatBannerUpdatedAt/);
+  assert.match(script, /setBannerMessage/);
   assert.match(script, /openDashboardActionModal/);
   assert.match(script, /Collection banner removed/);
   assert.doesNotMatch(script, /alert\(/);
 
   assert.match(styles, /\.customhouse-collection-banner-manager/);
+  assert.match(styles, /grid-template-columns: minmax\(220px, \.42fr\) minmax\(0, \.58fr\)/);
   assert.match(styles, /\.customhouse-banner-preview\s*\{[^}]*aspect-ratio: 3\.2 \/ 1/s);
   assert.match(styles, /\.customhouse-banner-preview img\s*\{[^}]*object-fit: cover/s);
-  assert.match(styles, /@media \(max-width: 560px\)[\s\S]*\.customhouse-banner-actions/s);
+  assert.match(styles, /\.customhouse-banner-upload input\s*\{[^}]*opacity: 0/s);
+  assert.match(styles, /@media \(max-width: 520px\)[\s\S]*\.customhouse-banner-actions/s);
 });
 
 test("public creator collection loads and renders an optional banner without changing fallback hero", () => {

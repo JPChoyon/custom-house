@@ -2652,7 +2652,23 @@ function collectionBannerData(data = {}) {
     bannerImageUrl: collection.bannerImageUrl || null,
     bannerTitle: collection.bannerTitle || "",
     bannerSubtitle: collection.bannerSubtitle || "",
+    bannerUpdatedAt: collection.bannerUpdatedAt || null,
   };
+}
+
+function formatBannerUpdatedAt(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return `Updated ${date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+}
+
+function setBannerMessage(message, text, tone = "neutral", persist = true) {
+  if (!message) return;
+  message.textContent = text || "";
+  message.dataset.tone = tone;
+  message.dataset.persist = persist ? "true" : "false";
+  message.hidden = !text;
 }
 
 function renderCollectionBannerPreview(root, banner) {
@@ -2661,6 +2677,8 @@ function renderCollectionBannerPreview(root, banner) {
   const title = root.querySelector("[data-dashboard-banner-preview-title]");
   const subtitle = root.querySelector("[data-dashboard-banner-preview-subtitle]");
   const uploadLabel = root.querySelector("[data-dashboard-banner-upload-label]");
+  const selected = root.querySelector("[data-dashboard-banner-selected]");
+  const updated = root.querySelector("[data-dashboard-banner-updated]");
   const hasImage = banner.bannerImageUrl?.startsWith("https://") || banner.bannerImageUrl?.startsWith("blob:");
   if (image) {
     image.hidden = !hasImage;
@@ -2678,7 +2696,13 @@ function renderCollectionBannerPreview(root, banner) {
     subtitle.textContent = banner.bannerSubtitle || "";
     subtitle.hidden = !banner.bannerSubtitle;
   }
-  if (uploadLabel) uploadLabel.textContent = hasImage ? "Replace Banner" : "Upload Banner";
+  if (uploadLabel) uploadLabel.textContent = hasImage ? "Change image" : "Upload banner";
+  if (selected && !selected.textContent) selected.hidden = true;
+  if (updated) {
+    const label = formatBannerUpdatedAt(banner.bannerUpdatedAt);
+    updated.textContent = label;
+    updated.hidden = !label;
+  }
 }
 
 function hydrateCollectionBannerManager(root, data = {}) {
@@ -2691,8 +2715,11 @@ function hydrateCollectionBannerManager(root, data = {}) {
   if (title && document.activeElement !== title) title.value = banner.bannerTitle;
   if (subtitle && document.activeElement !== subtitle) subtitle.value = banner.bannerSubtitle;
   if (form) form.dataset.hasBanner = String(Boolean(banner.bannerImageUrl));
-  if (remove) remove.disabled = !banner.bannerImageUrl;
-  if (message && message.dataset.persist !== "true") message.textContent = "";
+  if (remove) {
+    remove.hidden = !banner.bannerImageUrl;
+    remove.disabled = !banner.bannerImageUrl;
+  }
+  if (message && message.dataset.persist !== "true") setBannerMessage(message, "", "neutral", false);
   renderCollectionBannerPreview(root, banner);
 }
 
@@ -2706,6 +2733,7 @@ function bindCollectionBannerManager(root, refreshDashboard, getDashboardData) {
   const message = root.querySelector("[data-dashboard-banner-message]");
   const save = root.querySelector("[data-dashboard-banner-save]");
   const remove = root.querySelector("[data-dashboard-banner-remove]");
+  const selected = root.querySelector("[data-dashboard-banner-selected]");
   const updatePreviewText = () => {
     const current = collectionBannerData(getDashboardData?.() || {});
     renderCollectionBannerPreview(root, {
@@ -2724,34 +2752,37 @@ function bindCollectionBannerManager(root, refreshDashboard, getDashboardData) {
       bannerTitle: title?.value || "",
       bannerSubtitle: subtitle?.value || "",
     });
-    if (message) {
-      message.dataset.persist = "true";
-      message.textContent = "Image selected. Save changes to publish it.";
+    if (selected) {
+      selected.textContent = `Selected: ${file.name}`;
+      selected.hidden = false;
     }
+    setBannerMessage(message, "Image selected. Save changes to publish it.", "neutral");
   });
   form?.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (form.dataset.saving === "true") return;
+    form.dataset.saving = "true";
     const restoreButton = setActionLoading(save, "Saving...");
-    if (message) {
-      message.dataset.persist = "true";
-      message.textContent = "Saving collection banner...";
-    }
+    setBannerMessage(message, "Saving collection banner...", "neutral");
     try {
       const collection = await saveCollectionBanner(form);
       if (input) input.value = "";
+      if (selected) {
+        selected.textContent = "";
+        selected.hidden = true;
+      }
       hydrateCollectionBannerManager(root, { collection });
       if (typeof refreshDashboard === "function") {
         await refreshDashboard({ quiet: true });
       }
-      if (message) message.textContent = "Collection banner saved.";
-      showDashboardToast(root, "Collection banner saved.", "success");
+      setBannerMessage(message, "Collection banner updated.", "success");
+      showDashboardToast(root, "Collection banner updated.", "success");
     } catch (error) {
-      if (message) {
-        message.textContent =
-          error instanceof Error ? error.message : "Collection banner could not be saved.";
-      }
-      showDashboardToast(root, "Collection banner could not be saved.", "error");
+      const text = error instanceof Error ? error.message : "Collection banner could not be saved.";
+      setBannerMessage(message, text, "error");
+      showDashboardToast(root, text, "error");
     } finally {
+      form.dataset.saving = "false";
       restoreButton();
       if (message) {
         window.setTimeout(() => {

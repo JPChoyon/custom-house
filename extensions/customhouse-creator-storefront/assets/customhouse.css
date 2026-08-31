@@ -5239,17 +5239,45 @@ body:has([data-customhouse-dashboard]) {
 [data-customhouse-dashboard] .customhouse-collection-banner-manager {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: minmax(280px, .95fr) minmax(320px, 1fr);
-  gap: 1rem;
+  grid-template-columns: minmax(220px, .42fr) minmax(0, .58fr);
+  gap: .9rem 1rem;
   width: 100%;
-  overflow: hidden;
+  padding: 1rem;
   background: #fff;
-  border-top: 1px solid #e7eaf0;
-  border-bottom: 1px solid #e7eaf0;
+  border: 1px solid #e7eaf0;
+  border-radius: 8px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, .06);
 }
 
-[data-customhouse-dashboard] .customhouse-collection-banner-manager .customhouse-account-section-heading {
+[data-customhouse-dashboard] .customhouse-banner-header {
   grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .75rem;
+}
+
+[data-customhouse-dashboard] .customhouse-banner-header h4 {
+  margin: 0;
+  color: #172033;
+  font-size: 1rem;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+[data-customhouse-dashboard] .customhouse-banner-header p {
+  margin: .18rem 0 0;
+  color: #667085;
+  font-size: .82rem;
+  line-height: 1.35;
+}
+
+[data-customhouse-dashboard] .customhouse-banner-header [data-dashboard-banner-updated] {
+  flex: 0 0 auto;
+  color: #667085;
+  font-size: .76rem;
+  font-weight: 750;
+  line-height: 1.4;
 }
 
 [data-customhouse-dashboard] .customhouse-banner-preview {
@@ -5257,13 +5285,14 @@ body:has([data-customhouse-dashboard]) {
   display: grid;
   align-items: end;
   min-width: 0;
-  margin: 0 0 1rem 1rem;
+  margin: 0;
   aspect-ratio: 3.2 / 1;
-  min-height: 180px;
+  min-height: 132px;
+  max-height: 214px;
   overflow: hidden;
   border: 1px solid #dbe2ee;
   border-radius: 8px;
-  background: linear-gradient(135deg, #111827, #31205f 55%, #111827);
+  background: #f8fafc;
 }
 
 [data-customhouse-dashboard] .customhouse-banner-preview img {
@@ -5278,7 +5307,7 @@ body:has([data-customhouse-dashboard]) {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, .08), rgba(0, 0, 0, .58));
+  background: linear-gradient(180deg, rgba(17, 24, 39, .02), rgba(17, 24, 39, .58));
   pointer-events: none;
 }
 
@@ -5290,7 +5319,7 @@ body:has([data-customhouse-dashboard]) {
   align-self: center;
   gap: .35rem;
   padding: 1rem;
-  color: #fff;
+  color: #475467;
   text-align: center;
 }
 
@@ -5299,8 +5328,8 @@ body:has([data-customhouse-dashboard]) {
 }
 
 [data-customhouse-dashboard] .customhouse-banner-preview [data-dashboard-banner-preview-empty] .material-symbols-outlined {
-  color: #c8ff00;
-  font-size: 2rem;
+  color: var(--ch-primary);
+  font-size: 1.7rem;
 }
 
 [data-customhouse-dashboard] .customhouse-banner-preview-copy {
@@ -5308,14 +5337,14 @@ body:has([data-customhouse-dashboard]) {
   z-index: 1;
   display: grid;
   gap: .2rem;
-  padding: 1rem;
+  padding: .85rem;
   color: #fff;
 }
 
 [data-customhouse-dashboard] .customhouse-banner-preview-copy strong {
-  font-size: 1.35rem;
+  font-size: 1.05rem;
   font-weight: 900;
-  line-height: 1.05;
+  line-height: 1.12;
 }
 
 [data-customhouse-dashboard] .customhouse-banner-preview-copy span {
@@ -5326,50 +5355,59 @@ body:has([data-customhouse-dashboard]) {
 
 [data-customhouse-dashboard] .customhouse-banner-form {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
-  gap: .85rem;
+  gap: .65rem;
   min-width: 0;
   margin: 0;
-  padding: 0 1rem 1rem 0;
+  padding: 0;
 }
 
-[data-customhouse-dashboard] .customhouse-banner-form label {
+[data-customhouse-dashboard] .customhouse-banner-field-group {
   display: grid;
-  gap: .4rem;
+  gap: .34rem;
   min-width: 0;
   color: #172033;
-  font-size: .82rem;
+  font-size: .78rem;
   font-weight: 750;
 }
 
-[data-customhouse-dashboard] .customhouse-banner-upload,
-[data-customhouse-dashboard] .customhouse-banner-form label:has(textarea),
-[data-customhouse-dashboard] .customhouse-banner-actions,
-[data-customhouse-dashboard] .customhouse-banner-form [data-dashboard-banner-message] {
-  grid-column: 1 / -1;
+[data-customhouse-dashboard] .customhouse-banner-field-group small,
+[data-customhouse-dashboard] .customhouse-banner-field-group em {
+  color: #667085;
+  font-size: .74rem;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1.35;
 }
 
 [data-customhouse-dashboard] .customhouse-banner-upload {
-  grid-template-columns: auto minmax(0, 1fr);
+  position: relative;
+  display: inline-flex;
   align-items: center;
-  gap: .1rem .75rem;
-  min-height: 86px;
-  padding: .85rem;
-  border: 1px dashed var(--ch-primary);
+  justify-content: center;
+  gap: .45rem;
+  width: fit-content;
+  min-height: 38px;
+  padding: .54rem .72rem;
+  border: 1px solid #d6d9f8;
   border-radius: 8px;
-  background: #fbf9ff;
+  color: var(--ch-primary);
+  background: #f7f5ff;
   cursor: pointer;
 }
 
 [data-customhouse-dashboard] .customhouse-banner-upload .material-symbols-outlined {
-  grid-row: 1 / span 2;
   color: var(--ch-primary);
+  font-size: 1.1rem;
 }
 
 [data-customhouse-dashboard] .customhouse-banner-upload input {
-  width: 100%;
-  min-width: 0;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 [data-customhouse-dashboard] .customhouse-banner-form input:not([type="file"]),
@@ -5378,13 +5416,14 @@ body:has([data-customhouse-dashboard]) {
   min-width: 0;
   border: 1px solid #d0d5dd;
   border-radius: 8px;
-  padding: .7rem .8rem;
+  padding: .62rem .72rem;
   color: #111827;
   background: #fff;
   font: inherit;
 }
 
 [data-customhouse-dashboard] .customhouse-banner-form textarea {
+  min-height: 72px;
   resize: vertical;
 }
 
@@ -5392,18 +5431,45 @@ body:has([data-customhouse-dashboard]) {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: .65rem;
+  gap: .55rem;
+  margin-top: .1rem;
 }
 
 [data-customhouse-dashboard] .customhouse-banner-actions button {
-  min-height: 40px;
+  min-height: 38px;
 }
 
 [data-customhouse-dashboard] .customhouse-banner-form [data-dashboard-banner-message] {
-  min-height: 1.25rem;
   margin: 0;
-  color: #667085;
+  padding: .55rem .65rem;
+  border: 1px solid #dbe2ee;
+  border-radius: 8px;
+  color: #475467;
+  background: #f8fafc;
   font-size: .82rem;
+  line-height: 1.35;
+}
+
+[data-customhouse-dashboard] .customhouse-banner-form [data-dashboard-banner-message][hidden] {
+  display: none;
+}
+
+[data-customhouse-dashboard] .customhouse-banner-form [data-dashboard-banner-message][data-tone="success"] {
+  border-color: #b7ebc6;
+  color: #067647;
+  background: #ecfdf3;
+}
+
+[data-customhouse-dashboard] .customhouse-banner-form [data-dashboard-banner-message][data-tone="error"] {
+  border-color: #fecaca;
+  color: #b42318;
+  background: #fff1f0;
+}
+
+[data-customhouse-dashboard] .customhouse-banner-remove {
+  color: #b42318;
+  background: #fff;
+  border-color: #fecaca;
 }
 
 [data-customhouse-dashboard] .customhouse-account-lower-grid {
@@ -5575,6 +5641,10 @@ body:has([data-customhouse-dashboard]) {
   [data-customhouse-dashboard] .customhouse-collection-banner-manager {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  [data-customhouse-dashboard] .customhouse-banner-preview {
+    max-height: none;
+  }
 }
 
 @media (max-width: 760px) {
@@ -5602,14 +5672,6 @@ body:has([data-customhouse-dashboard]) {
 
   [data-customhouse-dashboard] .customhouse-account-lower-grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  [data-customhouse-dashboard] .customhouse-banner-preview {
-    margin: 0 1rem;
-  }
-
-  [data-customhouse-dashboard] .customhouse-banner-form {
-    padding: 0 1rem 1rem;
   }
 
   [data-customhouse-dashboard] .customhouse-account-visibility-note {
@@ -5682,14 +5744,8 @@ body:has([data-customhouse-dashboard]) {
     padding: 0 .75rem .75rem;
   }
 
-  [data-customhouse-dashboard] .customhouse-banner-form {
-    grid-template-columns: minmax(0, 1fr);
-    padding: 0 .75rem .75rem;
-  }
-
   [data-customhouse-dashboard] .customhouse-banner-preview {
-    min-height: 148px;
-    margin: 0 .75rem;
+    min-height: 122px;
   }
 
   [data-customhouse-dashboard] .customhouse-banner-actions {
