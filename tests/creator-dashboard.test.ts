@@ -634,6 +634,8 @@ test("creator dashboard PitchPrint bridge uses Creator setup contract instead of
   assert.match(script, /isCreatorProduct: true/);
   assert.match(script, /creatorProductId: product\.id/);
   assert.match(script, /creatorPublicHandle/);
+  assert.match(script, /dataset\.baseProductColor/);
+  assert.match(script, /selectedBaseProductColor\(root, baseProduct, startButton\)/);
   assert.match(script, /colorOptionValues/);
   assert.match(script, /colors: colorOptionValues/);
   assert.match(script, /sizeOptionValues/);
@@ -641,6 +643,8 @@ test("creator dashboard PitchPrint bridge uses Creator setup contract instead of
   assert.match(script, /optionGroups/);
   assert.match(script, /productionMethods/);
   assert.match(script, /productionMethodPricing/);
+  assert.match(script, /selectedProductionMethod: null/);
+  assert.match(script, /fixedProductionMethod: null/);
   assert.match(script, /supportsMultipleSelections: false/);
   assert.match(script, /CUSTOMHOUSE_PP_CREATOR_SETUP_READY/);
   assert.match(script, /customhouse:pitchprint-creator-setup-ready/);
@@ -650,7 +654,7 @@ test("creator dashboard PitchPrint bridge uses Creator setup contract instead of
   assert.match(script, /CUSTOMHOUSE_PP_ORDER_CONFIG_DATA/);
   assert.match(script, /ensurePitchPrintBaseProductConfig\(root, product\)/);
   assert.match(script, /creatorSetup: normalizeCreatorSetupPayload\(setup\)/);
-  assert.match(script, /Choose one color, one printing method, and confirm copyright\./);
+  assert.match(script, /Choose one color and confirm copyright\./);
   assert.doesNotMatch(script, /Sizes \/ Amount/);
   assert.doesNotMatch(script, /selectedPitchPrintVariants/);
   assert.doesNotMatch(script, /data-variant-quantity-action/);

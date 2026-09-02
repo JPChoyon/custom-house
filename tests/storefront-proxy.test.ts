@@ -132,7 +132,7 @@ test("public creator collection exposes basic share controls without Instagram d
   assert.doesNotMatch(source, /instagram\.com\/share|instagram\.com\/intent/i);
 });
 
-test("public Creator product page is buy-only with locked design details", () => {
+test("public Creator product page is buy-only with fixed color and selectable printing method", () => {
   const source = readFileSync(
     "app/services/storefront-proxy.server.ts",
     "utf8",
@@ -141,8 +141,10 @@ test("public Creator product page is buy-only with locked design details", () =>
   assert.match(source, /creatorProductSetupFromRecord/);
   assert.match(source, /customhouse-locked-details/);
   assert.match(source, /<dt>Color<\/dt>/);
-  assert.match(source, /<dt>Printing method<\/dt>/);
   assert.match(source, /<dt>Designed placements<\/dt>/);
+  assert.match(source, /name="selectedProductionMethod"/);
+  assert.match(source, /data-customhouse-production-method/);
+  assert.match(source, /selectedProductionMethod: productionMethodInput\?\.value/);
   assert.match(source, /customhouse-made-to-order-note/);
   assert.match(source, /made to order and cannot be returned/);
   assert.match(source, /optionName\.includes\("color"\)/);
@@ -150,7 +152,8 @@ test("public Creator product page is buy-only with locked design details", () =>
   assert.match(source, /const preparedItems = Array\.isArray\(prepared\.items\)/);
   assert.match(source, /cart\/add\.js/);
   assert.match(source, /customhouseMinorMoney/);
-  assert.match(source, /surchargeMinor/);
+  assert.match(source, /productionMethods/);
+  assert.match(source, /placementCount/);
   assert.doesNotMatch(source, /pitchprint.*showApp\(/i);
 });
 

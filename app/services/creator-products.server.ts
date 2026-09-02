@@ -19,6 +19,7 @@ import {
 } from "./creator-storefront-urls.ts";
 import { decimalMoneyToMinorUnits } from "./money.ts";
 import {
+  PRODUCTION_METHODS,
   cleanProductionMethod,
   feeVariantIdForMethod,
   getProductionPricing,
@@ -169,12 +170,16 @@ export type DesignVariantSelection = {
 export type CreatorProductSetup = {
   schema: "creator_design_setup_v1";
   flowMode: "CREATOR_DESIGN";
-  productOrigin: "creator";
+  productOrigin: "global" | "creator";
+  baseProductOrigin?: "global";
+  interactionMode?: "CREATOR_DESIGN";
   designMode: "creator_design";
+  creatorContext?: true;
+  launchContext?: "creator_dashboard";
   isCreatorProduct: true;
   fixedColor: string;
   selectedColors: string[];
-  productionMethod: ProductionMethodCode;
+  productionMethod: ProductionMethodCode | null;
   placementCount: number;
   placements: string[];
   copyrightAccepted: boolean;
@@ -231,11 +236,14 @@ export type PublicCreatorProduct = CreatorProductRecord & {
   baseProduct?: PublicCreatorProductBase;
   creatorSetup?: CreatorProductSetup | null;
   productionPricing?: {
-    method: ProductionMethodCode;
+    method: ProductionMethodCode | null;
     fixedColor: string;
     placementCount: number;
-    surchargeMinor: string;
-    feeVariantId: string | null;
+    methods: Array<{
+      method: ProductionMethodCode;
+      surchargeMinor: string;
+      feeVariantId: string | null;
+    }>;
   } | null;
 };
 
@@ -244,6 +252,8 @@ export type PrepareCreatorProductCartInput = {
   publicHandle?: unknown;
   creatorProductId: unknown;
   selectedVariantId: unknown;
+  selectedProductionMethod?: unknown;
+  productionMethod?: unknown;
   quantity?: unknown;
 };
 
@@ -726,11 +736,10 @@ export function creatorProductSetupFromRecord(product: CreatorProductRecord) {
   const setup = parsed as Partial<CreatorProductSetup>;
   if (
     setup.schema !== "creator_design_setup_v1" ||
-    setup.productOrigin !== "creator" ||
+    setup.flowMode !== "CREATOR_DESIGN" ||
     setup.designMode !== "creator_design" ||
     setup.isCreatorProduct !== true ||
     !setup.fixedColor ||
-    !setup.productionMethod ||
     !setup.placementCount ||
     !setup.copyrightAccepted
   ) {
@@ -780,19 +789,24 @@ async function cleanCreatorProductSetup(
       422,
     );
   }
-  const productionMethod = cleanProductionMethod(
+  const rawProductionMethod =
     setup.fixedProductionMethod ||
-      setup.productionMethod ||
-      setup.selectedProductionMethod,
-  );
+    setup.productionMethod ||
+    setup.selectedProductionMethod;
+  const productionMethod =
+    typeof rawProductionMethod === "string" && rawProductionMethod.trim()
+      ? cleanProductionMethod(rawProductionMethod)
+      : null;
   const enabledMethods =
-    database.productionMethodSetting && database.publicProductProductionPricing
+    productionMethod &&
+    database.productionMethodSetting &&
+    database.publicProductProductionPricing
       ? await listEnabledProductionMethodCodes(
           shop,
           database as unknown as Parameters<typeof listEnabledProductionMethodCodes>[1],
         )
       : [];
-  if (enabledMethods.length && !enabledMethods.includes(productionMethod)) {
+  if (productionMethod && enabledMethods.length && !enabledMethods.includes(productionMethod)) {
     throw new DomainError(
       "PRODUCTION_METHOD_DISABLED",
       "Choose an enabled printing method.",
@@ -836,7 +850,7 @@ async function cleanCreatorProductSetup(
       422,
     );
   }
-  if (database.publicProductProductionPricing) {
+  if (productionMethod && database.publicProductProductionPricing) {
     const pricing = await getProductionPricing(
       shop,
       shopifyProductId,
@@ -854,8 +868,12 @@ async function cleanCreatorProductSetup(
   return {
     schema: "creator_design_setup_v1",
     flowMode: "CREATOR_DESIGN",
-    productOrigin: "creator",
+    interactionMode: "CREATOR_DESIGN",
+    productOrigin: "global",
+    baseProductOrigin: "global",
     designMode: "creator_design",
+    creatorContext: true,
+    launchContext: "creator_dashboard",
     isCreatorProduct: true,
     fixedColor,
     selectedColors: [fixedColor],
@@ -875,7 +893,7 @@ function requireCreatorProductSetup(product: CreatorProductRecord) {
   if (!setup) {
     throw new DomainError(
       "CREATOR_SETUP_REQUIRED",
-      "Choose one color, one printing method, and confirm copyright before submitting.",
+      "Choose one color and confirm copyright before submitting.",
       422,
     );
   }
@@ -2067,28 +2085,35 @@ export async function getPublishedCreatorProductForHandle(
   }
   const baseProduct = client ? await publicBaseProduct(product.shopifyProductId, client) : undefined;
   const creatorSetup = creatorProductSetupFromRecord(product);
-  const productionPricing =
-    creatorSetup && database.publicProductProductionPricing
-      ? await getProductionPricing(
-          shop,
-          product.shopifyProductId,
-          database as unknown as Parameters<typeof getProductionPricing>[2],
-        ).then((pricing) =>
-          pricing
-            ? {
-                method: creatorSetup.productionMethod,
-                fixedColor: creatorSetup.fixedColor,
-                placementCount: creatorSetup.placementCount,
-                surchargeMinor: decimalMoneyToMinorUnits(
-                  pricingForMethod(pricing, creatorSetup.productionMethod),
-                ).toString(),
-                feeVariantId:
-                  feeVariantIdForMethod(pricing, creatorSetup.productionMethod) ||
-                  null,
-              }
-            : null,
-        )
-      : null;
+  let productionPricing: PublicCreatorProduct["productionPricing"] = null;
+  if (creatorSetup && database.publicProductProductionPricing) {
+    const pricing = await getProductionPricing(
+      shop,
+      product.shopifyProductId,
+      database as unknown as Parameters<typeof getProductionPricing>[2],
+    );
+    if (pricing) {
+      const enabledMethods = database.productionMethodSetting
+        ? await listEnabledProductionMethodCodes(
+            shop,
+            database as unknown as Parameters<typeof listEnabledProductionMethodCodes>[1],
+          )
+        : [];
+      const methods = (enabledMethods.length ? enabledMethods : PRODUCTION_METHODS).map((method) => ({
+        method,
+        surchargeMinor: decimalMoneyToMinorUnits(
+          pricingForMethod(pricing, method),
+        ).toString(),
+        feeVariantId: feeVariantIdForMethod(pricing, method) || null,
+      }));
+      productionPricing = {
+        method: creatorSetup.productionMethod,
+        fixedColor: creatorSetup.fixedColor,
+        placementCount: creatorSetup.placementCount,
+        methods,
+      };
+    }
+  }
   return {
     ...product,
     creator,
@@ -2184,6 +2209,22 @@ export async function prepareCreatorProductCart(
     );
   }
   const setup = requireCreatorProductSetup(product);
+  const productionMethod = cleanProductionMethod(
+    input.selectedProductionMethod ?? input.productionMethod ?? setup.productionMethod,
+  );
+  const enabledMethods = database.productionMethodSetting
+    ? await listEnabledProductionMethodCodes(
+        shop,
+        database as unknown as Parameters<typeof listEnabledProductionMethodCodes>[1],
+      )
+    : [];
+  if (enabledMethods.length && !enabledMethods.includes(productionMethod)) {
+    throw new DomainError(
+      "PRODUCTION_METHOD_DISABLED",
+      "Choose an enabled printing method.",
+      422,
+    );
+  }
   const variant = product.baseProduct?.variants.find(
     (item) =>
       item.graphqlId === selectedVariantKey ||
@@ -2236,9 +2277,9 @@ export async function prepareCreatorProductCart(
     );
   }
   const surchargeMinor = decimalMoneyToMinorUnits(
-    pricingForMethod(pricing, setup.productionMethod),
+    pricingForMethod(pricing, productionMethod),
   );
-  const feeVariantId = feeVariantIdForMethod(pricing, setup.productionMethod);
+  const feeVariantId = feeVariantIdForMethod(pricing, productionMethod);
   if (surchargeMinor > 0n && !feeVariantId) {
     throw new DomainError(
       "PRODUCTION_FEE_SYNC_REQUIRED",
@@ -2272,7 +2313,7 @@ export async function prepareCreatorProductCart(
     "ch-creator-production",
     product.id.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 80),
     orderProjectId.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 80),
-    setup.productionMethod.toLowerCase(),
+    productionMethod.toLowerCase(),
   ].join("-");
   const properties = {
     _pitchprint: orderProjectId,
@@ -2283,14 +2324,14 @@ export async function prepareCreatorProductCart(
     _base_variant_id: variant.graphqlId,
     _creator_public_handle: product.collection.publicHandle,
     _customhouse_creator_handle: product.collection.publicHandle,
-    _production_method: setup.productionMethod,
+    _production_method: productionMethod,
     _customhouse_fee_key: feeKey,
     ...(previewUrl ? { _creator_preview_url: previewUrl } : {}),
     _customhouse_attribution: attribution,
     "Creator Design": product.title,
     "Creator": product.creator.displayName,
     "Color": setup.fixedColor,
-    "Printing method": setup.productionMethod,
+    "Printing method": productionMethod,
   };
   const feeQuantity = quantity * setup.placementCount;
   const feeItem =
@@ -2304,9 +2345,9 @@ export async function prepareCreatorProductCart(
             _customhouse_parent_project_id: orderProjectId,
             _customhouse_fee_key: feeKey,
             _pitchprint: orderProjectId,
-            _production_method: setup.productionMethod,
+            _production_method: productionMethod,
             _customhouse_creator_product_fee: "true",
-            "Printing method": setup.productionMethod,
+            "Printing method": productionMethod,
             "Designed placements": String(setup.placementCount),
           },
         }
@@ -2322,7 +2363,7 @@ export async function prepareCreatorProductCart(
     quantity,
     properties,
     production: {
-      method: setup.productionMethod,
+      method: productionMethod,
       fixedColor: setup.fixedColor,
       placementCount: setup.placementCount,
       surchargeMinor: surchargeMinor.toString(),

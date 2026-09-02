@@ -448,6 +448,26 @@ function renderBaseProducts(root, products) {
     title.className = "ch-design-card__title";
     title.textContent = product.title || "Base product";
     copy.append(title);
+    const colorValues = optionValuesFromVariants(
+      pitchPrintProductVariants(product),
+      /^(color|colour|farg|färg)$/i,
+    );
+    if (colorValues.length) {
+      const colorField = document.createElement("label");
+      colorField.className = "ch-design-card__field";
+      const colorLabel = document.createElement("span");
+      colorLabel.textContent = "Color";
+      const colorSelect = document.createElement("select");
+      colorSelect.dataset.baseProductColor = product.id || "";
+      colorValues.forEach((color) => {
+        const option = document.createElement("option");
+        option.value = color;
+        option.textContent = color;
+        colorSelect.append(option);
+      });
+      colorField.append(colorLabel, colorSelect);
+      copy.append(colorField);
+    }
 
     const actions = document.createElement("div");
     actions.className = "ch-design-card__actions";
@@ -458,7 +478,7 @@ function renderBaseProducts(root, products) {
     button.textContent = product.pitchprintDesignId
       ? "Start Design"
       : "Unavailable";
-    button.disabled = !product.pitchprintDesignId;
+    button.disabled = !product.pitchprintDesignId || !colorValues.length;
     actions.append(button);
 
     card.append(top, copy, actions);
@@ -842,7 +862,9 @@ function normalizeCreatorSetupEvent(value) {
     ? data.creatorSetup
     : data;
   if (
-    setup?.productOrigin !== "creator" &&
+    setup?.creatorContext !== true &&
+    setup?.launchContext !== "creator_dashboard" &&
+    setup?.interactionMode !== "CREATOR_DESIGN" &&
     setup?.designMode !== "creator_design" &&
     setup?.isCreatorProduct !== true &&
     setup?.flowMode !== "CREATOR_DESIGN"
@@ -889,10 +911,16 @@ function normalizeCreatorSetupPayload(setup) {
   }
 
   record.flowMode = "CREATOR_DESIGN";
+  record.interactionMode = "CREATOR_DESIGN";
+  record.productOrigin = "global";
+  record.baseProductOrigin = "global";
   record.designMode = "creator_design";
   record.creatorContext = true;
   record.launchContext = "creator_dashboard";
   record.isCreatorProduct = true;
+  record.selectedProductionMethod = null;
+  record.productionMethod = null;
+  record.fixedProductionMethod = null;
   return record;
 }
 
@@ -958,8 +986,21 @@ function parseJsonObject(value) {
 }
 
 function creatorSetupForProduct(product) {
+  if (product?._customHouseCreatorSetup) return product._customHouseCreatorSetup;
   const setup = parseJsonObject(product?.designVariantSelectionsJson);
   return setup?.schema === "creator_design_setup_v1" ? setup : null;
+}
+
+function selectedBaseProductColor(root, baseProduct, startButton) {
+  const card = startButton?.closest?.(".customhouse-base-product-card");
+  const selected =
+    card?.querySelector("[data-base-product-color]")?.value ||
+    optionValuesFromVariants(
+      pitchPrintProductVariants(baseProduct),
+      /^(color|colour|farg|färg)$/i,
+    )[0] ||
+    "";
+  return String(selected || "").trim();
 }
 
 function optionValuesFromVariants(variants, pattern) {
@@ -1006,12 +1047,7 @@ function creatorPitchPrintConfig(root, product, identity) {
     : [];
   const colorOptionValues = optionValuesFromVariants(variants, /^(color|colour|farg|färg)$/i);
   const sizeOptionValues = optionValuesFromVariants(variants, /^(size|storlek|storrelse)$/i);
-  const baseProductOrigin = String(
-    baseProduct?.productOrigin ||
-      baseProduct?.origin ||
-      product?.productOrigin ||
-      "global",
-  ).trim() || "global";
+  const baseProductOrigin = "global";
   const config = {
     enabled: true,
     flowMode: "CREATOR_DESIGN",
@@ -1053,9 +1089,9 @@ function creatorPitchPrintConfig(root, product, identity) {
     selectedColor: setup?.fixedColor || "",
     selectedColors: setup?.fixedColor ? [setup.fixedColor] : [],
     fixedColor: setup?.fixedColor || "",
-    selectedProductionMethod: setup?.productionMethod || "",
-    productionMethod: setup?.productionMethod || "",
-    fixedProductionMethod: setup?.productionMethod || "",
+    selectedProductionMethod: null,
+    productionMethod: null,
+    fixedProductionMethod: null,
     productionMethods,
     productionMethodPricing: pricing?.productionMethodPricing || {},
     supportsMultipleSelections: false,
@@ -1475,12 +1511,33 @@ function bindCreatorDesignActions(root) {
       state.actionLoading.add(key);
       const restoreButton = setActionLoading(startButton, "Preparing designer...");
       try {
+        const fixedColor = selectedBaseProductColor(root, baseProduct, startButton);
+        if (!fixedColor) {
+          throw new Error("Choose one color before opening the designer.");
+        }
         const created = await createCreatorProductDraft({
           shopifyProductId: baseProduct.id,
           title: baseProduct.title,
           description: "",
           pitchprintDesignId: baseProduct.pitchprintDesignId,
         });
+        created._customHouseCreatorSetup = {
+          schema: "creator_design_setup_v1",
+          flowMode: "CREATOR_DESIGN",
+          interactionMode: "CREATOR_DESIGN",
+          productOrigin: "global",
+          baseProductOrigin: "global",
+          designMode: "creator_design",
+          creatorContext: true,
+          launchContext: "creator_dashboard",
+          isCreatorProduct: true,
+          fixedColor,
+          selectedColor: fixedColor,
+          selectedColors: [fixedColor],
+          selectedProductionMethod: null,
+          productionMethod: null,
+          fixedProductionMethod: null,
+        };
         updateCreatorProductInState(root, created);
         showCreatorToast(root, "Draft created.");
         await root.__customHouseOpenPitchPrintDesigner?.(created, startButton);
@@ -1555,7 +1612,7 @@ function renderReviewVariantSelections(root, product) {
   if (!setup) {
     const empty = document.createElement("p");
     empty.className = "ch-creator-modal__variant-empty";
-    empty.textContent = "Choose one color, one printing method, and confirm copyright.";
+    empty.textContent = "Choose one color and confirm copyright.";
     summary.append(empty);
     return;
   }
@@ -1564,7 +1621,6 @@ function renderReviewVariantSelections(root, product) {
   const list = document.createElement("ul");
   [
     `Color: ${setup.fixedColor}`,
-    `Printing method: ${setup.productionMethod}`,
     `Designed placements: ${setup.placementCount}`,
   ].forEach((text) => {
     const item = document.createElement("li");

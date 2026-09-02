@@ -571,10 +571,16 @@ function productHtml(input: {
   designVariantSelectionsJson: string;
   creatorSetup?: ReturnType<typeof creatorProductSetupFromRecord>;
   productionPricing?: {
-    method: string;
+    method: string | null;
     fixedColor: string;
     placementCount: number;
-    surchargeMinor: string;
+    surchargeMinor?: string;
+    feeVariantId?: string | null;
+    methods?: Array<{
+      method: string;
+      surchargeMinor: string;
+      feeVariantId: string | null;
+    }>;
   } | null;
 }) {
   const setup =
@@ -583,8 +589,23 @@ function productHtml(input: {
       input as unknown as Parameters<typeof creatorProductSetupFromRecord>[0],
     );
   const fixedColor = setup?.fixedColor || input.productionPricing?.fixedColor || "";
-  const productionMethod = setup?.productionMethod || input.productionPricing?.method || "";
   const placementCount = setup?.placementCount || input.productionPricing?.placementCount || 1;
+  const productionMethods =
+    input.productionPricing?.methods?.length
+      ? input.productionPricing.methods
+      : input.productionPricing?.method
+        ? [
+            {
+              method: input.productionPricing.method,
+              surchargeMinor: input.productionPricing.surchargeMinor || "0",
+              feeVariantId: input.productionPricing.feeVariantId || null,
+            },
+          ]
+        : [];
+  const defaultProductionMethod = productionMethods[0]?.method || input.productionPricing?.method || "";
+  const defaultProductionSurchargeMinor =
+    BigInt(productionMethods.find((method) => method.method === defaultProductionMethod)?.surchargeMinor || "0") *
+    BigInt(Math.max(1, placementCount));
   const allVariants = input.baseProduct?.variants || [];
   const variants = fixedColor
     ? allVariants.filter((variant) => {
@@ -595,12 +616,10 @@ function productHtml(input: {
       })
     : allVariants;
   const firstAvailable = variants.find((variant) => variant.availableForSale) || variants[0] || null;
-  const surchargeMinor = BigInt(input.productionPricing?.surchargeMinor || "0") *
-    BigInt(Math.max(1, placementCount));
   const variantPriceLabel = (variant: typeof firstAvailable) => {
     if (!variant) return "";
     const baseMinor = BigInt(Math.round(Number(variant.price.amount || 0) * 100));
-    return formatMinorAmount(baseMinor + surchargeMinor, variant.price.currencyCode);
+    return formatMinorAmount(baseMinor + defaultProductionSurchargeMinor, variant.price.currencyCode);
   };
   const optionControls = (input.baseProduct?.options || [])
     .filter((option) => {
@@ -663,15 +682,29 @@ function productHtml(input: {
           <dd><span class="customhouse-swatch" style="--ch-swatch:${swatchColor(fixedColor)}" aria-hidden="true"></span>${escapeHtml(fixedColor)}</dd>
         </div>
         <div>
-          <dt>Printing method</dt>
-          <dd>${escapeHtml(methodLabel(productionMethod))}</dd>
-        </div>
-        <div>
           <dt>Designed placements</dt>
           <dd>${escapeHtml(String(placementCount))}</dd>
         </div>
       </dl>`
     : "";
+  const productionMethodControls = productionMethods.length
+    ? `<label class="customhouse-field">
+        <span>Printing method</span>
+        <select data-customhouse-production-method name="selectedProductionMethod" required>
+          ${productionMethods
+            .map(
+              (method) =>
+                `<option value="${escapeHtml(method.method)}"${method.method === defaultProductionMethod ? " selected" : ""}>${escapeHtml(methodLabel(method.method))}</option>`,
+            )
+            .join("")}
+        </select>
+      </label>`
+    : `<label class="customhouse-field">
+        <span>Printing method</span>
+        <select data-customhouse-production-method name="selectedProductionMethod" disabled required>
+          <option value="">Unavailable</option>
+        </select>
+      </label>`;
   const productUrl = getCreatorProductStorefrontUrl(input.collection, input) || "";
   const postUrl = `${productUrl}/prepare-cart`;
   const collectionUrl = getCreatorCollectionStorefrontUrl(input.collection) || "/";
@@ -783,9 +816,10 @@ function productHtml(input: {
               <p class="customhouse-product-description">${escapeHtml(input.description || input.baseProductTitle)}</p>
               <p class="customhouse-locked-note">Creator artwork is locked for purchase.</p>
               ${lockedDetails}
-              <form class="customhouse-product-form" data-customhouse-creator-cart data-prepare-url="${postUrl}" data-variants="${jsonAttr(variants)}">
+              <form class="customhouse-product-form" data-customhouse-creator-cart data-prepare-url="${postUrl}" data-variants="${jsonAttr(variants)}" data-production-methods="${jsonAttr(productionMethods)}" data-placement-count="${escapeHtml(String(placementCount))}">
                 ${optionControls}
                 <input type="hidden" name="variantId" value="${escapeHtml(firstAvailable?.cartId || "")}">
+                ${productionMethodControls}
                 <label class="customhouse-field customhouse-field--quantity">
                   <span>Quantity</span>
                   <span class="customhouse-qty-row">
@@ -864,6 +898,9 @@ function productHtml(input: {
             const variantInput = form.querySelector("[name='variantId']");
             const price = form.querySelector("[data-customhouse-variant-price]");
             const variants = JSON.parse(form.dataset.variants || "[]");
+            const productionMethodInput = form.querySelector("[name='selectedProductionMethod']");
+            const productionMethods = JSON.parse(form.dataset.productionMethods || "[]");
+            const placementCount = Math.max(1, Number(form.dataset.placementCount || 1));
             let pending = false;
 
             class CustomHouseCartError extends Error {
@@ -915,6 +952,11 @@ function productHtml(input: {
               );
             }
 
+            function selectedProductionMethod() {
+              const method = String(productionMethodInput?.value || "").trim();
+              return productionMethods.find((item) => item.method === method) || null;
+            }
+
             function customhouseMoney(amount, currencyCode) {
               const minor = Math.round(Number(amount || 0) * 100);
               const sign = minor < 0 ? "-" : "";
@@ -934,10 +976,11 @@ function productHtml(input: {
 
             function syncVariant() {
               const variant = selectedVariant();
+              const method = selectedProductionMethod();
               variantInput.value = variant?.cartId ? String(variant.cartId) : "";
-              button.disabled = !variant || !variant.availableForSale;
+              button.disabled = !variant || !variant.availableForSale || !method;
               if (price) {
-                const productionSurchargeMinor = Number(${JSON.stringify(String(surchargeMinor))});
+                const productionSurchargeMinor = Number(method?.surchargeMinor || 0) * placementCount;
                 price.textContent = variant
                   ? customhouseMinorMoney(
                       Math.round(Number(variant.price.amount || 0) * 100) + (Number.isFinite(productionSurchargeMinor) ? productionSurchargeMinor : 0),
@@ -950,6 +993,9 @@ function productHtml(input: {
             form.querySelectorAll("[data-customhouse-option]").forEach((select) => {
               select.addEventListener("change", syncVariant);
             });
+            if (productionMethodInput) {
+              productionMethodInput.addEventListener("change", syncVariant);
+            }
             form.querySelectorAll("[data-customhouse-option-pill]").forEach((button) => {
               button.addEventListener("click", () => {
                 const select = form.querySelector('[name="' + button.dataset.optionTarget + '"]');
@@ -1129,6 +1175,7 @@ function productHtml(input: {
                   headers: { "Content-Type": "application/json", "Accept": "application/json" },
                   body: JSON.stringify({
                     variantId: form.variantId.value,
+                    selectedProductionMethod: productionMethodInput?.value || "",
                     quantity: Number(form.quantity.value || 1)
                   })
                 });
@@ -1566,6 +1613,8 @@ export async function handleStorefrontProxy(
               creatorHandle: route.creatorHandle,
               creatorProductId: route.creatorProductId,
               selectedVariantId: body.variantId ?? body.selectedVariantId,
+              selectedProductionMethod:
+                body.selectedProductionMethod ?? body.productionMethod,
               quantity: body.quantity,
             },
             context.client,

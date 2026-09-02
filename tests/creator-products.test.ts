@@ -133,15 +133,19 @@ function pitchPrintPayload(input: {
     ...input,
     creatorSetup: {
       flowMode: "CREATOR_DESIGN",
-      productOrigin: "creator",
+      interactionMode: "CREATOR_DESIGN",
+      productOrigin: "global",
+      baseProductOrigin: "global",
       designMode: "creator_design",
+      creatorContext: true,
+      launchContext: "creator_dashboard",
       isCreatorProduct: true,
       selectedColor: "White",
       selectedColors: ["White"],
       fixedColor: "White",
-      selectedProductionMethod: "EMBROIDERY",
-      productionMethod: "EMBROIDERY",
-      fixedProductionMethod: "EMBROIDERY",
+      selectedProductionMethod: null,
+      productionMethod: null,
+      fixedProductionMethod: null,
       designedPlacementCount: 1,
       placements: [{ id: "front", label: "Front", hasArtwork: true }],
       copyrightAccepted: true,
@@ -154,8 +158,11 @@ function creatorSetupJson(color = "White", method = "EMBROIDERY", placementCount
   return JSON.stringify({
     schema: "creator_design_setup_v1",
     flowMode: "CREATOR_DESIGN",
-    productOrigin: "creator",
+    productOrigin: "global",
+    baseProductOrigin: "global",
     designMode: "creator_design",
+    creatorContext: true,
+    launchContext: "creator_dashboard",
     isCreatorProduct: true,
     fixedColor: color,
     selectedColors: [color],
@@ -652,12 +659,16 @@ test("authenticated Creator A can attach a PitchPrint project to their own Draft
   assert.deepEqual(JSON.parse(updated.designVariantSelectionsJson), {
     schema: "creator_design_setup_v1",
     flowMode: "CREATOR_DESIGN",
-    productOrigin: "creator",
+    interactionMode: "CREATOR_DESIGN",
+    productOrigin: "global",
+    baseProductOrigin: "global",
     designMode: "creator_design",
+    creatorContext: true,
+    launchContext: "creator_dashboard",
     isCreatorProduct: true,
     fixedColor: "White",
     selectedColors: ["White"],
-    productionMethod: "EMBROIDERY",
+    productionMethod: null,
     placementCount: 1,
     placements: ["Front"],
     copyrightAccepted: true,
@@ -690,7 +701,7 @@ test("Creator Product stores current Shopify size variants from the base product
   );
 });
 
-test("PitchPrint save stores one fixed Creator color and production method", async () => {
+test("PitchPrint Creator save stores one fixed color without requiring production method", async () => {
   const db = fakeDb();
   const draft = await createCreatorProductDraft(
     shop,
@@ -714,9 +725,15 @@ test("PitchPrint save stores one fixed Creator color and production method", asy
   );
 
   const setup = JSON.parse(updated.designVariantSelectionsJson);
+  assert.equal(setup.flowMode, "CREATOR_DESIGN");
+  assert.equal(setup.interactionMode, "CREATOR_DESIGN");
+  assert.equal(setup.productOrigin, "global");
+  assert.equal(setup.baseProductOrigin, "global");
+  assert.equal(setup.creatorContext, true);
+  assert.equal(setup.launchContext, "creator_dashboard");
   assert.equal(setup.fixedColor, "White");
   assert.deepEqual(setup.selectedColors, ["White"]);
-  assert.equal(setup.productionMethod, "EMBROIDERY");
+  assert.equal(setup.productionMethod, null);
   assert.equal(setup.placementCount, 1);
 });
 
@@ -2089,20 +2106,20 @@ test("cart prep validates variant ownership and locks creator artwork", async ()
   assert.equal(cart.properties._base_variant_id, "gid://shopify/ProductVariant/2001");
   assert.equal(cart.properties._creator_preview_url, "https://cdn.pitchprint.test/master.png");
   assert.equal(cart.properties._creator_public_handle, "creator-a");
-  assert.equal(cart.properties._production_method, "EMBROIDERY");
+  assert.equal(cart.properties._production_method, "DTF");
   assert.equal(cart.properties["Color"], "White");
-  assert.equal(cart.properties["Printing method"], "EMBROIDERY");
-  assert.equal(cart.production.method, "EMBROIDERY");
+  assert.equal(cart.properties["Printing method"], "DTF");
+  assert.equal(cart.production.method, "DTF");
   assert.equal(cart.production.fixedColor, "White");
   assert.equal(cart.production.placementCount, 1);
-  assert.equal(cart.production.surchargeMinor, "5000");
-  assert.equal(cart.production.feeVariantId, "9001");
+  assert.equal(cart.production.surchargeMinor, "3000");
+  assert.equal(cart.production.feeVariantId, "9002");
   assert.equal(cart.production.feeQuantity, 2);
   assert.equal(cart.items.length, 2);
   const feeProperties = cart.items[1].properties as Record<string, string>;
   assert.equal(cart.items[0].id, "2001");
   assert.equal(cart.items[0].quantity, 2);
-  assert.equal(cart.items[1].id, "9001");
+  assert.equal(cart.items[1].id, "9002");
   assert.equal(cart.items[1].quantity, 2);
   assert.equal(feeProperties._customhouse_production_fee, "true");
   assert.equal(feeProperties._pitchprint, "pp_order_clone");
@@ -2214,7 +2231,7 @@ test("cart prep rejects manually submitted variants outside the saved fixed colo
   );
 
   assert.equal(cart.properties["Color"], "Black");
-  assert.equal(cart.properties._production_method, "EMBROIDERY");
+  assert.equal(cart.properties._production_method, "DTF");
   await assert.rejects(
     () =>
       prepareCreatorProductCart(
@@ -2223,6 +2240,7 @@ test("cart prep rejects manually submitted variants outside the saved fixed colo
           creatorHandle: "creator-a",
           creatorProductId: draft.id,
           selectedVariantId: "gid://shopify/ProductVariant/3002",
+          productionMethod: "DTF",
         },
         blackWhiteClient,
         async () => "pp_white_order",
@@ -2400,6 +2418,7 @@ test("cart prep rejects unpublished products and unavailable variants", async ()
           creatorHandle: "creator-a",
           creatorProductId: draft.id,
           selectedVariantId: "gid://shopify/ProductVariant/9999",
+          productionMethod: "DTF",
         },
         fakePublicProductClient(),
         async () => "pp_order_clone",
