@@ -866,8 +866,34 @@ function normalizeCreatorSetupEvent(value) {
     designId:
       setupSaveEvent.designId ||
       dataSaveEvent.designId,
-    creatorSetup: setup,
+    creatorSetup: normalizeCreatorSetupPayload(setup),
   };
+}
+
+function normalizeCreatorSetupPayload(setup) {
+  const record = setup && typeof setup === "object" ? { ...setup } : {};
+  const selectedColors = Array.isArray(record.selectedColors)
+    ? record.selectedColors
+        .map((color) => String(color || "").trim())
+        .filter(Boolean)
+    : [];
+  const fixedColor =
+    String(record.fixedColor || "").trim() ||
+    String(record.selectedColor || "").trim() ||
+    (selectedColors.length === 1 ? selectedColors[0] : "");
+
+  if (fixedColor) {
+    record.fixedColor = fixedColor;
+    record.selectedColor = fixedColor;
+    record.selectedColors = [fixedColor];
+  }
+
+  record.flowMode = "CREATOR_DESIGN";
+  record.designMode = "creator_design";
+  record.creatorContext = true;
+  record.launchContext = "creator_dashboard";
+  record.isCreatorProduct = true;
+  return record;
 }
 
 function parseCustomHouseArray(value) {
@@ -902,6 +928,10 @@ function pitchPrintProductVariants(product) {
             .filter((option) => option.name && option.value)
         : [],
       availableForSale: variant?.availableForSale !== false,
+    }))
+    .map((variant) => ({
+      ...variant,
+      options: variant.selectedOptions.map((option) => option.value),
     }))
     .filter((variant, index, variants) =>
       variant.variantId &&
@@ -974,11 +1004,23 @@ function creatorPitchPrintConfig(root, product, identity) {
   const productionMethods = Array.isArray(pricing?.productionMethods)
     ? pricing.productionMethods
     : [];
+  const colorOptionValues = optionValuesFromVariants(variants, /^(color|colour|farg|färg)$/i);
+  const sizeOptionValues = optionValuesFromVariants(variants, /^(size|storlek|storrelse)$/i);
+  const baseProductOrigin = String(
+    baseProduct?.productOrigin ||
+      baseProduct?.origin ||
+      product?.productOrigin ||
+      "global",
+  ).trim() || "global";
   const config = {
     enabled: true,
     flowMode: "CREATOR_DESIGN",
-    productOrigin: "creator",
+    interactionMode: "CREATOR_DESIGN",
+    productOrigin: baseProductOrigin,
+    baseProductOrigin,
     designMode: "creator_design",
+    creatorContext: true,
+    launchContext: "creator_dashboard",
     isCreatorProduct: true,
     creatorProductId: product.id,
     creatorPublicHandle: product.creatorHandle || product.publicHandle || "",
@@ -989,8 +1031,25 @@ function creatorPitchPrintConfig(root, product, identity) {
     variants,
     variantMatrix: variants,
     options: baseProduct?.options || [],
-    colorOptionValues: optionValuesFromVariants(variants, /^(color|colour|farg|färg)$/i),
-    sizeOptionValues: optionValuesFromVariants(variants, /^(size|storlek|storrelse)$/i),
+    colorOptionValues,
+    colors: colorOptionValues,
+    sizeOptionValues,
+    sizes: sizeOptionValues,
+    optionGroups: [
+      {
+        id: "color",
+        label: "Product color",
+        values: colorOptionValues,
+        multiple: false,
+      },
+      {
+        id: "size",
+        label: "Size",
+        values: sizeOptionValues,
+        multiple: false,
+        hidden: true,
+      },
+    ],
     selectedColor: setup?.fixedColor || "",
     selectedColors: setup?.fixedColor ? [setup.fixedColor] : [],
     fixedColor: setup?.fixedColor || "",
@@ -1223,10 +1282,18 @@ function bindPitchPrintManager(root) {
     window.addEventListener(
       "message",
       (event) => {
-        if (event?.data?.type === "CUSTOMHOUSE_PP_CREATOR_CONFIG_REQUEST") {
+        if (
+          event?.data?.type === "CUSTOMHOUSE_PP_CREATOR_CONFIG_REQUEST" ||
+          event?.data?.type === "CUSTOMHOUSE_PP_ORDER_CONFIG_REQUEST"
+        ) {
+          const payload = window.CustomHouseCreatorPitchPrintConfig || null;
           event.source?.postMessage?.({
             type: "CUSTOMHOUSE_PP_CREATOR_CONFIG_DATA",
-            payload: window.CustomHouseCreatorPitchPrintConfig || null,
+            payload,
+          }, event.origin || "*");
+          event.source?.postMessage?.({
+            type: "CUSTOMHOUSE_PP_ORDER_CONFIG_DATA",
+            payload,
           }, event.origin || "*");
           return;
         }
@@ -1282,8 +1349,12 @@ function bindPitchPrintManager(root) {
         custom: true,
         isvx: true,
         flowMode: "CREATOR_DESIGN",
-        productOrigin: "creator",
+        interactionMode: "CREATOR_DESIGN",
+        productOrigin: customHouseConfig.productOrigin,
+        baseProductOrigin: customHouseConfig.baseProductOrigin,
         designMode: "creator_design",
+        creatorContext: true,
+        launchContext: "creator_dashboard",
         isCreatorProduct: true,
         creatorProductId: product.id,
         creatorPublicHandle: customHouseConfig.creatorPublicHandle,
@@ -1295,6 +1366,11 @@ function bindPitchPrintManager(root) {
           handle: customHouseConfig.productHandle,
           variants: customHouseConfig.variantMatrix,
           options: customHouseConfig.options,
+          flowMode: "CREATOR_DESIGN",
+          designMode: "creator_design",
+          creatorContext: true,
+          launchContext: "creator_dashboard",
+          isCreatorProduct: true,
         },
         userData: {
           source: "customhouse_creator_dashboard",
