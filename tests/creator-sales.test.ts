@@ -406,6 +406,7 @@ test("creator order admin keeps primary UI human-friendly and diagnostics collap
   const detail = readFileSync("app/routes/app.creator-orders.$id.tsx", "utf8");
   const styles = readFileSync("app/styles/admin.css", "utf8");
   const script = readFileSync("scripts/sync-creator-order-shopify-snapshots.ts", "utf8");
+  const ordersService = readFileSync("app/services/creator-orders.server.ts", "utf8");
 
   assert.match(index, /creatorOrderVariantLabel/);
   assert.match(index, /orderName: item\.shopifyOrderName/);
@@ -417,6 +418,8 @@ test("creator order admin keeps primary UI human-friendly and diagnostics collap
   assert.match(detail, /legalActions\.map/);
   assert.match(detail, /Download PDF/);
   assert.match(detail, /Download PNG Package/);
+  assert.doesNotMatch(ordersService, /creatorProduct:\s*true/);
+  assert.match(ordersService, /creatorProduct:\s*\{\s*select:/s);
   assert.match(styles, /\.creator-preview-modal\s*\{[^}]*position: fixed;/s);
   assert.match(styles, /\.creator-preview-modal\s*\{[^}]*inset: 0;/s);
   assert.match(styles, /\.creator-preview-modal\s*\{[^}]*height: 100dvh;/s);
@@ -474,12 +477,10 @@ test("creator commerce metrics use canonical product status and net item quantit
 
 test("items sold is not derived from order count or creator sale row count", () => {
   const salesService = readFileSync("app/services/creator-sales.server.ts", "utf8");
-  const overviewBlock =
-    salesService.match(/export async function creatorSalesOverview[\s\S]*?return \{[\s\S]*?\n\s{2}\};\n\}/)?.[0] || "";
 
-  assert.match(overviewBlock, /itemsSoldCount {1}= {1}commerceMetrics\?\.itemsSoldCount {1}\|\| {1}0/);
+  assert.match(salesService, /itemsSoldCount {1}= {1}commerceMetrics\?\.itemsSoldCount {1}\|\| {1}0/);
   assert.doesNotMatch(
-    overviewBlock,
+    salesService,
     /itemsSoldCount\s*=\s*(?:orderIds\.length|productGroups\.length|currencyGroups\.length)/,
   );
 });

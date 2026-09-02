@@ -6,6 +6,7 @@ import {
 } from "./creator-collections.server.ts";
 import type { ShopifyGraphqlClient } from "./shopify-graphql.server.ts";
 import { throwUserErrors } from "./shopify-graphql.server.ts";
+import { creatorProductSetupFromRecord } from "./creator-products.server.ts";
 
 type Errors = Array<{ message: string }>;
 
@@ -47,6 +48,7 @@ export type CreatorProductForPublish = {
   description: string | null;
   previewUrl: string | null;
   previewUrls: string;
+  designVariantSelectionsJson: string;
   status: string;
   publishedAt: Date | null;
   rejectedAt: Date | null;
@@ -214,6 +216,9 @@ async function configureProduct(
   },
 ) {
   const tags = ["creator-fixed", "customhouse-creator-product"];
+  const setup = creatorProductSetupFromRecord(
+    input.product as unknown as Parameters<typeof creatorProductSetupFromRecord>[0],
+  );
   const updated = await client.request<{
     productUpdate: {
       product: { id: string; handle: string } | null;
@@ -291,6 +296,9 @@ async function configureProduct(
     ["creator_publishing_enabled", "true"],
     ["product_type", "creator_fixed"],
     ["design_locked", "true"],
+    ["fixed_color", setup?.fixedColor || ""],
+    ["production_method", setup?.productionMethod || ""],
+    ["designed_placement_count", String(setup?.placementCount || 1)],
   ].map(([key, value]) => ({
     ownerId: input.productId,
     namespace: "customhouse",

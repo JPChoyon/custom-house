@@ -17,6 +17,15 @@ import {
   getCreatorCollectionStorefrontUrl,
   getCreatorProductStorefrontUrl,
 } from "./creator-storefront-urls.ts";
+import { decimalMoneyToMinorUnits } from "./money.ts";
+import {
+  cleanProductionMethod,
+  feeVariantIdForMethod,
+  getProductionPricing,
+  listEnabledProductionMethodCodes,
+  pricingForMethod,
+  type ProductionMethodCode,
+} from "./production-method-pricing.server.ts";
 
 export type CreatorProductRecord = {
   id: string;
@@ -78,6 +87,12 @@ type CreatorProductDb = {
     findFirst(args: unknown): Promise<CreatorProductRecord | null>;
     update(args: unknown): Promise<CreatorProductRecord>;
   };
+  productionMethodSetting?: {
+    findMany(args: unknown): Promise<Array<{ method: string; enabled: boolean }>>;
+  };
+  publicProductProductionPricing?: {
+    findUnique(args: unknown): Promise<unknown>;
+  };
   creatorSale?: {
     count(args?: unknown): Promise<number>;
   };
@@ -102,6 +117,21 @@ export type AttachPitchPrintProjectInput = {
   previewUrl?: unknown;
   designId?: unknown;
   variantSelections?: unknown;
+  creatorSetup?: unknown;
+  selectedColor?: unknown;
+  selectedColors?: unknown;
+  fixedColor?: unknown;
+  selectedProductionMethod?: unknown;
+  productionMethod?: unknown;
+  fixedProductionMethod?: unknown;
+  placementCount?: unknown;
+  designedPlacementCount?: unknown;
+  placements?: unknown;
+  designedPlacements?: unknown;
+  copyrightAccepted?: unknown;
+  copyrightConfirmed?: unknown;
+  rightsConfirmed?: unknown;
+  nonReturnAcknowledged?: unknown;
 };
 
 export type UpdateCreatorProductDetailsInput = {
@@ -115,6 +145,7 @@ export type EligibleCreatorBaseProduct = {
   handle: string;
   imageUrl: string | null;
   pitchprintDesignId: string | null;
+  productionMethodPricing: string | null;
   classification: "configured" | "legacy" | "compatible_fallback";
   variants: CreatorProductBaseVariant[];
 };
@@ -133,6 +164,22 @@ export type DesignVariantSelection = {
   variantId: string;
   size: string;
   quantity: number;
+};
+
+export type CreatorProductSetup = {
+  schema: "creator_design_setup_v1";
+  flowMode: "CREATOR_DESIGN";
+  productOrigin: "creator";
+  designMode: "creator_design";
+  isCreatorProduct: true;
+  fixedColor: string;
+  selectedColors: string[];
+  productionMethod: ProductionMethodCode;
+  placementCount: number;
+  placements: string[];
+  copyrightAccepted: boolean;
+  nonReturnAcknowledged: boolean;
+  savedAt: string;
 };
 
 export type AdminCreatorProductDecisionInput = {
@@ -182,6 +229,14 @@ export type PublicCreatorProduct = CreatorProductRecord & {
     creatorId: string;
   };
   baseProduct?: PublicCreatorProductBase;
+  creatorSetup?: CreatorProductSetup | null;
+  productionPricing?: {
+    method: ProductionMethodCode;
+    fixedColor: string;
+    placementCount: number;
+    surchargeMinor: string;
+    feeVariantId: string | null;
+  } | null;
 };
 
 export type PrepareCreatorProductCartInput = {
@@ -517,78 +572,326 @@ function productBaseVariants(product: CreatorProductRecord) {
   }
 }
 
-function variantKeySet(variants: CreatorProductBaseVariant[]) {
-  const keys = new Set<string>();
-  variants.forEach((variant) => {
-    keys.add(variant.variantId);
-    keys.add(variant.id);
-    keys.add(variant.graphqlId);
-  });
-  return keys;
+function normalizedOptionText(value: unknown) {
+  return String(value || "").trim().toLowerCase();
 }
 
-function cleanDesignVariantSelections(
-  value: unknown,
-  variants: CreatorProductBaseVariant[],
+function colorValueFromOptions(
+  selectedOptions: Array<{ name: string; value: string }>,
 ) {
-  const input = Array.isArray(value) ? value : [];
-  const byKey = new Map<string, CreatorProductBaseVariant>();
-  variants.forEach((variant) => {
-    byKey.set(variant.variantId, variant);
-    byKey.set(variant.id, variant);
-    byKey.set(variant.graphqlId, variant);
-  });
-  const totals = new Map<string, number>();
-  input.forEach((item) => {
-    if (!item || typeof item !== "object") return;
-    const record = item as Record<string, unknown>;
-    const key = cleanOptionalText(record.variantId, 120) ||
-      cleanOptionalText(record.id, 120) ||
-      cleanOptionalText(record.graphqlId, 120);
-    const variant = key ? byKey.get(key) : null;
-    const quantity = Number(record.quantity ?? 0);
-    if (!variant || !Number.isSafeInteger(quantity) || quantity <= 0) return;
-    totals.set(variant.variantId, (totals.get(variant.variantId) || 0) + quantity);
-  });
-  return [...totals.entries()].map(([variantId, quantity]) => {
-    const variant = byKey.get(variantId)!;
-    return {
-      variantId,
-      size: variant.size,
-      quantity,
-    };
+  const color = selectedOptions.find((option) =>
+    /^(color|colour|farg|färg)$/i.test(option.name.trim()),
+  );
+  return cleanOptionalText(color?.value, 80) || null;
+}
+
+function baseProductColorValues(variants: CreatorProductBaseVariant[]) {
+  return [
+    ...new Set(
+      variants
+        .map((variant) => colorValueFromOptions(variant.selectedOptions || []))
+        .filter((value): value is string => Boolean(value)),
+    ),
+  ];
+}
+
+function rawCreatorSetup(input: AttachPitchPrintProjectInput) {
+  const nested =
+    input.creatorSetup && typeof input.creatorSetup === "object"
+      ? (input.creatorSetup as Record<string, unknown>)
+      : {};
+  return {
+    ...input,
+    ...nested,
+  } as Record<string, unknown>;
+}
+
+function stringArray(value: unknown) {
+  return (Array.isArray(value) ? value : value ? [value] : [])
+    .map((item) => cleanOptionalText(item, 120))
+    .filter((item): item is string => Boolean(item));
+}
+
+function booleanTrue(...values: unknown[]) {
+  return values.some(
+    (value) =>
+      value === true ||
+      value === "true" ||
+      value === "1" ||
+      value === 1,
+  );
+}
+
+function directPositiveInteger(...values: unknown[]) {
+  for (const value of values) {
+    const number = Number(value);
+    if (Number.isSafeInteger(number) && number > 0 && number <= 20) {
+      return number;
+    }
+  }
+  return 0;
+}
+
+function placementLabel(value: unknown) {
+  if (typeof value === "string") return cleanOptionalText(value, 80);
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  return (
+    cleanOptionalText(record.label, 80) ||
+    cleanOptionalText(record.name, 80) ||
+    cleanOptionalText(record.side, 80) ||
+    cleanOptionalText(record.placement, 80) ||
+    cleanOptionalText(record.id, 80)
+  );
+}
+
+function placementHasArtwork(value: unknown) {
+  if (typeof value === "string") return Boolean(value.trim());
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  if (
+    record.hasArtwork === false ||
+    record.hasDesign === false ||
+    record.isBlank === true ||
+    record.blank === true ||
+    record.empty === true
+  ) {
+    return false;
+  }
+  return Boolean(
+    record.hasArtwork === true ||
+      record.hasDesign === true ||
+      record.artwork === true ||
+      record.printed === true ||
+      record.used === true ||
+      placementLabel(record),
+  );
+}
+
+function collectPlacementRecords(setup: Record<string, unknown>) {
+  const candidates = [
+    setup.placements,
+    setup.designedPlacements,
+    setup.printPlacements,
+    setup.printedPlacements,
+    (setup.productionSurchargeMetadata as Record<string, unknown> | undefined)
+      ?.placements,
+    (setup.dimensionData as Record<string, unknown> | undefined)?.placements,
+  ];
+  for (const candidate of candidates) {
+    if (!Array.isArray(candidate)) continue;
+    const placements = candidate
+      .filter(placementHasArtwork)
+      .map(placementLabel)
+      .filter((item): item is string => Boolean(item));
+    if (placements.length) return [...new Set(placements)].slice(0, 20);
+  }
+  return [];
+}
+
+function hasCustomerOrderQuantity(setup: Record<string, unknown>) {
+  if (
+    directPositiveInteger(
+      setup.quantity,
+      setup.qty,
+      setup.orderQuantity,
+      setup.customerQuantity,
+      setup.customerOrderQuantity,
+    )
+  ) {
+    return true;
+  }
+  const selectionGroups = [
+    setup.variantSelections,
+    setup.selectedVariants,
+    setup.sizeSelections,
+    setup.sizeQuantities,
+    setup.quantities,
+  ];
+  return selectionGroups.some((group) => {
+    if (!Array.isArray(group)) return false;
+    return group.some((item) => {
+      if (!item || typeof item !== "object") return Boolean(item);
+      const record = item as Record<string, unknown>;
+      return Boolean(
+        directPositiveInteger(
+          record.quantity,
+          record.qty,
+          record.amount,
+          record.orderQuantity,
+        ),
+      );
+    });
   });
 }
 
-function requireDesignVariantSelections(product: CreatorProductRecord) {
-  const variants = productBaseVariants(product);
-  const validKeys = variantKeySet(variants);
+export function creatorProductSetupFromRecord(product: CreatorProductRecord) {
   let parsed: unknown = [];
   try {
     parsed = JSON.parse(product.designVariantSelectionsJson || "[]");
   } catch {
     parsed = [];
   }
-  const selections = Array.isArray(parsed)
-    ? parsed.filter(
-        (selection): selection is DesignVariantSelection =>
-          selection &&
-          typeof selection === "object" &&
-          typeof selection.variantId === "string" &&
-          typeof selection.size === "string" &&
-          Number.isSafeInteger(selection.quantity) &&
-          selection.quantity > 0 &&
-          validKeys.has(selection.variantId),
-      )
-    : [];
-  if (!selections.length) {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return null;
+  }
+  const setup = parsed as Partial<CreatorProductSetup>;
+  if (
+    setup.schema !== "creator_design_setup_v1" ||
+    setup.productOrigin !== "creator" ||
+    setup.designMode !== "creator_design" ||
+    setup.isCreatorProduct !== true ||
+    !setup.fixedColor ||
+    !setup.productionMethod ||
+    !setup.placementCount ||
+    !setup.copyrightAccepted
+  ) {
+    return null;
+  }
+  return setup as CreatorProductSetup;
+}
+
+async function cleanCreatorProductSetup(
+  shop: string,
+  shopifyProductId: string,
+  input: AttachPitchPrintProjectInput,
+  variants: CreatorProductBaseVariant[],
+  database: CreatorProductDb,
+): Promise<CreatorProductSetup> {
+  const setup = rawCreatorSetup(input);
+  const colors = baseProductColorValues(variants);
+  if (!colors.length) {
     throw new DomainError(
-      "DESIGN_VARIANT_SELECTION_REQUIRED",
-      "Select at least one size and quantity.",
+      "CREATOR_COLOR_UNAVAILABLE",
+      "This base product does not expose a color option.",
       422,
     );
   }
-  return selections;
+  const selectedColors = [
+    ...new Set([
+      ...stringArray(setup.selectedColors),
+      ...stringArray(setup.selectedColor),
+      ...stringArray(setup.fixedColor),
+    ]),
+  ];
+  if (selectedColors.length !== 1) {
+    throw new DomainError(
+      "CREATOR_COLOR_REQUIRED",
+      "Choose exactly one product color for this Creator Product.",
+      422,
+    );
+  }
+  const fixedColor = selectedColors[0]!;
+  if (
+    colors.length &&
+    !colors.some((color) => normalizedOptionText(color) === normalizedOptionText(fixedColor))
+  ) {
+    throw new DomainError(
+      "CREATOR_COLOR_INVALID",
+      "Choose a color that exists on the base product.",
+      422,
+    );
+  }
+  const productionMethod = cleanProductionMethod(
+    setup.fixedProductionMethod ||
+      setup.productionMethod ||
+      setup.selectedProductionMethod,
+  );
+  const enabledMethods =
+    database.productionMethodSetting && database.publicProductProductionPricing
+      ? await listEnabledProductionMethodCodes(
+          shop,
+          database as unknown as Parameters<typeof listEnabledProductionMethodCodes>[1],
+        )
+      : [];
+  if (enabledMethods.length && !enabledMethods.includes(productionMethod)) {
+    throw new DomainError(
+      "PRODUCTION_METHOD_DISABLED",
+      "Choose an enabled printing method.",
+      422,
+    );
+  }
+  const placements = collectPlacementRecords(setup);
+  const placementCount =
+    placements.length ||
+    directPositiveInteger(
+      setup.placementCount,
+      setup.designedPlacementCount,
+      (setup.productionSurchargeMetadata as Record<string, unknown> | undefined)
+        ?.placementCount,
+    );
+  if (!placementCount) {
+    throw new DomainError(
+      "DESIGNED_PLACEMENT_REQUIRED",
+      "Add artwork to at least one printable area before saving.",
+      422,
+    );
+  }
+  if (
+    !booleanTrue(
+      setup.copyrightAccepted,
+      setup.copyrightConfirmed,
+      setup.rightsConfirmed,
+      setup.creatorCopyrightAccepted,
+    )
+  ) {
+    throw new DomainError(
+      "COPYRIGHT_CONFIRMATION_REQUIRED",
+      "Confirm that you have the rights to use this design before submitting.",
+      422,
+    );
+  }
+  if (hasCustomerOrderQuantity(setup)) {
+    throw new DomainError(
+      "CREATOR_ORDER_QUANTITY_NOT_ALLOWED",
+      "Choose product size and quantity only when a customer buys the published Creator Product.",
+      422,
+    );
+  }
+  if (database.publicProductProductionPricing) {
+    const pricing = await getProductionPricing(
+      shop,
+      shopifyProductId,
+      database as unknown as Parameters<typeof getProductionPricing>[2],
+    );
+    if (!pricing) {
+      throw new DomainError(
+        "PRODUCTION_PRICING_REQUIRED",
+        "Production pricing is not configured for this product.",
+        409,
+      );
+    }
+    pricingForMethod(pricing, productionMethod);
+  }
+  return {
+    schema: "creator_design_setup_v1",
+    flowMode: "CREATOR_DESIGN",
+    productOrigin: "creator",
+    designMode: "creator_design",
+    isCreatorProduct: true,
+    fixedColor,
+    selectedColors: [fixedColor],
+    productionMethod,
+    placementCount,
+    placements: placements.length
+      ? placements
+      : Array.from({ length: placementCount }, (_, index) => `Placement ${index + 1}`),
+    copyrightAccepted: true,
+    nonReturnAcknowledged: booleanTrue(setup.nonReturnAcknowledged),
+    savedAt: new Date().toISOString(),
+  };
+}
+
+function requireCreatorProductSetup(product: CreatorProductRecord) {
+  const setup = creatorProductSetupFromRecord(product);
+  if (!setup) {
+    throw new DomainError(
+      "CREATOR_SETUP_REQUIRED",
+      "Choose one color, one printing method, and confirm copyright before submitting.",
+      422,
+    );
+  }
+  return setup;
 }
 
 function previewUrlsForProduct(product: CreatorProductRecord) {
@@ -640,7 +943,7 @@ function validateCompletableCreatorProduct(product: CreatorProductRecord) {
       422,
     );
   }
-  requireDesignVariantSelections(product);
+  requireCreatorProductSetup(product);
 }
 
 function cleanRejectionReason(value: unknown) {
@@ -998,6 +1301,7 @@ export async function listEligibleCreatorBaseProducts(
         legacyMode: { value: string } | null;
         pitchprintDesignId: { value: string } | null;
         legacyPitchprintDesignId: { value: string } | null;
+        productionMethodPricing: { value: string } | null;
         variants: {
           nodes: Array<{
             id: string;
@@ -1023,6 +1327,7 @@ export async function listEligibleCreatorBaseProducts(
           legacyMode: metafield(namespace: "customhouse", key: "design_mode") { value }
           pitchprintDesignId: metafield(namespace: "customhouse", key: "pitchprint_design_id") { value }
           legacyPitchprintDesignId: metafield(namespace: "pitchprint", key: "design_id") { value }
+          productionMethodPricing: metafield(namespace: "customhouse", key: "production_method_pricing") { value }
           variants(first: 100) {
             nodes {
               id
@@ -1049,6 +1354,7 @@ export async function listEligibleCreatorBaseProducts(
           product.pitchprintDesignId?.value ||
           product.legacyPitchprintDesignId?.value ||
           null,
+        productionMethodPricing: product.productionMethodPricing?.value || null,
         classification,
         variants: creatorProductBaseVariants(product),
       } satisfies EligibleCreatorBaseProduct;
@@ -1091,27 +1397,24 @@ export async function attachPitchPrintProjectToCreatorProduct(
       404,
     );
   }
-  if (!["DRAFT", "REJECTED"].includes(existing.status)) {
+  if (!["DRAFT", "REJECTED", "PUBLISHED"].includes(existing.status)) {
     throw new DomainError(
       "CREATOR_PRODUCT_NOT_EDITABLE",
-      "Only draft or rejected Creator Products can be updated from PitchPrint.",
+      "Only draft, rejected, or published Creator Products can be updated from PitchPrint.",
       409,
     );
   }
   const projectId = cleanProjectId(input.projectId);
   const previewUrls = cleanPreviewUrls(input);
   const previewUrl = previewUrls[0] || existing.previewUrl || null;
-  const variantSelections = cleanDesignVariantSelections(
-    input.variantSelections,
+  const setup = await cleanCreatorProductSetup(
+    shop,
+    existing.shopifyProductId,
+    input,
     productBaseVariants(existing),
+    database,
   );
-  if (!variantSelections.length) {
-    throw new DomainError(
-      "DESIGN_VARIANT_SELECTION_REQUIRED",
-      "Select at least one size and quantity.",
-      422,
-    );
-  }
+  const nextStatus = existing.status === "PUBLISHED" ? "PENDING" : existing.status;
   const updated = await database.creatorProduct.update({
     where: { id: existing.id },
     data: {
@@ -1121,8 +1424,9 @@ export async function attachPitchPrintProjectToCreatorProduct(
         existing.pitchprintDesignId,
       previewUrl,
       previewUrls: safeJson(previewUrls),
-      designVariantSelectionsJson: safeJson(variantSelections),
-      status: existing.status,
+      designVariantSelectionsJson: safeJson(setup),
+      status: nextStatus,
+      submittedAt: nextStatus === "PENDING" ? new Date() : existing.submittedAt,
     },
   });
   await database.auditLog?.create({
@@ -1137,8 +1441,10 @@ export async function attachPitchPrintProjectToCreatorProduct(
         creatorId: creator.id,
         projectId,
         previewCount: previewUrls.length,
-        selectedVariantCount: variantSelections.length,
-        status: "DRAFT",
+        fixedColor: setup.fixedColor,
+        productionMethod: setup.productionMethod,
+        placementCount: setup.placementCount,
+        status: nextStatus,
       }),
     },
   });
@@ -1771,13 +2077,37 @@ export async function getPublishedCreatorProductForHandle(
       404,
     );
   }
+  const baseProduct = client ? await publicBaseProduct(product.shopifyProductId, client) : undefined;
+  const creatorSetup = creatorProductSetupFromRecord(product);
+  const productionPricing =
+    creatorSetup && database.publicProductProductionPricing
+      ? await getProductionPricing(
+          shop,
+          product.shopifyProductId,
+          database as unknown as Parameters<typeof getProductionPricing>[2],
+        ).then((pricing) =>
+          pricing
+            ? {
+                method: creatorSetup.productionMethod,
+                fixedColor: creatorSetup.fixedColor,
+                placementCount: creatorSetup.placementCount,
+                surchargeMinor: decimalMoneyToMinorUnits(
+                  pricingForMethod(pricing, creatorSetup.productionMethod),
+                ).toString(),
+                feeVariantId:
+                  feeVariantIdForMethod(pricing, creatorSetup.productionMethod) ||
+                  null,
+              }
+            : null,
+        )
+      : null;
   return {
     ...product,
     creator,
     collection,
-    ...(client
-      ? { baseProduct: await publicBaseProduct(product.shopifyProductId, client) }
-      : {}),
+    ...(baseProduct ? { baseProduct } : {}),
+    creatorSetup,
+    productionPricing,
   };
 }
 
@@ -1865,6 +2195,7 @@ export async function prepareCreatorProductCart(
       409,
     );
   }
+  const setup = requireCreatorProductSetup(product);
   const variant = product.baseProduct?.variants.find(
     (item) =>
       item.graphqlId === selectedVariantKey ||
@@ -1893,6 +2224,40 @@ export async function prepareCreatorProductCart(
       409,
     );
   }
+  const variantColor = colorValueFromOptions(variant.selectedOptions || []);
+  if (
+    variantColor &&
+    normalizedOptionText(variantColor) !== normalizedOptionText(setup.fixedColor)
+  ) {
+    throw new DomainError(
+      "INVALID_CREATOR_COLOR",
+      "Choose a size for this design's fixed product color.",
+      422,
+    );
+  }
+  const pricing = await getProductionPricing(
+    shop,
+    product.shopifyProductId,
+    database as unknown as Parameters<typeof getProductionPricing>[2],
+  );
+  if (!pricing) {
+    throw new DomainError(
+      "PRODUCTION_PRICING_REQUIRED",
+      "Production pricing is not configured for this product.",
+      409,
+    );
+  }
+  const surchargeMinor = decimalMoneyToMinorUnits(
+    pricingForMethod(pricing, setup.productionMethod),
+  );
+  const feeVariantId = feeVariantIdForMethod(pricing, setup.productionMethod);
+  if (surchargeMinor > 0n && !feeVariantId) {
+    throw new DomainError(
+      "PRODUCTION_FEE_SYNC_REQUIRED",
+      "Production fee merchandise is not synced for this product.",
+      409,
+    );
+  }
   const orderProjectId = await preparePitchPrintOrderProject(
     product.pitchprintProjectId,
     cloner,
@@ -1915,6 +2280,49 @@ export async function prepareCreatorProductCart(
       500,
     );
   }
+  const feeKey = [
+    "ch-creator-production",
+    product.id.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 80),
+    orderProjectId.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 80),
+    setup.productionMethod.toLowerCase(),
+  ].join("-");
+  const properties = {
+    _pitchprint: orderProjectId,
+    _creator_product_id: product.id,
+    _creator_id: product.creatorId,
+    _creator_collection_id: product.collection.id,
+    _base_product_id: product.shopifyProductId,
+    _base_variant_id: variant.graphqlId,
+    _creator_public_handle: product.collection.publicHandle,
+    _customhouse_creator_handle: product.collection.publicHandle,
+    _production_method: setup.productionMethod,
+    _customhouse_fee_key: feeKey,
+    ...(previewUrl ? { _creator_preview_url: previewUrl } : {}),
+    _customhouse_attribution: attribution,
+    "Creator Design": product.title,
+    "Creator": product.creator.displayName,
+    "Color": setup.fixedColor,
+    "Printing method": setup.productionMethod,
+  };
+  const feeQuantity = quantity * setup.placementCount;
+  const feeItem =
+    surchargeMinor > 0n && feeVariantId
+      ? {
+          id: numericVariantId(feeVariantId),
+          quantity: feeQuantity,
+          properties: {
+            _customhouse_production_fee: "true",
+            _customhouse_parent_product_id: product.shopifyProductId,
+            _customhouse_parent_project_id: orderProjectId,
+            _customhouse_fee_key: feeKey,
+            _pitchprint: orderProjectId,
+            _production_method: setup.productionMethod,
+            _customhouse_creator_product_fee: "true",
+            "Printing method": setup.productionMethod,
+            "Designed placements": String(setup.placementCount),
+          },
+        }
+      : null;
   return {
     variant: {
       graphqlId: variant.graphqlId,
@@ -1924,19 +2332,23 @@ export async function prepareCreatorProductCart(
     cartVariantId: variant.cartId,
     shopifyVariantId: variant.graphqlId,
     quantity,
-    properties: {
-      _pitchprint: orderProjectId,
-      _creator_product_id: product.id,
-      _creator_id: product.creatorId,
-      _creator_collection_id: product.collection.id,
-      _base_product_id: product.shopifyProductId,
-      _base_variant_id: variant.graphqlId,
-      ...(previewUrl ? { _creator_preview_url: previewUrl } : {}),
-      _customhouse_attribution: attribution,
-      _customhouse_creator_handle: product.collection.publicHandle,
-      "Creator Design": product.title,
-      "Creator": product.creator.displayName,
+    properties,
+    production: {
+      method: setup.productionMethod,
+      fixedColor: setup.fixedColor,
+      placementCount: setup.placementCount,
+      surchargeMinor: surchargeMinor.toString(),
+      feeVariantId: feeVariantId ? numericVariantId(feeVariantId) : null,
+      feeQuantity,
     },
+    items: [
+      {
+        id: variant.cartId,
+        quantity,
+        properties,
+      },
+      ...(feeItem ? [feeItem] : []),
+    ],
     creatorProduct: {
       id: product.id,
       title: product.title,

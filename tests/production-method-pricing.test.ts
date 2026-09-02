@@ -301,6 +301,23 @@ test("admin save writes storefront pricing metafield after fee IDs are persisted
           },
         } as T;
       }
+      if (query.includes("query CustomHouseOnlineStorePublication")) {
+        return {
+          product: {
+            resourcePublications: {
+              nodes: [
+                {
+                  isPublished: true,
+                  publication: { id: "gid://shopify/Publication/online-store", name: "Online Store" },
+                },
+              ],
+            },
+          },
+          publications: {
+            nodes: [{ id: "gid://shopify/Publication/online-store", name: "Online Store" }],
+          },
+        } as T;
+      }
       if (query.includes("metafieldsSet")) {
         metafieldPayload = JSON.parse(variables.metafields[0].value);
         return { metafieldsSet: { userErrors: [] } } as T;
@@ -376,6 +393,23 @@ test("production fee sync uses supported productSet variant input and maps price
       if (query.includes("query CustomHouseProductionFeeProduct")) {
         return { products: { nodes: [] } } as T;
       }
+      if (query.includes("query CustomHouseOnlineStorePublication")) {
+        return {
+          product: {
+            resourcePublications: {
+              nodes: [
+                {
+                  isPublished: true,
+                  publication: { id: "gid://shopify/Publication/online-store", name: "Online Store" },
+                },
+              ],
+            },
+          },
+          publications: {
+            nodes: [{ id: "gid://shopify/Publication/online-store", name: "Online Store" }],
+          },
+        } as T;
+      }
       productSetInput = variables.input;
       return {
         productSet: {
@@ -408,6 +442,148 @@ test("production fee sync uses supported productSet variant input and maps price
   assert.equal(result.pricing.embroideryFeeVariantId, "gid://shopify/ProductVariant/9001");
   assert.equal(result.pricing.dtfFeeVariantId, "gid://shopify/ProductVariant/9002");
   assert.equal(result.pricing.dtgFeeVariantId, "gid://shopify/ProductVariant/9003");
+});
+
+type ProductionFeeProductSetInput = {
+  status?: string;
+  metafields: Array<{
+    namespace: string;
+    key: string;
+    type: string;
+    value: string;
+  }>;
+  variants: Array<{ price: string }>;
+};
+
+type PublishablePublishVariables = {
+  id: string;
+  input: Array<{ publicationId: string }>;
+};
+
+type ProductionFeeProductSetVariables = {
+  input: ProductionFeeProductSetInput;
+};
+
+type ProductionFeeMockVariables =
+  | ProductionFeeProductSetVariables
+  | PublishablePublishVariables
+  | { id: string };
+
+function isProductSetVariables(
+  variables: ProductionFeeMockVariables | undefined,
+): variables is ProductionFeeProductSetVariables {
+  return Boolean(variables && "input" in variables && !Array.isArray(variables.input));
+}
+
+function isPublishablePublishVariables(
+  variables: ProductionFeeMockVariables | undefined,
+): variables is PublishablePublishVariables {
+  return Boolean(variables && "input" in variables && Array.isArray(variables.input));
+}
+
+
+test("production fee sync keeps fee product active and published to Online Store", async () => {
+  const pricing = {
+    id: "pricing-a",
+    shopKey: "shop.test",
+    shopifyProductId: "gid://shopify/Product/100",
+    embroiderySurcharge: parseSurchargeInput("50.00"),
+    dtfSurcharge: parseSurchargeInput("20.00"),
+    dtgSurcharge: parseSurchargeInput("30.00"),
+    embroideryFeeVariantId: null,
+    dtfFeeVariantId: null,
+    dtgFeeVariantId: null,
+  };
+  let productSetInput: ProductionFeeProductSetInput | undefined;
+  let publishedInput: PublishablePublishVariables | undefined;
+  const database = {
+    publicProductProductionPricing: {
+      async findUnique() {
+        return pricing;
+      },
+      async findMany() {
+        return [pricing];
+      },
+      async upsert() {
+        return pricing;
+      },
+      async update(args: { data: Record<string, unknown> }) {
+        return { ...pricing, ...args.data };
+      },
+    },
+    productionMethodSetting: {
+      async findMany() {
+        return [];
+      },
+    },
+  };
+  const client = {
+    async request<T>(query: string, variables?: ProductionFeeMockVariables) {
+      if (query.includes("query CustomHouseProductionFeeProduct")) {
+        return { products: { nodes: [] } } as T;
+      }
+      if (query.includes("productSet")) {
+        if (!isProductSetVariables(variables)) {
+          throw new Error("Missing productSet variables");
+        }
+        productSetInput = variables.input;
+        return {
+          productSet: {
+            product: {
+              id: "gid://shopify/Product/fee",
+              title: "Fee",
+              parentProductId: { value: pricing.shopifyProductId },
+              variants: {
+                nodes: [
+                  { id: "gid://shopify/ProductVariant/9001", title: "Embroidery Production Fee" },
+                  { id: "gid://shopify/ProductVariant/9002", title: "DTF Production Fee" },
+                  { id: "gid://shopify/ProductVariant/9003", title: "DTG Production Fee" },
+                ],
+              },
+            },
+            userErrors: [],
+          },
+        } as T;
+      }
+      if (query.includes("query CustomHouseOnlineStorePublication")) {
+        return {
+          product: { resourcePublications: { nodes: [] } },
+          publications: {
+            nodes: [{ id: "gid://shopify/Publication/online-store", name: "Online Store" }],
+          },
+        } as T;
+      }
+      if (query.includes("publishablePublish")) {
+        if (!isPublishablePublishVariables(variables)) {
+          throw new Error("Missing publish variables");
+        }
+        publishedInput = variables;
+        return { publishablePublish: { userErrors: [] } } as T;
+      }
+      throw new Error(`Unexpected query: ${query}`);
+    },
+  };
+
+  await syncProductionFeeMerchandise("shop.test", pricing, client, database);
+
+  assert.ok(productSetInput);
+  assert.equal(productSetInput.status, "ACTIVE");
+  assert.deepEqual(
+    productSetInput.metafields.find(
+      (metafield) => metafield.namespace === "seo" && metafield.key === "hidden",
+    ),
+    {
+      namespace: "seo",
+      key: "hidden",
+      type: "number_integer",
+      value: "1",
+    },
+  );
+  assert.ok(publishedInput);
+  assert.deepEqual(publishedInput, {
+    id: "gid://shopify/Product/fee",
+    input: [{ publicationId: "gid://shopify/Publication/online-store" }],
+  });
 });
 
 test("Shopify GraphQL and user errors are surfaced clearly", async () => {
@@ -580,6 +756,30 @@ const fakeProductClient = {
   },
 };
 
+const canonicalPublicProductClient = {
+  async request<T>() {
+    return {
+      product: {
+        id: "gid://shopify/Product/100",
+        productType: null,
+        pitchprintEnabled: { value: "true" },
+        origin: { value: "global" },
+        mode: { value: "customizable" },
+        variants: {
+          nodes: [
+            {
+              id: "gid://shopify/ProductVariant/1",
+              legacyResourceId: "1",
+              price: "100.00",
+              availableForSale: true,
+            },
+          ],
+        },
+      },
+    } as T;
+  },
+};
+
 test("trusted total uses actual variant prices plus method surcharge", () => {
   const result = calculateTrustedProductionTotal({
     surchargeMinor: 5000n,
@@ -626,6 +826,26 @@ test("trusted cart prep ignores browser price tampering", async () => {
   assert.equal(cart.items[0]?.id, "1");
   assert.equal(cart.items[1]?.id, "9001");
   assert.equal(cart.items[1]?.quantity, 1);
+});
+
+test("trusted cart prep accepts canonical global customizable PitchPrint products", async () => {
+  const cart = await preparePublicProductionCart(
+    "shop.test",
+    {
+      shopifyProductId: "gid://shopify/Product/100",
+      pitchprintProjectId: "pp_123",
+      productionMethod: "DTF",
+      selections: [
+        { variantId: "gid://shopify/ProductVariant/1", quantity: 1 },
+      ],
+    },
+    canonicalPublicProductClient,
+    fakePricingDb,
+  );
+
+  assert.equal(cart.productionMethod, "DTF");
+  assert.equal(cart.items[0]?.id, "1");
+  assert.equal(cart.items[1]?.id, "9002");
 });
 
 test("production pricing bridge payload contains only trusted minor-unit values", () => {
@@ -809,6 +1029,66 @@ test("storefront PitchPrint bridge exposes trusted product pricing config", () =
   assert.doesNotMatch(handoff, /browserTotalMinor/);
 });
 
+test("storefront PitchPrint handoff sends saved designs through trusted public cart prep", () => {
+  const handoff = readFileSync(
+    "theme-live-cart/assets/customhouse-pitchprint-order-handoff.js",
+    "utf8",
+  );
+
+  assert.match(handoff, /\/apps\/customhouse\/api\/public-production-cart/);
+  assert.match(handoff, /productionMethod/);
+  assert.match(handoff, /selections/);
+  assert.match(handoff, /Printing method/);
+  assert.match(handoff, /Printing charge \/ item/);
+  assert.match(handoff, /prepared\.items/);
+  assert.match(handoff, /_customhouse_fee_key/);
+  assert.doesNotMatch(handoff, /items:\s*\[\s*\{\s*id:\s*variantId,\s*quantity,\s*properties,\s*\}\s*,?\s*\]/);
+});
+
+test("public product page keeps printing method inside PitchPrint handoff", () => {
+  const productDetails = readFileSync("theme-live-cart/blocks/_product-details.liquid", "utf8");
+  const handoff = readFileSync(
+    "theme-live-cart/assets/customhouse-pitchprint-order-handoff.js",
+    "utf8",
+  );
+
+  assert.doesNotMatch(productDetails, /marked-product-actions__block--production-method/);
+  assert.doesNotMatch(productDetails, /name="customhouse_production_method"/);
+  assert.match(productDetails, /data-customhouse-production-pricing-json/);
+  assert.match(handoff, /findProductionMethodDeep/);
+  assert.match(handoff, /selectionFromOptions/);
+  assert.match(handoff, /supportsMultipleSelections/);
+  assert.match(handoff, /optionGroups/);
+  assert.match(handoff, /mergeSelections/);
+  assert.doesNotMatch(handoff, /checkedProductionMethod/);
+});
+
+test("theme cart keeps production fee lines paired with customized base lines", () => {
+  const cartItems = readFileSync(
+    "theme-live-cart/assets/component-cart-items.js",
+    "utf8",
+  );
+  const customCart = readFileSync(
+    "theme-live-cart/sections/main-cart.liquid",
+    "utf8",
+  );
+  const drawerCart = readFileSync(
+    "theme-live-cart/snippets/cart-products.liquid",
+    "utf8",
+  );
+
+  assert.match(cartItems, /reconcileCustomHouseProductionFees/);
+  assert.match(cartItems, /_customhouse_production_fee/);
+  assert.match(cartItems, /_customhouse_fee_key/);
+  assert.match(cartItems, /cart_update_url/);
+  assert.match(customCart, /Printing method/);
+  assert.match(customCart, /Printing charge/);
+  assert.match(customCart, /customhouse-cart__item--production-fee/);
+  assert.match(drawerCart, /Printing method/);
+  assert.match(drawerCart, /Printing charge/);
+  assert.match(drawerCart, /cart-items__table-row--production-fee/);
+});
+
 test("storefront bridge maps saved 10 20 30 values to PitchPrint minor-unit payload", () => {
   const payload = productionPricingBridgePayload({
     currency: "SEK",
@@ -857,11 +1137,30 @@ test("storefront bridge maps saved 10 20 30 values to PitchPrint minor-unit payl
   ]);
 });
 
-test("theme cart is not changed by admin/backend production pricing work", () => {
+test("theme cart sync is scoped to production fee line properties", () => {
   const cartItems = readFileSync(
     "theme-live-cart/assets/component-cart-items.js",
     "utf8",
   );
 
-  assert.doesNotMatch(cartItems, /reconcileCustomHouseProductionFees/);
+  assert.doesNotMatch(cartItems, /_creator_product_id/);
+  assert.doesNotMatch(cartItems, /product_origin/);
+  assert.doesNotMatch(cartItems, /creator/);
+});
+
+test("global collection grid excludes Creator buy-only products by canonical metafields", () => {
+  const collectionGrid = readFileSync(
+    "theme-live-cart/sections/customhouse-collection-grid.liquid",
+    "utf8",
+  );
+
+  assert.match(collectionGrid, /exclude_creator_products_from_global/);
+  assert.match(collectionGrid, /product\.metafields\.customhouse\.product_origin/);
+  assert.match(collectionGrid, /product_origin == 'creator'/);
+  assert.match(collectionGrid, /product\.metafields\.customhouse\.design_mode/);
+  assert.match(collectionGrid, /design_mode == 'buy_only'/);
+  assert.match(collectionGrid, /product\.metafields\.customhouse\.product_type/);
+  assert.match(collectionGrid, /product_type == 'creator_fixed'/);
+  assert.match(collectionGrid, /unless section\.settings\.exclude_creator_products_from_global and is_creator_catalog_product/);
+  assert.doesNotMatch(collectionGrid, /title contains|handle contains|CreatorProduct/i);
 });

@@ -28,6 +28,7 @@ import {
 } from "../app/services/creator-collections.server.ts";
 import { DomainError } from "../app/services/domain.ts";
 import type { ShopifyGraphqlClient } from "../app/services/shopify-graphql.server.ts";
+import { parseSurchargeInput } from "../app/services/production-method-pricing.server.ts";
 
 const shop = "customhouse.test";
 const baseProduct = {
@@ -50,16 +51,22 @@ const baseProduct = {
       {
         id: "gid://shopify/ProductVariant/2001",
         legacyResourceId: "2001",
-        title: "S",
+        title: "S / White",
         availableForSale: true,
-        selectedOptions: [{ name: "Size", value: "S" }],
+        selectedOptions: [
+          { name: "Size", value: "S" },
+          { name: "Color", value: "White" },
+        ],
       },
       {
         id: "gid://shopify/ProductVariant/2002",
         legacyResourceId: "2002",
-        title: "M",
+        title: "M / White",
         availableForSale: true,
-        selectedOptions: [{ name: "Size", value: "M" }],
+        selectedOptions: [
+          { name: "Size", value: "M" },
+          { name: "Color", value: "White" },
+        ],
       },
     ],
   },
@@ -128,8 +135,44 @@ function pitchPrintPayload(input: {
 }) {
   return {
     ...input,
-    variantSelections: [{ variantId: "2001", size: "S", quantity: 1 }],
+    creatorSetup: {
+      flowMode: "CREATOR_DESIGN",
+      productOrigin: "creator",
+      designMode: "creator_design",
+      isCreatorProduct: true,
+      selectedColor: "White",
+      selectedColors: ["White"],
+      fixedColor: "White",
+      selectedProductionMethod: "EMBROIDERY",
+      productionMethod: "EMBROIDERY",
+      fixedProductionMethod: "EMBROIDERY",
+      designedPlacementCount: 1,
+      placements: [{ id: "front", label: "Front", hasArtwork: true }],
+      copyrightAccepted: true,
+      nonReturnAcknowledged: true,
+    },
   };
+}
+
+function creatorSetupJson(color = "White", method = "EMBROIDERY", placementCount = 1) {
+  return JSON.stringify({
+    schema: "creator_design_setup_v1",
+    flowMode: "CREATOR_DESIGN",
+    productOrigin: "creator",
+    designMode: "creator_design",
+    isCreatorProduct: true,
+    fixedColor: color,
+    selectedColors: [color],
+    productionMethod: method,
+    placementCount,
+    placements: Array.from(
+      { length: placementCount },
+      (_, index) => `Placement ${index + 1}`,
+    ),
+    copyrightAccepted: true,
+    nonReturnAcknowledged: true,
+    savedAt: "2026-08-11T00:01:00.000Z",
+  });
 }
 
 function fakePublicProductClient(productId = baseProduct.id): ShopifyGraphqlClient {
@@ -390,6 +433,30 @@ function fakeDb() {
           : 0;
       },
     },
+    productionMethodSetting: {
+      async findMany() {
+        return [
+          { method: "EMBROIDERY", enabled: true },
+          { method: "DTF", enabled: true },
+          { method: "DTG", enabled: true },
+        ];
+      },
+    },
+    publicProductProductionPricing: {
+      async findUnique() {
+        return {
+          id: "pricing-1",
+          shopKey: shop,
+          shopifyProductId: baseProduct.id,
+          embroiderySurcharge: parseSurchargeInput("50.00"),
+          dtfSurcharge: parseSurchargeInput("30.00"),
+          dtgSurcharge: parseSurchargeInput("20.00"),
+          embroideryFeeVariantId: "gid://shopify/ProductVariant/9001",
+          dtfFeeVariantId: "gid://shopify/ProductVariant/9002",
+          dtgFeeVariantId: "gid://shopify/ProductVariant/9003",
+        };
+      },
+    },
   };
 }
 
@@ -566,9 +633,21 @@ test("authenticated Creator A can attach a PitchPrint project to their own Draft
   assert.equal(updated.pitchprintProjectId, "pp_project_123");
   assert.equal(updated.previewUrl, "https://cdn.pitchprint.test/preview-1.png");
   assert.equal(updated.status, "DRAFT");
-  assert.deepEqual(JSON.parse(updated.designVariantSelectionsJson), [
-    { variantId: "2001", size: "S", quantity: 1 },
-  ]);
+  assert.deepEqual(JSON.parse(updated.designVariantSelectionsJson), {
+    schema: "creator_design_setup_v1",
+    flowMode: "CREATOR_DESIGN",
+    productOrigin: "creator",
+    designMode: "creator_design",
+    isCreatorProduct: true,
+    fixedColor: "White",
+    selectedColors: ["White"],
+    productionMethod: "EMBROIDERY",
+    placementCount: 1,
+    placements: ["Front"],
+    copyrightAccepted: true,
+    nonReturnAcknowledged: true,
+    savedAt: JSON.parse(updated.designVariantSelectionsJson).savedAt,
+  });
 });
 
 test("Creator Product stores current Shopify size variants from the base product", async () => {
@@ -595,7 +674,7 @@ test("Creator Product stores current Shopify size variants from the base product
   );
 });
 
-test("PitchPrint save filters zero quantities and preserves Shopify variant IDs", async () => {
+test("PitchPrint save stores one fixed Creator color and production method", async () => {
   const db = fakeDb();
   const draft = await createCreatorProductDraft(
     shop,
@@ -610,22 +689,22 @@ test("PitchPrint save filters zero quantities and preserves Shopify variant IDs"
     "gid://shopify/Customer/1",
     draft.id,
     {
-      projectId: "pp_quantities",
-      previewUrl: "https://cdn.pitchprint.test/qty.png",
-      variantSelections: [
-        { variantId: "2001", size: "S", quantity: 0 },
-        { variantId: "2002", size: "M", quantity: 2 },
-      ],
+      ...pitchPrintPayload({
+        projectId: "pp_creator_setup",
+        previewUrl: "https://cdn.pitchprint.test/setup.png",
+      }),
     },
     db,
   );
 
-  assert.deepEqual(JSON.parse(updated.designVariantSelectionsJson), [
-    { variantId: "2002", size: "M", quantity: 2 },
-  ]);
+  const setup = JSON.parse(updated.designVariantSelectionsJson);
+  assert.equal(setup.fixedColor, "White");
+  assert.deepEqual(setup.selectedColors, ["White"]);
+  assert.equal(setup.productionMethod, "EMBROIDERY");
+  assert.equal(setup.placementCount, 1);
 });
 
-test("PitchPrint save requires at least one selected size quantity", async () => {
+test("PitchPrint save requires exactly one selected Creator color", async () => {
   const db = fakeDb();
   const draft = await createCreatorProductDraft(
     shop,
@@ -642,17 +721,22 @@ test("PitchPrint save requires at least one selected size quantity", async () =>
         "gid://shopify/Customer/1",
         draft.id,
         {
-          projectId: "pp_empty_qty",
-          previewUrl: "https://cdn.pitchprint.test/empty.png",
-          variantSelections: [{ variantId: "2001", size: "S", quantity: 0 }],
+          ...pitchPrintPayload({
+            projectId: "pp_multi_color",
+            previewUrl: "https://cdn.pitchprint.test/empty.png",
+          }),
+          creatorSetup: {
+            ...pitchPrintPayload({ projectId: "pp_multi_color" }).creatorSetup,
+            selectedColors: ["White", "Navy"],
+          },
         },
         db,
       ),
-    /Select at least one size and quantity/,
+    /exactly one product color/,
   );
 });
 
-test("PitchPrint save rejects variant IDs outside the base product", async () => {
+test("PitchPrint save rejects colors outside the base product", async () => {
   const db = fakeDb();
   const draft = await createCreatorProductDraft(
     shop,
@@ -669,13 +753,144 @@ test("PitchPrint save rejects variant IDs outside the base product", async () =>
         "gid://shopify/Customer/1",
         draft.id,
         {
-          projectId: "pp_bad_variant",
-          previewUrl: "https://cdn.pitchprint.test/bad.png",
-          variantSelections: [{ variantId: "999999", size: "XL", quantity: 1 }],
+          ...pitchPrintPayload({
+            projectId: "pp_bad_color",
+            previewUrl: "https://cdn.pitchprint.test/bad.png",
+          }),
+          creatorSetup: {
+            ...pitchPrintPayload({ projectId: "pp_bad_color" }).creatorSetup,
+            selectedColor: "Navy",
+            selectedColors: ["Navy"],
+            fixedColor: "Navy",
+          },
         },
         db,
       ),
-    /Select at least one size and quantity/,
+    /exists on the base product/,
+  );
+});
+
+test("PitchPrint save rejects customer order quantities in Creator design setup", async () => {
+  const db = fakeDb();
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id },
+    fakeClient(),
+    db,
+  );
+
+  await assert.rejects(
+    () =>
+      attachPitchPrintProjectToCreatorProduct(
+        shop,
+        "gid://shopify/Customer/1",
+        draft.id,
+        {
+          ...pitchPrintPayload({
+            projectId: "pp_order_quantity",
+            previewUrl: "https://cdn.pitchprint.test/order-quantity.png",
+          }),
+          creatorSetup: {
+            ...pitchPrintPayload({ projectId: "pp_order_quantity" }).creatorSetup,
+            variantSelections: [{ variantId: "2001", size: "S", quantity: 2 }],
+          },
+        },
+        db,
+      ),
+    /size and quantity only when a customer buys/,
+  );
+});
+
+test("PitchPrint save counts only designed Creator placements", async () => {
+  const db = fakeDb();
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id },
+    fakeClient(),
+    db,
+  );
+
+  const frontOnly = await attachPitchPrintProjectToCreatorProduct(
+    shop,
+    "gid://shopify/Customer/1",
+    draft.id,
+    {
+      ...pitchPrintPayload({
+        projectId: "pp_front_only",
+        previewUrl: "https://cdn.pitchprint.test/front-only.png",
+      }),
+      creatorSetup: {
+        ...pitchPrintPayload({ projectId: "pp_front_only" }).creatorSetup,
+        placements: [
+          { id: "front", label: "Front", hasArtwork: true },
+          { id: "back", label: "Back", hasArtwork: false },
+        ],
+      },
+    },
+    db,
+  );
+
+  assert.equal(JSON.parse(frontOnly.designVariantSelectionsJson).placementCount, 1);
+
+  const frontAndBack = await attachPitchPrintProjectToCreatorProduct(
+    shop,
+    "gid://shopify/Customer/1",
+    draft.id,
+    {
+      ...pitchPrintPayload({
+        projectId: "pp_front_back",
+        previewUrl: "https://cdn.pitchprint.test/front-back.png",
+      }),
+      creatorSetup: {
+        ...pitchPrintPayload({ projectId: "pp_front_back" }).creatorSetup,
+        placements: [
+          { id: "front", label: "Front", hasArtwork: true },
+          { id: "back", label: "Back", hasArtwork: true },
+        ],
+      },
+    },
+    db,
+  );
+
+  const setup = JSON.parse(frontAndBack.designVariantSelectionsJson);
+  assert.equal(setup.placementCount, 2);
+  assert.deepEqual(setup.placements, ["Front", "Back"]);
+});
+
+test("PitchPrint save requires Creator copyright confirmation", async () => {
+  const db = fakeDb();
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id },
+    fakeClient(),
+    db,
+  );
+
+  await assert.rejects(
+    () =>
+      attachPitchPrintProjectToCreatorProduct(
+        shop,
+        "gid://shopify/Customer/1",
+        draft.id,
+        {
+          ...pitchPrintPayload({
+            projectId: "pp_no_rights",
+            previewUrl: "https://cdn.pitchprint.test/no-rights.png",
+          }),
+          creatorSetup: {
+            ...pitchPrintPayload({ projectId: "pp_no_rights" }).creatorSetup,
+            copyrightAccepted: false,
+            copyrightConfirmed: false,
+            rightsConfirmed: false,
+            creatorCopyrightAccepted: false,
+          },
+        },
+        db,
+      ),
+    /rights to use this design/,
   );
 });
 
@@ -1167,6 +1382,58 @@ test("published metadata edit preserves status artwork project and public detail
   assert.equal(updated.pitchprintDesignId, "pp_design_keep");
   assert.equal(publicProduct.title, "New Public Title");
   assert.equal(publicProduct.description, "New public description.");
+});
+
+test("published material PitchPrint edit returns CreatorProduct to review before public exposure", async () => {
+  const db = fakeDb();
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id, title: "Published Design" },
+    fakeClient(),
+    db,
+  );
+  draft.id = "cmcreatorproduct00000019";
+  draft.status = "PUBLISHED";
+  draft.pitchprintProjectId = "pp_project_live";
+  draft.pitchprintDesignId = "pp_design_live";
+  draft.designVariantSelectionsJson = creatorSetupJson();
+  draft.publishedAt = new Date("2026-08-12T00:00:00.000Z");
+
+  const updated = await attachPitchPrintProjectToCreatorProduct(
+    shop,
+    "gid://shopify/Customer/1",
+    draft.id,
+    {
+      ...pitchPrintPayload({
+        projectId: "pp_project_material_edit",
+        previewUrl: "https://cdn.pitchprint.test/material-edit.png",
+      }),
+      creatorSetup: {
+        ...pitchPrintPayload({ projectId: "pp_project_material_edit" }).creatorSetup,
+        selectedProductionMethod: "DTF",
+        productionMethod: "DTF",
+        fixedProductionMethod: "DTF",
+      },
+    },
+    db,
+  );
+
+  assert.equal(updated.status, "PENDING");
+  assert.equal(updated.pitchprintProjectId, "pp_project_material_edit");
+  assert.equal(JSON.parse(updated.designVariantSelectionsJson).productionMethod, "DTF");
+  assert.ok(updated.submittedAt);
+  await assert.rejects(
+    () =>
+      publicCreatorProductDetail(
+        shop,
+        "creator-a",
+        draft.id,
+        fakePublicProductClient(),
+        db,
+      ),
+    /Creator Product not found/,
+  );
 });
 
 test("draft and rejected products without history can be deleted by owner only", async () => {
@@ -1782,6 +2049,7 @@ test("cart prep validates variant ownership and locks creator artwork", async ()
       quantity: 2,
       creatorId: "creator-b",
       pitchprintProjectId: "browser_override",
+      productionMethod: "DTF",
       _creator_preview_url: "https://browser.example/override.png",
     } as unknown as Parameters<typeof prepareCreatorProductCart>[1],
     fakePublicProductClient(),
@@ -1804,10 +2072,185 @@ test("cart prep validates variant ownership and locks creator artwork", async ()
   assert.equal(cart.properties._base_product_id, baseProduct.id);
   assert.equal(cart.properties._base_variant_id, "gid://shopify/ProductVariant/2001");
   assert.equal(cart.properties._creator_preview_url, "https://cdn.pitchprint.test/master.png");
+  assert.equal(cart.properties._creator_public_handle, "creator-a");
+  assert.equal(cart.properties._production_method, "EMBROIDERY");
+  assert.equal(cart.properties["Color"], "White");
+  assert.equal(cart.properties["Printing method"], "EMBROIDERY");
+  assert.equal(cart.production.method, "EMBROIDERY");
+  assert.equal(cart.production.fixedColor, "White");
+  assert.equal(cart.production.placementCount, 1);
+  assert.equal(cart.production.surchargeMinor, "5000");
+  assert.equal(cart.production.feeVariantId, "9001");
+  assert.equal(cart.production.feeQuantity, 2);
+  assert.equal(cart.items.length, 2);
+  const feeProperties = cart.items[1].properties as Record<string, string>;
+  assert.equal(cart.items[0].id, "2001");
+  assert.equal(cart.items[0].quantity, 2);
+  assert.equal(cart.items[1].id, "9001");
+  assert.equal(cart.items[1].quantity, 2);
+  assert.equal(feeProperties._customhouse_production_fee, "true");
+  assert.equal(feeProperties._pitchprint, "pp_order_clone");
+  assert.equal(feeProperties._customhouse_fee_key, cart.properties._customhouse_fee_key);
+  assert.equal("_creator_product_id" in feeProperties, false);
   assert.equal(typeof cart.properties._customhouse_attribution, "string");
   assert.equal(cart.properties["Creator Design"], draft.title);
   assert.equal(db.products.find((product) => product.id === draft.id)?.pitchprintProjectId, "pp_master");
   assert.equal(await db.creatorSale.count(), 0);
+});
+
+test("cart prep rejects manually submitted variants outside the saved fixed color", async () => {
+  const db = fakeDb();
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id },
+    fakeClient(),
+    db,
+  );
+  draft.id = "cmcreatorproduct00000021";
+  draft.status = "PUBLISHED";
+  draft.pitchprintProjectId = "pp_black_only";
+  draft.designVariantSelectionsJson = creatorSetupJson("Black", "EMBROIDERY", 1);
+  draft.baseProductVariantsJson = JSON.stringify([
+    {
+      id: "gid://shopify/ProductVariant/3001",
+      graphqlId: "gid://shopify/ProductVariant/3001",
+      variantId: "3001",
+      title: "S / Black",
+      size: "S",
+      availableForSale: true,
+      selectedOptions: [
+        { name: "Size", value: "S" },
+        { name: "Color", value: "Black" },
+      ],
+    },
+    {
+      id: "gid://shopify/ProductVariant/3002",
+      graphqlId: "gid://shopify/ProductVariant/3002",
+      variantId: "3002",
+      title: "M / White",
+      size: "M",
+      availableForSale: true,
+      selectedOptions: [
+        { name: "Size", value: "M" },
+        { name: "Color", value: "White" },
+      ],
+    },
+  ]);
+  const blackWhiteClient: ShopifyGraphqlClient = {
+    async request<T>() {
+      return {
+        product: {
+          id: baseProduct.id,
+          title: "Global Hoodie",
+          handle: "global-hoodie",
+          onlineStoreUrl: "https://customhouse.se/products/global-hoodie",
+          options: [
+            { name: "Size", values: ["S", "M"] },
+            { name: "Color", values: ["Black", "White"] },
+          ],
+          priceRangeV2: {
+            minVariantPrice: { amount: "299.00", currencyCode: "SEK" },
+            maxVariantPrice: { amount: "299.00", currencyCode: "SEK" },
+          },
+          variants: {
+            nodes: [
+              {
+                id: "gid://shopify/ProductVariant/3001",
+                legacyResourceId: "3001",
+                title: "S / Black",
+                availableForSale: true,
+                price: "299.00",
+                selectedOptions: [
+                  { name: "Size", value: "S" },
+                  { name: "Color", value: "Black" },
+                ],
+              },
+              {
+                id: "gid://shopify/ProductVariant/3002",
+                legacyResourceId: "3002",
+                title: "M / White",
+                availableForSale: true,
+                price: "299.00",
+                selectedOptions: [
+                  { name: "Size", value: "M" },
+                  { name: "Color", value: "White" },
+                ],
+              },
+            ],
+          },
+        },
+      } as T;
+    },
+  };
+
+  const cart = await prepareCreatorProductCart(
+    shop,
+    {
+      creatorHandle: "creator-a",
+      creatorProductId: draft.id,
+      selectedVariantId: "gid://shopify/ProductVariant/3001",
+      productionMethod: "DTF",
+    } as unknown as Parameters<typeof prepareCreatorProductCart>[1],
+    blackWhiteClient,
+    async () => "pp_black_order",
+    db,
+  );
+
+  assert.equal(cart.properties["Color"], "Black");
+  assert.equal(cart.properties._production_method, "EMBROIDERY");
+  await assert.rejects(
+    () =>
+      prepareCreatorProductCart(
+        shop,
+        {
+          creatorHandle: "creator-a",
+          creatorProductId: draft.id,
+          selectedVariantId: "gid://shopify/ProductVariant/3002",
+        },
+        blackWhiteClient,
+        async () => "pp_white_order",
+        db,
+      ),
+    (error) => error instanceof DomainError && error.code === "INVALID_CREATOR_COLOR",
+  );
+});
+
+test("creator buy-only production fee quantity uses saved designed placement count", async () => {
+  const db = fakeDb();
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id },
+    fakeClient(),
+    db,
+  );
+  draft.id = "cmcreatorproduct00000020";
+  draft.status = "PUBLISHED";
+  draft.pitchprintProjectId = "pp_master_placements";
+  draft.designVariantSelectionsJson = creatorSetupJson("White", "DTF", 3);
+
+  const cart = await prepareCreatorProductCart(
+    shop,
+    {
+      creatorHandle: "creator-a",
+      creatorProductId: draft.id,
+      selectedVariantId: "gid://shopify/ProductVariant/2001",
+      quantity: 4,
+    },
+    fakePublicProductClient(),
+    async () => "pp_order_placements",
+    db,
+  );
+
+  assert.equal(cart.production.placementCount, 3);
+  assert.equal(cart.production.surchargeMinor, "3000");
+  assert.equal(cart.production.feeVariantId, "9002");
+  assert.equal(cart.production.feeQuantity, 12);
+  const feeProperties = cart.items[1].properties as Record<string, string>;
+  assert.equal(cart.items[1].id, "9002");
+  assert.equal(cart.items[1].quantity, 12);
+  assert.equal(feeProperties["Designed placements"], "3");
 });
 
 test("cart prep uses stored preview URL list and omits invalid preview without blocking", async () => {
@@ -1822,6 +2265,7 @@ test("cart prep uses stored preview URL list and omits invalid preview without b
   draft.id = "cmcreatorproduct00000017";
   draft.status = "PUBLISHED";
   draft.pitchprintProjectId = "pp_master";
+  draft.designVariantSelectionsJson = creatorSetupJson();
   draft.previewUrl = "http://cdn.pitchprint.test/insecure.png";
   draft.previewUrls = JSON.stringify([
     "ftp://cdn.pitchprint.test/ignored.png",
@@ -1874,6 +2318,7 @@ test("cart prep falls back to master PitchPrint project when clone config is opt
   draft.id = "cmcreatorproduct00000016";
   draft.status = "PUBLISHED";
   draft.pitchprintProjectId = "pp_master";
+  draft.designVariantSelectionsJson = creatorSetupJson();
 
   const cart = await prepareCreatorProductCart(
     shop,
@@ -1960,6 +2405,7 @@ test("cart prep denies suspended creators and inactive collections", async () =>
   draft.id = "cmcreatorproduct00000013";
   draft.status = "PUBLISHED";
   draft.pitchprintProjectId = "pp_master";
+  draft.designVariantSelectionsJson = creatorSetupJson();
   db.creators.find((creator) => creator.id === "creator-a")!.status = "SUSPENDED";
 
   await assert.rejects(
@@ -2024,6 +2470,8 @@ test("same-name creators keep separate cart attribution", async () => {
   productB.status = "PUBLISHED";
   productA.pitchprintProjectId = "pp_master_a";
   productB.pitchprintProjectId = "pp_master_b";
+  productA.designVariantSelectionsJson = creatorSetupJson();
+  productB.designVariantSelectionsJson = creatorSetupJson();
 
   const cartA = await prepareCreatorProductCart(
     shop,

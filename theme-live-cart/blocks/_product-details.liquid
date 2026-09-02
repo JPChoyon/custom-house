@@ -260,11 +260,13 @@
           <p class="marked-product-actions__cart-status" data-cart-status role="status" aria-live="polite" hidden></p>
         </div>
 
-        <div class="marked-product-actions__block marked-product-actions__block--buy-now">
-          <div class="marked-product-actions__buy-now">
-            {{ form | payment_button }}
+        {% unless is_pitchprint_required_product %}
+          <div class="marked-product-actions__block marked-product-actions__block--buy-now">
+            <div class="marked-product-actions__buy-now">
+              {{ form | payment_button }}
+            </div>
           </div>
-        </div>
+        {% endunless %}
       {% endform %}
 
       {% if is_pitchprint_required_product and production_method_pricing != blank %}

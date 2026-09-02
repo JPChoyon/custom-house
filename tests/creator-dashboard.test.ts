@@ -617,6 +617,39 @@ test("creator dashboard reuses in-flight product requests and keeps submit actio
   assert.match(script, /updateCreatorProductInState\(root, updated\)/);
 });
 
+test("creator dashboard PitchPrint bridge uses Creator setup contract instead of order quantities", () => {
+  const script = readFileSync(
+    "extensions/customhouse-creator-storefront/assets/customhouse-dashboard.js",
+    "utf8",
+  );
+
+  assert.match(script, /function creatorPitchPrintConfig/);
+  assert.match(script, /window\.CustomHouseCreatorPitchPrintConfig = config/);
+  assert.match(script, /enabled: true/);
+  assert.match(script, /flowMode: "CREATOR_DESIGN"/);
+  assert.match(script, /productOrigin: "creator"/);
+  assert.match(script, /designMode: "creator_design"/);
+  assert.match(script, /isCreatorProduct: true/);
+  assert.match(script, /creatorProductId: product\.id/);
+  assert.match(script, /creatorPublicHandle/);
+  assert.match(script, /colorOptionValues/);
+  assert.match(script, /sizeOptionValues/);
+  assert.match(script, /productionMethods/);
+  assert.match(script, /productionMethodPricing/);
+  assert.match(script, /supportsMultipleSelections: false/);
+  assert.match(script, /CUSTOMHOUSE_PP_CREATOR_SETUP_READY/);
+  assert.match(script, /customhouse:pitchprint-creator-setup-ready/);
+  assert.match(script, /CUSTOMHOUSE_PP_CREATOR_CONFIG_REQUEST/);
+  assert.match(script, /CUSTOMHOUSE_PP_CREATOR_CONFIG_DATA/);
+  assert.match(script, /ensurePitchPrintBaseProductConfig\(root, product\)/);
+  assert.match(script, /creatorSetup: setup/);
+  assert.match(script, /Choose one color, one printing method, and confirm copyright\./);
+  assert.doesNotMatch(script, /Sizes \/ Amount/);
+  assert.doesNotMatch(script, /selectedPitchPrintVariants/);
+  assert.doesNotMatch(script, /data-variant-quantity-action/);
+  assert.doesNotMatch(script, /Select at least one size and quantity\./);
+});
+
 test("profile picture upload stores Shopify media and returns a display URL", async () => {
   const originalFetch = globalThis.fetch;
   const requests: string[] = [];

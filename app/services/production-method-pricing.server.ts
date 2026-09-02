@@ -111,6 +111,11 @@ type ProductionFeeProductNode = {
   parentProductId: { value: string } | null;
 };
 
+type PublicationNode = {
+  id: string;
+  name: string;
+};
+
 function methodKey(method: string) {
   return method.trim().toUpperCase();
 }
@@ -279,6 +284,16 @@ async function methodSettings(
   return PRODUCTION_METHODS.map((method) => fallback[method]);
 }
 
+export async function listEnabledProductionMethodCodes(
+  shop: string,
+  database: ProductionPricingDb = db as unknown as ProductionPricingDb,
+) {
+  const settings = await methodSettings(shop, database);
+  return settings
+    .filter((setting) => setting.enabled !== false)
+    .map((setting) => cleanProductionMethod(setting.method));
+}
+
 export async function getProductionPricing(
   shop: string,
   productId: string,
@@ -352,7 +367,7 @@ export async function syncProductionFeeMerchandise(
         ...(existingProduct ? { id: existingProduct.id } : {}),
         title: `${FEE_PRODUCT_TITLE_PREFIX} - ${numericParentId}`,
         vendor: "Custom House",
-        status: "DRAFT",
+        status: "ACTIVE",
         tags: [FEE_PRODUCT_TAG, "customhouse-hidden-fee"],
         productOptions: [
           {
@@ -406,6 +421,12 @@ export async function syncProductionFeeMerchandise(
             type: "single_line_text_field",
             value: shop,
           },
+          {
+            namespace: "seo",
+            key: "hidden",
+            type: "number_integer",
+            value: "1",
+          },
         ],
       },
     },
@@ -432,6 +453,7 @@ export async function syncProductionFeeMerchandise(
       502,
     );
   }
+  await syncProductionFeePublication(client, feeProduct.id);
   const updated = await database.publicProductProductionPricing.update({
     where: { id: pricing.id },
     data: {
@@ -444,6 +466,73 @@ export async function syncProductionFeeMerchandise(
     synced: true,
     pricing: updated,
   };
+}
+
+async function syncProductionFeePublication(
+  client: ShopifyGraphqlClient,
+  feeProductId: string,
+) {
+  const publicationState = await client.request<{
+    product: {
+      resourcePublications: {
+        nodes: Array<{
+          isPublished: boolean;
+          publication: PublicationNode;
+        }>;
+      };
+    } | null;
+    publications: { nodes: PublicationNode[] };
+  }>(
+    `#graphql query CustomHouseOnlineStorePublication($id: ID!) {
+      product(id: $id) {
+        resourcePublications(first: 20) {
+          nodes {
+            isPublished
+            publication { id name }
+          }
+        }
+      }
+      publications(first: 30) {
+        nodes { id name }
+      }
+    }`,
+    { id: feeProductId },
+  );
+  const onlineStorePublication = publicationState.publications.nodes.find(
+    (publication) => publication.name === "Online Store",
+  );
+  if (!onlineStorePublication) {
+    throw new DomainError(
+      "ONLINE_STORE_PUBLICATION_MISSING",
+      "Online Store publication could not be found for production fee merchandise.",
+      502,
+    );
+  }
+  const alreadyPublished =
+    publicationState.product?.resourcePublications.nodes.some(
+      (node) =>
+        node.isPublished &&
+        node.publication.id === onlineStorePublication.id,
+    ) ?? false;
+  if (alreadyPublished) return;
+
+  const result = await client.request<{
+    publishablePublish: { userErrors: Array<{ message: string }> };
+  }>(
+    `#graphql mutation CustomHousePublishProductionFee($id: ID!, $input: [PublicationInput!]!) {
+      publishablePublish(id: $id, input: $input) {
+        userErrors { message }
+      }
+    }`,
+    {
+      id: feeProductId,
+      input: [{ publicationId: onlineStorePublication.id }],
+    },
+  );
+  throwUserErrors(
+    result.publishablePublish.userErrors,
+    "Production fee Online Store publication",
+  );
 }
 
 export async function syncProductionPricingMetafield(

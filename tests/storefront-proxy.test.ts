@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  collectionShareTargets,
   handleStorefrontProxy,
   parseProxyRoute,
   type ProxyAuthenticator,
@@ -92,6 +94,64 @@ test("catch-all child routes are parsed deterministically", () => {
     kind: "designCart",
     designId: "abc123",
   });
+});
+
+test("public collection share targets encode the canonical collection URL", () => {
+  const collectionUrl =
+    "https://customhouse.se/apps/customhouse/creators/jane-smith?ref=creator&campaign=launch";
+  const shareText = "Shop Jane & Co's collection";
+  const targets = collectionShareTargets(collectionUrl, shareText);
+
+  assert.equal(new URL(targets.facebook).searchParams.get("u"), collectionUrl);
+  assert.equal(new URL(targets.x).searchParams.get("url"), collectionUrl);
+  assert.equal(new URL(targets.x).searchParams.get("text"), shareText);
+  assert.equal(
+    new URL(targets.whatsapp).searchParams.get("text"),
+    `${shareText} ${collectionUrl}`,
+  );
+  assert.equal(new URL(targets.linkedin).searchParams.get("url"), collectionUrl);
+});
+
+test("public creator collection exposes basic share controls without Instagram direct posting", () => {
+  const source = readFileSync(
+    "app/services/storefront-proxy.server.ts",
+    "utf8",
+  );
+
+  assert.match(source, /data-customhouse-collection-share/);
+  assert.match(source, /Share my collection/);
+  assert.match(source, /data-customhouse-share-platform="facebook"/);
+  assert.match(source, /data-customhouse-share-platform="x"/);
+  assert.match(source, /data-customhouse-share-platform="whatsapp"/);
+  assert.match(source, /data-customhouse-share-platform="linkedin"/);
+  assert.match(source, /Copy link for Instagram/);
+  assert.match(source, /navigator\.share/);
+  assert.match(source, /window\.matchMedia\("\(max-width: 760px\)"\)\.matches/);
+  assert.match(source, /new URL\(sharePath, window\.location\.origin\)\.href/);
+  assert.match(source, /new URLSearchParams/);
+  assert.doesNotMatch(source, /instagram\.com\/share|instagram\.com\/intent/i);
+});
+
+test("public Creator product page is buy-only with locked design details", () => {
+  const source = readFileSync(
+    "app/services/storefront-proxy.server.ts",
+    "utf8",
+  );
+
+  assert.match(source, /creatorProductSetupFromRecord/);
+  assert.match(source, /customhouse-locked-details/);
+  assert.match(source, /<dt>Color<\/dt>/);
+  assert.match(source, /<dt>Printing method<\/dt>/);
+  assert.match(source, /<dt>Designed placements<\/dt>/);
+  assert.match(source, /customhouse-made-to-order-note/);
+  assert.match(source, /made to order and cannot be returned/);
+  assert.match(source, /optionName\.includes\("color"\)/);
+  assert.match(source, /optionName\.includes\("production"\)/);
+  assert.match(source, /const preparedItems = Array\.isArray\(prepared\.items\)/);
+  assert.match(source, /cart\/add\.js/);
+  assert.match(source, /customhouseMinorMoney/);
+  assert.match(source, /surchargeMinor/);
+  assert.doesNotMatch(source, /pitchprint.*showApp\(/i);
 });
 
 test("valid Shopify-style signature reaches a protected GET route", async () => {

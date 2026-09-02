@@ -455,6 +455,20 @@
     pointer-events: none;
   }
 
+  #{{ section_id }} .customhouse-cart__production-fee-quantity {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 0 14px;
+    color: var(--customhouse-cart-muted) !important;
+    font-size: 13px;
+    font-weight: 900;
+    border: 1px solid rgba(123, 63, 242, 0.36);
+    border-radius: 999px;
+    background: #101012 !important;
+  }
+
   #{{ section_id }} .customhouse-cart__summary-heading {
     margin: 0 0 20px;
     color: var(--customhouse-cart-text) !important;
@@ -876,6 +890,18 @@
                   assign previous_quantity = item.quantity | minus: 1
                   assign next_quantity = item.quantity | plus: 1
                   assign line_index = forloop.index
+                  assign is_customhouse_production_fee = false
+                  if item.properties['_customhouse_production_fee'] == 'true'
+                    assign is_customhouse_production_fee = true
+                  endif
+                  assign customhouse_fee_key = item.properties['_customhouse_fee_key']
+                  assign customhouse_production_method = item.properties['_production_method']
+                  assign customhouse_production_label = item.properties['Printing method'] | default: customhouse_production_method
+                  assign customhouse_printing_charge = item.properties['Printing charge / item']
+                  assign customhouse_fee_unit_price = 0
+                  if is_customhouse_production_fee and item.quantity > 0
+                    assign customhouse_fee_unit_price = item.final_line_price | divided_by: item.quantity
+                  endif
                   assign image_alt = item.image.alt | default: item.product.title | escape
                   assign creator_product_id = item.properties['_creator_product_id']
                   assign creator_preview = item.properties['_creator_preview_url']
@@ -896,7 +922,14 @@
                   endif
                 %}
 
-                <article class="customhouse-cart__item">
+                <article
+                  class="customhouse-cart__item{% if is_customhouse_production_fee %} customhouse-cart__item--production-fee{% endif %}"
+                  data-customhouse-cart-line
+                  data-line="{{ line_index }}"
+                  data-key="{{ item.key }}"
+                  data-customhouse-production-fee="{% if is_customhouse_production_fee %}true{% else %}false{% endif %}"
+                  data-customhouse-fee-key="{{ customhouse_fee_key | escape }}"
+                >
                   <div class="customhouse-cart__media">
                     {% if has_creator_preview %}
                       {% liquid
@@ -955,7 +988,7 @@
                       assign has_visible_properties = false
                       for property in item.properties
                         assign property_first_char = property.first | slice: 0
-                        if property.last != blank and property_first_char != '_'
+                        if property.last != blank and property_first_char != '_' and property.first != 'Printing method' and property.first != 'Printing charge / item'
                           assign has_visible_properties = true
                           break
                         endif
@@ -965,7 +998,7 @@
                       <ul class="customhouse-cart__properties">
                         {% for property in item.properties %}
                           {% assign property_first_char = property.first | slice: 0 %}
-                          {% if property.last != blank and property_first_char != '_' %}
+                          {% if property.last != blank and property_first_char != '_' and property.first != 'Printing method' and property.first != 'Printing charge / item' %}
                             <li class="customhouse-cart__property">
                               <span class="customhouse-cart__property-name">{{ property.first | escape }}:</span>
                               {% if property.last contains '/uploads/' %}
@@ -976,6 +1009,28 @@
                             </li>
                           {% endif %}
                         {% endfor %}
+                      </ul>
+                    {% endif %}
+
+                    {% if customhouse_fee_key != blank %}
+                      <ul class="customhouse-cart__properties customhouse-cart__properties--production">
+                        {% if customhouse_production_label != blank %}
+                          <li class="customhouse-cart__property">
+                            <span class="customhouse-cart__property-name">Printing method:</span>
+                            {{ customhouse_production_label | escape }}
+                          </li>
+                        {% endif %}
+                        {% if is_customhouse_production_fee %}
+                          <li class="customhouse-cart__property">
+                            <span class="customhouse-cart__property-name">Printing charge:</span>
+                            {{ customhouse_fee_unit_price | money }}/item
+                          </li>
+                        {% elsif customhouse_printing_charge != blank %}
+                          <li class="customhouse-cart__property">
+                            <span class="customhouse-cart__property-name">Printing charge:</span>
+                            {{ customhouse_printing_charge | escape }}
+                          </li>
+                        {% endif %}
                       </ul>
                     {% endif %}
 
@@ -998,37 +1053,47 @@
                       <span class="customhouse-cart__price">{{ item.final_line_price | money }}</span>
                     </div>
 
-                    <div class="customhouse-cart__quantity" aria-label="Quantity for {{ item.product.title | escape }}">
-                      <a
-                        class="customhouse-cart__quantity-button"
-                        href="{{ routes.cart_change_url }}?line={{ line_index }}&quantity={{ previous_quantity }}"
-                        aria-label="Decrease quantity for {{ item.product.title | escape }}"
-                      >
-                        -
-                      </a>
-                      <span class="customhouse-cart__quantity-value" aria-live="polite">{{ item.quantity }}</span>
-                      <a
-                        class="customhouse-cart__quantity-button"
-                        href="{{ routes.cart_change_url }}?line={{ line_index }}&quantity={{ next_quantity }}"
-                        aria-label="Increase quantity for {{ item.product.title | escape }}"
-                      >
-                        +
-                      </a>
-                    </div>
+                    {% if is_customhouse_production_fee %}
+                      <span class="customhouse-cart__production-fee-quantity">Qty {{ item.quantity }}</span>
+                    {% else %}
+                      <div class="customhouse-cart__quantity" aria-label="Quantity for {{ item.product.title | escape }}">
+                        <a
+                          class="customhouse-cart__quantity-button"
+                          href="{{ routes.cart_change_url }}?line={{ line_index }}&quantity={{ previous_quantity }}"
+                          data-customhouse-cart-action="quantity"
+                          data-quantity="{{ previous_quantity }}"
+                          aria-label="Decrease quantity for {{ item.product.title | escape }}"
+                        >
+                          -
+                        </a>
+                        <span class="customhouse-cart__quantity-value" aria-live="polite">{{ item.quantity }}</span>
+                        <a
+                          class="customhouse-cart__quantity-button"
+                          href="{{ routes.cart_change_url }}?line={{ line_index }}&quantity={{ next_quantity }}"
+                          data-customhouse-cart-action="quantity"
+                          data-quantity="{{ next_quantity }}"
+                          aria-label="Increase quantity for {{ item.product.title | escape }}"
+                        >
+                          +
+                        </a>
+                      </div>
 
-                    <a
-                      class="customhouse-cart__remove"
-                      href="{{ item.url_to_remove }}"
-                      aria-label="Remove {{ item.product.title | escape }}"
-                    >
-                      <svg class="customhouse-cart__remove-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-                        <path d="M3 6h18"></path>
-                        <path d="M8 6V4h8v2"></path>
-                        <path d="M19 6l-1 14H6L5 6"></path>
-                        <path d="M10 11v5"></path>
-                        <path d="M14 11v5"></path>
-                      </svg>
-                    </a>
+                      <a
+                        class="customhouse-cart__remove"
+                        href="{{ item.url_to_remove }}"
+                        data-customhouse-cart-action="remove"
+                        data-quantity="0"
+                        aria-label="Remove {{ item.product.title | escape }}"
+                      >
+                        <svg class="customhouse-cart__remove-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                          <path d="M3 6h18"></path>
+                          <path d="M8 6V4h8v2"></path>
+                          <path d="M19 6l-1 14H6L5 6"></path>
+                          <path d="M10 11v5"></path>
+                          <path d="M14 11v5"></path>
+                        </svg>
+                      </a>
+                    {% endif %}
                   </div>
                 </article>
               {% endfor %}
@@ -1095,6 +1160,82 @@
 </section>
 
 {{ cart_page_more_blocks_content }}
+
+<script>
+  (() => {
+    const root = document.getElementById({{ section_id | json }});
+    if (!root || root.dataset.customhouseProductionCartReady === 'true') return;
+    root.dataset.customhouseProductionCartReady = 'true';
+
+    const route = (path) => {
+      const routeRoot = window.Shopify?.routes?.root || '/';
+      return routeRoot.replace(/\/?$/, '/') + String(path || '').replace(/^\//, '');
+    };
+
+    const lineItemKey = (item) => String(item?.key || item?.id || '').trim();
+    const itemFeeKey = (item) => String(item?.properties?._customhouse_fee_key || '').trim();
+    const isProductionFee = (item) => String(item?.properties?._customhouse_production_fee || '') === 'true';
+
+    async function reconcileCustomHouseProductionFees(row, quantity) {
+      const feeKey = String(row?.dataset.customhouseFeeKey || '').trim();
+      if (!feeKey || row?.dataset.customhouseProductionFee === 'true') return null;
+
+      const response = await fetch(route('cart.js'), {
+        headers: { Accept: 'application/json' },
+        credentials: 'same-origin',
+      });
+      if (!response.ok) return null;
+
+      const cart = await response.json();
+      const targetKey = String(row.dataset.key || '').trim();
+      const items = Array.isArray(cart?.items) ? cart.items : [];
+      const updates = {};
+      let baseQuantity = 0;
+      let feeKeyForCart = '';
+
+      for (const item of items) {
+        const key = lineItemKey(item);
+        if (itemFeeKey(item) !== feeKey) continue;
+        if (isProductionFee(item)) {
+          feeKeyForCart = key;
+          continue;
+        }
+        baseQuantity += key === targetKey ? quantity : Number(item.quantity || 0);
+      }
+
+      if (!feeKeyForCart) return null;
+      updates[targetKey] = quantity;
+      updates[feeKeyForCart] = baseQuantity;
+      return updates;
+    }
+
+    root.addEventListener('click', async (event) => {
+      const target = event.target instanceof Element ? event.target.closest('[data-customhouse-cart-action]') : null;
+      if (!target) return;
+
+      const row = target.closest('[data-customhouse-cart-line]');
+      const quantity = Math.max(0, Number(target.getAttribute('data-quantity') || 0));
+      const updates = await reconcileCustomHouseProductionFees(row, quantity).catch(() => null);
+      if (!updates) return;
+
+      event.preventDefault();
+      const response = await fetch(route('cart/update.js'), {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({ updates }),
+      });
+      if (response.ok) {
+        window.location.reload();
+      } else {
+        window.location.href = target.href;
+      }
+    });
+  })();
+</script>
 
 {% schema %}
 {

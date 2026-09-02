@@ -27,6 +27,22 @@
     assign products_count = manual_products.count | default: manual_products.size
   endif
 
+  if section.settings.exclude_creator_products_from_global
+    assign products_count = 0
+    assign count_source_products = source_collection.products
+    if section.settings.product_source == 'manual'
+      assign count_source_products = manual_products
+    endif
+    for count_product in count_source_products
+      assign count_product_origin = count_product.metafields.customhouse.product_origin.value | downcase
+      assign count_design_mode = count_product.metafields.customhouse.design_mode.value | downcase
+      assign count_product_type = count_product.metafields.customhouse.product_type.value | downcase
+      unless count_product_origin == 'creator' or count_design_mode == 'buy_only' or count_product_type == 'creator_fixed'
+        assign products_count = products_count | plus: 1
+      endunless
+    endfor
+  endif
+
   assign creator_count = section.settings.creator_count_override
   if creator_count == 0 and source_collection.all_vendors != blank
     assign creator_count = source_collection.all_vendors.size
@@ -286,7 +302,18 @@
     <div class="ch-products">
       <div class="{{ grid_classes }}" data-ch-layout-target>
         {%- for product in manual_products limit: max_products -%}
-          {%- render 'customhouse-product-card', product_card_product: product, section_settings: section.settings -%}
+          {%- liquid
+            assign product_origin = product.metafields.customhouse.product_origin.value | downcase
+            assign design_mode = product.metafields.customhouse.design_mode.value | downcase
+            assign product_type = product.metafields.customhouse.product_type.value | downcase
+            assign is_creator_catalog_product = false
+            if product_origin == 'creator' or design_mode == 'buy_only' or product_type == 'creator_fixed'
+              assign is_creator_catalog_product = true
+            endif
+          -%}
+          {%- unless section.settings.exclude_creator_products_from_global and is_creator_catalog_product -%}
+            {%- render 'customhouse-product-card', product_card_product: product, section_settings: section.settings -%}
+          {%- endunless -%}
         {%- else -%}
           <p class="ch-empty">Select products in the section settings.</p>
         {%- endfor -%}
@@ -317,7 +344,18 @@
       <div class="ch-products">
         <div class="{{ grid_classes }}" data-ch-layout-target>
           {%- for product in source_collection.products -%}
-            {%- render 'customhouse-product-card', product_card_product: product, section_settings: section.settings -%}
+            {%- liquid
+              assign product_origin = product.metafields.customhouse.product_origin.value | downcase
+              assign design_mode = product.metafields.customhouse.design_mode.value | downcase
+              assign product_type = product.metafields.customhouse.product_type.value | downcase
+              assign is_creator_catalog_product = false
+              if product_origin == 'creator' or design_mode == 'buy_only' or product_type == 'creator_fixed'
+                assign is_creator_catalog_product = true
+              endif
+            -%}
+            {%- unless section.settings.exclude_creator_products_from_global and is_creator_catalog_product -%}
+              {%- render 'customhouse-product-card', product_card_product: product, section_settings: section.settings -%}
+            {%- endunless -%}
           {%- else -%}
             <p class="ch-empty">No products found in this collection.</p>
           {%- endfor -%}
@@ -514,6 +552,12 @@
     {
       "type": "header",
       "content": "Product source"
+    },
+    {
+      "type": "checkbox",
+      "id": "exclude_creator_products_from_global",
+      "label": "Exclude Creator buy-only products",
+      "default": true
     },
     {
       "type": "select",

@@ -166,7 +166,8 @@ test("app managed creator cart uses base variants and signed attribution", () =>
   assert.match(proxy, /data-customhouse-option/);
   assert.match(proxy, /name="variantId"/);
   assert.match(proxy, /Content-Type": "application\/json"/);
-  assert.match(proxy, /items: \[\{/);
+  assert.match(proxy, /prepared\.items/);
+  assert.match(products, /items: \[/);
   assert.match(proxy, /class CustomHouseCartError extends Error/);
   assert.match(proxy, /fetchStage\("PREPARE_CART"/);
   assert.match(proxy, /fetchStage\("SHOPIFY_CART_ADD"/);

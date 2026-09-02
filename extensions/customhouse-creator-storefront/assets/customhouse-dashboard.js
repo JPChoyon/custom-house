@@ -824,6 +824,52 @@ function normalizePitchPrintSaveEvent(value) {
   };
 }
 
+function normalizeCreatorSetupEvent(value) {
+  const message = value?.detail || value?.data || value || {};
+  const data =
+    message?.payload && typeof message.payload === "object"
+      ? message.payload
+      : message?.value && typeof message.value === "object"
+        ? message.value
+        : message;
+  if (
+    message?.type &&
+    message.type !== "CUSTOMHOUSE_PP_CREATOR_SETUP_READY"
+  ) {
+    return null;
+  }
+  const setup = data?.creatorSetup && typeof data.creatorSetup === "object"
+    ? data.creatorSetup
+    : data;
+  if (
+    setup?.productOrigin !== "creator" &&
+    setup?.designMode !== "creator_design" &&
+    setup?.isCreatorProduct !== true &&
+    setup?.flowMode !== "CREATOR_DESIGN"
+  ) {
+    return null;
+  }
+  const setupSaveEvent = normalizePitchPrintSaveEvent(setup);
+  const dataSaveEvent = normalizePitchPrintSaveEvent(data);
+  return {
+    ...setupSaveEvent,
+    projectId:
+      setupSaveEvent.projectId ||
+      dataSaveEvent.projectId,
+    previewUrl:
+      setupSaveEvent.previewUrl ||
+      dataSaveEvent.previewUrl,
+    previews:
+      setupSaveEvent.previews?.length
+        ? setupSaveEvent.previews
+        : dataSaveEvent.previews,
+    designId:
+      setupSaveEvent.designId ||
+      dataSaveEvent.designId,
+    creatorSetup: setup,
+  };
+}
+
 function parseCustomHouseArray(value) {
   if (Array.isArray(value)) return value;
   if (typeof value !== "string") return [];
@@ -847,6 +893,14 @@ function pitchPrintProductVariants(product) {
       variantId: String(variant?.variantId || variant?.cartId || variant?.numericId || ""),
       title: String(variant?.title || variant?.size || "Size"),
       size: String(variant?.size || variant?.title || "Size"),
+      selectedOptions: Array.isArray(variant?.selectedOptions)
+        ? variant.selectedOptions
+            .map((option) => ({
+              name: String(option?.name || ""),
+              value: String(option?.value || ""),
+            }))
+            .filter((option) => option.name && option.value)
+        : [],
       availableForSale: variant?.availableForSale !== false,
     }))
     .filter((variant, index, variants) =>
@@ -856,16 +910,100 @@ function pitchPrintProductVariants(product) {
     );
 }
 
-function pitchPrintSavedSelections(product) {
-  return parseCustomHouseArray(
-    product?.designVariantSelections ||
-      product?.variantSelections ||
-      product?.designVariantSelectionsJson,
-  ).filter((selection) =>
-    selection &&
-    typeof selection === "object" &&
-    Number(selection.quantity) > 0,
+function baseProductForPitchPrint(root, product) {
+  return (dashboardState(root).baseProducts || []).find(
+    (item) => item.id === product?.shopifyProductId,
+  ) || null;
+}
+
+function parseJsonObject(value) {
+  if (value && typeof value === "object" && !Array.isArray(value)) return value;
+  if (typeof value !== "string") return null;
+  try {
+    const parsed = JSON.parse(value || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function creatorSetupForProduct(product) {
+  const setup = parseJsonObject(product?.designVariantSelectionsJson);
+  return setup?.schema === "creator_design_setup_v1" ? setup : null;
+}
+
+function optionValuesFromVariants(variants, pattern) {
+  return Array.from(new Set(
+    variants
+      .map((variant) =>
+        (variant.selectedOptions || []).find((option) =>
+          pattern.test(String(option.name || "").trim()),
+        )?.value,
+      )
+      .filter(Boolean),
+  ));
+}
+
+function productionPricingForProduct(root, product) {
+  const baseProduct = baseProductForPitchPrint(root, product);
+  return parseJsonObject(
+    baseProduct?.productionMethodPricing ||
+      product?.productionMethodPricing ||
+      product?.productionMethodPricingJson,
   );
+}
+
+async function ensurePitchPrintBaseProductConfig(root, product) {
+  const existing = baseProductForPitchPrint(root, product);
+  if (existing?.productionMethodPricing && pitchPrintProductVariants(existing).length) {
+    return existing;
+  }
+  const products = await requestCreatorBaseProducts();
+  dashboardState(root).baseProducts = products;
+  const wrap = root.querySelector("[data-dashboard-base-products]");
+  if (wrap && wrap.dataset.refreshing !== "true") renderBaseProducts(root, products);
+  return baseProductForPitchPrint(root, product);
+}
+
+function creatorPitchPrintConfig(root, product, identity) {
+  const hydratedProduct = hydratePitchPrintProduct(root, product);
+  const baseProduct = baseProductForPitchPrint(root, hydratedProduct);
+  const variants = pitchPrintProductVariants(hydratedProduct);
+  const setup = creatorSetupForProduct(product);
+  const pricing = productionPricingForProduct(root, hydratedProduct);
+  const productionMethods = Array.isArray(pricing?.productionMethods)
+    ? pricing.productionMethods
+    : [];
+  const config = {
+    enabled: true,
+    flowMode: "CREATOR_DESIGN",
+    productOrigin: "creator",
+    designMode: "creator_design",
+    isCreatorProduct: true,
+    creatorProductId: product.id,
+    creatorPublicHandle: product.creatorHandle || product.publicHandle || "",
+    shopifyProductId: product.shopifyProductId,
+    productId: product.shopifyProductId,
+    productHandle: product.shopifyProductHandle || baseProduct?.handle || "",
+    productTitle: product.baseProductTitle || baseProduct?.title || product.title || "Creator Product",
+    variants,
+    variantMatrix: variants,
+    options: baseProduct?.options || [],
+    colorOptionValues: optionValuesFromVariants(variants, /^(color|colour|farg|färg)$/i),
+    sizeOptionValues: optionValuesFromVariants(variants, /^(size|storlek|storrelse)$/i),
+    selectedColor: setup?.fixedColor || "",
+    selectedColors: setup?.fixedColor ? [setup.fixedColor] : [],
+    fixedColor: setup?.fixedColor || "",
+    selectedProductionMethod: setup?.productionMethod || "",
+    productionMethod: setup?.productionMethod || "",
+    fixedProductionMethod: setup?.productionMethod || "",
+    productionMethods,
+    productionMethodPricing: pricing?.productionMethodPricing || {},
+    supportsMultipleSelections: false,
+    userId: identity?.userId || "",
+  };
+  window.CustomHouseCreatorPitchPrintConfig = config;
+  return config;
 }
 
 function hydratePitchPrintProduct(root, product) {
@@ -879,215 +1017,6 @@ function hydratePitchPrintProduct(root, product) {
   return baseVariants.length
     ? { ...product, baseProductVariants: baseVariants }
     : product;
-}
-
-function pitchPrintVariantSelectionMap(product, variants) {
-  const map = new Map();
-  pitchPrintSavedSelections(product).forEach((selection) => {
-    const variant = variants.find((item) =>
-      item.variantId === String(selection.variantId || "") ||
-      item.id === String(selection.variantId || "") ||
-      item.graphqlId === String(selection.variantId || ""),
-    );
-    const quantity = Number(selection.quantity || 0);
-    if (variant && Number.isSafeInteger(quantity) && quantity > 0) {
-      map.set(variant.variantId, quantity);
-    }
-  });
-  return map;
-}
-
-function selectedPitchPrintVariants(manager, product) {
-  const productId = product?.id || manager.activeCreatorProductId || "";
-  const variants = pitchPrintProductVariants(product);
-  const quantities = manager.variantQuantities?.get(productId) ||
-    pitchPrintVariantSelectionMap(product, variants);
-  return variants
-    .map((variant) => ({
-      variantId: variant.variantId,
-      size: variant.size,
-      quantity: Math.max(0, Number(quantities.get(variant.variantId) || 0)),
-    }))
-    .filter((selection) => selection.quantity > 0);
-}
-
-function setPitchPrintVariantQuantity(manager, product, variantId, quantity) {
-  const productId = product?.id || manager.activeCreatorProductId || "";
-  if (!productId) return;
-  if (!manager.variantQuantities) manager.variantQuantities = new Map();
-  if (!manager.variantQuantities.has(productId)) {
-    manager.variantQuantities.set(
-      productId,
-      pitchPrintVariantSelectionMap(product, pitchPrintProductVariants(product)),
-    );
-  }
-  const quantities = manager.variantQuantities.get(productId);
-  quantities.set(variantId, Math.max(0, Number.isSafeInteger(quantity) ? quantity : 0));
-}
-
-function ensurePitchPrintVariantState(manager, product) {
-  const productId = product?.id || manager.activeCreatorProductId || "";
-  if (!productId) return new Map();
-  if (!manager.variantQuantities) manager.variantQuantities = new Map();
-  if (!manager.variantQuantities.has(productId)) {
-    manager.variantQuantities.set(
-      productId,
-      pitchPrintVariantSelectionMap(product, pitchPrintProductVariants(product)),
-    );
-  }
-  return manager.variantQuantities.get(productId);
-}
-
-function renderPitchPrintVariantSelector(product, manager) {
-  const preview = document.querySelector('#container [data-module="preview"]');
-  if (!preview || !product?.id) return;
-  manager.variantPanelMutating = true;
-  const variants = pitchPrintProductVariants(product);
-  let panel = preview.querySelector("[data-customhouse-pitchprint-variants]");
-  if (!variants.length) {
-    panel?.remove();
-    preview.classList.remove("ch-pitchprint-preview-with-sizes");
-    queueMicrotask(() => {
-      manager.variantPanelMutating = false;
-    });
-    return;
-  }
-  if (!panel) {
-    panel = document.createElement("aside");
-    panel.dataset.customhousePitchprintVariants = "true";
-    panel.className = "ch-pitchprint-size-panel";
-    preview.append(panel);
-  }
-  if (panel.dataset.productId !== product.id) {
-    panel.dataset.productId = product.id;
-    panel.replaceChildren();
-  }
-  preview.classList.add("ch-pitchprint-preview-with-sizes");
-  const quantities = ensurePitchPrintVariantState(manager, product);
-  const total = variants.reduce(
-    (sum, variant) => sum + Math.max(0, Number(quantities.get(variant.variantId) || 0)),
-    0,
-  );
-  const renderKey = [
-    product.id,
-    ...variants.map((variant) => `${variant.variantId}:${quantities.get(variant.variantId) || 0}`),
-  ].join("|");
-  const okButton = preview.querySelector('[data-cmd="ok"]');
-  if (okButton) {
-    okButton.disabled = total <= 0;
-    okButton.classList.toggle("disabled", total <= 0);
-    okButton.setAttribute("aria-disabled", String(total <= 0));
-  }
-  if (panel.dataset.renderKey === renderKey) {
-    queueMicrotask(() => {
-      manager.variantPanelMutating = false;
-    });
-    return;
-  }
-  panel.dataset.renderKey = renderKey;
-
-  const title = document.createElement("h3");
-  title.textContent = "Sizes / Amount";
-  const rows = document.createElement("div");
-  rows.className = "ch-pitchprint-size-panel__rows";
-  variants.forEach((variant) => {
-    const row = document.createElement("div");
-    row.className = "ch-pitchprint-size-row";
-    row.dataset.variantId = variant.variantId;
-    const label = document.createElement("span");
-    label.className = "ch-pitchprint-size-row__label";
-    label.textContent = variant.size;
-    const minus = document.createElement("button");
-    minus.type = "button";
-    minus.className = "ch-pitchprint-size-row__step";
-    minus.dataset.variantQuantityAction = "minus";
-    minus.setAttribute("aria-label", `Decrease ${variant.size}`);
-    minus.textContent = "-";
-    const input = document.createElement("input");
-    input.type = "number";
-    input.min = "0";
-    input.step = "1";
-    input.inputMode = "numeric";
-    input.dataset.variantQuantityInput = variant.variantId;
-    input.setAttribute("aria-label", `${variant.size} quantity`);
-    input.value = String(Math.max(0, Number(quantities.get(variant.variantId) || 0)));
-    const plus = document.createElement("button");
-    plus.type = "button";
-    plus.className = "ch-pitchprint-size-row__step";
-    plus.dataset.variantQuantityAction = "plus";
-    plus.setAttribute("aria-label", `Increase ${variant.size}`);
-    plus.textContent = "+";
-    row.append(label, minus, input, plus);
-    rows.append(row);
-  });
-  const totalLine = document.createElement("p");
-  totalLine.className = "ch-pitchprint-size-panel__total";
-  totalLine.textContent = `Total: ${total}`;
-  const validation = document.createElement("p");
-  validation.className = "ch-pitchprint-size-panel__error";
-  validation.dataset.pitchprintVariantValidation = "true";
-  validation.textContent = "Select at least one size and quantity.";
-  validation.hidden = total > 0;
-  panel.replaceChildren(title, rows, totalLine, validation);
-  queueMicrotask(() => {
-    manager.variantPanelMutating = false;
-  });
-}
-
-function bindPitchPrintVariantPanel(root, product, manager, token) {
-  const hydratedProduct = hydratePitchPrintProduct(root, product);
-  manager.variantPanelProduct = hydratedProduct;
-  renderPitchPrintVariantSelector(hydratedProduct, manager);
-  if (manager.variantPanelTimer) window.clearInterval(manager.variantPanelTimer);
-  manager.variantPanelTimer = window.setInterval(() => {
-    if (manager.variantPanelMutating || token !== manager.token) return;
-    renderPitchPrintVariantSelector(hydratedProduct, manager);
-  }, 250);
-  if (manager.variantPanelBound) return hydratedProduct;
-  manager.variantPanelBound = true;
-  document.addEventListener("click", (event) => {
-    const activeProduct = manager.variantPanelProduct;
-    if (!activeProduct?.id) return;
-    const button = event.target.closest("[data-variant-quantity-action]");
-    const previewOk = event.target.closest('#container [data-module="preview"] [data-cmd="ok"]');
-    if (previewOk) {
-      const selections = selectedPitchPrintVariants(manager, activeProduct);
-      if (!selections.length) {
-        event.preventDefault();
-        event.stopPropagation();
-        renderPitchPrintVariantSelector(activeProduct, manager);
-      }
-      return;
-    }
-    if (!button) return;
-    const row = button.closest("[data-variant-id]");
-    const variantId = row?.dataset.variantId || "";
-    const quantities = ensurePitchPrintVariantState(manager, activeProduct);
-    const current = Number(quantities.get(variantId) || 0);
-    setPitchPrintVariantQuantity(
-      manager,
-      activeProduct,
-      variantId,
-      button.dataset.variantQuantityAction === "plus" ? current + 1 : current - 1,
-    );
-    renderPitchPrintVariantSelector(activeProduct, manager);
-  }, true);
-  document.addEventListener("input", (event) => {
-    const activeProduct = manager.variantPanelProduct;
-    if (!activeProduct?.id) return;
-    const input = event.target.closest("[data-variant-quantity-input]");
-    if (!input) return;
-    const value = Math.max(0, Math.floor(Number(input.value || 0)));
-    input.value = String(value);
-    setPitchPrintVariantQuantity(
-      manager,
-      activeProduct,
-      input.dataset.variantQuantityInput || "",
-      value,
-    );
-    renderPitchPrintVariantSelector(activeProduct, manager);
-  });
-  return hydratedProduct;
 }
 
 function maskPitchPrintKey(value) {
@@ -1221,9 +1150,7 @@ function bindPitchPrintManager(root) {
     isDesignerOpening: false,
     token: 0,
     validationTimer: null,
-    variantPanelTimer: null,
-    variantPanelProduct: null,
-    variantQuantities: new Map(),
+    creatorSetupAbortController: null,
     showAppCalled: false,
     projectSaved: false,
   };
@@ -1234,14 +1161,12 @@ function bindPitchPrintManager(root) {
     window.clearTimeout(manager.validationTimer);
     manager.validationTimer = null;
   };
-  const stopPitchPrintVariantPanel = () => {
-    if (manager.variantPanelTimer) window.clearInterval(manager.variantPanelTimer);
-    manager.variantPanelTimer = null;
-    manager.variantPanelProduct = null;
-  };
   const cleanupPitchPrintSession = () => {
     clearValidationTimer();
-    stopPitchPrintVariantPanel();
+    if (manager.creatorSetupAbortController) {
+      manager.creatorSetupAbortController.abort();
+      manager.creatorSetupAbortController = null;
+    }
     manager.client = null;
     manager.showAppCalled = false;
     manager.projectSaved = false;
@@ -1266,19 +1191,15 @@ function bindPitchPrintManager(root) {
       handler?.(event);
     });
   };
-  const handlePitchPrintProjectSaved = async (product, event, token) => {
+  const handlePitchPrintCreatorSetupReady = async (product, event, token) => {
     if (manager.projectSaved || token !== manager.token) return;
+    const setupEvent = normalizeCreatorSetupEvent(event);
+    if (!setupEvent) return;
     manager.projectSaved = true;
     try {
       const updated = await saveCreatorProductPitchPrintProject(
         product.id,
-        {
-          ...normalizePitchPrintSaveEvent(event),
-          variantSelections: selectedPitchPrintVariants(
-            manager,
-            manager.variantPanelProduct || product,
-          ),
-        },
+        setupEvent,
       );
       updateCreatorProductInState(root, updated);
       hidePitchPrint();
@@ -1292,6 +1213,35 @@ function bindPitchPrintManager(root) {
         true,
       );
     }
+  };
+  const bindCreatorSetupWindowEvents = (product, token) => {
+    if (manager.creatorSetupAbortController) {
+      manager.creatorSetupAbortController.abort();
+    }
+    const controller = new AbortController();
+    manager.creatorSetupAbortController = controller;
+    window.addEventListener(
+      "message",
+      (event) => {
+        if (event?.data?.type === "CUSTOMHOUSE_PP_CREATOR_CONFIG_REQUEST") {
+          event.source?.postMessage?.({
+            type: "CUSTOMHOUSE_PP_CREATOR_CONFIG_DATA",
+            payload: window.CustomHouseCreatorPitchPrintConfig || null,
+          }, event.origin || "*");
+          return;
+        }
+        if (event?.data?.type !== "CUSTOMHOUSE_PP_CREATOR_SETUP_READY") return;
+        void handlePitchPrintCreatorSetupReady(product, event, token);
+      },
+      { signal: controller.signal },
+    );
+    window.addEventListener(
+      "customhouse:pitchprint-creator-setup-ready",
+      (event) => {
+        void handlePitchPrintCreatorSetupReady(product, event, token);
+      },
+      { signal: controller.signal },
+    );
   };
   const openPitchPrintDesigner = async (product, sourceButton = null) => {
     if (!product?.id || manager.isDesignerOpening) return;
@@ -1319,8 +1269,10 @@ function bindPitchPrintManager(root) {
       const [Client, identity] = await Promise.all([
         loadPitchPrintClient(root),
         requestPitchPrintIdentity(),
+        ensurePitchPrintBaseProductConfig(root, product),
       ]);
       if (token !== manager.token) return;
+      const customHouseConfig = creatorPitchPrintConfig(root, product, identity);
       const client = new Client({
         apiKey,
         designId: product.pitchprintDesignId || "",
@@ -1329,17 +1281,28 @@ function bindPitchPrintManager(root) {
         userId: identity.userId,
         custom: true,
         isvx: true,
+        flowMode: "CREATOR_DESIGN",
+        productOrigin: "creator",
+        designMode: "creator_design",
+        isCreatorProduct: true,
+        creatorProductId: product.id,
+        creatorPublicHandle: customHouseConfig.creatorPublicHandle,
+        customHouseConfig,
         product: {
           id: product.shopifyProductId,
           title: product.baseProductTitle || product.title || "Creator Product",
           name: product.baseProductTitle || product.title || "Creator Product",
+          handle: customHouseConfig.productHandle,
+          variants: customHouseConfig.variantMatrix,
+          options: customHouseConfig.options,
         },
         userData: {
           source: "customhouse_creator_dashboard",
+          ...customHouseConfig,
         },
       });
       manager.client = client;
-      const pitchPrintProduct = bindPitchPrintVariantPanel(root, product, manager, token);
+      bindCreatorSetupWindowEvents(product, token);
       bindPitchPrintEvent(client, "lib-ready", token);
       bindPitchPrintEvent(client, "before-show", token);
       bindPitchPrintEvent(client, "app-shown", token, () => {
@@ -1349,20 +1312,17 @@ function bindPitchPrintManager(root) {
       bindPitchPrintEvent(client, "editor-shown", token, () => {
         manager.isDesignerOpening = false;
         restoreButton();
-        renderPitchPrintVariantSelector(pitchPrintProduct, manager);
       });
       bindPitchPrintEvent(client, "project-saved", token, (event) => {
-        void handlePitchPrintProjectSaved(product, event, token);
+        void handlePitchPrintCreatorSetupReady(product, event, token);
       });
       bindPitchPrintEvent(client, "after-close-app", token, () => {
         manager.isDesignerOpening = false;
-        stopPitchPrintVariantPanel();
         restoreButton();
       });
       bindPitchPrintEvent(client, "error", token, (event) => {
         clearValidationTimer();
         manager.isDesignerOpening = false;
-        stopPitchPrintVariantPanel();
         restoreButton();
         showCreatorToast(root, "Unable to open the designer. Please try again.", true);
         pitchPrintDiagnostics(root, "app-error", { data: event?.data || null });
@@ -1377,7 +1337,6 @@ function bindPitchPrintManager(root) {
       manager.validationTimer = window.setTimeout(() => {
         if (manager.showAppCalled || token !== manager.token) return;
         manager.isDesignerOpening = false;
-        stopPitchPrintVariantPanel();
         restoreButton();
         showCreatorToast(root, "Unable to open the designer. Please try again.", true);
         pitchPrintDiagnostics(root, "app-validation-timeout", {
@@ -1387,7 +1346,6 @@ function bindPitchPrintManager(root) {
       }, 12000);
     } catch (error) {
       manager.isDesignerOpening = false;
-      stopPitchPrintVariantPanel();
       restoreButton();
       showCreatorToast(
         root,
@@ -1517,26 +1475,27 @@ function renderReviewVariantSelections(root, product) {
   const summary = dashboardModalQuery(root, "[data-dashboard-review-variants]");
   if (!summary) return;
   summary.replaceChildren();
-  const selections = pitchPrintSavedSelections(product);
-  if (!selections.length) {
+  const setup = creatorSetupForProduct(product);
+  if (!setup) {
     const empty = document.createElement("p");
     empty.className = "ch-creator-modal__variant-empty";
-    empty.textContent = "Select at least one size and quantity.";
+    empty.textContent = "Choose one color, one printing method, and confirm copyright.";
     summary.append(empty);
     return;
   }
   const title = document.createElement("strong");
-  title.textContent = "Sizes / Amount";
+  title.textContent = "Creator setup";
   const list = document.createElement("ul");
-  const total = selections.reduce((sum, selection) => sum + Number(selection.quantity || 0), 0);
-  selections.forEach((selection) => {
+  [
+    `Color: ${setup.fixedColor}`,
+    `Printing method: ${setup.productionMethod}`,
+    `Designed placements: ${setup.placementCount}`,
+  ].forEach((text) => {
     const item = document.createElement("li");
-    item.textContent = `${selection.size}: ${selection.quantity}`;
+    item.textContent = text;
     list.append(item);
   });
-  const totalLine = document.createElement("span");
-  totalLine.textContent = `Total: ${total}`;
-  summary.append(title, list, totalLine);
+  summary.append(title, list);
 }
 
 function closeDesignReviewModal(root) {

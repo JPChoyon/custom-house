@@ -362,7 +362,13 @@ export async function getCreatorOrderItem(shop: string, id: string) {
     where: { shop, id },
     include: {
       creator: true,
-      creatorProduct: true,
+      creatorProduct: {
+        select: {
+          id: true,
+          title: true,
+          previewUrl: true,
+        },
+      },
       creatorSale: { include: { adjustments: true } },
     },
   });

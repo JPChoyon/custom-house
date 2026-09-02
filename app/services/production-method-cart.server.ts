@@ -144,6 +144,10 @@ function priceToMinor(value: string) {
   return decimalMoneyToMinorUnits(new Prisma.Decimal(value));
 }
 
+function normalizedText(value: string | null | undefined) {
+  return String(value || "").trim().toLowerCase();
+}
+
 export function calculateTrustedProductionTotal(input: {
   surchargeMinor: bigint;
   selections: TrustedSelection[];
@@ -170,6 +174,7 @@ async function publicCustomizableProduct(
   const result = await client.request<{
     product: {
       id: string;
+      tags: string[];
       productType: { value: string } | null;
       pitchprintEnabled: { value: string } | null;
       origin: { value: string } | null;
@@ -179,7 +184,7 @@ async function publicCustomizableProduct(
   }>(
     `#graphql query PublicProductionPricingProduct($id: ID!) {
       product(id: $id) {
-        id
+        id tags
         productType: metafield(namespace: "customhouse", key: "product_type") { value }
         pitchprintEnabled: metafield(namespace: "customhouse", key: "pitchprint_enabled") { value }
         origin: metafield(namespace: "customhouse", key: "product_origin") { value }
@@ -197,12 +202,29 @@ async function publicCustomizableProduct(
     { id: productId },
   );
   const product = result.product;
+  const tags = new Set((product?.tags || []).map((tag) => normalizedText(tag)));
+  const productType = normalizedText(product?.productType?.value);
+  const origin = normalizedText(product?.origin?.value);
+  const mode = normalizedText(product?.mode?.value);
+  const isCreatorLocked =
+    productType === "creator_fixed" ||
+    tags.has("creator-fixed") ||
+    origin === "creator" ||
+    mode === "buy_only";
+  const isPublicCustomizable =
+    (origin === "global" && mode === "customizable") ||
+    productType === "global_customizable";
+  const hasPitchPrintSignal =
+    product?.pitchprintEnabled?.value === "true" ||
+    tags.has("pitchprint") ||
+    tags.has("pitchprint-enabled") ||
+    tags.has("pitchprint-designlab") ||
+    tags.has("pitchprint-options");
   if (
     !product ||
-    product.productType?.value !== "global_customizable" ||
-    product.pitchprintEnabled?.value !== "true" ||
-    product.origin?.value === "creator" ||
-    product.mode?.value === "buy_only"
+    isCreatorLocked ||
+    !isPublicCustomizable ||
+    !hasPitchPrintSignal
   ) {
     throw new DomainError(
       "INVALID_PUBLIC_PRODUCT",

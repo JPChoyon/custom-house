@@ -1,3 +1,4 @@
+/* global Theme */
 import { Component } from '@theme/component';
 import {
   fetchConfig,
@@ -205,6 +206,68 @@ export class CartItemsComponent extends createViewEventElement(Component) {
    * @param {number} config.quantity - The quantity.
    * @param {string} config.action - The action.
    */
+  async #reconcileCustomHouseProductionFees(config) {
+    const { line, quantity, sectionsToUpdate, lineId } = config;
+    const body = JSON.stringify({
+      line: line,
+      quantity: quantity,
+      sections: Array.from(sectionsToUpdate).join(','),
+      sections_url: window.location.pathname,
+    });
+    const defaultRequest = {
+      url: `${Theme.routes.cart_change_url}`,
+      body,
+      lines: [{ id: lineId, quantity }],
+    };
+    const row = this.refs.cartItemRows[line - 1];
+    const feeKey = row?.dataset.customhouseFeeKey || '';
+    const isFeeLine = row?.dataset.customhouseProductionFee === 'true';
+    if (!feeKey || isFeeLine || !lineId) return defaultRequest;
+
+    let cart;
+    try {
+      cart = await this.fetchCartData();
+    } catch {
+      return defaultRequest;
+    }
+
+    const items = Array.isArray(cart?.items) ? cart.items : [];
+    const updates = {};
+    let baseQuantity = 0;
+    let feeLineKey = '';
+
+    for (const item of items) {
+      const itemFeeKey = String(item?.properties?._customhouse_fee_key || '');
+      if (itemFeeKey !== feeKey) continue;
+
+      const itemKey = String(item?.key || item?.id || '');
+      if (String(item?.properties?._customhouse_production_fee || '') === 'true') {
+        feeLineKey = itemKey;
+        continue;
+      }
+
+      baseQuantity += itemKey === lineId ? quantity : Number(item.quantity || 0);
+    }
+
+    if (!feeLineKey) return defaultRequest;
+
+    updates[lineId] = quantity;
+    updates[feeLineKey] = baseQuantity;
+
+    return {
+      url: `${Theme.routes.cart_update_url}`,
+      body: JSON.stringify({
+        updates,
+        sections: Array.from(sectionsToUpdate).join(','),
+        sections_url: window.location.pathname,
+      }),
+      lines: [
+        { id: lineId, quantity },
+        { id: feeLineKey, quantity: baseQuantity },
+      ],
+    };
+  }
+
   updateQuantity(config) {
     const cartPerformaceUpdateMarker = cartPerformance.createStartingMarker(`${config.action}:user-action`);
 
@@ -221,27 +284,23 @@ export class CartItemsComponent extends createViewEventElement(Component) {
       }
     });
 
-    const body = JSON.stringify({
-      line: line,
-      quantity: quantity,
-      sections: Array.from(sectionsToUpdate).join(','),
-      sections_url: window.location.pathname,
-    });
-
     cartTotal?.shimmer();
 
     const deferredUpdatePromise = CartLinesUpdateEvent.createPromise();
     const lineId = this.refs.cartItemRows[line - 1]?.dataset.key ?? '';
-    this.dispatchEvent(
-      new CartLinesUpdateEvent({
-        action: config.action === 'change' && quantity > 0 ? 'update' : 'remove',
-        context: 'cart',
-        lines: [{ id: lineId, quantity }],
-        promise: deferredUpdatePromise.promise,
-      })
-    );
+    this.#reconcileCustomHouseProductionFees({ line, quantity, sectionsToUpdate, lineId })
+      .then((requestConfig) => {
+        this.dispatchEvent(
+          new CartLinesUpdateEvent({
+            action: config.action === 'change' && quantity > 0 ? 'update' : 'remove',
+            context: 'cart',
+            lines: requestConfig.lines,
+            promise: deferredUpdatePromise.promise,
+          })
+        );
 
-    fetch(`${Theme.routes.cart_change_url}`, fetchConfig('json', { body }))
+        return fetch(requestConfig.url, fetchConfig('json', { body: requestConfig.body }));
+      })
       .then((response) => {
         return response.text();
       })

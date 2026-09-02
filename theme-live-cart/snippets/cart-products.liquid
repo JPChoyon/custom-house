@@ -138,13 +138,29 @@
 
           <tbody role="rowgroup">
             {% for item in cart.items %}
+              {%- liquid
+                assign is_customhouse_production_fee = false
+                if item.properties['_customhouse_production_fee'] == 'true'
+                  assign is_customhouse_production_fee = true
+                endif
+                assign customhouse_fee_key = item.properties['_customhouse_fee_key']
+                assign customhouse_production_method = item.properties['_production_method']
+                assign customhouse_production_label = item.properties['Printing method'] | default: customhouse_production_method
+                assign customhouse_printing_charge = item.properties['Printing charge / item']
+                assign customhouse_fee_unit_price = 0
+                if is_customhouse_production_fee and item.quantity > 0
+                  assign customhouse_fee_unit_price = item.final_line_price | divided_by: item.quantity
+                endif
+              -%}
               <tr
                 id="CartItem-{{ item.key }}"
                 role="row"
-                class="cart-items__table-row{% if item.parent_relationship.parent != null %} cart-items__nested-line{% endif %}{% if context == 'drawer' %}{% unless item.unit_price_measurement %} cart-items__table-row--full-width-variants{% endunless %}{% endif %}"
+                class="cart-items__table-row{% if item.parent_relationship.parent != null %} cart-items__nested-line{% endif %}{% if is_customhouse_production_fee %} cart-items__table-row--production-fee{% endif %}{% if context == 'drawer' %}{% unless item.unit_price_measurement %} cart-items__table-row--full-width-variants{% endunless %}{% endif %}"
                 ref="cartItemRows[]"
                 data-parent-key="{{ item.parent_relationship.parent.key }}"
                 data-key="{{ item.key }}"
+                data-customhouse-production-fee="{% if is_customhouse_production_fee %}true{% else %}false{% endif %}"
+                data-customhouse-fee-key="{{ customhouse_fee_key | escape }}"
               >
                 <td
                   class="cart-items__media"
@@ -301,7 +317,7 @@
                         assign has_visible_properties = false
                         for property in item.properties
                           assign property_first_char = property.first | slice: 0
-                          if property.last != blank and property_first_char != '_'
+                          if property.last != blank and property_first_char != '_' and property.first != 'Printing method' and property.first != 'Printing charge / item'
                             assign has_visible_properties = true
                             break
                           endif
@@ -311,7 +327,7 @@
                         <dl class="cart-items__properties">
                           {%- for property in item.properties -%}
                             {%- assign property_first_char = property.first | slice: 0 -%}
-                            {%- if property.last != blank and property_first_char != '_' -%}
+                            {%- if property.last != blank and property_first_char != '_' and property.first != 'Printing method' and property.first != 'Printing charge / item' -%}
                               <div class="cart-items__property">
                                 <dt>{{ property.first }}:</dt>
                                 <dd>
@@ -326,6 +342,28 @@
                           {%- endfor -%}
                         </dl>
                       {%- endif -%}
+
+                      {% if customhouse_fee_key != blank %}
+                        <dl class="cart-items__properties cart-items__properties--production">
+                          {% if customhouse_production_label != blank %}
+                            <div class="cart-items__property">
+                              <dt>Printing method:</dt>
+                              <dd>{{ customhouse_production_label | escape }}</dd>
+                            </div>
+                          {% endif %}
+                          {% if is_customhouse_production_fee %}
+                            <div class="cart-items__property">
+                              <dt>Printing charge:</dt>
+                              <dd>{{ customhouse_fee_unit_price | money }}/item</dd>
+                            </div>
+                          {% elsif customhouse_printing_charge != blank %}
+                            <div class="cart-items__property">
+                              <dt>Printing charge:</dt>
+                              <dd>{{ customhouse_printing_charge | escape }}</dd>
+                            </div>
+                          {% endif %}
+                        </dl>
+                      {% endif %}
 
                       {%- if item.selling_plan_allocation -%}
                         <p>{{ item.selling_plan_allocation.selling_plan.name }}</p>
@@ -384,34 +422,38 @@
                     | default: true, allow_false: true
                   %}
                   <div class="cart-items__quantity-controls">
-                    {% render 'volume-pricing-info',
-                      variant: item.variant,
-                      unique_id: item.index,
-                      quantity: item.quantity
-                    %}
+                    {% if is_customhouse_production_fee %}
+                      <span class="cart-items__production-fee-quantity">Qty {{ item.quantity }}</span>
+                    {% else %}
+                      {% render 'volume-pricing-info',
+                        variant: item.variant,
+                        unique_id: item.index,
+                        quantity: item.quantity
+                      %}
 
-                    {% render 'quantity-selector',
-                      product: item.product,
-                      variant: item.variant,
-                      in_cart_quantity: item.quantity,
-                      line_index: item.index,
-                      class: 'cart-primary-typography',
-                      can_update_quantity: can_update_quantity
-                    %}
+                      {% render 'quantity-selector',
+                        product: item.product,
+                        variant: item.variant,
+                        in_cart_quantity: item.quantity,
+                        line_index: item.index,
+                        class: 'cart-primary-typography',
+                        can_update_quantity: can_update_quantity
+                      %}
 
-                    <button
-                      class="button cart-items__remove"
-                      type="button"
-                      aria-label="{{ 'accessibility.remove_item' | t: title: item.title | escape }}"
-                      on:click="/onLineItemRemove/{{ item.index | plus: 1 }}"
-                      {% assign can_remove = item.instructions.can_remove | default: true, allow_false: true %}
-                      {% if can_remove == false %}
-                        hidden
-                      {% endif %}
-                    >
-                      {{- 'icon-delete.svg' | inline_asset_content -}}
-                      <span class="visually-hidden">{{ 'accessibility.remove' | t }}</span>
-                    </button>
+                      <button
+                        class="button cart-items__remove"
+                        type="button"
+                        aria-label="{{ 'accessibility.remove_item' | t: title: item.title | escape }}"
+                        on:click="/onLineItemRemove/{{ item.index | plus: 1 }}"
+                        {% assign can_remove = item.instructions.can_remove | default: true, allow_false: true %}
+                        {% if can_remove == false %}
+                          hidden
+                        {% endif %}
+                      >
+                        {{- 'icon-delete.svg' | inline_asset_content -}}
+                        <span class="visually-hidden">{{ 'accessibility.remove' | t }}</span>
+                      </button>
+                    {% endif %}
                   </div>
                 </td>
                 <td
@@ -737,6 +779,16 @@
     justify-content: center;
     box-shadow: none;
     padding: 0;
+  }
+
+  .cart-items__production-fee-quantity {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--minimum-touch-target);
+    padding-inline: var(--padding-sm);
+    font-size: var(--font-size--sm);
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-70));
   }
 
   .cart-items__media {

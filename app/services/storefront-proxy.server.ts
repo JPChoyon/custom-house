@@ -1,5 +1,6 @@
 import { DomainError } from "./domain.ts";
 import {
+  creatorProductSetupFromRecord,
   prepareCreatorProductCart,
   publicCreatorCollection,
   publicCreatorProductDetail,
@@ -89,8 +90,33 @@ function formatMoney(amount: string, currencyCode: string) {
   return formatMinorMoney(minor, currencyCode);
 }
 
+function formatMinorAmount(amountMinor: bigint, currencyCode: string) {
+  return formatMinorMoney(amountMinor, currencyCode);
+}
+
+function methodLabel(method: string) {
+  if (method === "EMBROIDERY") return "Embroidery";
+  if (method === "DTF") return "DTF printing";
+  if (method === "DTG") return "DTG printing";
+  return method;
+}
+
 function jsonAttr(value: unknown) {
   return escapeHtml(JSON.stringify(value));
+}
+
+export function collectionShareTargets(
+  collectionUrl: string,
+  shareText = "Shop this CustomHouse creator collection.",
+) {
+  const url = String(collectionUrl || "").trim();
+  const text = String(shareText || "Shop this CustomHouse creator collection.").trim();
+  return {
+    facebook: `https://www.facebook.com/sharer/sharer.php?${new URLSearchParams({ u: url }).toString()}`,
+    x: `https://twitter.com/intent/tweet?${new URLSearchParams({ url, text }).toString()}`,
+    whatsapp: `https://wa.me/?${new URLSearchParams({ text: `${text} ${url}` }).toString()}`,
+    linkedin: `https://www.linkedin.com/sharing/share-offsite/?${new URLSearchParams({ url }).toString()}`,
+  };
 }
 
 function swatchColor(value: string) {
@@ -171,6 +197,15 @@ function publicCss() {
     .customhouse-public-stat-icon.material-symbols-outlined{font-size:1.8rem}
     .customhouse-public-stat strong{display:block;color:var(--ch-service);font-size:1.35rem;line-height:1}
     .customhouse-public-stat span{display:block;color:#fff;font-size:.7rem;font-weight:950;line-height:1;text-transform:uppercase}
+    .customhouse-public-share{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:.65rem;margin-top:1rem}
+    .customhouse-public-share-toggle,.customhouse-public-share-copy,.customhouse-public-share-menu a,.customhouse-public-share-menu button{display:inline-flex;align-items:center;justify-content:center;min-height:38px;border-radius:8px;font-size:.78rem;font-weight:950;text-decoration:none;text-transform:uppercase;cursor:pointer}
+    .customhouse-public-share-toggle,.customhouse-public-share-copy{gap:.45rem;padding:.6rem .85rem;border:1px solid rgba(200,255,0,.52);background:rgba(200,255,0,.08);color:#fff}
+    .customhouse-public-share-copy{border-color:rgba(138,44,255,.85);background:rgba(138,44,255,.12)}
+    .customhouse-public-share-status{min-height:1.2rem;margin:0;color:var(--ch-service);font-size:.78rem;font-weight:850}
+    .customhouse-public-share-menu{position:absolute;left:0;top:calc(100% + 8px);z-index:10;display:grid;width:min(220px,calc(100vw - 2rem));gap:4px;padding:.45rem;border:1px solid var(--ch-border);border-radius:8px;background:#080809;box-shadow:0 18px 42px rgba(0,0,0,.32)}
+    .customhouse-public-share-menu[hidden]{display:none}
+    .customhouse-public-share-menu a,.customhouse-public-share-menu button{width:100%;justify-content:flex-start;padding:.58rem .68rem;border:0;background:transparent;color:#fff;text-align:left;box-shadow:none}
+    .customhouse-public-share-menu a:hover,.customhouse-public-share-menu a:focus,.customhouse-public-share-menu button:hover,.customhouse-public-share-menu button:focus{background:rgba(138,44,255,.18);color:var(--ch-service)}
     .customhouse-public-services{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin:1rem 0 1.5rem;border:1px solid var(--ch-border);border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.02));overflow:hidden}
     .customhouse-public-service{display:flex;align-items:center;justify-content:center;text-align:left;gap:.85rem;padding:1.25rem 1.35rem}
     .customhouse-public-service+.customhouse-public-service{border-left:1px solid var(--ch-border)}
@@ -218,6 +253,11 @@ function publicCss() {
     .customhouse-product-price{margin:0;color:var(--ch-primary)!important;font-size:clamp(2rem,4vw,2.6rem);font-weight:950;line-height:1}
     .customhouse-product-description{max-width:36rem;margin:0;padding-bottom:1.2rem;border-bottom:1px solid var(--ch-border);font-size:1rem}
     .customhouse-locked-note{display:none}
+    .customhouse-locked-details{display:grid;gap:.55rem;margin:0;padding:1rem;border:1px solid var(--ch-border);border-radius:8px;background:rgba(255,255,255,.045)}
+    .customhouse-locked-details div{display:flex;align-items:center;justify-content:space-between;gap:1rem}
+    .customhouse-locked-details dt{color:var(--ch-muted);font-size:.72rem;font-weight:950;text-transform:uppercase}
+    .customhouse-locked-details dd{display:inline-flex;align-items:center;gap:.45rem;margin:0;color:#fff;font-weight:900;text-align:right}
+    .customhouse-made-to-order-note{margin:0;color:var(--ch-muted);font-size:.86rem;line-height:1.42}
     .customhouse-product-form{display:grid;gap:1rem}
     .customhouse-field{display:grid;gap:.65rem;margin:0;font-weight:850;text-transform:uppercase}
     .customhouse-field select{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
@@ -256,7 +296,7 @@ function publicCss() {
     [data-customhouse-cart-message],.customhouse-public-empty{color:var(--ch-muted)}
     @media(max-width:1100px){.customhouse-public-grid,.customhouse-more__grid{grid-template-columns:repeat(3,minmax(0,1fr))}.customhouse-public-services{grid-template-columns:repeat(2,minmax(0,1fr))}.customhouse-public-service:nth-child(3){border-left:0;border-top:1px solid var(--ch-border)}.customhouse-public-service:nth-child(4){border-top:1px solid var(--ch-border)}}
     @media(max-width:900px){.customhouse-public-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.customhouse-product-layout{grid-template-columns:1fr;gap:1.5rem}.customhouse-product-page{padding:1rem 0 2rem}.customhouse-product-gallery{display:flex;flex-direction:column-reverse;gap:.75rem}.customhouse-product-thumbs{display:flex;gap:.65rem;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:.15rem}.customhouse-product-thumb{width:76px;min-width:76px;scroll-snap-align:start}.customhouse-service-row{grid-template-columns:1fr}.customhouse-service-row span+span{border-left:0;border-top:1px solid var(--ch-border)}.customhouse-more__grid{grid-template-columns:repeat(2,minmax(0,1fr))}.customhouse-more__controls{gap:4rem}}
-    @media(max-width:760px){.customhouse-proxy-header__inner{grid-template-columns:1fr auto;align-items:center;gap:.65rem;min-height:62px}.customhouse-proxy-logo{font-size:1.08rem}.customhouse-proxy-actions a{width:36px;height:36px}.customhouse-proxy-nav{grid-column:1/-1;justify-content:flex-start;gap:.85rem;overflow-x:auto;scrollbar-width:none;padding:0 0 .75rem}.customhouse-proxy-nav::-webkit-scrollbar{display:none}.customhouse-proxy-nav a{font-size:.76rem}.customhouse-proxy-footer__inner{grid-template-columns:1fr}.customhouse-proxy-footer__links{justify-content:flex-start}.customhouse-public-page,.customhouse-product-page{width:min(100vw - 1rem,1180px)}.customhouse-public-hero{min-height:auto;padding:1.35rem 1rem 1.5rem;border-radius:0 0 10px 10px}.customhouse-public-hero h1{font-size:clamp(2.5rem,15vw,4rem)}.customhouse-public-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}.customhouse-public-stat{min-width:0;padding:.6rem .58rem;gap:.45rem}.customhouse-public-stat-icon.material-symbols-outlined{font-size:1.6rem}.customhouse-public-services{grid-template-columns:1fr}.customhouse-public-service+.customhouse-public-service{border-left:0;border-top:1px solid var(--ch-border)}.customhouse-public-service{padding:1.05rem}.customhouse-public-service-icon.material-symbols-outlined{font-size:1.7rem}.customhouse-public-toolbar{align-items:stretch;flex-direction:column}.customhouse-public-toolbar-right{width:100%;justify-content:space-between}.customhouse-public-filter,.customhouse-public-sort{width:100%;min-width:0}.customhouse-public-view{flex:0 0 auto}.customhouse-public-grid{grid-template-columns:1fr}.customhouse-product-panel h1{font-size:clamp(1.9rem,10vw,2.8rem)}.customhouse-product-media img{padding:1rem}.customhouse-option-pill{flex:1 1 auto}.customhouse-field--color .customhouse-option-pill{flex:0 1 calc(50% - .4rem)}.customhouse-more{padding:1.5rem .8rem 1rem}.customhouse-more__title::before,.customhouse-more__title::after{width:28px}.customhouse-more__grid{grid-template-columns:1fr}.customhouse-more__image{max-height:170px}.customhouse-more__card h3{font-size:.9rem}.customhouse-more__button{min-height:32px}}
+    @media(max-width:760px){.customhouse-proxy-header__inner{grid-template-columns:1fr auto;align-items:center;gap:.65rem;min-height:62px}.customhouse-proxy-logo{font-size:1.08rem}.customhouse-proxy-actions a{width:36px;height:36px}.customhouse-proxy-nav{grid-column:1/-1;justify-content:flex-start;gap:.85rem;overflow-x:auto;scrollbar-width:none;padding:0 0 .75rem}.customhouse-proxy-nav::-webkit-scrollbar{display:none}.customhouse-proxy-nav a{font-size:.76rem}.customhouse-proxy-footer__inner{grid-template-columns:1fr}.customhouse-proxy-footer__links{justify-content:flex-start}.customhouse-public-page,.customhouse-product-page{width:min(100vw - 1rem,1180px)}.customhouse-public-hero{min-height:auto;padding:1.35rem 1rem 1.5rem;border-radius:0 0 10px 10px}.customhouse-public-hero h1{font-size:clamp(2.5rem,15vw,4rem)}.customhouse-public-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}.customhouse-public-stat{min-width:0;padding:.6rem .58rem;gap:.45rem}.customhouse-public-stat-icon.material-symbols-outlined{font-size:1.6rem}.customhouse-public-share{align-items:stretch;flex-direction:column}.customhouse-public-share-toggle,.customhouse-public-share-copy{width:100%}.customhouse-public-share-menu{width:100%}.customhouse-public-services{grid-template-columns:1fr}.customhouse-public-service+.customhouse-public-service{border-left:0;border-top:1px solid var(--ch-border)}.customhouse-public-service{padding:1.05rem}.customhouse-public-service-icon.material-symbols-outlined{font-size:1.7rem}.customhouse-public-toolbar{align-items:stretch;flex-direction:column}.customhouse-public-toolbar-right{width:100%;justify-content:space-between}.customhouse-public-filter,.customhouse-public-sort{width:100%;min-width:0}.customhouse-public-view{flex:0 0 auto}.customhouse-public-grid{grid-template-columns:1fr}.customhouse-product-panel h1{font-size:clamp(1.9rem,10vw,2.8rem)}.customhouse-product-media img{padding:1rem}.customhouse-option-pill{flex:1 1 auto}.customhouse-field--color .customhouse-option-pill{flex:0 1 calc(50% - .4rem)}.customhouse-more{padding:1.5rem .8rem 1rem}.customhouse-more__title::before,.customhouse-more__title::after{width:28px}.customhouse-more__grid{grid-template-columns:1fr}.customhouse-more__image{max-height:170px}.customhouse-more__card h3{font-size:.9rem}.customhouse-more__button{min-height:32px}}
     @media(max-width:420px){.customhouse-proxy-header__inner,.customhouse-proxy-footer__inner{width:min(100vw - 1rem,1180px)}.customhouse-proxy-logo{font-size:1rem}.customhouse-proxy-nav{gap:.72rem}.customhouse-proxy-nav a{font-size:.7rem}.customhouse-proxy-actions a{width:34px;height:34px}.customhouse-proxy-actions .material-symbols-outlined{font-size:1.12rem}}
   </style>`;
 }
@@ -317,6 +357,9 @@ function collectionHtml(input: {
     input.collection.displayName?.trim() ||
     `${input.creator.displayName} Designs`;
   const productCount = input.products.length;
+  const collectionPath = getCreatorCollectionStorefrontUrl(input.collection) || "";
+  const shareText = `Shop ${collectionName} on CustomHouse.`;
+  const shareTargets = collectionShareTargets(collectionPath, shareText);
   const cards = input.products.length
     ? input.products
         .map((product) => {
@@ -377,6 +420,26 @@ function collectionHtml(input: {
                   <span><strong>1</strong><span>Creator</span></span>
                 </span>
               </div>
+              <div
+                class="customhouse-public-share"
+                data-customhouse-collection-share
+                data-customhouse-share-url="${escapeHtml(collectionPath)}"
+                data-customhouse-share-title="${escapeHtml(shareText)}"
+              >
+                <button class="customhouse-public-share-toggle" type="button" data-customhouse-share-toggle aria-expanded="false">
+                  <span class="material-symbols-outlined" aria-hidden="true">ios_share</span>
+                  Share my collection
+                </button>
+                <button class="customhouse-public-share-copy" type="button" data-customhouse-share-copy>Copy link</button>
+                <div class="customhouse-public-share-menu" data-customhouse-share-menu role="menu" hidden>
+                  <a data-customhouse-share-platform="facebook" role="menuitem" href="${escapeHtml(shareTargets.facebook)}" target="_blank" rel="noopener noreferrer">Facebook</a>
+                  <a data-customhouse-share-platform="x" role="menuitem" href="${escapeHtml(shareTargets.x)}" target="_blank" rel="noopener noreferrer">X / Twitter</a>
+                  <a data-customhouse-share-platform="whatsapp" role="menuitem" href="${escapeHtml(shareTargets.whatsapp)}" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+                  <a data-customhouse-share-platform="linkedin" role="menuitem" href="${escapeHtml(shareTargets.linkedin)}" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+                  <button type="button" data-customhouse-share-copy data-customhouse-share-instagram-copy role="menuitem">Copy link for Instagram</button>
+                </div>
+                <p class="customhouse-public-share-status" data-customhouse-share-status role="status" aria-live="polite"></p>
+              </div>
             </div>
           </header>
           <section class="customhouse-public-services" aria-label="Collection features">
@@ -395,6 +458,76 @@ function collectionHtml(input: {
           <section class="customhouse-public-grid">${cards}</section>
         </main>
         ${siteFooter()}
+        <script>
+          (() => {
+            const shareRoot = document.querySelector("[data-customhouse-collection-share]");
+            if (!shareRoot) return;
+            const status = shareRoot.querySelector("[data-customhouse-share-status]");
+            const toggle = shareRoot.querySelector("[data-customhouse-share-toggle]");
+            const menu = shareRoot.querySelector("[data-customhouse-share-menu]");
+            const sharePath = shareRoot.dataset.customhouseShareUrl || window.location.pathname;
+            const shareUrl = new URL(sharePath, window.location.origin).href;
+            const shareTitle = shareRoot.dataset.customhouseShareTitle || "Shop this CustomHouse creator collection.";
+            const targets = {
+              facebook: "https://www.facebook.com/sharer/sharer.php?" + new URLSearchParams({ u: shareUrl }).toString(),
+              x: "https://twitter.com/intent/tweet?" + new URLSearchParams({ url: shareUrl, text: shareTitle }).toString(),
+              whatsapp: "https://wa.me/?" + new URLSearchParams({ text: shareTitle + " " + shareUrl }).toString(),
+              linkedin: "https://www.linkedin.com/sharing/share-offsite/?" + new URLSearchParams({ url: shareUrl }).toString(),
+            };
+            shareRoot.querySelectorAll("[data-customhouse-share-platform]").forEach((link) => {
+              link.href = targets[link.dataset.customhouseSharePlatform] || "#";
+            });
+            const setStatus = (text) => {
+              if (!status) return;
+              status.textContent = text || "";
+              if (text) window.setTimeout(() => {
+                if (status.textContent === text) status.textContent = "";
+              }, 2400);
+            };
+            const copyLink = async () => {
+              try {
+                if (navigator.clipboard?.writeText) {
+                  await navigator.clipboard.writeText(shareUrl);
+                } else {
+                  const field = document.createElement("textarea");
+                  field.value = shareUrl;
+                  field.setAttribute("readonly", "");
+                  field.style.position = "fixed";
+                  field.style.left = "-1000px";
+                  document.body.append(field);
+                  field.select();
+                  document.execCommand("copy");
+                  field.remove();
+                }
+                setStatus("Link copied");
+              } catch {
+                setStatus("Copy the collection link manually.");
+              }
+            };
+            shareRoot.querySelectorAll("[data-customhouse-share-copy]").forEach((button) => {
+              button.addEventListener("click", copyLink);
+            });
+            toggle?.addEventListener("click", async () => {
+              if (navigator.share && window.matchMedia("(max-width: 760px)").matches) {
+                try {
+                  await navigator.share({ title: "CustomHouse Creator Collection", text: shareTitle, url: shareUrl });
+                  return;
+                } catch (error) {
+                  if (error?.name === "AbortError") return;
+                }
+              }
+              if (!menu) return;
+              menu.hidden = !menu.hidden;
+              toggle.setAttribute("aria-expanded", menu.hidden ? "false" : "true");
+            });
+            menu?.querySelectorAll("a").forEach((link) => {
+              link.addEventListener("click", () => {
+                menu.hidden = true;
+                toggle?.setAttribute("aria-expanded", "false");
+              });
+            });
+          })();
+        </script>
       </body>
     </html>`);
 }
@@ -435,27 +568,72 @@ function productHtml(input: {
       selectedOptions: Array<{ name: string; value: string }>;
     }>;
   };
+  designVariantSelectionsJson: string;
+  creatorSetup?: ReturnType<typeof creatorProductSetupFromRecord>;
+  productionPricing?: {
+    method: string;
+    fixedColor: string;
+    placementCount: number;
+    surchargeMinor: string;
+  } | null;
 }) {
-  const variants = input.baseProduct?.variants || [];
+  const setup =
+    input.creatorSetup ||
+    creatorProductSetupFromRecord(
+      input as unknown as Parameters<typeof creatorProductSetupFromRecord>[0],
+    );
+  const fixedColor = setup?.fixedColor || input.productionPricing?.fixedColor || "";
+  const productionMethod = setup?.productionMethod || input.productionPricing?.method || "";
+  const placementCount = setup?.placementCount || input.productionPricing?.placementCount || 1;
+  const allVariants = input.baseProduct?.variants || [];
+  const variants = fixedColor
+    ? allVariants.filter((variant) => {
+        const color = variant.selectedOptions.find((option) =>
+          /^(color|colour|farg|färg)$/i.test(option.name.trim()),
+        )?.value;
+        return !color || color.trim().toLowerCase() === fixedColor.trim().toLowerCase();
+      })
+    : allVariants;
   const firstAvailable = variants.find((variant) => variant.availableForSale) || variants[0] || null;
+  const surchargeMinor = BigInt(input.productionPricing?.surchargeMinor || "0") *
+    BigInt(Math.max(1, placementCount));
+  const variantPriceLabel = (variant: typeof firstAvailable) => {
+    if (!variant) return "";
+    const baseMinor = BigInt(Math.round(Number(variant.price.amount || 0) * 100));
+    return formatMinorAmount(baseMinor + surchargeMinor, variant.price.currencyCode);
+  };
   const optionControls = (input.baseProduct?.options || [])
-    .map((option, index) => {
+    .filter((option) => {
       const optionName = option.name.toLowerCase();
-      const isColor =
+      return !(
         optionName.includes("color") ||
         optionName.includes("colour") ||
-        optionName.includes("farg");
+        optionName.includes("farg") ||
+        optionName.includes("production") ||
+        optionName.includes("print")
+      );
+    })
+    .map((option, index) => {
+      const optionValues = [
+        ...new Set(
+          variants
+            .map((variant) =>
+              variant.selectedOptions.find((item) => item.name === option.name)?.value,
+            )
+            .filter((value): value is string => Boolean(value)),
+        ),
+      ];
       const selected =
         firstAvailable?.selectedOptions.find((item) => item.name === option.name)?.value ||
-        option.values[0] ||
+        optionValues[0] ||
         "";
-      const values = option.values
+      const values = optionValues
         .map(
           (value) =>
             `<option value="${escapeHtml(value)}"${value === selected ? " selected" : ""}>${escapeHtml(value)}</option>`,
         )
         .join("");
-      const pills = option.values
+      const pills = optionValues
         .map((value) => {
           const active = value === selected;
           return `<button
@@ -465,11 +643,10 @@ function productHtml(input: {
             data-option-target="option-${index}"
             data-option-value="${escapeHtml(value)}"
             aria-pressed="${active ? "true" : "false"}"
-            ${isColor ? `style="--ch-swatch:${swatchColor(value)}"` : ""}
-          >${isColor ? `<span class="customhouse-swatch" aria-hidden="true"></span>` : ""}<span>${escapeHtml(value)}</span></button>`;
+          ><span>${escapeHtml(value)}</span></button>`;
         })
         .join("");
-      return `<label class="customhouse-field${isColor ? " customhouse-field--color" : ""}">
+      return `<label class="customhouse-field">
         <span class="customhouse-option-header">
           <span>${escapeHtml(option.name)}:</span>
           <strong data-customhouse-option-current="option-${index}">${escapeHtml(selected)}</strong>
@@ -479,11 +656,27 @@ function productHtml(input: {
       </label>`;
     })
     .join("");
+  const lockedDetails = setup
+    ? `<dl class="customhouse-locked-details" aria-label="Creator product details">
+        <div>
+          <dt>Color</dt>
+          <dd><span class="customhouse-swatch" style="--ch-swatch:${swatchColor(fixedColor)}" aria-hidden="true"></span>${escapeHtml(fixedColor)}</dd>
+        </div>
+        <div>
+          <dt>Printing method</dt>
+          <dd>${escapeHtml(methodLabel(productionMethod))}</dd>
+        </div>
+        <div>
+          <dt>Designed placements</dt>
+          <dd>${escapeHtml(String(placementCount))}</dd>
+        </div>
+      </dl>`
+    : "";
   const productUrl = getCreatorProductStorefrontUrl(input.collection, input) || "";
   const postUrl = `${productUrl}/prepare-cart`;
   const collectionUrl = getCreatorCollectionStorefrontUrl(input.collection) || "/";
   const collectionName = input.collection.displayName || input.creator.displayName;
-  const priceLabel = firstAvailable ? formatMoney(firstAvailable.price.amount, firstAvailable.price.currencyCode) : "";
+  const priceLabel = variantPriceLabel(firstAvailable);
   const previewImages = productPreviewImages(input);
   const mainPreviewImage = previewImages[0] || null;
   const thumbnails = previewImages.length
@@ -576,7 +769,7 @@ function productHtml(input: {
               <div class="customhouse-service-row" aria-label="Order promises">
                 <span><strong>Production Time</strong><small>3-5 Business Days</small></span>
                 <span><strong>Shipping Time</strong><small>3-7 Business Days</small></span>
-                <span><strong>Easy Returns</strong><small>30 Day Returns</small></span>
+                <span><strong>Made to Order</strong><small>Customized creator item</small></span>
               </div>
             </div>
             <div class="customhouse-product-panel">
@@ -589,6 +782,7 @@ function productHtml(input: {
               ${priceLabel ? `<p class="customhouse-product-price" data-customhouse-variant-price>${priceLabel}</p>` : `<p class="customhouse-product-price" data-customhouse-variant-price></p>`}
               <p class="customhouse-product-description">${escapeHtml(input.description || input.baseProductTitle)}</p>
               <p class="customhouse-locked-note">Creator artwork is locked for purchase.</p>
+              ${lockedDetails}
               <form class="customhouse-product-form" data-customhouse-creator-cart data-prepare-url="${postUrl}" data-variants="${jsonAttr(variants)}">
                 ${optionControls}
                 <input type="hidden" name="variantId" value="${escapeHtml(firstAvailable?.cartId || "")}">
@@ -602,6 +796,7 @@ function productHtml(input: {
                     </span>
                   </span>
                 </label>
+                <p class="customhouse-made-to-order-note">This customized Creator product is made to order and cannot be returned.</p>
                 <button class="customhouse-add-button" type="submit">Add to Cart</button>
                 <p data-customhouse-cart-message role="status" aria-live="polite"></p>
               </form>
@@ -665,7 +860,7 @@ function productHtml(input: {
             }
             if (!form) return;
             const message = form.querySelector("[data-customhouse-cart-message]");
-            const button = form.querySelector("button");
+            const button = form.querySelector(".customhouse-add-button");
             const variantInput = form.querySelector("[name='variantId']");
             const price = form.querySelector("[data-customhouse-variant-price]");
             const variants = JSON.parse(form.dataset.variants || "[]");
@@ -729,13 +924,25 @@ function productHtml(input: {
               return sign + major + "." + cents + " " + (currencyCode === "SEK" ? "kr" : currencyCode);
             }
 
+            function customhouseMinorMoney(minor, currencyCode) {
+              const sign = minor < 0 ? "-" : "";
+              const absolute = Math.abs(minor);
+              const major = Math.floor(absolute / 100);
+              const cents = String(absolute % 100).padStart(2, "0");
+              return sign + major + "." + cents + " " + (currencyCode === "SEK" ? "kr" : currencyCode);
+            }
+
             function syncVariant() {
               const variant = selectedVariant();
               variantInput.value = variant?.cartId ? String(variant.cartId) : "";
               button.disabled = !variant || !variant.availableForSale;
               if (price) {
+                const productionSurchargeMinor = Number(${JSON.stringify(String(surchargeMinor))});
                 price.textContent = variant
-                  ? customhouseMoney(variant.price.amount, variant.price.currencyCode)
+                  ? customhouseMinorMoney(
+                      Math.round(Number(variant.price.amount || 0) * 100) + (Number.isFinite(productionSurchargeMinor) ? productionSurchargeMinor : 0),
+                      variant.price.currencyCode
+                    )
                   : "Unavailable";
               }
             }
@@ -926,7 +1133,19 @@ function productHtml(input: {
                   })
                 });
                 const prepared = await readPrepareCartResponse(response, "PREPARE_CART", "This item is temporarily unavailable.");
+                const preparedItems = Array.isArray(prepared.items)
+                  ? prepared.items
+                  : Array.isArray(prepared.cart?.items)
+                    ? prepared.cart.items
+                    : [];
                 const cartId = prepared.variant?.cartId || prepared.cart?.variant?.cartId || prepared.cart?.cartVariantId;
+                const cartItems = preparedItems.length
+                  ? preparedItems
+                  : [{
+                      id: cartId,
+                      quantity: prepared.quantity || prepared.cart?.quantity,
+                      properties: prepared.properties || prepared.cart?.properties
+                    }];
                 if (!cartId) {
                   throw new CustomHouseCartError("MISSING_CART_VARIANT_ID", "This item is temporarily unavailable.", {
                     stage: "SHOPIFY_CART_ADD"
@@ -937,18 +1156,17 @@ function productHtml(input: {
                     stage: "SHOPIFY_CART_ADD"
                   });
                 }
+                if (!cartItems.every((item) => item?.id && !String(item.id).startsWith("gid://"))) {
+                  throw new CustomHouseCartError("INVALID_CART_ITEM", "This item is temporarily unavailable.", {
+                    stage: "SHOPIFY_CART_ADD"
+                  });
+                }
                 message.textContent = "Adding to cart...";
                 const cartAddUrl = (window.Shopify?.routes?.root || "/") + "cart/add.js";
                 const cartResponse = await fetchStage("SHOPIFY_CART_ADD", cartAddUrl, {
                   method: "POST",
                   headers: { "Content-Type": "application/json", "Accept": "application/json" },
-                  body: JSON.stringify({
-                    items: [{
-                      id: cartId,
-                      quantity: prepared.quantity || prepared.cart?.quantity,
-                      properties: prepared.properties || prepared.cart?.properties
-                    }]
-                  })
+                  body: JSON.stringify({ items: cartItems })
                 });
                 await readShopifyAjaxResponse(cartResponse, "SHOPIFY_CART_ADD", "This item is temporarily unavailable.", cartId);
                 message.textContent = "Added to cart";
@@ -1358,6 +1576,8 @@ export async function handleStorefrontProxy(
             cartVariantId: cart.cartVariantId,
             quantity: cart.quantity,
             properties: cart.properties,
+            production: cart.production,
+            items: cart.items,
             cart,
           });
         }
