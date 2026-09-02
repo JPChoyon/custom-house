@@ -1177,6 +1177,8 @@ async function publicBaseProduct(
 }
 
 function eligibleClassification(product: {
+  title: string;
+  handle: string;
   status: string;
   tags: string[];
   productType: { value: string } | null;
@@ -1187,6 +1189,7 @@ function eligibleClassification(product: {
   legacyMode: { value: string } | null;
 }) {
   if (product.status !== "ACTIVE") return null;
+  if (isProductionFeeProduct(product)) return null;
   const legacyGlobal = Boolean(
     product.legacyOrigin?.value === "global" &&
       product.legacyMode?.value === "customizable",
@@ -1213,6 +1216,24 @@ function eligibleClassification(product: {
     return null;
   }
   return "compatible_fallback";
+}
+
+function isProductionFeeProduct(product: {
+  title: string;
+  handle: string;
+  tags: string[];
+  productType: { value: string } | null;
+}) {
+  const tags = new Set(product.tags.map((tag) => tag.trim().toLowerCase()));
+  const type = String(product.productType?.value || "").trim().toLowerCase();
+  const title = product.title.trim().toLowerCase();
+  const handle = product.handle.trim().toLowerCase();
+  return (
+    type === "production_fee" ||
+    tags.has("customhouse-production-fee") ||
+    title.startsWith("custom house production fee") ||
+    handle.startsWith("custom-house-production-fee")
+  );
 }
 
 export async function createCreatorProductDraft(

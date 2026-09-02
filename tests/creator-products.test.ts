@@ -8,6 +8,7 @@ import {
   getCreatorProductForCustomer,
   getPublishedCreatorProductForHandle,
   getPublishedCreatorProduct,
+  listEligibleCreatorBaseProducts,
   listPublishedCreatorProductsForHandle,
   listCreatorProductsForCustomer,
   moderateCreatorProductAsAdmin,
@@ -539,6 +540,61 @@ test("Creator A can list their own products", async () => {
 
   assert.equal(products.length, 1);
   assert.equal(products[0].creatorId, "creator-a");
+});
+
+test("eligible Creator base products exclude app-managed production fee products", async () => {
+  const db = fakeDb();
+  const client: ShopifyGraphqlClient = {
+    async request<T>() {
+      return {
+        products: {
+          nodes: [
+            {
+              ...baseProduct,
+              status: "ACTIVE",
+              tags: ["pitchprint"],
+              productType: { value: "global_customizable" },
+              inkybayEnabled: null,
+              pitchprintEnabled: { value: "true" },
+              creatorPublishingEnabled: { value: "true" },
+              legacyOrigin: null,
+              legacyMode: null,
+              productionMethodPricing: null,
+            },
+            {
+              ...baseProduct,
+              id: "gid://shopify/Product/9001",
+              title: "Custom House Production Fee - 16472592548185",
+              handle: "custom-house-production-fee-16472592548185",
+              status: "ACTIVE",
+              tags: ["customhouse-production-fee", "pitchprint"],
+              productType: { value: "production_fee" },
+              inkybayEnabled: null,
+              pitchprintEnabled: null,
+              creatorPublishingEnabled: null,
+              legacyOrigin: null,
+              legacyMode: null,
+              pitchprintDesignId: null,
+              legacyPitchprintDesignId: null,
+              productionMethodPricing: null,
+            },
+          ],
+        },
+      } as T;
+    },
+  };
+
+  const products = await listEligibleCreatorBaseProducts(
+    shop,
+    "gid://shopify/Customer/1",
+    client,
+    db,
+  );
+
+  assert.deepEqual(
+    products.map((product) => product.title),
+    ["Global Hoodie"],
+  );
 });
 
 test("Creator B cannot retrieve Creator A's private product by changing the ID", async () => {

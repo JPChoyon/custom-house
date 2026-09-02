@@ -23,6 +23,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
       ),
     });
   } catch (error) {
+    console.error("creator_products_proxy_error", {
+      route: "/proxy/api/creator-products",
+      method: request.method,
+      operation: "list",
+      code: error instanceof Error ? error.name : "UNKNOWN_ERROR",
+    });
     return apiError(error);
   }
 }
@@ -39,6 +45,12 @@ export async function action({ request }: ActionFunctionArgs) {
     );
     return apiData({ product }, 201);
   } catch (error) {
+    console.error("creator_products_proxy_error", {
+      route: "/proxy/api/creator-products",
+      method: request.method,
+      operation: "create",
+      code: error instanceof Error ? error.name : "UNKNOWN_ERROR",
+    });
     return apiError(error);
   }
 }
