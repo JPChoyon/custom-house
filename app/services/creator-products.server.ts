@@ -377,15 +377,7 @@ async function validateBaseProduct(
       handle: string;
       origin: { value: string } | null;
       mode: { value: string } | null;
-      featuredMedia:
-        | {
-            preview?: {
-              image?: {
-                url: string;
-              } | null;
-            } | null;
-          }
-        | null;
+      featuredImage: { url: string } | null;
       pitchprintDesignId: { value: string } | null;
       legacyPitchprintDesignId: { value: string } | null;
       variants: {
@@ -408,11 +400,7 @@ async function validateBaseProduct(
         mode: metafield(namespace: "customhouse", key: "design_mode") { value }
         pitchprintDesignId: metafield(namespace: "customhouse", key: "pitchprint_design_id") { value }
         legacyPitchprintDesignId: metafield(namespace: "pitchprint", key: "design_id") { value }
-        featuredMedia {
-          preview {
-            image { url }
-          }
-        }
+        featuredImage { url }
         variants(first: 100) {
           nodes {
             id
@@ -1230,7 +1218,7 @@ export async function createCreatorProductDraft(
       422,
     );
   }
-  const previewUrl = product.featuredMedia?.preview?.image?.url || null;
+  const previewUrl = product.featuredImage?.url || null;
   const title =
     cleanOptionalText(input.title, 140) || cleanOptionalText(product.title, 140);
   if (!title) {

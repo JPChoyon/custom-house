@@ -39,12 +39,8 @@ const baseProduct = {
   mode: { value: "customizable" },
   pitchprintDesignId: { value: "pp_design_global_hoodie" },
   legacyPitchprintDesignId: null,
-  featuredMedia: {
-    preview: {
-      image: {
-        url: "https://cdn.shopify.test/hoodie.png",
-      },
-    },
+  featuredImage: {
+    url: "https://cdn.shopify.test/hoodie.png",
   },
   variants: {
     nodes: [
@@ -473,6 +469,26 @@ test("authenticated Creator A can create a DRAFT Creator Product", async () => {
   assert.equal(product.status, "DRAFT");
   assert.equal(product.title, "Ari Hoodie");
   assert.equal(product.shopifyProductId, baseProduct.id);
+});
+
+test("Creator Product draft creation uses the stable Shopify featuredImage field", async () => {
+  const queries: string[] = [];
+  const db = fakeDb();
+  await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id },
+    {
+      async request<T>(query: string) {
+        queries.push(query);
+        return { product: baseProduct } as T;
+      },
+    },
+    db,
+  );
+
+  assert.match(queries[0] || "", /featuredImage\s*\{\s*url\s*\}/);
+  assert.doesNotMatch(queries[0] || "", /featuredMedia\s*\{/);
 });
 
 test("creator owner comes from server-side customer authentication", async () => {
@@ -1063,7 +1079,7 @@ test("draft without preview cannot submit", async () => {
     { shopifyProductId: baseProduct.id },
     fakeClient({
       ...baseProduct,
-      featuredMedia: null,
+      featuredImage: null,
     }),
     db,
   );
