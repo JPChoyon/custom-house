@@ -89,8 +89,9 @@ export type ProductionPricingBridgePayload = {
   >;
 };
 
-const FEE_PRODUCT_TAG = "customhouse-production-fee";
-const FEE_PRODUCT_TITLE_PREFIX = "Custom House Production Fee";
+export const FEE_PRODUCT_TAG = "customhouse-production-fee";
+export const FEE_PRODUCT_TITLE_PREFIX = "Custom House Production Fee";
+export const FEE_PRODUCT_TYPE = "production_fee";
 const FEE_PRODUCT_OPTION_NAME = "Production Method";
 const FEE_PRODUCT_METAFIELD_KEY = "production_fee_parent_product_id";
 const METHOD_LABELS: Record<ProductionMethodCode, string> = {
@@ -413,7 +414,7 @@ export async function syncProductionFeeMerchandise(
             namespace: "customhouse",
             key: "product_type",
             type: "single_line_text_field",
-            value: "production_fee",
+            value: FEE_PRODUCT_TYPE,
           },
           {
             namespace: "customhouse",

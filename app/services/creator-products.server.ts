@@ -19,6 +19,9 @@ import {
 } from "./creator-storefront-urls.ts";
 import { decimalMoneyToMinorUnits } from "./money.ts";
 import {
+  FEE_PRODUCT_TAG,
+  FEE_PRODUCT_TITLE_PREFIX,
+  FEE_PRODUCT_TYPE,
   PRODUCTION_METHODS,
   cleanProductionMethod,
   feeVariantIdForMethod,
@@ -1228,11 +1231,13 @@ function isProductionFeeProduct(product: {
   const type = String(product.productType?.value || "").trim().toLowerCase();
   const title = product.title.trim().toLowerCase();
   const handle = product.handle.trim().toLowerCase();
+  const feeProductTitlePrefix = FEE_PRODUCT_TITLE_PREFIX.toLowerCase();
+  const feeProductHandlePrefix = feeProductTitlePrefix.replace(/[^a-z0-9]+/g, "-");
   return (
-    type === "production_fee" ||
-    tags.has("customhouse-production-fee") ||
-    title.startsWith("custom house production fee") ||
-    handle.startsWith("custom-house-production-fee")
+    type === FEE_PRODUCT_TYPE ||
+    tags.has(FEE_PRODUCT_TAG) ||
+    title.startsWith(feeProductTitlePrefix) ||
+    handle.startsWith(feeProductHandlePrefix)
   );
 }
 
