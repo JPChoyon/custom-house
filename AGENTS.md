@@ -9,6 +9,14 @@
 - Creator-profile metaobject sync is optional and must never block approval or publishing.
 - Do not bulk-change products or remove Helium/Flow without explicit merchant confirmation.
 
+## Branch workflow
+- Use only two permanent active branches: `main` and `development`.
+- `main` is approved/stable production code only. Do not commit normal work directly to `main`.
+- `development` is the branch for all ongoing fixes, integrations, testing, and live test deployments.
+- For normal work, start from `development`, incorporate latest `main` first, implement, validate, commit, push `development`, and stop after the test deployment for manual approval.
+- Merge `development` into `main` only after explicit user approval, then validate `main`, push, deploy production from `main`, and sync `development` back to `main`.
+- Treat `feature/*`, `fix/*`, `codex/*`, `backup/*`, `recovery/*`, `recovered/*`, `golden-*`, and `safety-*` branches as historical/reference only unless explicitly audited for a specific missing change.
+
 ## Architecture
 - `app/services`: domain, validation, Shopify GraphQL, creator, submission, publishing, setup, and rate-limit services.
 - `app/routes/app.*`: authenticated embedded-admin pages.
