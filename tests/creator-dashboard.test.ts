@@ -653,8 +653,11 @@ test("creator dashboard PitchPrint bridge uses Creator setup contract instead of
   assert.match(script, /creatorContext: true/);
   assert.match(script, /launchContext: "creator_dashboard"/);
   assert.match(script, /const \{ designId, projectId, mode \} = creatorPitchPrintLaunchConfig\(product\)/);
+  assert.match(script, /const clientOptions = \{/);
   assert.match(script, /designId,/);
   assert.match(script, /projectId,/);
+  assert.match(script, /\.\.\.\(projectId \? \{ projectId \} : \{\}\)/);
+  assert.doesNotMatch(script, /mode,\s*projectId,\s*userId/);
   assert.doesNotMatch(script, /creatorPitchPrintLaunchProjectId\(product\)/);
   assert.doesNotMatch(script, /creatorPitchPrintLaunchProjectIdSource/);
   assert.doesNotMatch(script, /const projectId = product\.pitchprintProjectId \|\| ""/);

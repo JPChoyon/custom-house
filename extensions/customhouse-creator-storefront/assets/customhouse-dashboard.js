@@ -1435,11 +1435,10 @@ function bindPitchPrintManager(root) {
       ]);
       if (token !== manager.token) return;
       const customHouseConfig = creatorPitchPrintConfig(root, product, identity);
-      const client = new Client({
+      const clientOptions = {
         apiKey,
         designId,
         mode,
-        projectId,
         userId: identity.userId,
         custom: true,
         isvx: true,
@@ -1471,6 +1470,10 @@ function bindPitchPrintManager(root) {
           source: "customhouse_creator_dashboard",
           ...customHouseConfig,
         },
+      };
+      const client = new Client({
+        ...clientOptions,
+        ...(projectId ? { projectId } : {}),
       });
       manager.client = client;
       bindCreatorSetupWindowEvents(product, token);
