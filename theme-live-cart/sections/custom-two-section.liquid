@@ -1,0 +1,882 @@
+{% comment %}
+  Drop this file into your Shopify theme's sections folder, then add
+  "Same to Same Promo Cards" from the theme editor.
+{% endcomment %}
+
+{%- liquid
+  assign section_id = 'same-promo-' | append: section.id
+  assign cards_count = section.blocks.size
+-%}
+
+<section
+  id="{{ section_id }}"
+  class="same-promo same-promo--{{ section.settings.mobile_layout }}"
+  style="
+    --same-heading-font: {{ section.settings.heading_font.family }}, {{ section.settings.heading_font.fallback_families }};
+    --same-body-font: {{ section.settings.body_font.family }}, {{ section.settings.body_font.fallback_families }};
+    --same-button-font: {{ section.settings.button_font.family }}, {{ section.settings.button_font.fallback_families }};
+    --same-page-width: {{ section.settings.page_width }}px;
+    --same-gap: {{ section.settings.gap }}px;
+    --same-padding-top: {{ section.settings.padding_top }}px;
+    --same-padding-bottom: {{ section.settings.padding_bottom }}px;
+    --same-padding-x: {{ section.settings.padding_x }}px;
+    --same-bg-color: {{ section.settings.background_color }};
+    --same-frame-color: {{ section.settings.frame_color }};
+    --same-frame-opacity: {{ section.settings.frame_opacity | divided_by: 100.0 }};
+    --same-card-radius: {{ section.settings.card_radius }}px;
+    --same-min-height: {{ section.settings.desktop_height }}px;
+    --same-mobile-height: {{ section.settings.mobile_card_height }}px;
+  "
+>
+  {%- if section.settings.background_image != blank -%}
+    <div
+      class="same-promo__texture"
+      style="background-image: url('{{ section.settings.background_image | image_url: width: 3200 }}');"
+    ></div>
+  {%- endif -%}
+
+  <div class="same-promo__outer">
+    <div class="same-promo__frame">
+      <div class="same-promo__grid same-promo__grid--{{ cards_count }}">
+        {%- for block in section.blocks -%}
+          {%- liquid
+            assign image_alt = block.settings.product_image.alt | default: block.settings.title_text | escape
+            assign bg_alt = block.settings.card_background.alt | default: block.settings.title_text | escape
+          -%}
+
+          <article
+            class="same-promo__card same-promo__card--{{ block.settings.image_side }}"
+            style="
+              --card-bg: {{ block.settings.card_color }};
+              --card-text: {{ block.settings.text_color }};
+              --card-accent: {{ block.settings.accent_color }};
+              --card-overlay: {{ block.settings.overlay_color }};
+              --card-overlay-opacity: {{ block.settings.overlay_opacity | divided_by: 100.0 }};
+              --button-bg: {{ block.settings.button_background }};
+              --button-text: {{ block.settings.button_text_color }};
+              --button-shadow: {{ block.settings.button_shadow_color }};
+              --image-width: {{ block.settings.image_width }}%;
+              --content-width: {{ block.settings.content_width }}%;
+              --image-x: {{ block.settings.image_offset_x }}px;
+              --image-y: {{ block.settings.image_offset_y }}px;
+              --mobile-image-width: {{ block.settings.mobile_image_width }}%;
+            "
+            {{ block.shopify_attributes }}
+          >
+            {%- if block.settings.card_background != blank -%}
+              {{
+                block.settings.card_background
+                | image_url: width: 1400
+                | image_tag:
+                  class: 'same-promo__card-bg',
+                  loading: 'lazy',
+                  widths: '400, 700, 1000, 1400',
+                  sizes: '(min-width: 990px) 50vw, 100vw',
+                  alt: bg_alt
+              }}
+            {%- endif -%}
+
+            <div class="same-promo__scrim"></div>
+
+            <div class="same-promo__content same-promo__content--{{ block.settings.content_align }}">
+              {%- if block.settings.accent_text != blank or block.settings.title_text != blank -%}
+                <h2 class="same-promo__title">
+                  {%- if block.settings.accent_text != blank -%}
+                    <span>{{ block.settings.accent_text }}</span>
+                  {%- endif -%}
+                  {{ block.settings.title_text }}
+                </h2>
+              {%- endif -%}
+
+              {%- if block.settings.body_text != blank -%}
+                <div class="same-promo__body">{{ block.settings.body_text }}</div>
+              {%- endif -%}
+
+              {%- if block.settings.button_label != blank -%}
+                <a
+                  class="same-promo__button same-promo__button--{{ block.settings.button_style }}"
+                  href="{{ block.settings.button_link | default: '#' }}"
+                  aria-label="{{ block.settings.button_label | escape }}"
+                >
+                  {{ block.settings.button_label }}
+                </a>
+              {%- endif -%}
+            </div>
+
+            {%- if block.settings.product_image != blank -%}
+              <div class="same-promo__media">
+                {{
+                  block.settings.product_image
+                  | image_url: width: 1000
+                  | image_tag:
+                    class: 'same-promo__product',
+                    loading: 'lazy',
+                    widths: '240, 360, 520, 700, 900, 1000',
+                    sizes: '(min-width: 990px) 30vw, 56vw',
+                    alt: image_alt
+                }}
+              </div>
+            {%- endif -%}
+          </article>
+        {%- endfor -%}
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  {{ section.settings.heading_font | font_face: font_display: 'swap' }}
+  {{ section.settings.body_font | font_face: font_display: 'swap' }}
+  {{ section.settings.button_font | font_face: font_display: 'swap' }}
+
+  #{{ section_id }} {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    background: var(--same-bg-color);
+    padding: var(--same-padding-top) var(--same-padding-x) var(--same-padding-bottom);
+  }
+
+  #{{ section_id }} .same-promo__outer {
+    position: relative;
+    z-index: 1;
+    max-width: var(--same-page-width);
+    margin: 0 auto;
+  }
+
+  #{{ section_id }} .same-promo__frame {
+    position: relative;
+    overflow: hidden;
+    padding: clamp(10px, 1.4vw, 18px);
+    background:
+      linear-gradient(rgba(255, 255, 255, var(--same-frame-opacity)), rgba(255, 255, 255, var(--same-frame-opacity))),
+      var(--same-frame-color);
+    isolation: isolate;
+  }
+
+  #{{ section_id }} .same-promo__texture {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background-position: center;
+    background-size: cover;
+    opacity: {{ section.settings.background_opacity | divided_by: 100.0 }};
+    pointer-events: none;
+  }
+
+  #{{ section_id }} .same-promo__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--same-gap);
+  }
+
+  #{{ section_id }} .same-promo__grid--1 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #{{ section_id }} .same-promo__card {
+    position: relative;
+    min-height: var(--same-min-height);
+    overflow: hidden;
+    border-radius: var(--same-card-radius);
+    background: var(--card-bg);
+    color: var(--card-text);
+    display: flex;
+    align-items: stretch;
+  }
+
+  #{{ section_id }} .same-promo__card-bg,
+  #{{ section_id }} .same-promo__scrim {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  #{{ section_id }} .same-promo__card-bg {
+    object-fit: cover;
+    z-index: 0;
+  }
+
+  #{{ section_id }} .same-promo__scrim {
+    z-index: 1;
+    background: var(--card-overlay);
+    opacity: var(--card-overlay-opacity);
+  }
+
+  #{{ section_id }} .same-promo__content {
+    position: relative;
+    z-index: 3;
+    width: var(--content-width);
+    padding: clamp(18px, 3.1vw, 44px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+  }
+
+  #{{ section_id }} .same-promo__content--center {
+    align-items: center;
+    text-align: center;
+  }
+
+  #{{ section_id }} .same-promo__content--right {
+    align-items: flex-end;
+    text-align: right;
+    margin-left: auto;
+  }
+
+  #{{ section_id }} .same-promo__title {
+    margin: 0;
+    color: var(--card-text);
+    font-family: var(--same-heading-font);
+    font-size: clamp({{ section.settings.mobile_title_size }}px, 3.15vw, {{ section.settings.desktop_title_size }}px);
+    line-height: .94;
+    letter-spacing: 0;
+    font-weight: 900;
+    text-transform: uppercase;
+    max-width: 16ch;
+  }
+
+  #{{ section_id }} .same-promo__title span {
+    color: var(--card-accent);
+  }
+
+  #{{ section_id }} .same-promo__body {
+    margin-top: clamp(12px, 1.5vw, 22px);
+    max-width: 24ch;
+    color: var(--card-text);
+    font-family: var(--same-body-font);
+    font-size: clamp({{ section.settings.mobile_body_size }}px, 1.35vw, {{ section.settings.desktop_body_size }}px);
+    line-height: 1.32;
+    font-weight: 800;
+  }
+
+  #{{ section_id }} .same-promo__body p {
+    margin: 0;
+  }
+
+  #{{ section_id }} .same-promo__button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: clamp(118px, 13vw, 190px);
+    min-height: clamp(42px, 4.4vw, 62px);
+    margin-top: clamp(18px, 2.5vw, 34px);
+    padding: 12px 24px;
+    border-radius: {{ section.settings.button_radius }}px;
+    background: var(--button-bg);
+    color: var(--button-text);
+    box-shadow: 0 7px 0 var(--button-shadow);
+    font-family: var(--same-button-font);
+    font-size: clamp({{ section.settings.mobile_button_size }}px, 1.4vw, {{ section.settings.desktop_button_size }}px);
+    line-height: 1;
+    font-weight: 950;
+    text-align: center;
+    text-decoration: none;
+    text-transform: uppercase;
+    transition: transform 160ms ease, box-shadow 160ms ease;
+  }
+
+  #{{ section_id }} .same-promo__button:hover {
+    transform: translateY(2px);
+    box-shadow: 0 5px 0 var(--button-shadow);
+  }
+
+  #{{ section_id }} .same-promo__button--paper {
+    transform: rotate(-1deg);
+  }
+
+  #{{ section_id }} .same-promo__button--paper:hover {
+    transform: rotate(-1deg) translateY(2px);
+  }
+
+  #{{ section_id }} .same-promo__media {
+    position: absolute;
+    z-index: 2;
+    top: 50%;
+    width: var(--image-width);
+    transform: translate(var(--image-x), calc(-50% + var(--image-y)));
+    pointer-events: none;
+  }
+
+  #{{ section_id }} .same-promo__card--right .same-promo__media {
+    right: 0;
+  }
+
+  #{{ section_id }} .same-promo__card--left .same-promo__media {
+    left: 0;
+  }
+
+  #{{ section_id }} .same-promo__product {
+    display: block;
+    width: 100%;
+    height: auto;
+    filter: drop-shadow(0 16px 22px rgba(0, 0, 0, .34));
+  }
+
+  @media screen and (max-width: 989px) {
+    #{{ section_id }} .same-promo__grid {
+      grid-template-columns: 1fr;
+    }
+
+    #{{ section_id }} .same-promo__card {
+      min-height: var(--same-mobile-height);
+    }
+
+    #{{ section_id }} .same-promo__media {
+      width: var(--mobile-image-width);
+    }
+  }
+
+  @media screen and (max-width: 640px) {
+    #{{ section_id }} {
+      padding-left: max(12px, calc(var(--same-padding-x) * .55));
+      padding-right: max(12px, calc(var(--same-padding-x) * .55));
+    }
+
+    #{{ section_id }}.same-promo--stack .same-promo__card {
+      min-height: max(280px, var(--same-mobile-height));
+    }
+
+    #{{ section_id }}.same-promo--stack .same-promo__content {
+      width: 66%;
+      padding: 20px;
+    }
+
+    #{{ section_id }}.same-promo--stack .same-promo__media {
+      width: min(var(--mobile-image-width), 58%);
+    }
+
+    #{{ section_id }}.same-promo--split .same-promo__card {
+      min-height: auto;
+      display: grid;
+      grid-template-columns: 1fr;
+      padding-bottom: 0;
+    }
+
+    #{{ section_id }}.same-promo--split .same-promo__content {
+      width: 100%;
+      padding: 22px 20px 8px;
+      align-items: flex-start;
+      text-align: left;
+    }
+
+    #{{ section_id }}.same-promo--split .same-promo__media {
+      position: relative;
+      top: auto;
+      right: auto;
+      left: auto;
+      width: min(74%, var(--mobile-image-width));
+      margin: -8px 0 0 auto;
+      transform: translate(var(--image-x), var(--image-y));
+    }
+
+    #{{ section_id }} .same-promo__title {
+      max-width: 13ch;
+    }
+
+    #{{ section_id }} .same-promo__button {
+      min-width: 112px;
+      min-height: 40px;
+      padding: 10px 18px;
+    }
+  }
+</style>
+
+{% schema %}
+{
+  "name": "Same to Same Promo Cards",
+  "tag": "section",
+  "class": "section-same-to-same-promo",
+  "max_blocks": 4,
+  "settings": [
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "range",
+      "id": "page_width",
+      "label": "Section max width",
+      "min": 900,
+      "max": 1800,
+      "step": 20,
+      "unit": "px",
+      "default": 1440
+    },
+    {
+      "type": "range",
+      "id": "desktop_height",
+      "label": "Desktop card height",
+      "min": 180,
+      "max": 520,
+      "step": 10,
+      "unit": "px",
+      "default": 300
+    },
+    {
+      "type": "range",
+      "id": "mobile_card_height",
+      "label": "Mobile card height",
+      "min": 220,
+      "max": 520,
+      "step": 10,
+      "unit": "px",
+      "default": 320
+    },
+    {
+      "type": "select",
+      "id": "mobile_layout",
+      "label": "Mobile layout",
+      "options": [
+        {
+          "value": "stack",
+          "label": "Image overlaps text"
+        },
+        {
+          "value": "split",
+          "label": "Text above image"
+        }
+      ],
+      "default": "stack"
+    },
+    {
+      "type": "range",
+      "id": "gap",
+      "label": "Gap between cards",
+      "min": 0,
+      "max": 36,
+      "step": 2,
+      "unit": "px",
+      "default": 18
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "label": "Top padding",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "label": "Bottom padding",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "padding_x",
+      "label": "Side padding",
+      "min": 0,
+      "max": 80,
+      "step": 4,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "header",
+      "content": "Frame and background"
+    },
+    {
+      "type": "image_picker",
+      "id": "background_image",
+      "label": "Outer grunge/background image"
+    },
+    {
+      "type": "range",
+      "id": "background_opacity",
+      "label": "Background image opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 100
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Page background",
+      "default": "#11131d"
+    },
+    {
+      "type": "color",
+      "id": "frame_color",
+      "label": "Outer frame color",
+      "default": "#10131d"
+    },
+    {
+      "type": "range",
+      "id": "frame_opacity",
+      "label": "Frame light overlay",
+      "min": 0,
+      "max": 80,
+      "step": 5,
+      "unit": "%",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "card_radius",
+      "label": "Card corner radius",
+      "min": 0,
+      "max": 30,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "header",
+      "content": "Typography"
+    },
+    {
+      "type": "font_picker",
+      "id": "heading_font",
+      "label": "Heading font",
+      "default": "helvetica_n7"
+    },
+    {
+      "type": "font_picker",
+      "id": "body_font",
+      "label": "Body font",
+      "default": "helvetica_n7"
+    },
+    {
+      "type": "font_picker",
+      "id": "button_font",
+      "label": "Button font",
+      "default": "helvetica_n7"
+    },
+    {
+      "type": "range",
+      "id": "desktop_title_size",
+      "label": "Desktop title size",
+      "min": 26,
+      "max": 86,
+      "step": 1,
+      "unit": "px",
+      "default": 44
+    },
+    {
+      "type": "range",
+      "id": "mobile_title_size",
+      "label": "Mobile title size",
+      "min": 22,
+      "max": 58,
+      "step": 1,
+      "unit": "px",
+      "default": 34
+    },
+    {
+      "type": "range",
+      "id": "desktop_body_size",
+      "label": "Desktop body size",
+      "min": 12,
+      "max": 34,
+      "step": 1,
+      "unit": "px",
+      "default": 22
+    },
+    {
+      "type": "range",
+      "id": "mobile_body_size",
+      "label": "Mobile body size",
+      "min": 12,
+      "max": 26,
+      "step": 1,
+      "unit": "px",
+      "default": 17
+    },
+    {
+      "type": "range",
+      "id": "desktop_button_size",
+      "label": "Desktop button text size",
+      "min": 12,
+      "max": 30,
+      "step": 1,
+      "unit": "px",
+      "default": 21
+    },
+    {
+      "type": "range",
+      "id": "mobile_button_size",
+      "label": "Mobile button text size",
+      "min": 11,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "button_radius",
+      "label": "Button corner radius",
+      "min": 0,
+      "max": 30,
+      "step": 1,
+      "unit": "px",
+      "default": 4
+    }
+  ],
+  "blocks": [
+    {
+      "type": "promo_card",
+      "name": "Promo card",
+      "settings": [
+        {
+          "type": "header",
+          "content": "Text"
+        },
+        {
+          "type": "text",
+          "id": "accent_text",
+          "label": "Accent title text",
+          "default": "SKAPA"
+        },
+        {
+          "type": "text",
+          "id": "title_text",
+          "label": "Main title text",
+          "default": " DITT STIL"
+        },
+        {
+          "type": "richtext",
+          "id": "body_text",
+          "label": "Body text",
+          "default": "<p>Gor dina egna tees och hoodies med dina egan designs.</p>"
+        },
+        {
+          "type": "text",
+          "id": "button_label",
+          "label": "Button label",
+          "default": "DESIGNA NU"
+        },
+        {
+          "type": "url",
+          "id": "button_link",
+          "label": "Button link"
+        },
+        {
+          "type": "select",
+          "id": "content_align",
+          "label": "Text alignment",
+          "options": [
+            {
+              "value": "left",
+              "label": "Left"
+            },
+            {
+              "value": "center",
+              "label": "Center"
+            },
+            {
+              "value": "right",
+              "label": "Right"
+            }
+          ],
+          "default": "left"
+        },
+        {
+          "type": "range",
+          "id": "content_width",
+          "label": "Text area width",
+          "min": 30,
+          "max": 80,
+          "step": 1,
+          "unit": "%",
+          "default": 54
+        },
+        {
+          "type": "header",
+          "content": "Images"
+        },
+        {
+          "type": "image_picker",
+          "id": "card_background",
+          "label": "Card background image"
+        },
+        {
+          "type": "image_picker",
+          "id": "product_image",
+          "label": "Product image"
+        },
+        {
+          "type": "select",
+          "id": "image_side",
+          "label": "Product image side",
+          "options": [
+            {
+              "value": "right",
+              "label": "Right"
+            },
+            {
+              "value": "left",
+              "label": "Left"
+            }
+          ],
+          "default": "right"
+        },
+        {
+          "type": "range",
+          "id": "image_width",
+          "label": "Desktop product image width",
+          "min": 20,
+          "max": 75,
+          "step": 1,
+          "unit": "%",
+          "default": 48
+        },
+        {
+          "type": "range",
+          "id": "mobile_image_width",
+          "label": "Mobile product image width",
+          "min": 34,
+          "max": 90,
+          "step": 1,
+          "unit": "%",
+          "default": 56
+        },
+        {
+          "type": "range",
+          "id": "image_offset_x",
+          "label": "Product image horizontal offset",
+          "min": -120,
+          "max": 120,
+          "step": 4,
+          "unit": "px",
+          "default": 0
+        },
+        {
+          "type": "range",
+          "id": "image_offset_y",
+          "label": "Product image vertical offset",
+          "min": -100,
+          "max": 100,
+          "step": 4,
+          "unit": "px",
+          "default": 0
+        },
+        {
+          "type": "header",
+          "content": "Colors"
+        },
+        {
+          "type": "color",
+          "id": "card_color",
+          "label": "Card fallback color",
+          "default": "#222436"
+        },
+        {
+          "type": "color",
+          "id": "text_color",
+          "label": "Text color",
+          "default": "#ffffff"
+        },
+        {
+          "type": "color",
+          "id": "accent_color",
+          "label": "Accent text color",
+          "default": "#c8e600"
+        },
+        {
+          "type": "color",
+          "id": "overlay_color",
+          "label": "Card overlay color",
+          "default": "#11131d"
+        },
+        {
+          "type": "range",
+          "id": "overlay_opacity",
+          "label": "Card overlay opacity",
+          "min": 0,
+          "max": 90,
+          "step": 5,
+          "unit": "%",
+          "default": 15
+        },
+        {
+          "type": "color",
+          "id": "button_background",
+          "label": "Button background",
+          "default": "#8c4dea"
+        },
+        {
+          "type": "color",
+          "id": "button_text_color",
+          "label": "Button text",
+          "default": "#ffffff"
+        },
+        {
+          "type": "color",
+          "id": "button_shadow_color",
+          "label": "Button bottom shadow",
+          "default": "#5f2ea8"
+        },
+        {
+          "type": "select",
+          "id": "button_style",
+          "label": "Button style",
+          "options": [
+            {
+              "value": "straight",
+              "label": "Straight"
+            },
+            {
+              "value": "paper",
+              "label": "Slight paper tilt"
+            }
+          ],
+          "default": "straight"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Same to Same Promo Cards",
+      "blocks": [
+        {
+          "type": "promo_card",
+          "settings": {
+            "accent_text": "SKAPA",
+            "title_text": " DITT STIL",
+            "body_text": "<p>Gor dina egna tees och hoodies med dina egan designs.</p>",
+            "button_label": "DESIGNA NU",
+            "button_background": "#8c4dea",
+            "button_text_color": "#ffffff",
+            "button_shadow_color": "#5f2ea8",
+            "accent_color": "#c8e600",
+            "card_color": "#242638",
+            "image_side": "right",
+            "image_width": 48
+          }
+        },
+        {
+          "type": "promo_card",
+          "settings": {
+            "accent_text": "",
+            "title_text": "TRENDIGA PLAGG",
+            "body_text": "<p>Snygga och bekvoma streetwear.</p>",
+            "button_label": "KOLLA IN",
+            "button_background": "#ffffff",
+            "button_text_color": "#1d1930",
+            "button_shadow_color": "#d8d1e3",
+            "accent_color": "#ffffff",
+            "card_color": "#3c1f6e",
+            "image_side": "right",
+            "image_width": 50,
+            "button_style": "paper"
+          }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

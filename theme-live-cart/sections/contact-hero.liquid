@@ -1,0 +1,862 @@
+{% liquid
+  assign section_id = 'contact-hero-' | append: section.id
+  assign container_width = section.settings.container_width | default: 1440
+  assign section_padding = section.settings.section_padding | default: 56
+  assign hero_height = section.settings.hero_height | default: 300
+  assign chip_border_color = section.settings.chip_border_color | default: '#6D42B8'
+%}
+
+<style>
+  {{ section.settings.body_font | font_face: font_display: 'swap' }}
+
+  #{{ section_id }} {
+    --ch-bg: {{ section.settings.background_color }};
+    --ch-accent: {{ section.settings.accent_color }};
+    --ch-text: {{ section.settings.text_color }};
+    --ch-chip-bg: {{ section.settings.chip_background_color }};
+    --ch-chip-border-base: {{ chip_border_color }};
+    --ch-graffiti-color: {{ section.settings.graffiti_color }};
+    --ch-muted: color-mix(in srgb, var(--ch-text) 70%, transparent);
+    --ch-border: color-mix(in srgb, var(--ch-accent) {{ section.settings.chip_accent_mix }}%, var(--ch-chip-border-base));
+    --ch-container: {{ container_width }}px;
+    --ch-padding-y: {{ section_padding }}px;
+    --ch-height: {{ hero_height }}px;
+    --ch-body-font: var(--font-body-family, {{ section.settings.body_font.family }}, {{ section.settings.body_font.fallback_families }});
+    --ch-heading-size: {{ section.settings.heading_size }}px;
+    --ch-heading-mobile-size: {{ section.settings.heading_mobile_size }}px;
+    --ch-description-size: {{ section.settings.description_size }}px;
+    --ch-chip-size: {{ section.settings.chip_text_size }}px;
+    --ch-chip-radius: {{ section.settings.chip_radius }}px;
+    --ch-chip-height: {{ section.settings.chip_height }}px;
+    --ch-text-shadow-opacity: {{ section.settings.text_shadow_opacity | divided_by: 100.0 }};
+    --ch-texture-opacity: {{ section.settings.texture_opacity | divided_by: 100.0 }};
+    --ch-graffiti-opacity: {{ section.settings.graffiti_opacity | divided_by: 100.0 }};
+    --ch-line-art-opacity: {{ section.settings.line_art_opacity | divided_by: 100.0 }};
+    --ch-vignette-opacity: {{ section.settings.vignette_opacity | divided_by: 100.0 }};
+    --ch-heading-slant: -{{ section.settings.heading_slant }}deg;
+  }
+
+  #{{ section_id }}.contact-hero {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    min-height: var(--ch-height);
+    display: flex;
+    align-items: center;
+    color: var(--ch-text);
+    font-family: var(--ch-body-font);
+    background-color: var(--ch-bg);
+    padding-block: var(--ch-padding-y);
+  }
+
+  #{{ section_id }}.contact-hero::before {
+    /* Concrete texture layer; kept embedded so the section has no asset dependency. */
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -3;
+    opacity: var(--ch-texture-opacity);
+    {% if section.settings.background_texture_image != blank %}
+      background-image: url("{{ section.settings.background_texture_image | image_url: width: 2880 }}");
+      background-position: center;
+      background-size: cover;
+    {% else %}
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='table' tableValues='.03 .12'/%3E%3CfeFuncG type='table' tableValues='.03 .12'/%3E%3CfeFuncB type='table' tableValues='.035 .13'/%3E%3CfeFuncA type='table' tableValues='.18 .58'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 220px 220px;
+    {% endif %}
+  }
+
+  #{{ section_id }}.contact-hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    opacity: var(--ch-vignette-opacity);
+    box-shadow: inset 0 0 110px rgba(0, 0, 0, 0.72);
+    pointer-events: none;
+  }
+
+  #{{ section_id }} .contact-hero__container {
+    position: relative;
+    width: min(100% - 48px, var(--ch-container));
+    margin-inline: auto;
+  }
+
+  #{{ section_id }} .contact-hero__content {
+    position: relative;
+    z-index: 1;
+    max-width: 1050px;
+    margin-inline: auto;
+    text-align: center;
+    animation: contactHeroFadeUp-{{ section.id }} 650ms ease-out both;
+  }
+
+  #{{ section_id }} .contact-hero__eyebrow {
+    display: block;
+    color: var(--ch-accent);
+    font-size: clamp(12px, 0.85vw, 15px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: {{ section.settings.eyebrow_letter_spacing | divided_by: 100.0 }}em;
+    text-transform: uppercase;
+  }
+
+  #{{ section_id }} .contact-hero__mark {
+    display: block;
+    width: 128px;
+    height: 7px;
+    margin: 14px auto 28px;
+    border-radius: 999px;
+    background-color: var(--ch-accent);
+    clip-path: polygon(0 43%, 14% 31%, 30% 44%, 45% 18%, 62% 38%, 82% 26%, 100% 45%, 82% 59%, 65% 52%, 44% 76%, 25% 55%, 10% 68%);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--ch-accent) 58%, transparent);
+  }
+
+  #{{ section_id }} .contact-hero__heading {
+    max-width: 1040px;
+    margin: 0 auto;
+    color: var(--ch-text);
+    font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+    font-size: clamp(var(--ch-heading-mobile-size), 5.15vw, var(--ch-heading-size));
+    font-weight: {{ section.settings.heading_weight }};
+    font-style: {{ section.settings.heading_font_style }};
+    font-stretch: condensed;
+    line-height: 0.96;
+    letter-spacing: 0;
+    text-transform: {{ section.settings.heading_text_transform }};
+    text-wrap: balance;
+    text-shadow: 0 6px 24px rgba(0, 0, 0, var(--ch-text-shadow-opacity));
+    transform: skewX(var(--ch-heading-slant));
+  }
+
+  #{{ section_id }} .contact-hero__description {
+    max-width: 780px;
+    margin: 22px auto 0;
+    color: var(--ch-muted);
+    font-size: clamp(15px, 1.25vw, var(--ch-description-size));
+    font-weight: 400;
+    line-height: 1.5;
+    text-wrap: balance;
+  }
+
+  #{{ section_id }} .contact-hero__chips {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: {{ section.settings.chip_gap }}px;
+    width: min(100%, 880px);
+    margin: 34px auto 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  #{{ section_id }} .contact-hero__chip {
+    min-height: var(--ch-chip-height);
+  }
+
+  #{{ section_id }} .contact-hero__chip-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    width: 100%;
+    height: 100%;
+    min-height: var(--ch-chip-height);
+    padding: 15px 22px;
+    color: var(--ch-text);
+    font-size: clamp(14px, 1.1vw, var(--ch-chip-size));
+    font-weight: {{ section.settings.chip_weight }};
+    line-height: 1.2;
+    text-decoration: none;
+    border: 1px solid var(--ch-border);
+    border-radius: var(--ch-chip-radius);
+    background-color: color-mix(in srgb, var(--ch-chip-bg) {{ section.settings.chip_background_opacity }}%, transparent);
+    box-shadow:
+      0 18px 42px rgba(0, 0, 0, 0.34),
+      0 0 0 1px rgba(255, 255, 255, 0.025) inset,
+      0 0 28px color-mix(in srgb, var(--ch-border) 28%, transparent);
+    transition:
+      transform 250ms ease,
+      border-color 250ms ease,
+      box-shadow 250ms ease,
+      background-color 250ms ease;
+  }
+
+  #{{ section_id }} .contact-hero__chip-item:hover,
+  #{{ section_id }} .contact-hero__chip-item:focus-visible {
+    transform: translateY(-4px);
+    border-color: var(--ch-accent);
+    background-color: color-mix(in srgb, var(--ch-bg) 82%, var(--ch-accent) 18%);
+    box-shadow:
+      0 24px 52px rgba(0, 0, 0, 0.42),
+      0 0 0 1px color-mix(in srgb, var(--ch-accent) 38%, transparent) inset,
+      0 0 34px color-mix(in srgb, var(--ch-accent) 32%, transparent);
+  }
+
+  #{{ section_id }} .contact-hero__chip-item:focus-visible {
+    outline: 2px solid var(--ch-accent);
+    outline-offset: 4px;
+  }
+
+  #{{ section_id }} .contact-hero__icon {
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    color: var(--ch-accent);
+    stroke-width: 1.8;
+    filter: drop-shadow(0 0 10px color-mix(in srgb, var(--ch-accent) 46%, transparent));
+  }
+
+  #{{ section_id }} .contact-hero__chip-text {
+    overflow-wrap: anywhere;
+  }
+
+  #{{ section_id }} .contact-hero__ghost {
+    /* Faint line art from the reference UI, intentionally non-interactive. */
+    position: absolute;
+    z-index: -1;
+    pointer-events: none;
+    color: color-mix(in srgb, var(--ch-text) 28%, transparent);
+    border-color: color-mix(in srgb, var(--ch-text) 28%, transparent);
+    opacity: var(--ch-line-art-opacity);
+  }
+
+  #{{ section_id }} .contact-hero__ghost--mail {
+    top: 8px;
+    left: max(8px, calc((100% - 1070px) / 2));
+    width: min(34vw, 330px);
+    aspect-ratio: 1.45;
+    border: 3px solid;
+    border-radius: 8px;
+    transform: rotate(-10deg);
+  }
+
+  #{{ section_id }} .contact-hero__ghost--mail::before,
+  #{{ section_id }} .contact-hero__ghost--mail::after {
+    content: "";
+    position: absolute;
+    top: 8%;
+    width: 54%;
+    height: 3px;
+    background-color: currentColor;
+    color: inherit;
+    transform-origin: center;
+  }
+
+  #{{ section_id }} .contact-hero__ghost--mail::before {
+    left: -2%;
+    transform: rotate(31deg);
+  }
+
+  #{{ section_id }} .contact-hero__ghost--mail::after {
+    right: -2%;
+    transform: rotate(-31deg);
+  }
+
+  #{{ section_id }} .contact-hero__ghost--chat {
+    top: 6px;
+    right: max(8px, calc((100% - 1090px) / 2));
+    width: min(33vw, 340px);
+    aspect-ratio: 1.32;
+    border: 3px solid;
+    border-radius: 44% 44% 42% 42% / 38% 38% 46% 46%;
+  }
+
+  #{{ section_id }} .contact-hero__ghost--chat::before,
+  #{{ section_id }} .contact-hero__ghost--chat::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+    border: 3px solid;
+  }
+
+  #{{ section_id }} .contact-hero__ghost--chat::before {
+    width: 19%;
+    aspect-ratio: 1;
+    left: 26%;
+    top: 38%;
+  }
+
+  #{{ section_id }} .contact-hero__ghost--chat::after {
+    width: 19%;
+    aspect-ratio: 1;
+    right: 26%;
+    top: 38%;
+    box-shadow: -64px 0 0 -3px color-mix(in srgb, var(--ch-text) 28%, transparent);
+  }
+
+  #{{ section_id }} .contact-hero__graffiti {
+    /* Corner-only graffiti treatment matching the existing dark streetwear direction. */
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  #{{ section_id }} .contact-hero__graffiti::before,
+  #{{ section_id }} .contact-hero__graffiti::after {
+    content: "";
+    position: absolute;
+    width: clamp(180px, 18vw, {{ section.settings.graffiti_size }}px);
+    aspect-ratio: 1.9;
+    background-color: var(--ch-graffiti-color);
+    opacity: var(--ch-graffiti-opacity);
+    filter: drop-shadow(0 16px 0 color-mix(in srgb, var(--ch-graffiti-color) 24%, transparent));
+    mask-image: url("data:image/svg+xml,%3Csvg width='420' height='220' viewBox='0 0 420 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='black' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M13 112C48 54 71 165 105 76c24-64 37 96 69 11 24-65 39 102 76 8 27-68 45 88 88 14 22-39 42-49 70-22' stroke-width='18'/%3E%3Cpath d='M24 77c31 21 62 32 102 9 50-28 88-17 126 7 54 35 92 27 142-7' stroke-width='10'/%3E%3Cpath d='M40 136c43-18 69-18 103 0 38 21 84 22 129-2 40-22 74-20 112 7' stroke-width='13'/%3E%3Cpath d='M68 40l-23 133M129 54l-18 132M206 38l-26 149M284 48l-20 126M355 58l-31 128' stroke-width='7'/%3E%3Cpath d='M58 160v44M113 151v36M177 165v28M258 152v47M321 158v32M374 149v58' stroke-width='8'/%3E%3C/g%3E%3C/svg%3E");
+    mask-position: center;
+    mask-repeat: no-repeat;
+    mask-size: contain;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg width='420' height='220' viewBox='0 0 420 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='black' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M13 112C48 54 71 165 105 76c24-64 37 96 69 11 24-65 39 102 76 8 27-68 45 88 88 14 22-39 42-49 70-22' stroke-width='18'/%3E%3Cpath d='M24 77c31 21 62 32 102 9 50-28 88-17 126 7 54 35 92 27 142-7' stroke-width='10'/%3E%3Cpath d='M40 136c43-18 69-18 103 0 38 21 84 22 129-2 40-22 74-20 112 7' stroke-width='13'/%3E%3Cpath d='M68 40l-23 133M129 54l-18 132M206 38l-26 149M284 48l-20 126M355 58l-31 128' stroke-width='7'/%3E%3Cpath d='M58 160v44M113 151v36M177 165v28M258 152v47M321 158v32M374 149v58' stroke-width='8'/%3E%3C/g%3E%3C/svg%3E");
+    -webkit-mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+  }
+
+  #{{ section_id }} .contact-hero__graffiti::before {
+    top: 0;
+    left: -10px;
+    transform: rotate(-8deg);
+  }
+
+  #{{ section_id }} .contact-hero__graffiti::after {
+    right: -20px;
+    bottom: 12px;
+    transform: rotate(-8deg);
+  }
+
+  @media screen and (max-width: 989px) {
+    #{{ section_id }}.contact-hero {
+      min-height: max(var(--ch-height), 360px);
+    }
+
+    #{{ section_id }} .contact-hero__chips {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      width: min(100%, 720px);
+    }
+
+    #{{ section_id }} .contact-hero__chip:nth-child(3) {
+      grid-column: 1 / -1;
+      justify-self: center;
+      width: calc((100% - {{ section.settings.chip_gap }}px) / 2);
+    }
+
+    #{{ section_id }} .contact-hero__ghost--mail,
+    #{{ section_id }} .contact-hero__ghost--chat {
+      opacity: calc(var(--ch-line-art-opacity) * 0.75);
+    }
+  }
+
+  @media screen and (max-width: 749px) {
+    #{{ section_id }}.contact-hero {
+      min-height: max(var(--ch-height), 420px);
+      padding-block: max(48px, calc(var(--ch-padding-y) * 0.78));
+    }
+
+    #{{ section_id }} .contact-hero__container {
+      width: min(100% - 32px, var(--ch-container));
+    }
+
+    #{{ section_id }} .contact-hero__mark {
+      margin-block: 14px 28px;
+    }
+
+    #{{ section_id }} .contact-hero__description {
+      margin-top: 22px;
+    }
+
+    #{{ section_id }} .contact-hero__chips {
+      grid-template-columns: 1fr;
+      gap: 14px;
+      margin-top: 32px;
+    }
+
+    #{{ section_id }} .contact-hero__chip:nth-child(3) {
+      grid-column: auto;
+      width: 100%;
+    }
+
+    #{{ section_id }} .contact-hero__chip-item {
+      justify-content: center;
+      min-height: 64px;
+      padding-inline: 22px;
+      border-radius: 16px;
+    }
+
+    #{{ section_id }} .contact-hero__ghost {
+      display: none;
+    }
+
+    #{{ section_id }} .contact-hero__graffiti::before {
+      top: 4px;
+      left: -42px;
+    }
+
+    #{{ section_id }} .contact-hero__graffiti::after {
+      right: -48px;
+      bottom: 12px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #{{ section_id }} .contact-hero__content {
+      animation: none;
+    }
+
+    #{{ section_id }} .contact-hero__chip-item {
+      transition: none;
+    }
+
+    #{{ section_id }} .contact-hero__chip-item:hover,
+    #{{ section_id }} .contact-hero__chip-item:focus-visible {
+      transform: none;
+    }
+  }
+
+  @keyframes contactHeroFadeUp-{{ section.id }} {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+</style>
+
+<section
+  id="{{ section_id }}"
+  class="contact-hero"
+  {% if section.settings.heading != blank %}
+    aria-labelledby="{{ section_id }}-heading"
+  {% elsif section.settings.eyebrow != blank %}
+    aria-label="{{ section.settings.eyebrow | escape }}"
+  {% endif %}
+>
+  <div class="contact-hero__graffiti" aria-hidden="true"></div>
+
+  <div class="contact-hero__container">
+    <span class="contact-hero__ghost contact-hero__ghost--mail" aria-hidden="true"></span>
+    <span class="contact-hero__ghost contact-hero__ghost--chat" aria-hidden="true"></span>
+
+    <div class="contact-hero__content">
+      {% if section.settings.eyebrow != blank %}
+        <span class="contact-hero__eyebrow">{{ section.settings.eyebrow | escape }}</span>
+        <span class="contact-hero__mark" aria-hidden="true"></span>
+      {% endif %}
+
+      {% if section.settings.heading != blank %}
+        <h1 id="{{ section_id }}-heading" class="contact-hero__heading">
+          {{ section.settings.heading | escape }}
+        </h1>
+      {% endif %}
+
+      {% if section.settings.description != blank %}
+        <div class="contact-hero__description">
+          {{ section.settings.description | escape }}
+        </div>
+      {% endif %}
+
+      <ul class="contact-hero__chips" aria-label="{{ 'Contact options' | escape }}">
+        <li class="contact-hero__chip">
+          <a class="contact-hero__chip-item" href="mailto:{{ section.settings.email_text | escape }}">
+            <svg class="contact-hero__icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <rect width="20" height="16" x="2" y="4" rx="2"></rect>
+              <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+            </svg>
+            <span class="contact-hero__chip-text">{{ section.settings.email_text | escape }}</span>
+          </a>
+        </li>
+
+        <li class="contact-hero__chip">
+          <div class="contact-hero__chip-item">
+            <svg class="contact-hero__icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"></path>
+            </svg>
+            <span class="contact-hero__chip-text">{{ section.settings.response_text | escape }}</span>
+          </div>
+        </li>
+
+        <li class="contact-hero__chip">
+          <div class="contact-hero__chip-item">
+            <svg class="contact-hero__icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
+              <path d="M2 12h20"></path>
+            </svg>
+            <span class="contact-hero__chip-text">{{ section.settings.worldwide_text | escape }}</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "Contact hero",
+  "tag": "section",
+  "class": "section-contact-hero",
+  "settings": [
+    {
+      "type": "text",
+      "id": "eyebrow",
+      "label": "Eyebrow",
+      "default": "CONTACT US"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Let's Build Something Together"
+    },
+    {
+      "type": "textarea",
+      "id": "description",
+      "label": "Description",
+      "default": "Have a question about CustomHouse, creator partnerships, custom merchandise, or your order? We'd love to hear from you."
+    },
+    {
+      "type": "text",
+      "id": "email_text",
+      "label": "Email text",
+      "default": "support@customhouse.com"
+    },
+    {
+      "type": "text",
+      "id": "response_text",
+      "label": "Response text",
+      "default": "Response within 24 Hours"
+    },
+    {
+      "type": "text",
+      "id": "worldwide_text",
+      "label": "Worldwide text",
+      "default": "Worldwide Support"
+    },
+    {
+      "type": "header",
+      "content": "Typography"
+    },
+    {
+      "type": "font_picker",
+      "id": "body_font",
+      "label": "Body font",
+      "default": "assistant_n4"
+    },
+    {
+      "type": "range",
+      "id": "heading_size",
+      "label": "Desktop heading size",
+      "min": 40,
+      "max": 82,
+      "step": 2,
+      "unit": "px",
+      "default": 58
+    },
+    {
+      "type": "range",
+      "id": "heading_mobile_size",
+      "label": "Mobile heading size",
+      "min": 26,
+      "max": 46,
+      "step": 1,
+      "unit": "px",
+      "default": 34
+    },
+    {
+      "type": "range",
+      "id": "heading_weight",
+      "label": "Heading weight",
+      "min": 600,
+      "max": 900,
+      "step": 100,
+      "default": 900
+    },
+    {
+      "type": "select",
+      "id": "heading_font_style",
+      "label": "Heading font style",
+      "default": "italic",
+      "options": [
+        {
+          "value": "normal",
+          "label": "Normal"
+        },
+        {
+          "value": "italic",
+          "label": "Italic"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "heading_text_transform",
+      "label": "Heading text transform",
+      "default": "none",
+      "options": [
+        {
+          "value": "none",
+          "label": "Original"
+        },
+        {
+          "value": "uppercase",
+          "label": "Uppercase"
+        }
+      ]
+    },
+    {
+      "type": "range",
+      "id": "heading_slant",
+      "label": "Heading slant",
+      "min": 0,
+      "max": 12,
+      "step": 1,
+      "unit": "deg",
+      "default": 6
+    },
+    {
+      "type": "range",
+      "id": "description_size",
+      "label": "Description size",
+      "min": 15,
+      "max": 26,
+      "step": 1,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "eyebrow_letter_spacing",
+      "label": "Eyebrow letter spacing",
+      "min": 10,
+      "max": 40,
+      "step": 1,
+      "unit": "%",
+      "default": 26
+    },
+    {
+      "type": "range",
+      "id": "text_shadow_opacity",
+      "label": "Heading shadow opacity",
+      "min": 0,
+      "max": 90,
+      "step": 5,
+      "unit": "%",
+      "default": 60
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "range",
+      "id": "container_width",
+      "label": "Container width",
+      "min": 960,
+      "max": 1600,
+      "step": 20,
+      "unit": "px",
+      "default": 1440
+    },
+    {
+      "type": "range",
+      "id": "hero_height",
+      "label": "Hero minimum height",
+      "min": 260,
+      "max": 560,
+      "step": 10,
+      "unit": "px",
+      "default": 300
+    },
+    {
+      "type": "range",
+      "id": "section_padding",
+      "label": "Section padding",
+      "min": 28,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "default": 44
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background color",
+      "default": "#0F0F11"
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Accent color",
+      "default": "#D7FF2F"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text color",
+      "default": "#FFFFFF"
+    },
+    {
+      "type": "header",
+      "content": "Background detail"
+    },
+    {
+      "type": "range",
+      "id": "texture_opacity",
+      "label": "Concrete texture opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 45
+    },
+    {
+      "type": "image_picker",
+      "id": "background_texture_image",
+      "label": "Concrete texture image"
+    },
+    {
+      "type": "range",
+      "id": "vignette_opacity",
+      "label": "Edge shadow opacity",
+      "min": 0,
+      "max": 80,
+      "step": 5,
+      "unit": "%",
+      "default": 35
+    },
+    {
+      "type": "range",
+      "id": "line_art_opacity",
+      "label": "Faint icon line-art opacity",
+      "min": 0,
+      "max": 30,
+      "step": 1,
+      "unit": "%",
+      "default": 11
+    },
+    {
+      "type": "color",
+      "id": "graffiti_color",
+      "label": "Graffiti color",
+      "default": "#6D42B8"
+    },
+    {
+      "type": "range",
+      "id": "graffiti_opacity",
+      "label": "Graffiti opacity",
+      "min": 0,
+      "max": 40,
+      "step": 1,
+      "unit": "%",
+      "default": 23
+    },
+    {
+      "type": "range",
+      "id": "graffiti_size",
+      "label": "Graffiti size",
+      "min": 72,
+      "max": 180,
+      "step": 4,
+      "unit": "px",
+      "default": 132
+    },
+    {
+      "type": "header",
+      "content": "Contact chips"
+    },
+    {
+      "type": "color",
+      "id": "chip_background_color",
+      "label": "Chip background color",
+      "default": "#0F0F11"
+    },
+    {
+      "type": "range",
+      "id": "chip_background_opacity",
+      "label": "Chip background opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 65
+    },
+    {
+      "type": "color",
+      "id": "chip_border_color",
+      "label": "Chip border color",
+      "default": "#6D42B8"
+    },
+    {
+      "type": "range",
+      "id": "chip_accent_mix",
+      "label": "Chip border accent mix",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 25
+    },
+    {
+      "type": "range",
+      "id": "chip_height",
+      "label": "Chip height",
+      "min": 56,
+      "max": 92,
+      "step": 2,
+      "unit": "px",
+      "default": 62
+    },
+    {
+      "type": "range",
+      "id": "chip_radius",
+      "label": "Chip corner radius",
+      "min": 8,
+      "max": 28,
+      "step": 1,
+      "unit": "px",
+      "default": 14
+    },
+    {
+      "type": "range",
+      "id": "chip_gap",
+      "label": "Chip gap",
+      "min": 10,
+      "max": 36,
+      "step": 2,
+      "unit": "px",
+      "default": 18
+    },
+    {
+      "type": "range",
+      "id": "chip_text_size",
+      "label": "Chip text size",
+      "min": 14,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "chip_weight",
+      "label": "Chip text weight",
+      "min": 500,
+      "max": 800,
+      "step": 100,
+      "default": 700
+    }
+  ],
+  "presets": [
+    {
+      "name": "Contact hero"
+    }
+  ]
+}
+{% endschema %}

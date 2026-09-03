@@ -21,7 +21,7 @@ export async function action({ request }: ActionFunctionArgs) {
           customerId: normalizeCustomerGid(customerId!),
         },
       },
-      data: { profileImageUrl: uploaded.profileImageUrl },
+      data: { profileImageUrl: uploaded.profileImageUrl || uploaded.profileImageId },
     });
     return apiData(uploaded, 201);
   } catch (error) { return apiError(error); }

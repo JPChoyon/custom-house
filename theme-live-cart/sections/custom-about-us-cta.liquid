@@ -1,0 +1,921 @@
+{% liquid
+  assign section_id = 'customhouse-cta-' | append: section.id
+%}
+
+<section
+  id="{{ section_id }}"
+  class="customhouse-cta customhouse-cta--{{ section.id }}"
+  style="
+    --ch-bg: {{ section.settings.background_color }};
+    --ch-card-bg: {{ section.settings.card_background_color }};
+    --ch-heading: {{ section.settings.heading_color }};
+    --ch-text: {{ section.settings.text_color }};
+    --ch-accent: {{ section.settings.accent_color }};
+    --ch-border: {{ section.settings.border_color }};
+    --ch-border-soft: {{ section.settings.border_color | color_modify: 'alpha', 0.45 }};
+    --ch-border-faint: {{ section.settings.border_color | color_modify: 'alpha', 0.22 }};
+    --ch-primary-text: {{ section.settings.primary_button_text_color }};
+    --ch-secondary-text: {{ section.settings.secondary_button_text_color }};
+    --ch-max-width: {{ section.settings.max_width }}px;
+    --ch-content-width: {{ section.settings.content_width }}px;
+    --ch-card-radius: {{ section.settings.card_radius }}px;
+    --ch-section-padding-top: {{ section.settings.section_padding_top }}px;
+    --ch-section-padding-bottom: {{ section.settings.section_padding_bottom }}px;
+    --ch-card-padding-x: {{ section.settings.card_padding_x }}px;
+    --ch-card-padding-y: {{ section.settings.card_padding_y }}px;
+    --ch-bg-image-opacity: {{ section.settings.background_image_opacity | divided_by: 100.0 }};
+    --ch-card-image-opacity: {{ section.settings.card_image_opacity | divided_by: 100.0 }};
+    --ch-product-opacity: {{ section.settings.product_image_opacity | divided_by: 100.0 }};
+    --ch-graffiti-opacity: {{ section.settings.graffiti_opacity | divided_by: 100.0 }};
+  "
+>
+  <div class="customhouse-cta__stage" aria-hidden="true">
+    {% if section.settings.background_image != blank %}
+      {{
+        section.settings.background_image
+        | image_url: width: 2200
+        | image_tag:
+          loading: 'lazy',
+          class: 'customhouse-cta__bg-image',
+          sizes: '100vw',
+          widths: '750, 1100, 1500, 1800, 2200'
+      }}
+    {% endif %}
+
+    {% if section.settings.top_graffiti_image != blank %}
+      {{
+        section.settings.top_graffiti_image
+        | image_url: width: 560
+        | image_tag:
+          loading: 'lazy',
+          class: 'customhouse-cta__graffiti customhouse-cta__graffiti--top',
+          widths: '220, 360, 560'
+      }}
+    {% endif %}
+
+    {% if section.settings.bottom_graffiti_image != blank %}
+      {{
+        section.settings.bottom_graffiti_image
+        | image_url: width: 420
+        | image_tag:
+          loading: 'lazy',
+          class: 'customhouse-cta__graffiti customhouse-cta__graffiti--bottom',
+          widths: '180, 300, 420'
+      }}
+    {% endif %}
+  </div>
+
+  <div class="customhouse-cta__wrap">
+    <div class="customhouse-cta__box">
+      <div class="customhouse-cta__box-media" aria-hidden="true">
+        {% if section.settings.card_background_image != blank %}
+          {{
+            section.settings.card_background_image
+            | image_url: width: 1800
+            | image_tag:
+              loading: 'lazy',
+              class: 'customhouse-cta__card-image',
+              sizes: '(min-width: 990px) 1300px, 100vw',
+              widths: '750, 1100, 1500, 1800'
+          }}
+        {% endif %}
+
+        {% if section.settings.left_product_image != blank %}
+          {{
+            section.settings.left_product_image
+            | image_url: width: 620
+            | image_tag:
+              loading: 'lazy',
+              class: 'customhouse-cta__product customhouse-cta__product--left',
+              widths: '280, 420, 620'
+          }}
+        {% endif %}
+
+        {% if section.settings.right_product_image != blank %}
+          {{
+            section.settings.right_product_image
+            | image_url: width: 660
+            | image_tag:
+              loading: 'lazy',
+              class: 'customhouse-cta__product customhouse-cta__product--right',
+              widths: '300, 460, 660'
+          }}
+        {% endif %}
+      </div>
+
+      <div class="customhouse-cta__content">
+        {% if section.settings.eyebrow != blank %}
+          <div class="customhouse-cta__eyebrow-group">
+            <p class="customhouse-cta__eyebrow">{{ section.settings.eyebrow | escape }}</p>
+            <span class="customhouse-cta__underline"></span>
+          </div>
+        {% endif %}
+
+        {% if section.settings.heading != blank %}
+          <h2 class="customhouse-cta__heading">{{ section.settings.heading | escape }}</h2>
+        {% endif %}
+
+        {% if section.settings.description != blank %}
+          <div class="customhouse-cta__description">{{ section.settings.description }}</div>
+        {% endif %}
+
+        {% if section.settings.primary_button_label != blank or section.settings.secondary_button_label != blank %}
+          <div class="customhouse-cta__actions">
+            {% if section.settings.primary_button_label != blank %}
+              <a
+                class="customhouse-cta__button customhouse-cta__button--primary"
+                href="{{ section.settings.primary_button_link | default: '#' }}"
+                {% if section.settings.primary_button_link == blank %}role="link" aria-disabled="true"{% endif %}
+              >
+                <span>{{ section.settings.primary_button_label | escape }}</span>
+                <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M5.25 14.75 14.3 5.7M7.15 5.25h7.6v7.6" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </a>
+            {% endif %}
+
+            {% if section.settings.secondary_button_label != blank %}
+              <a
+                class="customhouse-cta__button customhouse-cta__button--secondary"
+                href="{{ section.settings.secondary_button_link | default: '#' }}"
+                {% if section.settings.secondary_button_link == blank %}role="link" aria-disabled="true"{% endif %}
+              >
+                <span>{{ section.settings.secondary_button_label | escape }}</span>
+                <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M5.25 14.75 14.3 5.7M7.15 5.25h7.6v7.6" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </a>
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .customhouse-cta--{{ section.id }} {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    padding: var(--ch-section-padding-top) 20px var(--ch-section-padding-bottom);
+    background:
+      radial-gradient(circle at 80% 3%, rgba(92, 48, 185, 0.14), transparent 25%),
+      radial-gradient(circle at 5% 88%, rgba(92, 48, 185, 0.12), transparent 24%),
+      var(--ch-bg);
+    color: var(--ch-heading);
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__stage {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__stage::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,0.04) 0 1px, transparent 1px 4px),
+      linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.28));
+    opacity: 0.26;
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__bg-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: var(--ch-bg-image-opacity);
+    mix-blend-mode: screen;
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__graffiti {
+    position: absolute;
+    height: auto;
+    object-fit: contain;
+    opacity: var(--ch-graffiti-opacity);
+    filter: drop-shadow(0 0 20px rgba(108, 74, 255, 0.34));
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__graffiti--top {
+    top: -4px;
+    right: 6.5%;
+    width: clamp(160px, 23vw, 350px);
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__graffiti--bottom {
+    bottom: 6%;
+    left: 0;
+    width: clamp(120px, 16vw, 220px);
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__wrap {
+    width: min(100%, var(--ch-max-width));
+    margin: 0 auto;
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__box {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-height: {{ section.settings.card_min_height }}px;
+    padding: var(--ch-card-padding-y) var(--ch-card-padding-x);
+    overflow: hidden;
+    border: 1px solid var(--ch-border);
+    border-radius: var(--ch-card-radius);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.026), rgba(255,255,255,0.008)),
+      var(--ch-card-bg);
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.025) inset,
+      0 0 23px var(--ch-border-soft),
+      0 34px 78px rgba(0, 0, 0, 0.55);
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__box::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    background:
+      radial-gradient(circle at center, rgba(4,4,5,0.05), rgba(4,4,5,0.48) 74%),
+      linear-gradient(90deg, rgba(0,0,0,0.55), rgba(0,0,0,0.18) 28%, rgba(0,0,0,0.18) 72%, rgba(0,0,0,0.55));
+    pointer-events: none;
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__box::after {
+    content: "";
+    position: absolute;
+    left: 4%;
+    right: 4%;
+    bottom: -10px;
+    height: 18px;
+    z-index: 1;
+    border-radius: 999px;
+    background: var(--ch-border);
+    opacity: 0.22;
+    filter: blur(18px);
+    pointer-events: none;
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__box-media,
+  .customhouse-cta--{{ section.id }} .customhouse-cta__card-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__card-image {
+    object-fit: cover;
+    opacity: var(--ch-card-image-opacity);
+    mix-blend-mode: screen;
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__product {
+    position: absolute;
+    z-index: 1;
+    height: auto;
+    object-fit: contain;
+    opacity: var(--ch-product-opacity);
+    filter: grayscale(1) contrast(1.06) brightness(0.72);
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__product--left {
+    width: min(34vw, 390px);
+    left: 1.6%;
+    bottom: 8%;
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__product--right {
+    width: min(38vw, 455px);
+    right: 1.6%;
+    top: 9%;
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__content {
+    position: relative;
+    z-index: 3;
+    width: min(100%, var(--ch-content-width));
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__eyebrow-group {
+    display: inline-grid;
+    justify-items: center;
+    gap: 8px;
+    margin: 0 0 22px;
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__eyebrow {
+    margin: 0;
+    color: var(--ch-accent);
+    font-size: clamp(10px, 0.88vw, {{ section.settings.eyebrow_size }}px);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0;
+    text-transform: uppercase;
+    text-shadow: 0 0 18px rgba(183,255,24,0.42);
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__underline {
+    width: 96px;
+    height: 9px;
+    background:
+      linear-gradient(176deg, transparent 0 17%, var(--ch-accent) 20% 48%, transparent 51%),
+      linear-gradient(184deg, transparent 0 35%, var(--ch-accent) 38% 63%, transparent 66%);
+    filter: drop-shadow(0 0 7px rgba(183,255,24,0.62));
+    transform: skewX(-12deg);
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__heading {
+    max-width: 900px;
+    margin: 0 auto;
+    color: var(--ch-heading);
+    font-size: clamp({{ section.settings.mobile_heading_size }}px, 4.05vw, {{ section.settings.desktop_heading_size }}px);
+    font-weight: 800;
+    line-height: 1.08;
+    letter-spacing: 0;
+    text-wrap: balance;
+    text-shadow: 0 2px 0 rgba(255,255,255,0.15), 0 16px 32px rgba(0,0,0,0.62);
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__description {
+    max-width: 690px;
+    margin: 24px auto 0;
+    color: var(--ch-text);
+    font-size: clamp(15px, 1.36vw, {{ section.settings.description_size }}px);
+    font-weight: 400;
+    line-height: 1.72;
+    letter-spacing: 0;
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__description p {
+    margin: 0;
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    margin-top: 42px;
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    min-width: 230px;
+    min-height: 56px;
+    padding: 16px 30px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: 0;
+    text-decoration: none;
+    transition: transform 170ms ease, box-shadow 170ms ease, border-color 170ms ease;
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__button:hover {
+    transform: translateY(-2px);
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__button:focus-visible {
+    outline: 2px solid var(--ch-accent);
+    outline-offset: 4px;
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__button--primary {
+    color: var(--ch-primary-text);
+    background: var(--ch-accent);
+    border: 1px solid var(--ch-accent);
+    box-shadow: 0 0 22px rgba(183,255,24,0.26);
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__button--secondary {
+    color: var(--ch-secondary-text);
+    background: rgba(255,255,255,0.012);
+    border: 1px solid var(--ch-border);
+    box-shadow: 0 0 17px var(--ch-border-faint) inset;
+  }
+
+  .customhouse-cta--{{ section.id }} .customhouse-cta__button svg {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+  }
+
+  @media screen and (max-width: 989px) {
+    .customhouse-cta--{{ section.id }} {
+      padding: {{ section.settings.tablet_section_padding_top }}px 16px {{ section.settings.tablet_section_padding_bottom }}px;
+    }
+
+    .customhouse-cta--{{ section.id }} .customhouse-cta__box {
+      min-height: {{ section.settings.tablet_card_min_height }}px;
+      padding: {{ section.settings.tablet_card_padding_y }}px {{ section.settings.tablet_card_padding_x }}px;
+    }
+
+    .customhouse-cta--{{ section.id }} .customhouse-cta__product--left {
+      width: min(47vw, 340px);
+      left: -12%;
+      bottom: 5%;
+    }
+
+    .customhouse-cta--{{ section.id }} .customhouse-cta__product--right {
+      width: min(50vw, 370px);
+      right: -13%;
+      top: 8%;
+    }
+  }
+
+  @media screen and (max-width: 749px) {
+    .customhouse-cta--{{ section.id }} {
+      padding: {{ section.settings.mobile_section_padding_top }}px 14px {{ section.settings.mobile_section_padding_bottom }}px;
+    }
+
+    .customhouse-cta--{{ section.id }} .customhouse-cta__box {
+      min-height: {{ section.settings.mobile_card_min_height }}px;
+      padding: {{ section.settings.mobile_card_padding_y }}px 20px;
+      border-radius: min(var(--ch-card-radius), 22px);
+    }
+
+    .customhouse-cta--{{ section.id }} .customhouse-cta__box::before {
+      background:
+        radial-gradient(circle at center, rgba(4,4,5,0.04), rgba(4,4,5,0.62) 74%),
+        linear-gradient(90deg, rgba(0,0,0,0.56), rgba(0,0,0,0.25) 36%, rgba(0,0,0,0.56));
+    }
+
+    .customhouse-cta--{{ section.id }} .customhouse-cta__product {
+      opacity: {{ section.settings.mobile_product_image_opacity | divided_by: 100.0 }};
+    }
+
+    .customhouse-cta--{{ section.id }} .customhouse-cta__product--left {
+      width: 68vw;
+      left: -34%;
+      bottom: 4%;
+    }
+
+    .customhouse-cta--{{ section.id }} .customhouse-cta__product--right {
+      width: 72vw;
+      right: -38%;
+      top: 7%;
+    }
+
+    .customhouse-cta--{{ section.id }} .customhouse-cta__eyebrow-group {
+      margin-bottom: 18px;
+    }
+
+    .customhouse-cta--{{ section.id }} .customhouse-cta__description {
+      margin-top: 18px;
+      line-height: 1.62;
+    }
+
+    .customhouse-cta--{{ section.id }} .customhouse-cta__actions {
+      width: min(100%, 360px);
+      margin: 32px auto 0;
+      gap: 14px;
+    }
+
+    .customhouse-cta--{{ section.id }} .customhouse-cta__button {
+      width: 100%;
+      min-width: 0;
+      min-height: 54px;
+      padding: 15px 22px;
+      gap: 12px;
+    }
+
+    .customhouse-cta--{{ section.id }} .customhouse-cta__graffiti--top {
+      right: -12%;
+      width: 210px;
+    }
+
+    .customhouse-cta--{{ section.id }} .customhouse-cta__graffiti--bottom {
+      left: -8%;
+      width: 145px;
+    }
+  }
+</style>
+
+{% schema %}
+{
+  "name": "Screenshot style CTA",
+  "tag": "section",
+  "class": "section-customhouse-screenshot-cta",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Content"
+    },
+    {
+      "type": "text",
+      "id": "eyebrow",
+      "label": "Eyebrow",
+      "default": "Get Started"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Ready to Create Something Unique?"
+    },
+    {
+      "type": "richtext",
+      "id": "description",
+      "label": "Description",
+      "default": "<p>Whether you're launching your own creator collection, building a brand, or designing personalized merchandise, CustomHouse provides everything you need to create premium products with confidence.</p>"
+    },
+    {
+      "type": "text",
+      "id": "primary_button_label",
+      "label": "Primary button label",
+      "default": "Start Designing"
+    },
+    {
+      "type": "url",
+      "id": "primary_button_link",
+      "label": "Primary button link"
+    },
+    {
+      "type": "text",
+      "id": "secondary_button_label",
+      "label": "Secondary button label",
+      "default": "Explore Collections"
+    },
+    {
+      "type": "url",
+      "id": "secondary_button_link",
+      "label": "Secondary button link"
+    },
+    {
+      "type": "header",
+      "content": "Upload these images"
+    },
+    {
+      "type": "image_picker",
+      "id": "background_image",
+      "label": "Background texture"
+    },
+    {
+      "type": "image_picker",
+      "id": "card_background_image",
+      "label": "Card texture"
+    },
+    {
+      "type": "image_picker",
+      "id": "left_product_image",
+      "label": "Left product image"
+    },
+    {
+      "type": "image_picker",
+      "id": "right_product_image",
+      "label": "Right product image"
+    },
+    {
+      "type": "image_picker",
+      "id": "top_graffiti_image",
+      "label": "Top graffiti image"
+    },
+    {
+      "type": "image_picker",
+      "id": "bottom_graffiti_image",
+      "label": "Bottom graffiti image"
+    },
+    {
+      "type": "range",
+      "id": "background_image_opacity",
+      "label": "Background image opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 45
+    },
+    {
+      "type": "range",
+      "id": "card_image_opacity",
+      "label": "Card texture opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 25
+    },
+    {
+      "type": "range",
+      "id": "product_image_opacity",
+      "label": "Desktop product opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 25
+    },
+    {
+      "type": "range",
+      "id": "mobile_product_image_opacity",
+      "label": "Mobile product opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 10
+    },
+    {
+      "type": "range",
+      "id": "graffiti_opacity",
+      "label": "Graffiti opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 35
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Section background",
+      "default": "#070708"
+    },
+    {
+      "type": "color",
+      "id": "card_background_color",
+      "label": "Card background",
+      "default": "#101012"
+    },
+    {
+      "type": "color",
+      "id": "heading_color",
+      "label": "Heading",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Description",
+      "default": "#c9c9cf"
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Lime accent",
+      "default": "#b7ff18"
+    },
+    {
+      "type": "color",
+      "id": "border_color",
+      "label": "Purple border",
+      "default": "#7a4dff"
+    },
+    {
+      "type": "color",
+      "id": "primary_button_text_color",
+      "label": "Primary button text",
+      "default": "#101010"
+    },
+    {
+      "type": "color",
+      "id": "secondary_button_text_color",
+      "label": "Secondary button text",
+      "default": "#ffffff"
+    },
+    {
+      "type": "header",
+      "content": "Desktop layout"
+    },
+    {
+      "type": "range",
+      "id": "max_width",
+      "label": "Container width",
+      "min": 900,
+      "max": 1600,
+      "step": 20,
+      "unit": "px",
+      "default": 1300
+    },
+    {
+      "type": "range",
+      "id": "content_width",
+      "label": "Content width",
+      "min": 560,
+      "max": 980,
+      "step": 10,
+      "unit": "px",
+      "default": 740
+    },
+    {
+      "type": "range",
+      "id": "section_padding_top",
+      "label": "Section top padding",
+      "min": 40,
+      "max": 190,
+      "step": 5,
+      "unit": "px",
+      "default": 150
+    },
+    {
+      "type": "range",
+      "id": "section_padding_bottom",
+      "label": "Section bottom padding",
+      "min": 40,
+      "max": 190,
+      "step": 5,
+      "unit": "px",
+      "default": 160
+    },
+    {
+      "type": "range",
+      "id": "card_min_height",
+      "label": "Card minimum height",
+      "min": 320,
+      "max": 720,
+      "step": 10,
+      "unit": "px",
+      "default": 520
+    },
+    {
+      "type": "range",
+      "id": "card_padding_y",
+      "label": "Card vertical padding",
+      "min": 40,
+      "max": 140,
+      "step": 1,
+      "unit": "px",
+      "default": 80
+    },
+    {
+      "type": "range",
+      "id": "card_padding_x",
+      "label": "Card horizontal padding",
+      "min": 20,
+      "max": 140,
+      "step": 5,
+      "unit": "px",
+      "default": 80
+    },
+    {
+      "type": "range",
+      "id": "card_radius",
+      "label": "Card radius",
+      "min": 0,
+      "max": 40,
+      "step": 1,
+      "unit": "px",
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "desktop_heading_size",
+      "label": "Desktop heading size",
+      "min": 34,
+      "max": 76,
+      "step": 1,
+      "unit": "px",
+      "default": 52
+    },
+    {
+      "type": "range",
+      "id": "description_size",
+      "label": "Description size",
+      "min": 14,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 18
+    },
+    {
+      "type": "range",
+      "id": "eyebrow_size",
+      "label": "Eyebrow size",
+      "min": 10,
+      "max": 16,
+      "step": 1,
+      "unit": "px",
+      "default": 12
+    },
+    {
+      "type": "header",
+      "content": "Tablet layout"
+    },
+    {
+      "type": "range",
+      "id": "tablet_section_padding_top",
+      "label": "Tablet top padding",
+      "min": 30,
+      "max": 150,
+      "step": 5,
+      "unit": "px",
+      "default": 95
+    },
+    {
+      "type": "range",
+      "id": "tablet_section_padding_bottom",
+      "label": "Tablet bottom padding",
+      "min": 30,
+      "max": 150,
+      "step": 5,
+      "unit": "px",
+      "default": 100
+    },
+    {
+      "type": "range",
+      "id": "tablet_card_min_height",
+      "label": "Tablet card minimum height",
+      "min": 320,
+      "max": 680,
+      "step": 10,
+      "unit": "px",
+      "default": 480
+    },
+    {
+      "type": "range",
+      "id": "tablet_card_padding_y",
+      "label": "Tablet card vertical padding",
+      "min": 40,
+      "max": 120,
+      "step": 5,
+      "unit": "px",
+      "default": 70
+    },
+    {
+      "type": "range",
+      "id": "tablet_card_padding_x",
+      "label": "Tablet card horizontal padding",
+      "min": 20,
+      "max": 100,
+      "step": 5,
+      "unit": "px",
+      "default": 40
+    },
+    {
+      "type": "header",
+      "content": "Mobile layout"
+    },
+    {
+      "type": "range",
+      "id": "mobile_section_padding_top",
+      "label": "Mobile top padding",
+      "min": 25,
+      "max": 120,
+      "step": 5,
+      "unit": "px",
+      "default": 70
+    },
+    {
+      "type": "range",
+      "id": "mobile_section_padding_bottom",
+      "label": "Mobile bottom padding",
+      "min": 25,
+      "max": 120,
+      "step": 5,
+      "unit": "px",
+      "default": 75
+    },
+    {
+      "type": "range",
+      "id": "mobile_card_min_height",
+      "label": "Mobile card minimum height",
+      "min": 360,
+      "max": 720,
+      "step": 10,
+      "unit": "px",
+      "default": 560
+    },
+    {
+      "type": "range",
+      "id": "mobile_card_padding_y",
+      "label": "Mobile card vertical padding",
+      "min": 35,
+      "max": 120,
+      "step": 1,
+      "unit": "px",
+      "default": 70
+    },
+    {
+      "type": "range",
+      "id": "mobile_heading_size",
+      "label": "Mobile heading size",
+      "min": 26,
+      "max": 46,
+      "step": 1,
+      "unit": "px",
+      "default": 36
+    }
+  ],
+  "presets": [
+    {
+      "name": "Screenshot style CTA"
+    }
+  ]
+}
+{% endschema %}

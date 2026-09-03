@@ -1,0 +1,1301 @@
+{% comment %}
+  Same To Same Related Products
+  Add this file to your Shopify theme at: sections/same-to-same-related-products.liquid
+{% endcomment %}
+
+{%- liquid
+  assign section_title = section.settings.heading | default: 'More From Marcus'
+  assign title_parts = section_title | split: '|'
+  assign title_main = title_parts[0] | strip
+  assign title_accent = title_parts[1] | strip
+  assign product_limit = section.settings.products_to_show
+  assign source_products = blank
+  assign desktop_gap_total = section.settings.columns_desktop | minus: 1 | times: 28
+  assign tablet_gap_total = section.settings.columns_tablet | minus: 1 | times: 20
+  assign mobile_gap_total = section.settings.columns_mobile | minus: 1 | times: 16
+
+  if section.settings.product_source == 'collection' and section.settings.collection != blank
+    assign source_products = section.settings.collection.products
+  elsif section.settings.product_source == 'manual'
+    assign source_products = section.settings.product_list
+  elsif product != blank and section.settings.product_source == 'same_collection' and product.collections.first != blank
+    assign source_products = product.collections.first.products
+  endif
+-%}
+
+<section
+  id="same-related-{{ section.id }}"
+  class="same-related color-{{ section.id }}"
+  data-section-id="{{ section.id }}"
+  data-enable-slider="{{ section.settings.enable_slider }}"
+  style="
+    --same-bg: {{ section.settings.background_color }};
+    --same-panel-bg: {{ section.settings.panel_background_color }};
+    --same-text: {{ section.settings.text_color }};
+    --same-muted: {{ section.settings.muted_text_color }};
+    --same-purple: {{ section.settings.primary_color }};
+    --same-lime: {{ section.settings.accent_color }};
+    --same-card-bg: {{ section.settings.card_background_color }};
+    --same-border: {{ section.settings.border_color }};
+    --same-radius: {{ section.settings.border_radius }}px;
+    --same-card-radius: {{ section.settings.card_radius }}px;
+    --same-heading-max: {{ section.settings.heading_max_width }}px;
+    --same-top: {{ section.settings.padding_top }}px;
+    --same-bottom: {{ section.settings.padding_bottom }}px;
+    --same-max: {{ section.settings.max_width }}px;
+    --same-cols-desktop: {{ section.settings.columns_desktop }};
+    --same-cols-tablet: {{ section.settings.columns_tablet }};
+    --same-cols-mobile: {{ section.settings.columns_mobile }};
+  "
+>
+  <div class="same-related__wrap">
+    <div class="same-related__panel">
+      {%- if section.settings.background_image != blank -%}
+        <div
+          class="same-related__bg-image"
+          style="background-image: url({{ section.settings.background_image | image_url: width: 2400 }}); opacity: {{ section.settings.background_image_opacity | divided_by: 100.0 }};"
+          aria-hidden="true"
+        ></div>
+      {%- endif -%}
+
+      {%- if section.settings.show_decorations -%}
+        <div class="same-related__mark same-related__mark--left" aria-hidden="true">
+          {%- if section.settings.left_decor_image != blank -%}
+            {{ section.settings.left_decor_image | image_url: width: 520 | image_tag: loading: 'lazy', class: 'same-related__decor-img', alt: '' }}
+          {%- else -%}
+            X
+          {%- endif -%}
+        </div>
+        <div class="same-related__mark same-related__mark--right" aria-hidden="true">
+          {%- if section.settings.right_decor_image != blank -%}
+            {{ section.settings.right_decor_image | image_url: width: 420 | image_tag: loading: 'lazy', class: 'same-related__decor-img', alt: '' }}
+          {%- else -%}
+            M
+          {%- endif -%}
+        </div>
+      {%- endif -%}
+
+      <div class="same-related__header">
+        {%- if section.settings.show_crown -%}
+          <span class="same-related__crown" aria-hidden="true">
+            <svg viewBox="0 0 48 40" role="presentation" focusable="false">
+              <path d="M5 32 9 10l11 12L24 5l4 17 11-12 4 22H5Z" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
+              <path d="M7 35h34" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+            </svg>
+          </span>
+        {%- endif -%}
+
+        <h2 class="same-related__title">
+          <span class="same-related__rule" aria-hidden="true"></span>
+          <span>{{ title_main | escape }}</span>
+          {%- if title_accent != blank -%}
+            <span class="same-related__accent">{{ title_accent | escape }}</span>
+          {%- endif -%}
+          <span class="same-related__rule" aria-hidden="true"></span>
+        </h2>
+
+        {%- if section.settings.subheading != blank -%}
+          <p class="same-related__subtitle">{{ section.settings.subheading | escape }}</p>
+        {%- endif -%}
+      </div>
+
+      {%- if section.settings.product_source == 'recommendations' and product != blank -%}
+        <same-product-recommendations
+          class="same-related__recommendations"
+          data-url="{{ routes.product_recommendations_url }}?section_id={{ section.id }}&product_id={{ product.id }}&limit={{ product_limit }}&intent=related"
+        >
+          {%- if recommendations.performed and recommendations.products_count > 0 -%}
+            <div class="same-related__viewport">
+              <div class="same-related__grid" role="list">
+                {%- for related_product in recommendations.products limit: product_limit -%}
+                  <article class="same-related-card" role="listitem">
+                    <a class="same-related-card__media" href="{{ related_product.url }}" aria-label="{{ related_product.title | escape }}">
+                      {%- if related_product.featured_media != blank -%}
+                        {{
+                          related_product.featured_media
+                          | image_url: width: 900
+                          | image_tag:
+                            loading: 'lazy',
+                            sizes: '(min-width: 990px) 25vw, (min-width: 750px) 45vw, 82vw',
+                            widths: '300, 450, 600, 750, 900',
+                            class: 'same-related-card__image',
+                            alt: related_product.featured_media.alt | escape
+                        }}
+                      {%- else -%}
+                        {{ 'product-1' | placeholder_svg_tag: 'same-related-card__placeholder' }}
+                      {%- endif -%}
+                    </a>
+
+                    {%- if section.settings.show_wishlist -%}
+                      <button class="same-related-card__heart" type="button" aria-label="{{ section.settings.wishlist_label | escape }}">
+                        <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                          <path d="M12 21s-7.2-4.3-9.4-9.1C.9 8.1 3.1 4 7 4c2.1 0 3.6 1 5 3 1.4-2 2.9-3 5-3 3.9 0 6.1 4.1 4.4 7.9C19.2 16.7 12 21 12 21Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                        </svg>
+                      </button>
+                    {%- endif -%}
+
+                    <div class="same-related-card__body">
+                      {%- if section.settings.show_vendor and related_product.vendor != blank -%}
+                        <p class="same-related-card__vendor">{{ related_product.vendor | escape }}</p>
+                      {%- endif -%}
+
+                      <h3 class="same-related-card__title">
+                        <a href="{{ related_product.url }}">{{ related_product.title | escape }}</a>
+                      </h3>
+
+                      <div class="same-related-card__meta">
+                        {%- if section.settings.show_rating -%}
+                          {%- liquid
+                            assign rating = related_product.metafields.reviews.rating.value.rating | default: related_product.metafields.reviews.rating.value | default: section.settings.fallback_rating
+                            assign rating_count = related_product.metafields.reviews.rating_count.value | default: section.settings.fallback_rating_count
+                          -%}
+                          <span class="same-related-card__rating">
+                            <svg viewBox="0 0 20 20" role="presentation" focusable="false">
+                              <path d="m10 1.7 2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8L10 1.7Z" fill="currentColor"/>
+                            </svg>
+                            <span>{{ rating }}</span>
+                            {%- if rating_count != blank -%}
+                              <span>({{ rating_count }})</span>
+                            {%- endif -%}
+                          </span>
+                        {%- endif -%}
+
+                        {%- if section.settings.show_price -%}
+                          <span class="same-related-card__price">
+                            {%- if related_product.price_varies -%}
+                              {{ section.settings.from_text | escape }} {{ related_product.price_min | money }}
+                            {%- else -%}
+                              {{ related_product.price | money }}
+                            {%- endif -%}
+                          </span>
+                        {%- endif -%}
+                      </div>
+
+                      {%- if section.settings.show_button -%}
+                        <a class="same-related-card__button" href="{{ related_product.url }}">
+                          {{ section.settings.button_label | escape }}
+                        </a>
+                      {%- endif -%}
+                    </div>
+                  </article>
+                {%- endfor -%}
+              </div>
+            </div>
+          {%- else -%}
+            <div class="same-related__loading" aria-live="polite">{{ section.settings.loading_text | escape }}</div>
+          {%- endif -%}
+        </same-product-recommendations>
+      {%- else -%}
+        <div class="same-related__viewport">
+          <div class="same-related__grid" role="list">
+            {%- if source_products != blank -%}
+              {%- for related_product in source_products limit: product_limit -%}
+                {%- unless related_product.id == product.id -%}
+                  <article class="same-related-card" role="listitem">
+                    <a class="same-related-card__media" href="{{ related_product.url }}" aria-label="{{ related_product.title | escape }}">
+                      {%- if related_product.featured_media != blank -%}
+                        {{
+                          related_product.featured_media
+                          | image_url: width: 900
+                          | image_tag:
+                            loading: 'lazy',
+                            sizes: '(min-width: 990px) 25vw, (min-width: 750px) 45vw, 82vw',
+                            widths: '300, 450, 600, 750, 900',
+                            class: 'same-related-card__image',
+                            alt: related_product.featured_media.alt | escape
+                        }}
+                      {%- else -%}
+                        {{ 'product-1' | placeholder_svg_tag: 'same-related-card__placeholder' }}
+                      {%- endif -%}
+                    </a>
+
+                    {%- if section.settings.show_wishlist -%}
+                      <button class="same-related-card__heart" type="button" aria-label="{{ section.settings.wishlist_label | escape }}">
+                        <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                          <path d="M12 21s-7.2-4.3-9.4-9.1C.9 8.1 3.1 4 7 4c2.1 0 3.6 1 5 3 1.4-2 2.9-3 5-3 3.9 0 6.1 4.1 4.4 7.9C19.2 16.7 12 21 12 21Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                        </svg>
+                      </button>
+                    {%- endif -%}
+
+                    <div class="same-related-card__body">
+                      {%- if section.settings.show_vendor and related_product.vendor != blank -%}
+                        <p class="same-related-card__vendor">{{ related_product.vendor | escape }}</p>
+                      {%- endif -%}
+
+                      <h3 class="same-related-card__title">
+                        <a href="{{ related_product.url }}">{{ related_product.title | escape }}</a>
+                      </h3>
+
+                      <div class="same-related-card__meta">
+                        {%- if section.settings.show_rating -%}
+                          {%- liquid
+                            assign rating = related_product.metafields.reviews.rating.value.rating | default: related_product.metafields.reviews.rating.value | default: section.settings.fallback_rating
+                            assign rating_count = related_product.metafields.reviews.rating_count.value | default: section.settings.fallback_rating_count
+                          -%}
+                          <span class="same-related-card__rating">
+                            <svg viewBox="0 0 20 20" role="presentation" focusable="false">
+                              <path d="m10 1.7 2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8L10 1.7Z" fill="currentColor"/>
+                            </svg>
+                            <span>{{ rating }}</span>
+                            {%- if rating_count != blank -%}
+                              <span>({{ rating_count }})</span>
+                            {%- endif -%}
+                          </span>
+                        {%- endif -%}
+
+                        {%- if section.settings.show_price -%}
+                          <span class="same-related-card__price">
+                            {%- if related_product.price_varies -%}
+                              {{ section.settings.from_text | escape }} {{ related_product.price_min | money }}
+                            {%- else -%}
+                              {{ related_product.price | money }}
+                            {%- endif -%}
+                          </span>
+                        {%- endif -%}
+                      </div>
+
+                      {%- if section.settings.show_button -%}
+                        <a class="same-related-card__button" href="{{ related_product.url }}">
+                          {{ section.settings.button_label | escape }}
+                        </a>
+                      {%- endif -%}
+                    </div>
+                  </article>
+                {%- endunless -%}
+              {%- endfor -%}
+            {%- endif -%}
+          </div>
+        </div>
+      {%- endif -%}
+
+      {%- if section.settings.enable_slider -%}
+        <div class="same-related__controls" aria-label="{{ section.settings.slider_controls_label | escape }}">
+          <button class="same-related__arrow same-related__arrow--prev" type="button" aria-label="{{ section.settings.previous_label | escape }}">
+            <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+              <path d="M15 18 9 12l6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M20 12H9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <div class="same-related__dots" aria-hidden="true"></div>
+          <button class="same-related__arrow same-related__arrow--next" type="button" aria-label="{{ section.settings.next_label | escape }}">
+            <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+              <path d="m9 18 6-6-6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4 12h11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+      {%- endif -%}
+    </div>
+  </div>
+</section>
+
+{% style %}
+  #same-related-{{ section.id }} {
+    background: var(--same-bg);
+    color: var(--same-text);
+    padding-block: var(--same-top) var(--same-bottom);
+    overflow: hidden;
+  }
+
+  #same-related-{{ section.id }} .same-related__wrap {
+    width: min(100%, var(--same-max));
+    margin-inline: auto;
+    padding-inline: clamp(14px, 3vw, 28px);
+  }
+
+  #same-related-{{ section.id }} .same-related__panel {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--same-border) 76%, transparent);
+    border-radius: var(--same-radius);
+    background:
+      radial-gradient(circle at 20% 15%, color-mix(in srgb, var(--same-purple) 18%, transparent) 0 2px, transparent 3px),
+      radial-gradient(circle at 88% 28%, color-mix(in srgb, var(--same-lime) 12%, transparent), transparent 20%),
+      linear-gradient(180deg, color-mix(in srgb, var(--same-panel-bg) 90%, #151018), var(--same-panel-bg));
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--same-purple) 18%, transparent),
+      0 0 34px color-mix(in srgb, var(--same-purple) 18%, transparent);
+    padding: clamp(28px, 4vw, 56px) clamp(14px, 3.7vw, 56px) clamp(22px, 3.6vw, 40px);
+  }
+
+  #same-related-{{ section.id }} .same-related__bg-image,
+  #same-related-{{ section.id }} .same-related__mark {
+    position: absolute;
+    pointer-events: none;
+    user-select: none;
+    z-index: -1;
+  }
+
+  #same-related-{{ section.id }} .same-related__bg-image {
+    inset: 0;
+    background-position: center;
+    background-size: cover;
+  }
+
+  #same-related-{{ section.id }} .same-related__mark {
+    color: color-mix(in srgb, var(--same-purple) 34%, transparent);
+    font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+    font-size: clamp(160px, 22vw, 330px);
+    line-height: .75;
+    opacity: {{ section.settings.decor_opacity | divided_by: 100.0 }};
+    filter: blur(.15px);
+    transform: rotate(-14deg) skew(-7deg);
+    text-shadow:
+      -10px 12px 0 color-mix(in srgb, var(--same-purple) 18%, transparent),
+      18px -6px 0 color-mix(in srgb, var(--same-purple) 10%, transparent);
+  }
+
+  #same-related-{{ section.id }} .same-related__mark--left {
+    left: clamp(-88px, -5vw, -32px);
+    top: clamp(-22px, -1vw, 12px);
+  }
+
+  #same-related-{{ section.id }} .same-related__mark--right {
+    right: clamp(-58px, -3vw, -18px);
+    top: clamp(22px, 4vw, 48px);
+    transform: rotate(5deg) skew(-5deg);
+  }
+
+  #same-related-{{ section.id }} .same-related__decor-img {
+    width: min(34vw, 360px);
+    height: auto;
+    object-fit: contain;
+  }
+
+  #same-related-{{ section.id }} .same-related__header {
+    text-align: center;
+    max-width: var(--same-heading-max);
+    margin: 0 auto clamp(24px, 3vw, 44px);
+  }
+
+  #same-related-{{ section.id }} .same-related__crown {
+    display: inline-grid;
+    place-items: center;
+    width: clamp(24px, 3vw, 38px);
+    color: var(--same-purple);
+    margin-bottom: 8px;
+  }
+
+  #same-related-{{ section.id }} .same-related__crown svg,
+  #same-related-{{ section.id }} .same-related__arrow svg,
+  #same-related-{{ section.id }} .same-related-card__heart svg,
+  #same-related-{{ section.id }} .same-related-card__rating svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  #same-related-{{ section.id }} .same-related__title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(10px, 2vw, 22px);
+    margin: 0;
+    color: var(--same-text);
+    font-family: {{ section.settings.heading_font.family }}, {{ section.settings.heading_font.fallback_families }};
+    font-style: {{ section.settings.heading_font.style }};
+    font-weight: {{ section.settings.heading_font.weight }};
+    font-size: clamp({{ section.settings.heading_size_mobile }}px, 3.2vw, {{ section.settings.heading_size_desktop }}px);
+    line-height: 1.05;
+    letter-spacing: 0;
+    text-transform: {{ section.settings.heading_transform }};
+  }
+
+  {{ section.settings.heading_font | font_face: font_display: 'swap' }}
+
+  #same-related-{{ section.id }} .same-related__accent {
+    color: var(--same-lime);
+  }
+
+  #same-related-{{ section.id }} .same-related__rule {
+    display: block;
+    width: clamp(28px, 5vw, 56px);
+    height: 2px;
+    background: var(--same-purple);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--same-purple) 70%, transparent);
+  }
+
+  #same-related-{{ section.id }} .same-related__subtitle,
+  #same-related-{{ section.id }} .same-related__loading {
+    margin: 12px 0 0;
+    color: var(--same-muted);
+    font-size: clamp(14px, 1.4vw, 18px);
+    line-height: 1.45;
+  }
+
+  #same-related-{{ section.id }} .same-related__viewport {
+    overflow: hidden;
+  }
+
+  #same-related-{{ section.id }} .same-related__grid {
+    display: grid;
+    grid-template-columns: repeat(var(--same-cols-desktop), minmax(0, 1fr));
+    gap: 28px;
+    transition: transform .38s ease;
+    will-change: transform;
+  }
+
+  #same-related-{{ section.id }}[data-enable-slider="true"] .same-related__grid {
+    display: flex;
+    gap: 28px;
+  }
+
+  #same-related-{{ section.id }}[data-enable-slider="true"] .same-related-card {
+    flex: 0 0 calc((100% - {{ desktop_gap_total }}px) / {{ section.settings.columns_desktop }});
+  }
+
+  #same-related-{{ section.id }} .same-related-card {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--same-border) 78%, transparent);
+    border-radius: var(--same-card-radius);
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--same-card-bg) 96%, #21132c), var(--same-card-bg));
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--same-purple) 12%, transparent),
+      0 12px 28px rgb(0 0 0 / 30%);
+    min-width: 0;
+  }
+
+  #same-related-{{ section.id }} .same-related-card__media {
+    position: relative;
+    display: block;
+    aspect-ratio: {{ section.settings.image_ratio }};
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--same-purple) 28%, transparent), transparent 36%),
+      radial-gradient(circle at 82% 18%, color-mix(in srgb, var(--same-lime) 16%, transparent), transparent 24%),
+      #120f16;
+  }
+
+  #same-related-{{ section.id }} .same-related-card__media::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(135deg, transparent 42%, color-mix(in srgb, var(--same-purple) 20%, transparent) 42% 48%, transparent 48%),
+      radial-gradient(circle at 10% 100%, color-mix(in srgb, var(--same-purple) 20%, transparent), transparent 28%);
+    mix-blend-mode: screen;
+    opacity: {{ section.settings.card_texture_opacity | divided_by: 100.0 }};
+  }
+
+  #same-related-{{ section.id }} .same-related-card__image,
+  #same-related-{{ section.id }} .same-related-card__placeholder {
+    width: 100%;
+    height: 100%;
+    object-fit: {{ section.settings.image_fit }};
+    display: block;
+    transition: transform .35s ease, filter .35s ease;
+  }
+
+  #same-related-{{ section.id }} .same-related-card:hover .same-related-card__image {
+    transform: scale(1.035);
+    filter: contrast(1.06);
+  }
+
+  #same-related-{{ section.id }} .same-related-card__heart {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 2px solid color-mix(in srgb, var(--same-purple) 72%, transparent);
+    border-radius: 999px;
+    color: var(--same-purple);
+    background: rgb(8 7 12 / 52%);
+    box-shadow: 0 0 16px color-mix(in srgb, var(--same-purple) 22%, transparent);
+    cursor: pointer;
+  }
+
+  #same-related-{{ section.id }} .same-related-card__heart svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  #same-related-{{ section.id }} .same-related-card__body {
+    padding: clamp(14px, 1.9vw, 20px);
+  }
+
+  #same-related-{{ section.id }} .same-related-card__vendor {
+    margin: 0 0 6px;
+    color: var(--same-muted);
+    font-size: 12px;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  #same-related-{{ section.id }} .same-related-card__title {
+    margin: 0 0 12px;
+    color: var(--same-text);
+    font-size: clamp(15px, 1.5vw, 18px);
+    line-height: 1.2;
+    font-weight: 800;
+    letter-spacing: 0;
+  }
+
+  #same-related-{{ section.id }} .same-related-card__title a,
+  #same-related-{{ section.id }} .same-related-card__button {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  #same-related-{{ section.id }} .same-related-card__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  #same-related-{{ section.id }} .same-related-card__rating {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    color: var(--same-muted);
+    font-size: 14px;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  #same-related-{{ section.id }} .same-related-card__rating svg {
+    width: 18px;
+    height: 18px;
+    color: var(--same-purple);
+    flex: 0 0 auto;
+  }
+
+  #same-related-{{ section.id }} .same-related-card__price {
+    color: var(--same-lime);
+    font-size: clamp(14px, 1.3vw, 17px);
+    line-height: 1;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+
+  #same-related-{{ section.id }} .same-related-card__button {
+    display: grid;
+    place-items: center;
+    min-height: 44px;
+    padding: 10px 16px;
+    border: 2px solid var(--same-purple);
+    border-radius: max(5px, calc(var(--same-card-radius) - 8px));
+    color: var(--same-purple);
+    background: rgb(0 0 0 / 14%);
+    box-shadow: inset 0 0 14px color-mix(in srgb, var(--same-purple) 10%, transparent);
+    font-size: 13px;
+    line-height: 1.15;
+    font-weight: 900;
+    text-align: center;
+    text-transform: uppercase;
+    transition: color .22s ease, background .22s ease, box-shadow .22s ease;
+  }
+
+  #same-related-{{ section.id }} .same-related-card__button:hover,
+  #same-related-{{ section.id }} .same-related-card__button:focus-visible,
+  #same-related-{{ section.id }} .same-related-card__heart:hover,
+  #same-related-{{ section.id }} .same-related-card__heart:focus-visible,
+  #same-related-{{ section.id }} .same-related__arrow:hover,
+  #same-related-{{ section.id }} .same-related__arrow:focus-visible {
+    color: #0d0b10;
+    background: var(--same-lime);
+    border-color: var(--same-lime);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--same-lime) 40%, transparent);
+    outline: none;
+  }
+
+  #same-related-{{ section.id }} .same-related__controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(18px, 3vw, 34px);
+    margin-top: clamp(22px, 3vw, 34px);
+  }
+
+  #same-related-{{ section.id }} .same-related__arrow {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    border: 2px solid color-mix(in srgb, var(--same-purple) 60%, transparent);
+    border-radius: 999px;
+    color: var(--same-purple);
+    background: rgb(8 7 12 / 48%);
+    cursor: pointer;
+  }
+
+  #same-related-{{ section.id }} .same-related__arrow svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  #same-related-{{ section.id }} .same-related__arrow[disabled] {
+    opacity: .42;
+    cursor: not-allowed;
+  }
+
+  #same-related-{{ section.id }} .same-related__dots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    min-width: 124px;
+  }
+
+  #same-related-{{ section.id }} .same-related__dot {
+    width: 9px;
+    height: 9px;
+    border: 0;
+    border-radius: 999px;
+    padding: 0;
+    background: color-mix(in srgb, var(--same-muted) 38%, transparent);
+    cursor: pointer;
+  }
+
+  #same-related-{{ section.id }} .same-related__dot.is-active {
+    background: var(--same-lime);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--same-lime) 62%, transparent);
+  }
+
+  @media (max-width: 989px) {
+    #same-related-{{ section.id }} .same-related__grid {
+      grid-template-columns: repeat(var(--same-cols-tablet), minmax(0, 1fr));
+      gap: 20px;
+    }
+
+    #same-related-{{ section.id }}[data-enable-slider="true"] .same-related__grid {
+      gap: 20px;
+    }
+
+    #same-related-{{ section.id }}[data-enable-slider="true"] .same-related-card {
+      flex-basis: calc((100% - {{ tablet_gap_total }}px) / {{ section.settings.columns_tablet }});
+    }
+  }
+
+  @media (max-width: 749px) {
+    #same-related-{{ section.id }} .same-related__wrap {
+      padding-inline: 10px;
+    }
+
+    #same-related-{{ section.id }} .same-related__panel {
+      padding-inline: 12px;
+    }
+
+    #same-related-{{ section.id }} .same-related__title {
+      flex-wrap: wrap;
+    }
+
+    #same-related-{{ section.id }} .same-related__rule {
+      width: 32px;
+    }
+
+    #same-related-{{ section.id }} .same-related__grid {
+      grid-template-columns: repeat(var(--same-cols-mobile), minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    #same-related-{{ section.id }}[data-enable-slider="true"] .same-related__grid {
+      gap: 16px;
+    }
+
+    #same-related-{{ section.id }}[data-enable-slider="true"] .same-related-card {
+      flex-basis: calc((100% - {{ mobile_gap_total }}px) / {{ section.settings.columns_mobile }});
+    }
+
+    #same-related-{{ section.id }} .same-related-card__meta {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    #same-related-{{ section.id }} .same-related__mark--left {
+      left: -100px;
+    }
+
+    #same-related-{{ section.id }} .same-related__mark--right {
+      right: -92px;
+      top: 8px;
+    }
+  }
+{% endstyle %}
+
+<script>
+  (() => {
+    const root = document.getElementById('same-related-{{ section.id }}');
+    if (!root) return;
+
+    const setupSlider = () => {
+      if (root.dataset.enableSlider !== 'true') return;
+
+      const viewport = root.querySelector('.same-related__viewport');
+      const track = root.querySelector('.same-related__grid');
+      const cards = Array.from(root.querySelectorAll('.same-related-card'));
+      const prev = root.querySelector('.same-related__arrow--prev');
+      const next = root.querySelector('.same-related__arrow--next');
+      const dots = root.querySelector('.same-related__dots');
+      if (!viewport || !track || !cards.length || !prev || !next || !dots) return;
+
+      let index = 0;
+      let maxIndex = 0;
+
+      const cardsPerView = () => {
+        const viewportWidth = viewport.getBoundingClientRect().width;
+        const cardWidth = cards[0].getBoundingClientRect().width;
+        const gap = parseFloat(getComputedStyle(track).gap) || 0;
+        return Math.max(1, Math.floor((viewportWidth + gap) / (cardWidth + gap)));
+      };
+
+      const buildDots = () => {
+        dots.innerHTML = '';
+        for (let i = 0; i <= maxIndex; i += 1) {
+          const dot = document.createElement('button');
+          dot.type = 'button';
+          dot.className = 'same-related__dot';
+          dot.setAttribute('aria-label', `Go to slide ${i + 1}`);
+          dot.addEventListener('click', () => {
+            index = i;
+            update();
+          });
+          dots.appendChild(dot);
+        }
+      };
+
+      const update = () => {
+        const gap = parseFloat(getComputedStyle(track).gap) || 0;
+        const cardWidth = cards[0].getBoundingClientRect().width;
+        maxIndex = Math.max(0, cards.length - cardsPerView());
+        index = Math.min(index, maxIndex);
+        track.style.transform = `translateX(${-index * (cardWidth + gap)}px)`;
+        prev.disabled = index === 0;
+        next.disabled = index === maxIndex;
+        Array.from(dots.children).forEach((dot, dotIndex) => {
+          dot.classList.toggle('is-active', dotIndex === index);
+        });
+      };
+
+      const refresh = () => {
+        const nextMax = Math.max(0, cards.length - cardsPerView());
+        if (nextMax !== maxIndex || dots.children.length !== nextMax + 1) {
+          maxIndex = nextMax;
+          buildDots();
+        }
+        update();
+      };
+
+      prev.addEventListener('click', () => {
+        index = Math.max(0, index - 1);
+        update();
+      });
+
+      next.addEventListener('click', () => {
+        index = Math.min(maxIndex, index + 1);
+        update();
+      });
+
+      let resizeTimer;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(refresh, 120);
+      });
+
+      refresh();
+    };
+
+    setupSlider();
+
+    const recommendations = root.querySelector('same-product-recommendations');
+    if (recommendations && recommendations.dataset.url && recommendations.dataset.loaded !== 'true') {
+      recommendations.dataset.loaded = 'true';
+      fetch(recommendations.dataset.url)
+        .then((response) => response.text())
+        .then((text) => {
+          const html = document.createElement('div');
+          html.innerHTML = text;
+          const fresh = html.querySelector('same-product-recommendations');
+          if (fresh && fresh.innerHTML.trim().length) {
+            recommendations.innerHTML = fresh.innerHTML;
+            setupSlider();
+          }
+        })
+        .catch(() => {
+          recommendations.innerHTML = '';
+        });
+    }
+
+    document.addEventListener('shopify:section:load', (event) => {
+      if (event.detail && event.detail.sectionId === '{{ section.id }}') setupSlider();
+    });
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Same related products",
+  "tag": "section",
+  "class": "section-same-related-products",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Products"
+    },
+    {
+      "type": "select",
+      "id": "product_source",
+      "label": "Product source",
+      "default": "recommendations",
+      "options": [
+        {
+          "value": "recommendations",
+          "label": "Shopify related recommendations"
+        },
+        {
+          "value": "same_collection",
+          "label": "Current product first collection"
+        },
+        {
+          "value": "collection",
+          "label": "Selected collection"
+        },
+        {
+          "value": "manual",
+          "label": "Manual product list"
+        }
+      ]
+    },
+    {
+      "type": "collection",
+      "id": "collection",
+      "label": "Collection"
+    },
+    {
+      "type": "product_list",
+      "id": "product_list",
+      "label": "Manual products",
+      "limit": 16
+    },
+    {
+      "type": "range",
+      "id": "products_to_show",
+      "label": "Products to show",
+      "min": 2,
+      "max": 16,
+      "step": 1,
+      "default": 8
+    },
+    {
+      "type": "header",
+      "content": "Heading"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading. Use | before accent text",
+      "default": "More From|Marcus"
+    },
+    {
+      "type": "text",
+      "id": "subheading",
+      "label": "Subheading",
+      "default": "Check out more designs from this creator."
+    },
+    {
+      "type": "font_picker",
+      "id": "heading_font",
+      "label": "Heading font",
+      "default": "helvetica_n7"
+    },
+    {
+      "type": "select",
+      "id": "heading_transform",
+      "label": "Heading transform",
+      "default": "uppercase",
+      "options": [
+        {
+          "value": "none",
+          "label": "None"
+        },
+        {
+          "value": "uppercase",
+          "label": "Uppercase"
+        }
+      ]
+    },
+    {
+      "type": "range",
+      "id": "heading_max_width",
+      "label": "Heading width",
+      "min": 360,
+      "max": 1200,
+      "step": 20,
+      "unit": "px",
+      "default": 720
+    },
+    {
+      "type": "range",
+      "id": "heading_size_desktop",
+      "label": "Heading size desktop",
+      "min": 24,
+      "max": 72,
+      "step": 1,
+      "unit": "px",
+      "default": 42
+    },
+    {
+      "type": "range",
+      "id": "heading_size_mobile",
+      "label": "Heading size mobile",
+      "min": 20,
+      "max": 44,
+      "step": 1,
+      "unit": "px",
+      "default": 28
+    },
+    {
+      "type": "checkbox",
+      "id": "show_crown",
+      "label": "Show crown icon",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Card content"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_vendor",
+      "label": "Show vendor",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "show_rating",
+      "label": "Show rating",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "fallback_rating",
+      "label": "Fallback rating",
+      "default": "4.9"
+    },
+    {
+      "type": "text",
+      "id": "fallback_rating_count",
+      "label": "Fallback rating count",
+      "default": "128"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_price",
+      "label": "Show price",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "from_text",
+      "label": "Price prefix for variable products",
+      "default": "From"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_button",
+      "label": "Show view product button",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "button_label",
+      "label": "Button label",
+      "default": "View Product"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_wishlist",
+      "label": "Show heart icon",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "wishlist_label",
+      "label": "Heart icon accessibility label",
+      "default": "Add to wishlist"
+    },
+    {
+      "type": "header",
+      "content": "Slider"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_slider",
+      "label": "Enable slider controls",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "columns_desktop",
+      "label": "Cards visible on desktop",
+      "min": 2,
+      "max": 5,
+      "step": 1,
+      "default": 4
+    },
+    {
+      "type": "range",
+      "id": "columns_tablet",
+      "label": "Cards visible on tablet",
+      "min": 1,
+      "max": 3,
+      "step": 1,
+      "default": 2
+    },
+    {
+      "type": "range",
+      "id": "columns_mobile",
+      "label": "Cards visible on mobile",
+      "min": 1,
+      "max": 5,
+      "step": 1,
+      "default": 1
+    },
+    {
+      "type": "text",
+      "id": "previous_label",
+      "label": "Previous button label",
+      "default": "Previous products"
+    },
+    {
+      "type": "text",
+      "id": "next_label",
+      "label": "Next button label",
+      "default": "Next products"
+    },
+    {
+      "type": "text",
+      "id": "slider_controls_label",
+      "label": "Slider controls label",
+      "default": "Related product slider controls"
+    },
+    {
+      "type": "text",
+      "id": "loading_text",
+      "label": "Recommendations loading text",
+      "default": "Loading products..."
+    },
+    {
+      "type": "header",
+      "content": "Images"
+    },
+    {
+      "type": "select",
+      "id": "image_ratio",
+      "label": "Product image ratio",
+      "default": "1 / 0.95",
+      "options": [
+        {
+          "value": "1 / 0.8",
+          "label": "Landscape"
+        },
+        {
+          "value": "1 / 0.95",
+          "label": "Slight landscape"
+        },
+        {
+          "value": "1 / 1",
+          "label": "Square"
+        },
+        {
+          "value": "4 / 5",
+          "label": "Portrait"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "image_fit",
+      "label": "Product image fit",
+      "default": "cover",
+      "options": [
+        {
+          "value": "cover",
+          "label": "Cover"
+        },
+        {
+          "value": "contain",
+          "label": "Contain"
+        }
+      ]
+    },
+    {
+      "type": "range",
+      "id": "card_texture_opacity",
+      "label": "Card texture opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 35
+    },
+    {
+      "type": "header",
+      "content": "Decorations"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_decorations",
+      "label": "Show corner marks",
+      "default": true
+    },
+    {
+      "type": "image_picker",
+      "id": "left_decor_image",
+      "label": "Left decoration image"
+    },
+    {
+      "type": "image_picker",
+      "id": "right_decor_image",
+      "label": "Right decoration image"
+    },
+    {
+      "type": "range",
+      "id": "decor_opacity",
+      "label": "Decoration opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 35
+    },
+    {
+      "type": "image_picker",
+      "id": "background_image",
+      "label": "Background texture image"
+    },
+    {
+      "type": "range",
+      "id": "background_image_opacity",
+      "label": "Background image opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 20
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Section background",
+      "default": "#050508"
+    },
+    {
+      "type": "color",
+      "id": "panel_background_color",
+      "label": "Panel background",
+      "default": "#09090d"
+    },
+    {
+      "type": "color",
+      "id": "card_background_color",
+      "label": "Card background",
+      "default": "#0c0b10"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text",
+      "default": "#f6f4f7"
+    },
+    {
+      "type": "color",
+      "id": "muted_text_color",
+      "label": "Muted text",
+      "default": "#a7a2ae"
+    },
+    {
+      "type": "color",
+      "id": "primary_color",
+      "label": "Purple accent",
+      "default": "#7a2bd6"
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Lime accent",
+      "default": "#b7ff00"
+    },
+    {
+      "type": "color",
+      "id": "border_color",
+      "label": "Border",
+      "default": "#3b2455"
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "range",
+      "id": "max_width",
+      "label": "Maximum width",
+      "min": 960,
+      "max": 1800,
+      "step": 20,
+      "unit": "px",
+      "default": 1560
+    },
+    {
+      "type": "range",
+      "id": "border_radius",
+      "label": "Panel corner radius",
+      "min": 0,
+      "max": 40,
+      "step": 1,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "card_radius",
+      "label": "Card corner radius",
+      "min": 0,
+      "max": 28,
+      "step": 1,
+      "unit": "px",
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "label": "Top padding",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "default": 8
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "label": "Bottom padding",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "default": 8
+    }
+  ],
+  "presets": [
+    {
+      "name": "Same related products"
+    }
+  ]
+}
+{% endschema %}

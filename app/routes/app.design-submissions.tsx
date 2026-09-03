@@ -1,1 +1,1 @@
-export { action, default, loader } from "./app.submissions";
+export { action, default, loader } from "./app.creator-products";

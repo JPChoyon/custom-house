@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  collectionShareTargets,
   handleStorefrontProxy,
   parseProxyRoute,
   type ProxyAuthenticator,
@@ -62,6 +64,7 @@ test("base proxy route provides an unsigned production-safe health response", as
   );
   assert.equal(response.status, 200);
   assert.deepEqual(await json(response), {
+    ok: true,
     success: true,
     message: "Custom House Shopify App Proxy is working",
   });
@@ -73,6 +76,16 @@ test("catch-all child routes are parsed deterministically", () => {
     kind: "creator",
     creatorHandle: "john-doe",
   });
+  assert.deepEqual(parseProxyRoute("creator/john-doe/products/cmabc123456789012345"), {
+    kind: "creatorProduct",
+    creatorHandle: "john-doe",
+    creatorProductId: "cmabc123456789012345",
+  });
+  assert.deepEqual(parseProxyRoute("creator/john-doe/products/cmabc123456789012345/prepare-cart"), {
+    kind: "creatorProductCart",
+    creatorHandle: "john-doe",
+    creatorProductId: "cmabc123456789012345",
+  });
   assert.deepEqual(parseProxyRoute("design/abc123"), {
     kind: "design",
     designSlug: "abc123",
@@ -83,10 +96,71 @@ test("catch-all child routes are parsed deterministically", () => {
   });
 });
 
+test("public collection share targets encode the canonical collection URL", () => {
+  const collectionUrl =
+    "https://customhouse.se/apps/customhouse/creators/jane-smith?ref=creator&campaign=launch";
+  const shareText = "Shop Jane & Co's collection";
+  const targets = collectionShareTargets(collectionUrl, shareText);
+
+  assert.equal(new URL(targets.facebook).searchParams.get("u"), collectionUrl);
+  assert.equal(new URL(targets.x).searchParams.get("url"), collectionUrl);
+  assert.equal(new URL(targets.x).searchParams.get("text"), shareText);
+  assert.equal(
+    new URL(targets.whatsapp).searchParams.get("text"),
+    `${shareText} ${collectionUrl}`,
+  );
+  assert.equal(new URL(targets.linkedin).searchParams.get("url"), collectionUrl);
+});
+
+test("public creator collection exposes basic share controls without Instagram direct posting", () => {
+  const source = readFileSync(
+    "app/services/storefront-proxy.server.ts",
+    "utf8",
+  );
+
+  assert.match(source, /data-customhouse-collection-share/);
+  assert.match(source, /Share my collection/);
+  assert.match(source, /data-customhouse-share-platform="facebook"/);
+  assert.match(source, /data-customhouse-share-platform="x"/);
+  assert.match(source, /data-customhouse-share-platform="whatsapp"/);
+  assert.match(source, /data-customhouse-share-platform="linkedin"/);
+  assert.match(source, /Copy link for Instagram/);
+  assert.match(source, /navigator\.share/);
+  assert.match(source, /window\.matchMedia\("\(max-width: 760px\)"\)\.matches/);
+  assert.match(source, /new URL\(sharePath, window\.location\.origin\)\.href/);
+  assert.match(source, /new URLSearchParams/);
+  assert.doesNotMatch(source, /instagram\.com\/share|instagram\.com\/intent/i);
+});
+
+test("public Creator product page is buy-only with fixed color and selectable printing method", () => {
+  const source = readFileSync(
+    "app/services/storefront-proxy.server.ts",
+    "utf8",
+  );
+
+  assert.match(source, /creatorProductSetupFromRecord/);
+  assert.match(source, /customhouse-locked-details/);
+  assert.match(source, /<dt>Color<\/dt>/);
+  assert.match(source, /<dt>Designed placements<\/dt>/);
+  assert.match(source, /name="selectedProductionMethod"/);
+  assert.match(source, /data-customhouse-production-method/);
+  assert.match(source, /selectedProductionMethod: productionMethodInput\?\.value/);
+  assert.match(source, /customhouse-made-to-order-note/);
+  assert.match(source, /made to order and cannot be returned/);
+  assert.match(source, /optionName\.includes\("color"\)/);
+  assert.match(source, /optionName\.includes\("production"\)/);
+  assert.match(source, /const preparedItems = Array\.isArray\(prepared\.items\)/);
+  assert.match(source, /cart\/add\.js/);
+  assert.match(source, /customhouseMinorMoney/);
+  assert.match(source, /productionMethods/);
+  assert.match(source, /placementCount/);
+  assert.doesNotMatch(source, /pitchprint.*showApp\(/i);
+});
+
 test("valid Shopify-style signature reaches a protected GET route", async () => {
   const response = await handleStorefrontProxy(
-    new Request(signedUrl("/proxy/design/abc123")),
-    "design/abc123",
+    new Request(signedUrl("/proxy")),
+    "",
     verifyTestSignature,
   );
   assert.equal(response.status, 200);
@@ -104,6 +178,7 @@ test("invalid proxy signature is rejected safely", async () => {
   );
   assert.equal(response.status, 403);
   assert.deepEqual(await json(response), {
+    ok: false,
     success: false,
     error: {
       code: "INVALID_PROXY_SIGNATURE",
@@ -159,6 +234,40 @@ test("signed POST requests are supported on the base route", async () => {
     verifyTestSignature,
   );
   assert.equal(response.status, 200);
+});
+
+test("prepare-cart malformed requests return JSON, never an HTML document", async () => {
+  const authenticator: ProxyAuthenticator = async (request) => {
+    const context = await verifyTestSignature(request);
+    return {
+      ...context,
+      client: {
+        async request() {
+          throw new Error("should not reach Shopify for malformed JSON");
+        },
+      },
+    };
+  };
+  const response = await handleStorefrontProxy(
+    new Request(
+      signedUrl(
+        "/proxy/creators/john-doe/products/cmabc123456789012345/prepare-cart",
+      ),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: "{",
+      },
+    ),
+    "creators/john-doe/products/cmabc123456789012345/prepare-cart",
+    authenticator,
+  );
+
+  assert.equal(response.status, 400);
+  assert.match(response.headers.get("content-type") || "", /application\/json/);
+  const body = await json(response);
+  assert.equal(body.ok, false);
+  assert.equal((body.error as { code: string }).code, "INVALID_JSON");
 });
 
 test("unsupported methods return a structured 405 response", async () => {

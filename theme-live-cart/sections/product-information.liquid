@@ -1,0 +1,3489 @@
+
+
+<script type="application/ld+json">
+  {{ closest.product | structured_data }}
+</script>
+<script>
+  (() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('open_customizer') === '1' || params.get('open_pitchprint') === '1') {
+      document.documentElement.classList.add('pitchprint-is-auto-opening');
+    }
+  })();
+</script>
+{% liquid
+  assign current_product = closest.product | default: product
+  assign current_product_type = current_product.metafields.customhouse.product_type.value | downcase
+  assign current_inkybay_enabled = current_product.metafields.customhouse.inkybay_enabled.value
+  assign current_pitchprint_enabled = current_product.metafields.customhouse.pitchprint_enabled.value
+  assign current_creator_publishing_enabled = current_product.metafields.customhouse.creator_publishing_enabled.value
+  assign is_creator_fixed_product = false
+  assign is_inkybay_designlab_product = false
+  assign is_pitchprint_designlab_product = false
+  assign is_pitchprint_required_product = false
+
+  if current_product_type == 'creator_fixed' or current_product.tags contains 'creator-fixed'
+    assign is_creator_fixed_product = true
+  endif
+
+  unless is_creator_fixed_product
+    if current_product_type == 'global_customizable' and current_pitchprint_enabled == true
+      assign is_inkybay_designlab_product = true
+      assign is_pitchprint_designlab_product = true
+    elsif current_product_type == 'global_customizable' and current_inkybay_enabled == true
+      assign is_inkybay_designlab_product = true
+    elsif current_product.tags contains 'pitchprint' or current_product.tags contains 'pitchprint-enabled'
+      assign is_inkybay_designlab_product = true
+      assign is_pitchprint_designlab_product = true
+    elsif current_product.tags contains 'pitchprint-designlab' or current_product.tags contains 'pitchprint-options'
+      assign is_inkybay_designlab_product = true
+      assign is_pitchprint_designlab_product = true
+    elsif current_product.tags contains 'inkybay-designlab' or current_product.tags contains 'inkybay-options'
+      assign is_inkybay_designlab_product = true
+    endif
+  endunless
+
+  if is_pitchprint_designlab_product and current_product.tags contains 'pitchprint-required'
+    assign is_pitchprint_required_product = true
+  endif
+
+  assign show_mobile_customize = false
+  if section.settings.show_customize_button and is_inkybay_designlab_product
+    assign show_mobile_customize = true
+  endif
+
+  # Keep storefront purchase controls active when Shopify reports sold out.
+  # Shopify Admin must still allow overselling for the backend cart request.
+  assign force_allow_purchase = section.settings.force_allow_purchase
+%}
+
+{% capture media_gallery %}
+  <div class="premium-trucker-product__media-wrap">
+    {% liquid
+      assign custom_gallery_count = 0
+      if section.settings.gallery_image_1 != blank
+        assign custom_gallery_count = custom_gallery_count | plus: 1
+      endif
+      if section.settings.gallery_image_2 != blank
+        assign custom_gallery_count = custom_gallery_count | plus: 1
+      endif
+      if section.settings.gallery_image_3 != blank
+        assign custom_gallery_count = custom_gallery_count | plus: 1
+      endif
+      if section.settings.gallery_image_4 != blank
+        assign custom_gallery_count = custom_gallery_count | plus: 1
+      endif
+      if section.settings.gallery_image_5 != blank
+        assign custom_gallery_count = custom_gallery_count | plus: 1
+      endif
+      if section.settings.gallery_image_6 != blank
+        assign custom_gallery_count = custom_gallery_count | plus: 1
+      endif
+      assign first_gallery_index = blank
+      if section.settings.gallery_image_1 != blank and first_gallery_index == blank
+        assign first_gallery_index = '1'
+      endif
+      if section.settings.gallery_image_2 != blank and first_gallery_index == blank
+        assign first_gallery_index = '2'
+      endif
+      if section.settings.gallery_image_3 != blank and first_gallery_index == blank
+        assign first_gallery_index = '3'
+      endif
+      if section.settings.gallery_image_4 != blank and first_gallery_index == blank
+        assign first_gallery_index = '4'
+      endif
+      if section.settings.gallery_image_5 != blank and first_gallery_index == blank
+        assign first_gallery_index = '5'
+      endif
+      if section.settings.gallery_image_6 != blank and first_gallery_index == blank
+        assign first_gallery_index = '6'
+      endif
+    %}
+
+    {% if section.settings.enable_custom_gallery and custom_gallery_count > 0 %}
+      <div class="premium-trucker-product__custom-gallery" data-premium-gallery>
+        <div class="premium-trucker-product__custom-thumbs" role="tablist" aria-label="Product images">
+          {% if section.settings.gallery_image_1 != blank %}
+            <button class="premium-trucker-product__custom-thumb{% if first_gallery_index == '1' %} is-active{% endif %}" type="button" data-gallery-thumb data-gallery-index="1" aria-label="Show image 1">
+              {{ section.settings.gallery_image_1 | image_url: width: 240 | image_tag: loading: 'lazy', alt: section.settings.gallery_image_1_alt }}
+            </button>
+          {% endif %}
+          {% if section.settings.gallery_image_2 != blank %}
+            <button class="premium-trucker-product__custom-thumb{% if first_gallery_index == '2' %} is-active{% endif %}" type="button" data-gallery-thumb data-gallery-index="2" aria-label="Show image 2">
+              {{ section.settings.gallery_image_2 | image_url: width: 240 | image_tag: loading: 'lazy', alt: section.settings.gallery_image_2_alt }}
+            </button>
+          {% endif %}
+          {% if section.settings.gallery_image_3 != blank %}
+            <button class="premium-trucker-product__custom-thumb{% if first_gallery_index == '3' %} is-active{% endif %}" type="button" data-gallery-thumb data-gallery-index="3" aria-label="Show image 3">
+              {{ section.settings.gallery_image_3 | image_url: width: 240 | image_tag: loading: 'lazy', alt: section.settings.gallery_image_3_alt }}
+            </button>
+          {% endif %}
+          {% if section.settings.gallery_image_4 != blank %}
+            <button class="premium-trucker-product__custom-thumb{% if first_gallery_index == '4' %} is-active{% endif %}" type="button" data-gallery-thumb data-gallery-index="4" aria-label="Show image 4">
+              {{ section.settings.gallery_image_4 | image_url: width: 240 | image_tag: loading: 'lazy', alt: section.settings.gallery_image_4_alt }}
+            </button>
+          {% endif %}
+          {% if section.settings.gallery_image_5 != blank %}
+            <button class="premium-trucker-product__custom-thumb{% if first_gallery_index == '5' %} is-active{% endif %}{% if custom_gallery_count > 4 %} has-more-count{% endif %}" type="button" data-gallery-thumb data-gallery-index="5" aria-label="Show image 5">
+              {{ section.settings.gallery_image_5 | image_url: width: 240 | image_tag: loading: 'lazy', alt: section.settings.gallery_image_5_alt }}
+              {% if custom_gallery_count > 4 %}
+                <span class="premium-trucker-product__more-count">+{{ custom_gallery_count | minus: 4 }}</span>
+              {% endif %}
+            </button>
+          {% endif %}
+        </div>
+
+        <div class="premium-trucker-product__custom-main">
+          {% if section.settings.gallery_image_1 != blank %}
+            <div class="premium-trucker-product__custom-slide{% if first_gallery_index == '1' %} is-active{% endif %}" data-gallery-slide data-gallery-index="1">
+              {{ section.settings.gallery_image_1 | image_url: width: 1600 | image_tag: loading: 'lazy', alt: section.settings.gallery_image_1_alt, widths: '600, 900, 1200, 1600', sizes: '(min-width: 1100px) 58vw, 100vw' }}
+            </div>
+          {% endif %}
+          {% if section.settings.gallery_image_2 != blank %}
+            <div class="premium-trucker-product__custom-slide{% if first_gallery_index == '2' %} is-active{% endif %}" data-gallery-slide data-gallery-index="2">
+              {{ section.settings.gallery_image_2 | image_url: width: 1600 | image_tag: loading: 'lazy', alt: section.settings.gallery_image_2_alt, widths: '600, 900, 1200, 1600', sizes: '(min-width: 1100px) 58vw, 100vw' }}
+            </div>
+          {% endif %}
+          {% if section.settings.gallery_image_3 != blank %}
+            <div class="premium-trucker-product__custom-slide{% if first_gallery_index == '3' %} is-active{% endif %}" data-gallery-slide data-gallery-index="3">
+              {{ section.settings.gallery_image_3 | image_url: width: 1600 | image_tag: loading: 'lazy', alt: section.settings.gallery_image_3_alt, widths: '600, 900, 1200, 1600', sizes: '(min-width: 1100px) 58vw, 100vw' }}
+            </div>
+          {% endif %}
+          {% if section.settings.gallery_image_4 != blank %}
+            <div class="premium-trucker-product__custom-slide{% if first_gallery_index == '4' %} is-active{% endif %}" data-gallery-slide data-gallery-index="4">
+              {{ section.settings.gallery_image_4 | image_url: width: 1600 | image_tag: loading: 'lazy', alt: section.settings.gallery_image_4_alt, widths: '600, 900, 1200, 1600', sizes: '(min-width: 1100px) 58vw, 100vw' }}
+            </div>
+          {% endif %}
+          {% if section.settings.gallery_image_5 != blank %}
+            <div class="premium-trucker-product__custom-slide{% if first_gallery_index == '5' %} is-active{% endif %}" data-gallery-slide data-gallery-index="5">
+              {{ section.settings.gallery_image_5 | image_url: width: 1600 | image_tag: loading: 'lazy', alt: section.settings.gallery_image_5_alt, widths: '600, 900, 1200, 1600', sizes: '(min-width: 1100px) 58vw, 100vw' }}
+            </div>
+          {% endif %}
+          {% if section.settings.gallery_image_6 != blank %}
+            <div class="premium-trucker-product__custom-slide{% if first_gallery_index == '6' %} is-active{% endif %}" data-gallery-slide data-gallery-index="6">
+              {{ section.settings.gallery_image_6 | image_url: width: 1600 | image_tag: loading: 'lazy', alt: section.settings.gallery_image_6_alt, widths: '600, 900, 1200, 1600', sizes: '(min-width: 1100px) 58vw, 100vw' }}
+            </div>
+          {% endif %}
+          {% if custom_gallery_count > 1 %}
+            <button class="premium-trucker-product__gallery-arrow premium-trucker-product__gallery-arrow--prev" type="button" data-gallery-nav="prev" aria-label="Previous product image">
+              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                <path d="M15 5 8 12l7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button class="premium-trucker-product__gallery-arrow premium-trucker-product__gallery-arrow--next" type="button" data-gallery-nav="next" aria-label="Next product image">
+              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                <path d="m9 5 7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          {% endif %}
+        </div>
+      </div>
+    {% else %}
+      {% liquid
+        assign native_gallery_product = closest.product | default: product
+        assign native_gallery_count = native_gallery_product.media.size
+      %}
+
+      {% if section.settings.enable_premium_style and native_gallery_count > 0 %}
+        <div class="premium-trucker-product__custom-gallery premium-trucker-product__product-media-gallery" data-premium-gallery>
+          <div class="premium-trucker-product__custom-thumbs" role="tablist" aria-label="Product media">
+            {% assign rendered_gallery_thumb_count = 0 %}
+            {% for media in native_gallery_product.media %}
+              {% assign media_index = forloop.index %}
+              {% assign media_alt = media.alt | default: native_gallery_product.title | escape %}
+              {% assign media_preview = media.preview_image | default: native_gallery_product.featured_image %}
+              {% if media_preview != blank %}
+                {% assign rendered_gallery_thumb_count = rendered_gallery_thumb_count | plus: 1 %}
+                {% if rendered_gallery_thumb_count <= 5 %}
+                  <button class="premium-trucker-product__custom-thumb{% if forloop.first %} is-active{% endif %}{% if rendered_gallery_thumb_count == 5 and native_gallery_count > 4 %} has-more-count{% endif %}" type="button" data-gallery-thumb data-gallery-index="{{ media_index }}" data-gallery-media-id="{{ media.id }}" data-gallery-image-id="{{ media_preview.id | default: media.id }}" data-gallery-src="{{ media_preview | image_url: width: 1600 }}" aria-label="Show product media {{ media_index }}">
+                    {{ media_preview | image_url: width: 320 | image_tag: loading: 'lazy', alt: media_alt }}
+                    {% if rendered_gallery_thumb_count == 5 and native_gallery_count > 4 %}
+                      <span class="premium-trucker-product__more-count">+{{ native_gallery_count | minus: 4 }}</span>
+                    {% endif %}
+                  </button>
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          </div>
+
+          <div class="premium-trucker-product__custom-main">
+            {% for media in native_gallery_product.media %}
+              {% assign media_index = forloop.index %}
+              {% assign media_alt = media.alt | default: native_gallery_product.title | escape %}
+              {% assign media_preview = media.preview_image | default: native_gallery_product.featured_image %}
+              {% if media_preview != blank %}
+                <div class="premium-trucker-product__custom-slide{% if forloop.first %} is-active{% endif %}" data-gallery-slide data-gallery-index="{{ media_index }}" data-gallery-media-id="{{ media.id }}" data-gallery-image-id="{{ media_preview.id | default: media.id }}" data-gallery-src="{{ media_preview | image_url: width: 1600 }}">
+                  {{ media_preview | image_url: width: 1600 | image_tag: loading: 'eager', alt: media_alt, widths: '600, 900, 1200, 1600', sizes: '(min-width: 1100px) 58vw, 100vw' }}
+                </div>
+              {% endif %}
+            {% endfor %}
+            {% if native_gallery_count > 1 %}
+              <button class="premium-trucker-product__gallery-arrow premium-trucker-product__gallery-arrow--prev" type="button" data-gallery-nav="prev" aria-label="Previous product image">
+                <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                  <path d="M15 5 8 12l7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <button class="premium-trucker-product__gallery-arrow premium-trucker-product__gallery-arrow--next" type="button" data-gallery-nav="next" aria-label="Next product image">
+                <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                  <path d="m9 5 7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            {% endif %}
+          </div>
+        </div>
+      {% else %}
+        <div class="premium-trucker-product__native-gallery">
+          {%- content_for 'block',
+            type: '_product-media-gallery',
+            id: 'media-gallery',
+            closest.product: closest.product
+          -%}
+        </div>
+      {% endif %}
+    {% endif %}
+
+    {% if section.settings.show_service_badges %}
+      <div class="premium-trucker-product__service-row" aria-label="Product service information">
+        {% if section.settings.production_time_text != blank %}
+          <div class="premium-trucker-product__service-item">
+            <span class="premium-trucker-product__service-icon" aria-hidden="true">
+              {% if section.settings.production_icon_image != blank %}
+                {{ section.settings.production_icon_image | image_url: width: 80 | image_tag: loading: 'lazy', alt: '' }}
+              {% else %}
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <path d="M12 2.8 3.8 7.2v9.4l8.2 4.6 8.2-4.6V7.2L12 2.8Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                  <path d="M3.8 7.2 12 11.8l8.2-4.6M12 21.2v-9.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                </svg>
+              {% endif %}
+            </span>
+            <span>
+              <strong>{{ section.settings.production_time_heading | escape }}</strong>
+              <small>{{ section.settings.production_time_text | escape }}</small>
+            </span>
+          </div>
+        {% endif %}
+
+        {% if section.settings.shipping_time_text != blank %}
+          <div class="premium-trucker-product__service-item">
+            <span class="premium-trucker-product__service-icon" aria-hidden="true">
+              {% if section.settings.shipping_icon_image != blank %}
+                {{ section.settings.shipping_icon_image | image_url: width: 80 | image_tag: loading: 'lazy', alt: '' }}
+              {% else %}
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <path d="M3 7h11v9H3V7Zm11 3h3.7l3.3 3.3V16h-7v-6Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                  <path d="M7 19.2a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm10 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                </svg>
+              {% endif %}
+            </span>
+            <span>
+              <strong>{{ section.settings.shipping_time_heading | escape }}</strong>
+              <small>{{ section.settings.shipping_time_text | escape }}</small>
+            </span>
+          </div>
+        {% endif %}
+
+        {% if section.settings.returns_text != blank %}
+          <div class="premium-trucker-product__service-item">
+            <span class="premium-trucker-product__service-icon" aria-hidden="true">
+              {% if section.settings.returns_icon_image != blank %}
+                {{ section.settings.returns_icon_image | image_url: width: 80 | image_tag: loading: 'lazy', alt: '' }}
+              {% else %}
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <path d="M19 12a7 7 0 1 1-2.1-5M19 4.5v4h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M12 8.2v4.2l3 1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              {% endif %}
+            </span>
+            <span>
+              <strong>{{ section.settings.returns_heading | escape }}</strong>
+              <small>{{ section.settings.returns_text | escape }}</small>
+            </span>
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+{% endcapture %}
+
+{% capture product_details %}
+  <div class="premium-trucker-product__details-wrap">
+    {% liquid
+      assign premium_product = closest.product | default: product
+      assign premium_variant = premium_product.selected_or_first_available_variant
+      assign premium_price = premium_variant.price | default: premium_product.price
+      assign premium_compare_price = premium_variant.compare_at_price | default: premium_product.compare_at_price
+      assign premium_savings = 0
+      if premium_compare_price != blank and premium_compare_price > premium_price
+        assign premium_savings = premium_compare_price | minus: premium_price
+      endif
+      assign premium_creator_profile = premium_product.metafields.customhouse.creator_profile.value
+      assign premium_creator_name = premium_product.metafields.customhouse.creator_display_name.value
+      assign premium_creator_handle = premium_product.metafields.customhouse.creator_handle.value
+      if premium_creator_name == blank and premium_creator_profile != blank
+        assign premium_creator_name = premium_creator_profile.display_name.value | default: premium_creator_profile.display_name | default: premium_creator_profile.displayName.value | default: premium_creator_profile.displayName
+      endif
+      if premium_creator_handle == blank and premium_creator_profile != blank
+        assign premium_creator_handle = premium_creator_profile.creator_handle.value | default: premium_creator_profile.creatorHandle.value | default: premium_creator_profile.handle.value | default: premium_creator_profile.handle
+      endif
+      if is_creator_locked_product
+        assign premium_creator_name = premium_creator_name | default: premium_creator_handle | default: section.settings.creator_name
+      else
+        assign premium_creator_name = section.settings.creator_name
+      endif
+      assign premium_creator_brand = section.settings.creator_label | default: 'Custom House'
+      if is_creator_locked_product
+        assign premium_creator_brand = 'Custom House'
+      endif
+    %}
+
+    {% if premium_product.title != blank %}
+      <h1 class="premium-trucker-product__screenshot-title">{{ premium_product.title | escape }}</h1>
+    {% endif %}
+
+    {% if section.settings.show_product_meta %}
+      <div class="premium-trucker-product__meta">
+        {% if premium_creator_brand != blank or premium_creator_name != blank %}
+          <div class="premium-trucker-product__creator">
+            {% if section.settings.creator_avatar_image != blank %}
+              <span class="premium-trucker-product__creator-avatar" aria-hidden="true">
+                {{ section.settings.creator_avatar_image | image_url: width: 80 | image_tag: loading: 'lazy', alt: '' }}
+              </span>
+            {% endif %}
+            {% if premium_creator_brand != blank %}
+              <span class="premium-trucker-product__creator-brand">{{ premium_creator_brand | escape }}</span>
+            {% endif %}
+            {% if premium_creator_name != blank %}
+              <strong class="premium-trucker-product__creator-name">
+                {% if is_creator_locked_product %}by {% endif %}{{ premium_creator_name | escape }}
+              </strong>
+            {% endif %}
+            {% if section.settings.show_verified_badge %}
+              <span class="premium-trucker-product__verified" aria-label="Verified creator">
+                <svg viewBox="0 0 20 20" focusable="false" aria-hidden="true">
+                  <path d="M10 1.5 12.1 4l3.2-.4.7 3.1 2.8 1.6-1.4 2.9 1.4 2.9-2.8 1.6-.7 3.1-3.2-.4L10 20l-2.1-2.5-3.2.4-.7-3.1-2.8-1.6 1.4-2.9-1.4-2.9L4 5.8l.7-3.1 3.2.4L10 1.5Z" fill="currentColor"/>
+                  <path d="m6.8 10.2 2 2 4.4-4.6" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+            {% endif %}
+          </div>
+        {% endif %}
+
+        {% if section.settings.rating_text != blank or section.settings.reviews_text != blank %}
+          <div class="premium-trucker-product__rating" aria-label="{{ section.settings.rating_text | escape }} {{ section.settings.reviews_text | escape }}">
+            <span class="premium-trucker-product__stars" aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+            {% if section.settings.rating_text != blank %}
+              <strong>{{ section.settings.rating_text | escape }}</strong>
+            {% endif %}
+            {% if section.settings.reviews_text != blank %}
+              <span>{{ section.settings.reviews_text | escape }}</span>
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if premium_price != blank %}
+      <div class="premium-trucker-product__screenshot-price" aria-label="Product price">
+        <span class="premium-trucker-product__sale-price">{{ premium_price | money }}</span>
+        {% if premium_compare_price != blank and premium_compare_price > premium_price %}
+          <s class="premium-trucker-product__compare-price">{{ premium_compare_price | money }}</s>
+          <span class="premium-trucker-product__save-badge">You save {{ premium_savings | money }}</span>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if premium_product.description != blank %}
+      <div class="premium-trucker-product__screenshot-description">
+        {{ premium_product.description | strip_html | truncate: 170 }}
+      </div>
+    {% endif %}
+
+    {% unless is_inkybay_designlab_product or is_creator_locked_product %}
+    {% for option in premium_product.options_with_values %}
+      {% assign option_name_downcase = option.name | downcase %}
+      {% if option_name_downcase contains 'color' or option_name_downcase contains 'colour' %}
+        <div class="premium-trucker-product__color-pills" data-color-pill-group data-option-name="{{ option.name | escape }}">
+          <div class="premium-trucker-product__color-label">
+            <span>{{ option.name | escape }}:</span>
+            <strong data-color-pill-current>{{ option.selected_value | default: option.values.first | escape }}</strong>
+          </div>
+          <div class="premium-trucker-product__color-list" role="list" aria-label="{{ option.name | escape }} options">
+            {% for value in option.values %}
+              {% liquid
+                assign value_handle = value | handleize
+                assign swatch_color = '#555555'
+                case value_handle
+                  when 'black'
+                    assign swatch_color = '#050505'
+                  when 'white'
+                    assign swatch_color = '#f3f3f3'
+                  when 'navy'
+                    assign swatch_color = '#12243d'
+                  when 'green'
+                    assign swatch_color = '#687329'
+                  when 'red'
+                    assign swatch_color = '#dd201c'
+                  when 'blue'
+                    assign swatch_color = '#2457d6'
+                  when 'purple'
+                    assign swatch_color = '#8a2cff'
+                  when 'gray', 'grey'
+                    assign swatch_color = '#6f6f6f'
+                  when 'charcoal'
+                    assign swatch_color = '#282828'
+                  when 'silver'
+                    assign swatch_color = '#bfc2c5'
+                  when 'gold'
+                    assign swatch_color = '#d4a640'
+                  when 'yellow'
+                    assign swatch_color = '#f2cf28'
+                  when 'orange'
+                    assign swatch_color = '#e37822'
+                  when 'brown'
+                    assign swatch_color = '#69452c'
+                  when 'pink'
+                    assign swatch_color = '#e66da3'
+                endcase
+              %}
+              <button
+                class="premium-trucker-product__color-pill{% if option.selected_value == value or option.selected_value == blank and forloop.first %} is-active{% endif %}"
+                type="button"
+                data-color-pill
+                data-option-value="{{ value | escape }}"
+                data-option-index="{{ forloop.index }}"
+                style="--ptp-pill-color: {{ swatch_color }};"
+                aria-label="Select {{ value | escape }}"
+                aria-pressed="{% if option.selected_value == value or option.selected_value == blank and forloop.first %}true{% else %}false{% endif %}"
+              >
+                <span class="premium-trucker-product__color-swatch" aria-hidden="true"></span>
+                <span>{{ value | escape }}</span>
+              </button>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+    {% endfor %}
+    {% endunless %}
+
+    {% content_for 'block',
+      type: '_product-details',
+      id: 'product-details',
+      closest.product: closest.product
+    %}
+
+    {% if is_inkybay_designlab_product and current_creator_publishing_enabled == true %}
+      <div
+        class="premium-trucker-product__creator-actions"
+        data-customhouse-creator-actions
+        data-product-id="{{ premium_product.id }}"
+        data-variant-id="{{ premium_variant.id }}"
+        data-product-handle="{{ premium_product.handle | escape }}"
+        data-product-type="global_customizable"
+        data-pitchprint-enabled="true"
+        data-inkybay-enabled="true"
+        data-creator-publishing-enabled="true"
+        hidden
+      >
+        <button
+          type="button"
+          class="premium-trucker-product__creator-collection-button"
+          data-create-for-collection
+          aria-busy="false"
+        >
+          Create for My Collection
+        </button>
+        <p
+          class="premium-trucker-product__creator-action-message"
+          data-creator-action-message
+          role="status"
+          aria-live="polite"
+          hidden
+        ></p>
+      </div>
+    {% endif %}
+
+  </div>
+{% endcapture %}
+
+{% capture additional_blocks %}
+  {% content_for 'blocks' %}
+{% endcapture %}
+
+{% if section.settings.enable_sticky_add_to_cart and is_inkybay_designlab_product == false %}
+  {% liquid
+    assign current_variant = product.selected_or_first_available_variant | default: product.variants.first
+    # Get the initial quantity based on quantity rules
+    assign initial_quantity = current_variant.quantity_rule.min | default: 1
+    assign sticky_variant_available = current_variant.available
+    if force_allow_purchase
+      assign sticky_variant_available = true
+    endif
+  %}
+
+  <sticky-add-to-cart
+    class="sticky-add-to-cart"
+    data-variant-available="{{ sticky_variant_available }}"
+    data-product-id="{{ product.id }}"
+    data-current-variant-id="{{ current_variant.id }}"
+    data-initial-quantity="{{ initial_quantity }}"
+    data-default-variant-title="{{ 'products.product.default_title' | t }}"
+  >
+    <div
+      class="sticky-add-to-cart__bar color-custom-popover"
+      data-stuck="false"
+      ref="stickyBar"
+      role="region"
+      aria-label="{{ 'products.product.sticky_add_to_cart' | t }}"
+    >
+      {% liquid
+        assign image_to_show = current_variant.featured_image | default: product.featured_image
+      %}
+      {% if image_to_show %}
+        <div
+          class="sticky-add-to-cart__image"
+        >
+          {% assign image_alt = image_to_show.alt | default: product.title | escape %}
+          {{
+            image_to_show
+            | image_url: width: 120
+            | image_tag:
+              loading: 'lazy',
+              alt: image_alt,
+              class: 'sticky-add-to-cart__image-img',
+              data-testid: 'sticky-product-image',
+              srcset: null,
+              sizes: null,
+              ref: 'productImage'
+          }}
+        </div>
+      {% endif %}
+
+      {% liquid
+        assign has_single_option = false
+        if product.has_only_default_variant != true and product.options.size == 1
+          assign has_single_option = true
+        endif
+
+        if image_to_show == blank
+          assign has_image = false
+        else
+          assign has_image = true
+        endif
+      %}
+      <div
+        class="sticky-add-to-cart__info"
+        data-has-image="{{ has_image }}"
+        data-singleton="{{ product.has_only_default_variant }}"
+        data-single-option="{{ has_single_option }}"
+      >
+        <p
+          class="sticky-add-to-cart__title"
+          data-testid="sticky-product-title"
+        >
+          {{ product.title | escape }}
+        </p>
+        <div
+          class="sticky-add-to-cart__variant"
+          data-testid="sticky-variant-title"
+          {% if product.has_only_default_variant %}
+            style="display: none;"
+          {% endif %}
+        >
+          {% unless product.has_only_default_variant %}
+            {% if current_variant != blank %}
+              {% assign variant_title = current_variant.title | escape %}
+            {% endif %}
+            {{ variant_title }}
+          {% endunless %}
+        </div>
+      </div>
+
+      <div
+        class="sticky-add-to-cart__price"
+        data-testid="sticky-price-display"
+      >
+        {% render 'price', product_resource: product, show_sale_price_first: true %}
+      </div>
+
+      <button
+        type="button"
+        class="sticky-add-to-cart__button add-to-cart-button button"
+        ref="addToCartButton"
+        on:click="/handleAddToCartClick"
+        {% if force_allow_purchase == false and current_variant.available == false %}
+          disabled
+        {% endif %}
+      >
+        <span
+          class="add-to-cart-text"
+        >
+          {% if current_variant.available or force_allow_purchase %}
+            <span class="svg-wrapper">
+              {{- 'icon-add-to-cart.svg' | inline_asset_content -}}
+            </span>
+          {% endif %}
+          <span class="add-to-cart-text__content">
+            <span>
+              {%- if current_variant.available or force_allow_purchase -%}
+                {{- 'products.product.add_to_cart' | t -}}
+              {%- elsif current_variant == blank -%}
+                {{- 'products.product.unavailable' | t -}}
+              {%- else -%}
+                {{- 'products.product.sold_out' | t -}}
+              {%- endif -%}
+            </span>
+            <span
+              ref="quantityDisplay"
+              {% if sticky_variant_available and initial_quantity > 1 %}
+                style="display: inline;"
+              {% else %}
+                style="display: none;"
+              {% endif %}
+            >
+              {{- ' (' -}}
+              <span ref="quantityNumber">{{- initial_quantity -}}</span>
+              {{- ')' -}}
+            </span>
+          </span>
+        </span>
+        <span class="add-to-cart__added">
+          <span class="svg-wrapper add-to-cart__added-icon">
+            {{- 'icon-checkmark-burst.svg' | inline_asset_content -}}
+          </span>
+        </span>
+      </button>
+    </div>
+  </sticky-add-to-cart>
+{% endif %}
+
+{% if section.settings.enable_premium_style %}
+  <style>
+    #shopify-section-{{ section.id }} {
+      background: {{ section.settings.premium_background_color }};
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} {
+      --ptp-page-bg: {{ section.settings.premium_background_color }};
+      --ptp-panel-bg: {{ section.settings.premium_panel_color }};
+      --ptp-text: {{ section.settings.premium_text_color }};
+      --ptp-muted: {{ section.settings.premium_muted_color }};
+      --ptp-border: {{ section.settings.premium_border_color }};
+      --ptp-accent: {{ section.settings.premium_accent_color }};
+      --ptp-accent-2: {{ section.settings.premium_accent_2_color }};
+      --ptp-service: {{ section.settings.service_icon_color }};
+      --ptp-max-width: {{ section.settings.premium_max_width }}px;
+      --ptp-side-padding: {{ section.settings.premium_side_padding }}px;
+      --ptp-mobile-padding: {{ section.settings.premium_mobile_padding }}px;
+      --ptp-grid-gap: {{ section.settings.premium_grid_gap }}px;
+      --ptp-media-radius: {{ section.settings.premium_media_radius }}px;
+      --ptp-button-radius: {{ section.settings.premium_button_radius }}px;
+      --ptp-thumbnail-size: {{ section.settings.premium_thumbnail_size }}px;
+      --ptp-thumbnail-display-size: clamp(116px, calc(var(--ptp-thumbnail-size) + 20px), 150px);
+      --ptp-heading-size: {{ section.settings.premium_heading_size }}px;
+      --ptp-heading-size-mobile: {{ section.settings.premium_heading_size_mobile }}px;
+      --ptp-gallery-object-fit: {{ section.settings.custom_gallery_image_fit }};
+      background: radial-gradient(ellipse at 50% -10%, rgba(255,255,255,.055), transparent 42%), radial-gradient(circle at 88% 18%, rgba(138,44,255,.12), transparent 28%), linear-gradient(180deg, #090909 0%, var(--ptp-page-bg) 54%, #030303 100%) !important;
+      color: var(--ptp-text) !important;
+      overflow: hidden;
+    }
+
+    {% if section.settings.premium_background_image != blank %}
+      #PremiumTruckerProduct-{{ section.id }} {
+        background-image: radial-gradient(circle at 32% 18%, rgba(255,255,255,.08), transparent 30%), radial-gradient(circle at 100% 0%, rgba(138,44,255,.18), transparent 28%), url('{{ section.settings.premium_background_image | image_url: width: 2400 }}') !important;
+        background-size: auto, auto, cover !important;
+        background-position: center, center, center !important;
+        background-repeat: no-repeat !important;
+      }
+    {% endif %}
+
+    #PremiumTruckerProduct-{{ section.id }} *,
+    #PremiumTruckerProduct-{{ section.id }} *::before,
+    #PremiumTruckerProduct-{{ section.id }} *::after {
+      box-sizing: border-box;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .section,
+    #PremiumTruckerProduct-{{ section.id }} .section-background,
+    #PremiumTruckerProduct-{{ section.id }} .product-information,
+    #PremiumTruckerProduct-{{ section.id }} [class*="product-information"] {
+      background: transparent !important;
+      color: inherit !important;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .product-information__grid,
+    #PremiumTruckerProduct-{{ section.id }} [class*="product-information__grid"] {
+      width: 100% !important;
+      max-width: var(--ptp-max-width) !important;
+      margin-inline: auto !important;
+      padding: clamp(30px, 5vw, 70px) var(--ptp-side-padding) clamp(28px, 5vw, 56px) !important;
+      display: grid !important;
+      grid-template-columns: minmax(0, 1.22fr) minmax(380px, .78fr) !important;
+      gap: clamp(34px, 4vw, var(--ptp-grid-gap)) !important;
+      align-items: start !important;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__media-wrap {
+      min-width: 0;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__custom-gallery {
+      display: grid;
+      grid-template-columns: var(--ptp-thumbnail-display-size) minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__custom-thumbs {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      grid-column: 1;
+      grid-row: 1;
+      max-height: none;
+      overflow: hidden;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__custom-thumb {
+      position: relative;
+      width: var(--ptp-thumbnail-display-size);
+      min-width: var(--ptp-thumbnail-display-size);
+      height: var(--ptp-thumbnail-display-size);
+      min-height: var(--ptp-thumbnail-display-size);
+      flex: 0 0 var(--ptp-thumbnail-display-size);
+      aspect-ratio: 1;
+      padding: 0;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 8px;
+      background: linear-gradient(145deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+      overflow: hidden;
+      opacity: .72;
+      cursor: pointer;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__custom-thumb.has-more-count::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      background: rgba(0,0,0,.58);
+      backdrop-filter: blur(1px);
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__more-count {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-size: clamp(24px, 2.2vw, 34px);
+      font-weight: 900;
+      line-height: 1;
+      text-shadow: 0 2px 12px rgba(0,0,0,.7);
+      pointer-events: none;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__custom-thumb.is-active {
+      border-color: var(--ptp-accent);
+      box-shadow: 0 0 0 1px var(--ptp-accent), 0 0 20px rgba(138,44,255,.32);
+      opacity: 1;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__custom-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__custom-main {
+      position: relative;
+      grid-column: 2;
+      grid-row: 1;
+      min-width: 0;
+      aspect-ratio: 0.9 / 1;
+      border-radius: var(--ptp-media-radius);
+      background: radial-gradient(circle at 52% 26%, rgba(255,255,255,.14), transparent 34%), radial-gradient(circle at 24% 82%, rgba(255,255,255,.055), transparent 30%), repeating-radial-gradient(circle at 42% 40%, rgba(255,255,255,.035) 0 1px, transparent 1px 5px), linear-gradient(145deg, #282828, #111);
+      border: 1px solid rgba(255,255,255,.07);
+      overflow: hidden;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__custom-slide {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity .22s ease, visibility .22s ease;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__custom-slide.is-active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__custom-slide img {
+      width: 100%;
+      height: 100%;
+      object-fit: var(--ptp-gallery-object-fit);
+      display: block;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__gallery-arrow {
+      display: none;
+      position: absolute;
+      z-index: 3;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 42px;
+      height: 42px;
+      padding: 0;
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 999px;
+      background: rgba(12,12,12,.58);
+      color: #fff;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__gallery-arrow svg {
+      width: 21px;
+      height: 21px;
+      display: block;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__gallery-arrow--prev {
+      left: 12px;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__gallery-arrow--next {
+      right: 12px;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery {
+      min-width: 0;
+      width: 100%;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery img {
+      max-width: 100%;
+      height: auto;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery product-media-gallery,
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery media-gallery,
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery .product-media-gallery,
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery .product__media-gallery,
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery [class*="media-gallery"] {
+      display: grid !important;
+      grid-template-columns: var(--ptp-thumbnail-display-size) minmax(0, 1fr) !important;
+      gap: 16px !important;
+      min-width: 0 !important;
+      align-items: start !important;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery [class*="media"] img {
+      width: 100% !important;
+      max-width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+      display: block !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery .thumbnail-list,
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery [class*="thumbnail-list"] {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 12px !important;
+      grid-column: 1 !important;
+      grid-row: 1 !important;
+      order: -1 !important;
+      max-height: none !important;
+      overflow: hidden !important;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery .thumbnail-list > :nth-child(n + 6),
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery [class*="thumbnail-list"] > :nth-child(n + 6) {
+      display: none !important;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery .thumbnail,
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery [class*="thumbnail"] {
+      width: var(--ptp-thumbnail-display-size) !important;
+      min-width: var(--ptp-thumbnail-display-size) !important;
+      height: var(--ptp-thumbnail-display-size) !important;
+      min-height: var(--ptp-thumbnail-display-size) !important;
+      flex: 0 0 var(--ptp-thumbnail-display-size) !important;
+      aspect-ratio: 1 !important;
+      border: 1px solid rgba(255,255,255,.08) !important;
+      border-radius: 8px !important;
+      background: linear-gradient(145deg, rgba(255,255,255,.08), rgba(255,255,255,.02)) !important;
+      overflow: hidden !important;
+      opacity: .72;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery :is(.product-media-list, .product__media-list, .media-list, [class*="media-list"], [class*="media-gallery__items"]) {
+      grid-column: 2 !important;
+      grid-row: 1 !important;
+      min-width: 0 !important;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery :is(product-media-gallery, media-gallery, .product-media-gallery, .product__media-gallery, [class*="media-gallery"]) > :not(.thumbnail-list):not([class*="thumbnail"]) {
+      grid-column: 2;
+      grid-row: 1;
+      min-width: 0;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery .thumbnail[aria-current="true"],
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery .thumbnail[aria-selected="true"],
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery [class*="thumbnail"][aria-current="true"],
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery [class*="thumbnail"][aria-selected="true"],
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery .is-active,
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery .selected {
+      border-color: var(--ptp-accent) !important;
+      box-shadow: 0 0 0 1px var(--ptp-accent), 0 0 20px rgba(138,44,255,.32) !important;
+      opacity: 1;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery :is(.slider-buttons, .slideshow-controls, .product-media-gallery__controls, [class*="slider-button"], [class*="pagination"], [class*="dot"]) {
+      display: none !important;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .product-media,
+    #PremiumTruckerProduct-{{ section.id }} .product__media,
+    #PremiumTruckerProduct-{{ section.id }} .media,
+    #PremiumTruckerProduct-{{ section.id }} [class*="media-item"],
+    #PremiumTruckerProduct-{{ section.id }} [class*="media-gallery__media"] {
+      border-radius: var(--ptp-media-radius) !important;
+      background: radial-gradient(circle at 50% 22%, rgba(255,255,255,.12), transparent 36%), linear-gradient(145deg, rgba(255,255,255,.075), rgba(255,255,255,.025)) !important;
+      border: 1px solid rgba(255,255,255,.07) !important;
+      overflow: hidden !important;
+      aspect-ratio: 0.9 / 1 !important;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery .product-media img,
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery .product__media img,
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery .media img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__service-row {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,.06);
+      background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.025));
+      overflow: hidden;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__service-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 20px;
+      border-inline-end: 1px solid rgba(255,255,255,.08);
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__service-item:last-child {
+      border-inline-end: 0;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__service-icon {
+      display: inline-grid;
+      place-items: center;
+      width: 30px;
+      min-width: 30px;
+      height: 30px;
+      color: var(--ptp-service);
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__service-icon svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__service-item strong,
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__service-item small {
+      display: block;
+      line-height: 1.25;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__service-item strong {
+      color: var(--ptp-text);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__service-item small {
+      margin-top: 3px;
+      color: var(--ptp-muted);
+      font-size: 12px;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__details-wrap {
+      min-width: 0;
+      color: var(--ptp-text);
+      display: flex;
+      flex-direction: column;
+      padding-top: 4px;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__details-wrap > * + * {
+      margin-top: 14px;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__screenshot-title {
+      margin: 0 0 6px !important;
+      color: var(--ptp-text) !important;
+      font-size: clamp(38px, 4vw, var(--ptp-heading-size)) !important;
+      line-height: .92 !important;
+      letter-spacing: 0 !important;
+      text-transform: uppercase !important;
+      font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif !important;
+      font-style: italic !important;
+      text-wrap: balance;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__details-wrap :is(h1, .product-title, .product__title):not(.premium-trucker-product__screenshot-title) {
+      display: none !important;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__screenshot-price {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 22px;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__sale-price {
+      color: var(--ptp-accent);
+      font-size: clamp(28px, 3vw, 36px);
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__compare-price {
+      color: rgba(255,255,255,.44);
+      font-size: 16px;
+      font-weight: 800;
+      text-decoration-thickness: 2px;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__save-badge {
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 12px;
+      border: 1px solid rgba(138,44,255,.7);
+      border-radius: 6px;
+      color: var(--ptp-accent);
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__screenshot-description {
+      max-width: 520px;
+      margin-top: 18px;
+      padding-bottom: 22px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      color: var(--ptp-muted);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__color-pills {
+      display: grid;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__color-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--ptp-text);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__color-label strong {
+      color: var(--ptp-muted);
+      font-weight: 700;
+      text-transform: none;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__color-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__color-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      min-height: 44px;
+      padding: 7px 14px 7px 8px;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 999px;
+      background: rgba(255,255,255,.035);
+      color: var(--ptp-text);
+      font-size: 12px;
+      font-weight: 900;
+      line-height: 1;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: border-color .2s ease, box-shadow .2s ease, background .2s ease, transform .2s ease;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__color-pill:hover {
+      border-color: rgba(138,44,255,.55);
+      background: rgba(255,255,255,.065);
+      transform: translateY(-1px);
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__color-pill.is-active {
+      border-color: var(--ptp-accent);
+      box-shadow: 0 0 0 1px var(--ptp-accent), 0 0 18px rgba(138,44,255,.24);
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__color-swatch {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--ptp-pill-color);
+      border: 1px solid rgba(255,255,255,.22);
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.2);
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-color-picker {
+      display: none !important;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__details-wrap :is(.price, .product-price, [class*="price"]):not(.premium-trucker-product__screenshot-price):not(.premium-trucker-product__sale-price):not(.premium-trucker-product__compare-price),
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__details-wrap :is(.product__description, .rte, [class*="description"]):not(.premium-trucker-product__screenshot-description) {
+      display: none !important;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__creator,
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__rating {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 7px;
+      color: var(--ptp-muted);
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__creator strong {
+      color: var(--ptp-text);
+      font-weight: 800;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__creator-brand {
+      color: var(--ptp-accent);
+      font-weight: 900;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__creator-name {
+      color: var(--ptp-text) !important;
+      font-weight: 800;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__verified {
+      display: inline-grid;
+      place-items: center;
+      width: 19px;
+      height: 19px;
+      color: var(--ptp-accent);
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__creator-avatar {
+      display: inline-grid;
+      place-items: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.08);
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__creator-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__verified svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__stars {
+      color: #ffd21f;
+      font-size: 16px;
+      letter-spacing: 1px;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__rating strong {
+      color: var(--ptp-text);
+      font-weight: 700;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__rating span:last-child {
+      color: var(--ptp-service);
+      font-weight: 700;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} h1,
+    #PremiumTruckerProduct-{{ section.id }} .product-title,
+    #PremiumTruckerProduct-{{ section.id }} .product__title {
+      color: var(--ptp-text) !important;
+      font-size: var(--ptp-heading-size) !important;
+      line-height: .96 !important;
+      letter-spacing: 0 !important;
+      text-transform: uppercase !important;
+      font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif !important;
+      font-style: italic !important;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .price,
+    #PremiumTruckerProduct-{{ section.id }} [class*="price"] {
+      color: var(--ptp-accent) !important;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .compare-at-price,
+    #PremiumTruckerProduct-{{ section.id }} .price__compare,
+    #PremiumTruckerProduct-{{ section.id }} s,
+    #PremiumTruckerProduct-{{ section.id }} [class*="compare"] {
+      color: rgba(255,255,255,.42) !important;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} label,
+    #PremiumTruckerProduct-{{ section.id }} legend,
+    #PremiumTruckerProduct-{{ section.id }} .form__label {
+      color: var(--ptp-text) !important;
+      font-size: 12px !important;
+      font-weight: 800 !important;
+      text-transform: uppercase !important;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} input[type="radio"] + label,
+    #PremiumTruckerProduct-{{ section.id }} .swatch,
+    #PremiumTruckerProduct-{{ section.id }} [class*="swatch"],
+    #PremiumTruckerProduct-{{ section.id }} [class*="pill"] {
+      border-color: rgba(255,255,255,.14) !important;
+      border-radius: 999px !important;
+      min-width: 42px !important;
+      min-height: 42px !important;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} input[type="radio"]:checked + label,
+    #PremiumTruckerProduct-{{ section.id }} [aria-checked="true"] {
+      border-color: var(--ptp-accent) !important;
+      box-shadow: 0 0 0 1px var(--ptp-accent) !important;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} quantity-input,
+    #PremiumTruckerProduct-{{ section.id }} .quantity,
+    #PremiumTruckerProduct-{{ section.id }} [class*="quantity"] {
+      color: var(--ptp-text) !important;
+      border-color: rgba(255,255,255,.09) !important;
+      background: rgba(255,255,255,.025) !important;
+      border-radius: 7px !important;
+      max-width: max-content;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__customize-button {
+      display: grid;
+      grid-template-columns: 32px minmax(0, 1fr) 26px;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      min-height: 58px;
+      padding: 12px 20px;
+      border-radius: var(--ptp-button-radius);
+      color: #fff;
+      background: linear-gradient(135deg, var(--ptp-accent), var(--ptp-accent-2));
+      box-shadow: 0 15px 34px rgba(138,44,255,.28);
+      text-decoration: none;
+      text-align: center;
+      font-size: 15px;
+      font-weight: 900;
+      text-transform: uppercase;
+      order: 30;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__customize-button svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} button.premium-trucker-product__customize-button {
+      border: 0;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__customize-icon,
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__customize-arrow {
+      display: inline-grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__mobile-sticky-customize {
+      display: none;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .product-form__submit,
+    #PremiumTruckerProduct-{{ section.id }} button[name="add"],
+    #PremiumTruckerProduct-{{ section.id }} .add-to-cart-button {
+      min-height: 56px !important;
+      border: 1px solid var(--ptp-service) !important;
+      border-radius: var(--ptp-button-radius) !important;
+      background: transparent !important;
+      color: var(--ptp-text) !important;
+      font-weight: 900 !important;
+      text-transform: uppercase !important;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .shopify-payment-button__button,
+    #PremiumTruckerProduct-{{ section.id }} .shopify-payment-button button {
+      min-height: 56px !important;
+      border: 1px solid rgba(255,255,255,.1) !important;
+      border-radius: var(--ptp-button-radius) !important;
+      background: rgba(255,255,255,.035) !important;
+      color: var(--ptp-text) !important;
+      font-weight: 900 !important;
+      text-transform: uppercase !important;
+    }
+
+    #PremiumTruckerProduct-{{ section.id }} .product__description,
+    #PremiumTruckerProduct-{{ section.id }} .rte,
+    #PremiumTruckerProduct-{{ section.id }} [class*="description"] {
+      color: var(--ptp-muted) !important;
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    @media screen and (max-width: 1099px) {
+      #PremiumTruckerProduct-{{ section.id }} .product-information__grid,
+      #PremiumTruckerProduct-{{ section.id }} [class*="product-information__grid"] {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 28px !important;
+      }
+
+      #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__custom-gallery {
+        grid-template-columns: minmax(0, 1fr) !important;
+      }
+
+      #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__custom-main {
+        grid-column: 1 !important;
+        grid-row: 1 !important;
+      }
+
+      #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery .thumbnail-list,
+      #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery [class*="thumbnail-list"],
+      #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__custom-thumbs {
+        order: 2 !important;
+        grid-column: 1 !important;
+        grid-row: 2 !important;
+        flex-direction: row !important;
+        max-height: none !important;
+        overflow: hidden !important;
+        padding-bottom: 4px;
+      }
+    }
+
+    @media screen and (max-width: 749px) {
+      #PremiumTruckerProduct-{{ section.id }} .product-information__grid,
+      #PremiumTruckerProduct-{{ section.id }} [class*="product-information__grid"] {
+        padding: 18px var(--ptp-mobile-padding) 34px !important;
+        gap: 22px !important;
+      }
+
+      #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__custom-gallery {
+        gap: 12px !important;
+      }
+
+      #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__custom-main {
+        width: calc(100% + (var(--ptp-mobile-padding) * 2));
+        margin-inline: calc(var(--ptp-mobile-padding) * -1);
+        aspect-ratio: 0.9 / 1;
+        border-radius: 0;
+      }
+
+      #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__gallery-arrow {
+        display: flex;
+      }
+
+      #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery .thumbnail,
+      #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__native-gallery [class*="thumbnail"],
+      #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__custom-thumb {
+        width: 96px !important;
+        min-width: 96px !important;
+        height: 96px !important;
+        min-height: 96px !important;
+        flex-basis: 96px !important;
+        border-radius: 7px !important;
+      }
+
+      #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__service-row {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__service-item {
+        min-width: 0;
+        display: grid;
+        justify-items: center;
+        gap: 6px;
+        padding: 10px 6px;
+        text-align: center;
+        border-inline-end: 1px solid rgba(255,255,255,.08);
+        border-bottom: 0;
+      }
+
+      #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__service-item:last-child {
+        border-inline-end: 0;
+      }
+
+      #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__service-icon {
+        width: 24px;
+        min-width: 24px;
+        height: 24px;
+      }
+
+      #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__service-item strong {
+        font-size: 9px;
+      }
+
+      #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__service-item small {
+        font-size: 10px;
+      }
+
+      #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__screenshot-description,
+      #PremiumTruckerProduct-{{ section.id }} .product__description,
+      #PremiumTruckerProduct-{{ section.id }} .rte,
+      #PremiumTruckerProduct-{{ section.id }} [class*="description"] {
+        display: -webkit-box !important;
+        max-height: 3.1em;
+        -webkit-line-clamp: 2 !important;
+        -webkit-box-orient: vertical !important;
+        overflow: hidden !important;
+      }
+
+      #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__color-list {
+        gap: 7px;
+      }
+
+      #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__color-pill {
+        gap: 7px;
+        min-height: 36px;
+        padding: 5px 10px 5px 6px;
+        font-size: 11px;
+      }
+
+      #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__color-swatch {
+        width: 24px;
+        height: 24px;
+      }
+
+      #PremiumTruckerProduct-{{ section.id }} h1,
+      #PremiumTruckerProduct-{{ section.id }} .product-title,
+      #PremiumTruckerProduct-{{ section.id }} .product__title {
+        font-size: var(--ptp-heading-size-mobile) !important;
+      }
+
+      #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__customize-button {
+        min-height: 56px;
+        grid-template-columns: 28px minmax(0, 1fr) 24px;
+        padding-inline: 16px;
+        font-size: 13px;
+      }
+
+      #PremiumTruckerProduct-{{ section.id }}.has-mobile-sticky-customize {
+        padding-bottom: calc(90px + env(safe-area-inset-bottom));
+      }
+
+      #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__mobile-sticky-customize {
+        position: fixed;
+        width: 100%;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: calc(var(--layer-sticky, 100) + 20);
+        display: block;
+        overflow-x: hidden;
+        padding: 10px max(12px, env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+        background: linear-gradient(180deg, rgba(5,5,5,0), var(--ptp-page-bg) 28%);
+        box-shadow: 0 -14px 30px rgba(0,0,0,.24);
+        pointer-events: none;
+      }
+
+      #PremiumTruckerProduct-{{ section.id }} .premium-trucker-product__mobile-sticky-customize-button {
+        display: grid;
+        width: 100%;
+        max-width: 520px;
+        min-height: 56px;
+        grid-template-columns: 28px minmax(0, 1fr) 24px;
+        margin-inline: auto;
+        color: #fff;
+        background: linear-gradient(135deg, var(--ptp-accent), var(--ptp-accent-2));
+        box-shadow: 0 12px 28px rgba(138,44,255,.34);
+        pointer-events: auto;
+      }
+    }
+  </style>
+{% endif %}
+
+<div
+  id="PremiumTruckerProduct-{{ section.id }}"
+  class="premium-trucker-product{% if section.settings.enable_premium_style %} is-enabled{% endif %}{% if show_mobile_customize %} has-mobile-sticky-customize{% endif %}{% if is_inkybay_designlab_product %} is-inkybay-designlab-product{% endif %}"
+  {% if is_pitchprint_required_product %}
+    data-customhouse-pitchprint-required="true"
+  {% endif %}
+  style="
+    --ptp-page-bg: {{ section.settings.premium_background_color }};
+    --ptp-panel-bg: {{ section.settings.premium_panel_color }};
+    --ptp-text: {{ section.settings.premium_text_color }};
+    --ptp-muted: {{ section.settings.premium_muted_color }};
+    --ptp-border: {{ section.settings.premium_border_color }};
+    --ptp-accent: {{ section.settings.premium_accent_color }};
+    --ptp-accent-2: {{ section.settings.premium_accent_2_color }};
+    --ptp-service: {{ section.settings.service_icon_color }};
+    --ptp-max-width: {{ section.settings.premium_max_width }}px;
+    --ptp-side-padding: {{ section.settings.premium_side_padding }}px;
+    --ptp-mobile-padding: {{ section.settings.premium_mobile_padding }}px;
+    --ptp-grid-gap: {{ section.settings.premium_grid_gap }}px;
+    --ptp-media-radius: {{ section.settings.premium_media_radius }}px;
+    --ptp-button-radius: {{ section.settings.premium_button_radius }}px;
+    --ptp-thumbnail-size: {{ section.settings.premium_thumbnail_size }}px;
+    --ptp-thumbnail-display-size: clamp(116px, calc(var(--ptp-thumbnail-size) + 20px), 150px);
+    --ptp-heading-size: {{ section.settings.premium_heading_size }}px;
+    --ptp-heading-size-mobile: {{ section.settings.premium_heading_size_mobile }}px;
+    --ptp-gallery-object-fit: {{ section.settings.custom_gallery_image_fit }};
+  "
+>
+  {% render 'product-information-content',
+    product: closest.product,
+    section_id: section.id,
+    settings: section.settings,
+    media_gallery: media_gallery,
+    product_details: product_details,
+    additional_blocks: additional_blocks
+  %}
+
+  {% if show_mobile_customize %}
+    <div class="premium-trucker-product__mobile-sticky-customize" aria-label="Product customizer">
+      <button
+        type="button"
+        class="premium-trucker-product__customize-button premium-trucker-product__mobile-sticky-customize-button"
+        data-pitchprint-customize-trigger
+        data-mobile-pitchprint-customize-trigger
+        aria-label="{{ section.settings.customize_button_label | escape }}"
+      >
+        <span class="premium-trucker-product__customize-icon" aria-hidden="true">
+          {% if section.settings.customize_icon_image != blank %}
+            {{ section.settings.customize_icon_image | image_url: width: 80 | image_tag: loading: 'lazy', alt: '' }}
+          {% else %}
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path d="M12 2.8 14.1 8l5.6.4-4.3 3.6 1.4 5.4L12 14.4l-4.8 3 1.4-5.4-4.3-3.6L9.9 8 12 2.8Z" fill="currentColor"/>
+            </svg>
+          {% endif %}
+        </span>
+        <span>{{ section.settings.customize_button_label | escape }}</span>
+        <span class="premium-trucker-product__customize-arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path d="M5 12h13m-5-5 5 5-5 5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+      </button>
+    </div>
+  {% endif %}
+</div>
+
+{% if is_pitchprint_required_product %}
+  <script src="{{ 'customhouse-pitchprint-order-handoff.js' | asset_url }}" defer></script>
+  <script>
+    (() => {
+      if (window.__customHouseMobilePitchPrintTriggerBound) return;
+      window.__customHouseMobilePitchPrintTriggerBound = true;
+
+      const openDesigner = (button, root) => {
+        const client = window.ppclient;
+
+        if (!client || typeof client.showApp !== 'function') {
+          return false;
+        }
+
+        client.showApp();
+        button.removeAttribute('aria-busy');
+        button.classList.remove('is-loading');
+
+        const status = root.querySelector('[data-cart-status]');
+        if (status) {
+          status.textContent = '';
+          status.hidden = true;
+          status.classList.remove('is-error');
+        }
+
+        return true;
+      };
+
+      document.addEventListener('click', (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        if (!target) return;
+
+        const button = target.closest('[data-mobile-pitchprint-customize-trigger]');
+        if (!button) return;
+
+        const root = button.closest('[data-customhouse-pitchprint-required="true"]');
+        if (!root) return;
+
+        event.preventDefault();
+
+        if (button.getAttribute('aria-busy') === 'true') return;
+
+        button.setAttribute('aria-busy', 'true');
+        button.classList.add('is-loading');
+
+        if (openDesigner(button, root)) return;
+
+        requestAnimationFrame(() => {
+          if (openDesigner(button, root)) return;
+
+          window.setTimeout(() => {
+            if (openDesigner(button, root)) return;
+
+            button.removeAttribute('aria-busy');
+            button.classList.remove('is-loading');
+
+            const status = root.querySelector('[data-cart-status]');
+            if (status) {
+              status.textContent = 'The designer is still loading. Please try again.';
+              status.hidden = false;
+              status.classList.add('is-error');
+            }
+
+            console.warn('[CustomHouse PitchPrint] Mobile designer client unavailable');
+          }, 150);
+        });
+      });
+    })();
+  </script>
+{% endif %}
+
+{% if section.settings.enable_custom_gallery or section.settings.enable_premium_style %}
+  <script>
+    (() => {
+      const initPremiumGallery = (root = document) => {
+        root.querySelectorAll('[data-premium-gallery]').forEach((gallery) => {
+          if (gallery.dataset.premiumGalleryReady === 'true') return;
+          gallery.dataset.premiumGalleryReady = 'true';
+
+          const thumbs = Array.from(gallery.querySelectorAll('[data-gallery-thumb]'));
+          const slides = Array.from(gallery.querySelectorAll('[data-gallery-slide]'));
+          const navButtons = Array.from(gallery.querySelectorAll('[data-gallery-nav]'));
+
+          if (thumbs.length && !gallery.querySelector('[data-gallery-thumb].is-active')) {
+            thumbs[0].classList.add('is-active');
+          }
+
+          if (slides.length && !gallery.querySelector('[data-gallery-slide].is-active')) {
+            slides[0].classList.add('is-active');
+          }
+
+          const setActiveGalleryImage = (index) => {
+            thumbs.forEach((item) => {
+              item.classList.toggle('is-active', item.dataset.galleryIndex === index);
+            });
+
+            slides.forEach((slide) => {
+              slide.classList.toggle('is-active', slide.dataset.galleryIndex === index);
+            });
+          };
+
+          gallery.addEventListener('premium:gallery:show', (event) => {
+            if (!event.detail?.index) return;
+            setActiveGalleryImage(String(event.detail.index));
+          });
+
+          thumbs.forEach((thumb) => {
+            thumb.addEventListener('click', () => setActiveGalleryImage(thumb.dataset.galleryIndex));
+          });
+
+          navButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+              if (!slides.length) return;
+
+              const activeIndex = slides.findIndex((slide) => slide.classList.contains('is-active'));
+              const currentIndex = activeIndex >= 0 ? activeIndex : 0;
+              const direction = button.dataset.galleryNav === 'prev' ? -1 : 1;
+              const nextIndex = (currentIndex + direction + slides.length) % slides.length;
+
+              setActiveGalleryImage(slides[nextIndex].dataset.galleryIndex);
+            });
+          });
+        });
+      };
+
+      const normalizePremiumValue = (value) => String(value || '').trim().toLowerCase();
+      const premiumProductData = {{ closest.product | default: product | json }};
+
+      const getPremiumSelectedOptions = (productRoot) => {
+        if (!premiumProductData || !Array.isArray(premiumProductData.options)) return [];
+
+        return premiumProductData.options.map((optionName, index) => {
+          const normalizedOptionName = normalizePremiumValue(optionName);
+          const checkedInput = Array.from(productRoot.querySelectorAll('input[type="radio"]:checked')).find((input) => {
+            const name = normalizePremiumValue(input.name);
+            const formText = normalizePremiumValue(input.closest('fieldset, .product-form__input, .variant-picker, [class*="variant"]')?.textContent);
+            return name.includes(normalizedOptionName) || formText.includes(normalizedOptionName);
+          });
+
+          if (checkedInput) return checkedInput.value;
+
+          const selectedSelect = Array.from(productRoot.querySelectorAll('select')).find((select) => {
+            const name = normalizePremiumValue(select.name || select.id || select.getAttribute('aria-label'));
+            const formText = normalizePremiumValue(select.closest('.product-form__input, .variant-picker, [class*="variant"]')?.textContent);
+            return name.includes(normalizedOptionName) || formText.includes(normalizedOptionName);
+          });
+
+          if (selectedSelect) return selectedSelect.value;
+
+          return premiumProductData.selected_or_first_available_variant?.options?.[index] || '';
+        });
+      };
+
+      const getPremiumSelectedVariant = (productRoot, selectedValue, optionName) => {
+        if (!premiumProductData || !Array.isArray(premiumProductData.variants)) return null;
+
+        const selectedOptions = getPremiumSelectedOptions(productRoot);
+        const normalizedSelectedValue = normalizePremiumValue(selectedValue);
+        const normalizedOptionName = normalizePremiumValue(optionName);
+        const selectedOptionIndex = Array.isArray(premiumProductData.options)
+          ? premiumProductData.options.findIndex((name) => normalizePremiumValue(name) === normalizedOptionName)
+          : -1;
+
+        if (selectedOptionIndex >= 0 && normalizedSelectedValue) {
+          selectedOptions[selectedOptionIndex] = selectedValue;
+        }
+
+        const exactVariant = premiumProductData.variants.find((variant) => {
+          if (!Array.isArray(variant.options) || variant.options.length !== selectedOptions.length) return false;
+          return variant.options.every((optionValue, index) => {
+            return normalizePremiumValue(optionValue) === normalizePremiumValue(selectedOptions[index]);
+          });
+        });
+
+        if (exactVariant) return exactVariant;
+
+        if (normalizedSelectedValue) {
+          const colorVariant = premiumProductData.variants.find((variant) => {
+            const hasColor = Array.isArray(variant.options) && variant.options.some((optionValue) => {
+              return normalizePremiumValue(optionValue) === normalizedSelectedValue;
+            });
+            return hasColor && (variant.featured_media || variant.featured_image);
+          });
+          if (colorVariant) return colorVariant;
+        }
+
+        const variantIdInput = productRoot.querySelector('form[action*="/cart/add"] [name="id"], [name="id"]');
+        const selectedVariantId = variantIdInput && variantIdInput.value ? String(variantIdInput.value) : '';
+        return premiumProductData.variants.find((variant) => String(variant.id) === selectedVariantId) || null;
+      };
+
+      const getPremiumImageKey = (value) => {
+        const rawValue = String(value || '').trim().toLowerCase();
+        if (!rawValue) return '';
+
+        const withoutQuery = rawValue.split('?')[0];
+        const fileName = withoutQuery.split('/').pop() || withoutQuery;
+        return fileName
+          .replace(/_(?:[0-9]+x[0-9]*|x[0-9]+|pico|icon|thumb|small|compact|medium|large|grande|master)(?=\.)/g, '')
+          .replace(/\.(?:jpg|jpeg|png|webp|gif)$/g, '');
+      };
+
+      const getGalleryItemSearchText = (item) => {
+        const image = item.querySelector('img');
+        return normalizePremiumValue([
+          item.dataset.gallerySearch,
+          item.dataset.gallerySrc,
+          item.getAttribute('aria-label'),
+          image?.alt,
+          image?.currentSrc,
+          image?.src,
+        ].filter(Boolean).join(' '));
+      };
+
+      const showPremiumGalleryVariantImage = (productRoot, selectedValue, fallbackGalleryIndex, optionName) => {
+        const gallery = productRoot.querySelector('[data-premium-gallery]');
+        if (!gallery) return;
+
+        const selectedVariant = getPremiumSelectedVariant(productRoot, selectedValue, optionName);
+        const variantImage = selectedVariant?.featured_media || selectedVariant?.featured_image || null;
+        const mediaIds = [
+          selectedVariant?.featured_media?.id,
+          selectedVariant?.featured_image?.id,
+          variantImage?.id,
+        ].filter(Boolean).map(String);
+        const searchTerms = [
+          selectedValue,
+          variantImage?.alt,
+          variantImage?.src,
+          variantImage?.url,
+          ...(Array.isArray(selectedVariant?.options) ? selectedVariant.options : []),
+        ].map(normalizePremiumValue).filter(Boolean);
+        const galleryItems = Array.from(gallery.querySelectorAll('[data-gallery-slide], [data-gallery-thumb]'));
+        const variantImageKeys = [
+          variantImage?.src,
+          variantImage?.url,
+          selectedVariant?.featured_image?.src,
+          selectedVariant?.featured_image?.url,
+        ].map(getPremiumImageKey).filter(Boolean);
+
+        let match = galleryItems.find((item) => {
+          return [item.dataset.galleryMediaId, item.dataset.galleryImageId].some((id) => id && mediaIds.includes(String(id)));
+        });
+
+        if (!match && variantImageKeys.length) {
+          match = galleryItems.find((item) => {
+            const image = item.querySelector('img');
+            const itemKeys = [
+              item.dataset.gallerySrc,
+              image?.currentSrc,
+              image?.src,
+            ].map(getPremiumImageKey).filter(Boolean);
+            return itemKeys.some((itemKey) => variantImageKeys.includes(itemKey));
+          });
+        }
+
+        if (!match && searchTerms.length) {
+          match = galleryItems.find((item) => {
+            const searchText = getGalleryItemSearchText(item);
+            return searchTerms.some((term) => term && searchText.includes(term));
+          });
+        }
+
+        if (!match && fallbackGalleryIndex) {
+          match = galleryItems.find((item) => String(item.dataset.galleryIndex) === String(fallbackGalleryIndex));
+        }
+
+        if (match?.dataset.galleryIndex) {
+          gallery.dispatchEvent(new CustomEvent('premium:gallery:show', {
+            bubbles: true,
+            detail: { index: match.dataset.galleryIndex },
+          }));
+        }
+      };
+
+      const markPremiumNativeColorPickers = (productRoot, optionName, values) => {
+        productRoot.querySelectorAll('fieldset, .product-form__input, .variant-picker, [class*="variant-picker"], [class*="variant-option"]').forEach((candidate) => {
+          if (candidate.closest('[data-color-pill-group]')) return;
+          const candidateText = normalizePremiumValue(candidate.textContent);
+          const hasOptionName = optionName && candidateText.includes(optionName);
+          const hasMatchingValue = Array.from(candidate.querySelectorAll('input[type="radio"], option, label')).some((item) => {
+            return values.includes(normalizePremiumValue(item.value || item.textContent));
+          });
+          if (hasOptionName && hasMatchingValue) candidate.classList.add('premium-trucker-product__native-color-picker');
+        });
+      };
+
+      const initPremiumColorPills = (root = document) => {
+        root.querySelectorAll('[data-color-pill-group]').forEach((group) => {
+          const productRoot = group.closest('.premium-trucker-product') || document;
+          const optionName = normalizePremiumValue(group.dataset.optionName);
+          const buttons = Array.from(group.querySelectorAll('[data-color-pill]'));
+          const currentLabel = group.querySelector('[data-color-pill-current]');
+          const values = buttons.map((button) => normalizePremiumValue(button.dataset.optionValue));
+
+          markPremiumNativeColorPickers(productRoot, optionName, values);
+          if (group.dataset.colorPillsReady === 'true') return;
+          group.dataset.colorPillsReady = 'true';
+
+          const setActivePill = (value) => {
+            const normalizedValue = normalizePremiumValue(value);
+            buttons.forEach((button) => {
+              const isActive = normalizePremiumValue(button.dataset.optionValue) === normalizedValue;
+              button.classList.toggle('is-active', isActive);
+              button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+              if (isActive && currentLabel) currentLabel.textContent = button.dataset.optionValue;
+            });
+          };
+
+          const syncNativePicker = (value, fallbackGalleryIndex) => {
+            const normalizedValue = normalizePremiumValue(value);
+            let matched = false;
+
+            productRoot.querySelectorAll('input[type="radio"]').forEach((input) => {
+              if (normalizePremiumValue(input.value) !== normalizedValue) return;
+              input.checked = true;
+              input.dispatchEvent(new Event('input', { bubbles: true }));
+              input.dispatchEvent(new Event('change', { bubbles: true }));
+              matched = true;
+            });
+
+            if (!matched) {
+              productRoot.querySelectorAll('select').forEach((select) => {
+                Array.from(select.options).forEach((option) => {
+                  const optionValue = normalizePremiumValue(option.value || option.textContent);
+                  if (optionValue !== normalizedValue) return;
+                  select.value = option.value;
+                  select.dispatchEvent(new Event('input', { bubbles: true }));
+                  select.dispatchEvent(new Event('change', { bubbles: true }));
+                  matched = true;
+                });
+              });
+            }
+
+            setActivePill(value);
+            showPremiumGalleryVariantImage(productRoot, value, fallbackGalleryIndex, group.dataset.optionName);
+            window.setTimeout(() => showPremiumGalleryVariantImage(productRoot, value, fallbackGalleryIndex, group.dataset.optionName), 0);
+            window.setTimeout(() => showPremiumGalleryVariantImage(productRoot, value, fallbackGalleryIndex, group.dataset.optionName), 150);
+            window.setTimeout(() => showPremiumGalleryVariantImage(productRoot, value, fallbackGalleryIndex, group.dataset.optionName), 450);
+            window.setTimeout(() => markPremiumNativeColorPickers(productRoot, optionName, values), 0);
+            window.setTimeout(() => markPremiumNativeColorPickers(productRoot, optionName, values), 150);
+          };
+
+          buttons.forEach((button) => {
+            button.addEventListener('click', () => syncNativePicker(button.dataset.optionValue, button.dataset.optionIndex));
+          });
+
+          productRoot.addEventListener('change', (event) => {
+            const target = event.target;
+            if (!target || !('value' in target)) return;
+            if (values.includes(normalizePremiumValue(target.value))) {
+              const matchingButton = buttons.find((button) => normalizePremiumValue(button.dataset.optionValue) === normalizePremiumValue(target.value));
+              setActivePill(target.value);
+              showPremiumGalleryVariantImage(productRoot, target.value, matchingButton?.dataset.optionIndex, group.dataset.optionName);
+              window.setTimeout(() => showPremiumGalleryVariantImage(productRoot, target.value, matchingButton?.dataset.optionIndex, group.dataset.optionName), 0);
+              window.setTimeout(() => showPremiumGalleryVariantImage(productRoot, target.value, matchingButton?.dataset.optionIndex, group.dataset.optionName), 150);
+              window.setTimeout(() => showPremiumGalleryVariantImage(productRoot, target.value, matchingButton?.dataset.optionIndex, group.dataset.optionName), 450);
+            }
+            window.setTimeout(() => markPremiumNativeColorPickers(productRoot, optionName, values), 0);
+            window.setTimeout(() => markPremiumNativeColorPickers(productRoot, optionName, values), 150);
+          });
+
+          const observer = new MutationObserver(() => {
+            markPremiumNativeColorPickers(productRoot, optionName, values);
+            initPremiumColorPills(productRoot);
+          });
+          observer.observe(productRoot, { childList: true, subtree: true });
+        });
+      };
+
+      initPremiumGallery();
+      initPremiumColorPills();
+      document.addEventListener('shopify:section:load', (event) => initPremiumGallery(event.target));
+      document.addEventListener('shopify:section:load', (event) => initPremiumColorPills(event.target));
+    })();
+  </script>
+{% endif %}
+
+<script>
+  (() => {
+    const ROOT_SELECTOR = '[data-customhouse-creator-actions]';
+    const ENDPOINT = '/apps/customhouse/api/inkybay';
+
+    const productGid = (value) => {
+      const id = String(value || '').trim();
+      return /^gid:\/\/shopify\/Product\/\d+$/.test(id)
+        ? id
+        : /^\d+$/.test(id)
+          ? `gid://shopify/Product/${id}`
+          : '';
+    };
+
+    const variantGid = (value) => {
+      const id = String(value || '').trim();
+      return /^gid:\/\/shopify\/ProductVariant\/\d+$/.test(id)
+        ? id
+        : /^\d+$/.test(id)
+          ? `gid://shopify/ProductVariant/${id}`
+          : '';
+    };
+
+    const currentVariantId = (root) => {
+      const sectionRoot = root.closest('.premium-trucker-product');
+      const formVariant = sectionRoot?.querySelector(
+        '[data-marked-product-actions] form[action*="/cart/add"] [name="id"]'
+      )?.value;
+      const urlVariant = new URL(window.location.href).searchParams.get('variant');
+      return variantGid(urlVariant || formVariant || root.dataset.variantId);
+    };
+
+    const requestJson = async (url, options = {}) => {
+      const response = await fetch(url, {
+        credentials: 'same-origin',
+        headers: {
+          Accept: 'application/json',
+          ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+        },
+        ...options,
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok || body?.success !== true) throw new Error('request_failed');
+      return body.data;
+    };
+
+    const setMessage = (root, message = '') => {
+      const element = root.querySelector('[data-creator-action-message]');
+      if (!element) return;
+      element.textContent = message;
+      element.hidden = !message;
+    };
+
+    const sessionKey = (root) => {
+      if (root.dataset.creatorSessionKey) return root.dataset.creatorSessionKey;
+      const value = typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID().replaceAll('-', '')
+        : `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      root.dataset.creatorSessionKey = value;
+      return value;
+    };
+
+    const bindCreatorButton = (root) => {
+      const button = root.querySelector('[data-create-for-collection]');
+      if (!button || button.dataset.creatorActionBound === 'true') return;
+      button.dataset.creatorActionBound = 'true';
+      button.addEventListener('click', async () => {
+        if (button.getAttribute('aria-busy') === 'true') return;
+        const productId = productGid(root.dataset.productId);
+        const variantId = currentVariantId(root);
+        if (!productId || !variantId) {
+          setMessage(root, 'We could not start your creator design. Please try again.');
+          return;
+        }
+
+        button.disabled = true;
+        button.setAttribute('aria-busy', 'true');
+        button.textContent = 'Creating design session\u2026';
+        setMessage(root);
+        try {
+          const session = await requestJson(`${ENDPOINT}/creator-designs/start`, {
+            method: 'POST',
+            body: JSON.stringify({
+              productId,
+              variantId,
+              idempotencyKey: sessionKey(root),
+            }),
+          });
+          if (!session?.workspaceUrl || !session.workspaceUrl.startsWith('/apps/customhouse/')) {
+            throw new Error('invalid_workspace');
+          }
+          window.location.assign(session.workspaceUrl);
+        } catch {
+          console.warn('customhouse_creator_session_unavailable');
+          button.disabled = false;
+          button.setAttribute('aria-busy', 'false');
+          button.textContent = 'Create for My Collection';
+          setMessage(root, 'We could not start your creator design. Please try again.');
+        }
+      });
+    };
+
+    const initialize = async (root) => {
+      if (root.dataset.creatorActionsReady === 'true') return;
+      root.dataset.creatorActionsReady = 'true';
+      root.hidden = true;
+
+      if (
+        root.dataset.productType !== 'global_customizable' ||
+        root.dataset.pitchprintEnabled !== 'true' ||
+        root.dataset.creatorPublishingEnabled !== 'true'
+      ) return;
+
+      const productId = productGid(root.dataset.productId);
+      if (!productId) return;
+
+      try {
+        const query = new URLSearchParams({ product_id: productId });
+        const eligibility = await requestJson(`${ENDPOINT}/eligibility?${query}`);
+        if (
+          eligibility?.isApprovedCreator === true &&
+          eligibility?.isSuspendedCreator === false &&
+          eligibility?.creatorPublishAvailable === true
+        ) {
+          bindCreatorButton(root);
+          root.hidden = false;
+        }
+      } catch {
+        console.warn('customhouse_creator_eligibility_unavailable');
+      }
+    };
+
+    const initializeAll = (scope = document) => {
+      scope.querySelectorAll(ROOT_SELECTOR).forEach((root) => initialize(root));
+    };
+
+    if (!window.__customHouseDirectCreatorActionsBound) {
+      window.__customHouseDirectCreatorActionsBound = true;
+      document.addEventListener('shopify:section:load', (event) => initializeAll(event.target));
+    }
+    initializeAll();
+  })();
+</script>
+
+{% stylesheet %}
+  .premium-trucker-product.is-enabled {
+    background:
+      radial-gradient(circle at 32% 18%, rgb(255 255 255 / 0.08), transparent 30%),
+      radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--ptp-accent) 18%, transparent), transparent 28%),
+      var(--ptp-page-bg);
+    color: var(--ptp-text);
+    overflow: clip;
+  }
+
+  .premium-trucker-product.is-enabled *,
+  .premium-trucker-product.is-enabled *::before,
+  .premium-trucker-product.is-enabled *::after {
+    box-sizing: border-box;
+  }
+
+  .premium-trucker-product.is-enabled :is(.product-information, [class*='product-information']) {
+    background: transparent;
+    color: inherit;
+  }
+
+  .premium-trucker-product.is-enabled :is(.product-information__grid, [class*='product-information__grid']) {
+    width: min(100%, var(--ptp-max-width));
+    margin-inline: auto;
+    padding: clamp(24px, 4vw, 54px) var(--ptp-side-padding) clamp(28px, 5vw, 64px);
+    display: grid;
+    grid-template-columns: minmax(0, 1.38fr) minmax(340px, 0.86fr);
+    gap: var(--ptp-grid-gap);
+    align-items: start;
+  }
+
+  .premium-trucker-product.is-enabled .premium-trucker-product__media-wrap {
+    min-width: 0;
+  }
+
+  .premium-trucker-product.is-enabled :is(product-media-gallery, media-gallery, .product-media-gallery, .product__media-gallery, [class*='media-gallery']) {
+    display: grid;
+    grid-template-columns: var(--ptp-thumbnail-display-size) minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+
+  .premium-trucker-product.is-enabled :is(.product-media-gallery, .product__media-gallery, [class*='media-gallery']) > :is(:only-child, [class*='media'], [class*='gallery']) {
+    min-width: 0;
+  }
+
+  .premium-trucker-product.is-enabled :is(.thumbnail-list, .product-media-gallery__thumbnail-list, .product__media-list--thumbnails, [class*='thumbnail-list']) {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    grid-column: 1;
+    grid-row: 1;
+    order: -1;
+    max-height: none;
+    overflow: hidden;
+  }
+
+  .premium-trucker-product.is-enabled :is(.thumbnail-list, .product-media-gallery__thumbnail-list, .product__media-list--thumbnails, [class*='thumbnail-list']) > :nth-child(n + 6) {
+    display: none;
+  }
+
+  .premium-trucker-product.is-enabled :is(.thumbnail, .product-media-gallery__thumbnail, .product__media-thumbnail, [class*='thumbnail']) {
+    width: var(--ptp-thumbnail-display-size);
+    min-width: var(--ptp-thumbnail-display-size);
+    height: var(--ptp-thumbnail-display-size);
+    min-height: var(--ptp-thumbnail-display-size);
+    flex: 0 0 var(--ptp-thumbnail-display-size);
+    aspect-ratio: 1;
+    border: 1px solid rgb(255 255 255 / 0.08);
+    border-radius: 8px;
+    background: linear-gradient(145deg, rgb(255 255 255 / 0.08), rgb(255 255 255 / 0.02));
+    overflow: hidden;
+    opacity: 0.72;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  .premium-trucker-product.is-enabled :is(.product-media-list, .product__media-list, .media-list, [class*='media-list'], [class*='media-gallery__items']) {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .premium-trucker-product.is-enabled :is(.thumbnail[aria-current='true'], .thumbnail[aria-selected='true'], .is-active, [class*='thumbnail'][aria-current='true'], [class*='thumbnail'][aria-selected='true']) {
+    border-color: var(--ptp-accent);
+    box-shadow: 0 0 0 1px var(--ptp-accent), 0 0 20px color-mix(in srgb, var(--ptp-accent) 32%, transparent);
+    opacity: 1;
+  }
+
+  .premium-trucker-product.is-enabled :is(.thumbnail:hover, [class*='thumbnail']:hover) {
+    opacity: 1;
+    transform: translateY(-1px);
+  }
+
+  .premium-trucker-product.is-enabled :is(.product-media, .product__media, .media, .media-gallery__media, [class*='media-item'], [class*='media-gallery__media']) {
+    border-radius: var(--ptp-media-radius);
+    background:
+      radial-gradient(circle at 50% 22%, rgb(255 255 255 / 0.12), transparent 36%),
+      linear-gradient(145deg, rgb(255 255 255 / 0.075), rgb(255 255 255 / 0.025));
+    border: 1px solid rgb(255 255 255 / 0.07);
+    overflow: hidden;
+  }
+
+  .premium-trucker-product.is-enabled :is(.product-media img, .product__media img, .media img, [class*='media'] img) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .premium-trucker-product.is-enabled .premium-trucker-product__service-row {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    border-radius: 8px;
+    border: 1px solid rgb(255 255 255 / 0.06);
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.055), rgb(255 255 255 / 0.025));
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.045);
+    overflow: hidden;
+  }
+
+  .premium-trucker-product.is-enabled .premium-trucker-product__service-item {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    border-inline-end: 1px solid rgb(255 255 255 / 0.08);
+  }
+
+  .premium-trucker-product.is-enabled .premium-trucker-product__service-item:last-child {
+    border-inline-end: 0;
+  }
+
+  .premium-trucker-product.is-enabled .premium-trucker-product__service-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+    color: var(--ptp-service);
+  }
+
+  .premium-trucker-product.is-enabled .premium-trucker-product__service-icon svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .premium-trucker-product.is-enabled .premium-trucker-product__service-item strong,
+  .premium-trucker-product.is-enabled .premium-trucker-product__service-item small {
+    display: block;
+    line-height: 1.25;
+  }
+
+  .premium-trucker-product.is-enabled .premium-trucker-product__service-item strong {
+    color: var(--ptp-text);
+    font-size: 11px;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+
+  .premium-trucker-product.is-enabled .premium-trucker-product__service-item small {
+    margin-top: 3px;
+    color: var(--ptp-muted);
+    font-size: 12px;
+  }
+
+  .premium-trucker-product.is-enabled .premium-trucker-product__details-wrap {
+    min-width: 0;
+    color: var(--ptp-text);
+  }
+
+  .premium-trucker-product.is-enabled .premium-trucker-product__details-wrap > * + * {
+    margin-top: 18px;
+  }
+
+  .premium-trucker-product.is-enabled .premium-trucker-product__meta {
+    display: grid;
+    gap: 12px;
+  }
+
+  .premium-trucker-product.is-enabled .premium-trucker-product__creator,
+  .premium-trucker-product.is-enabled .premium-trucker-product__rating {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px;
+    color: var(--ptp-muted);
+    font-size: 14px;
+    line-height: 1.35;
+  }
+
+  .premium-trucker-product.is-enabled .premium-trucker-product__creator strong {
+    color: var(--ptp-text);
+    font-weight: 800;
+  }
+
+  .premium-trucker-product.is-enabled .premium-trucker-product__creator-brand {
+    color: var(--ptp-accent);
+    font-weight: 900;
+  }
+
+  .premium-trucker-product.is-enabled .premium-trucker-product__creator-name {
+    color: var(--ptp-text);
+    font-weight: 800;
+  }
+
+  .premium-trucker-product.is-enabled .premium-trucker-product__verified {
+    display: inline-grid;
+    place-items: center;
+    width: 19px;
+    height: 19px;
+    color: var(--ptp-accent);
+  }
+
+  .premium-trucker-product.is-enabled .premium-trucker-product__verified svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .premium-trucker-product.is-enabled .premium-trucker-product__stars {
+    color: #ffd21f;
+    font-size: 16px;
+    letter-spacing: 1px;
+  }
+
+  .premium-trucker-product.is-enabled .premium-trucker-product__rating strong {
+    color: var(--ptp-text);
+    font-weight: 700;
+  }
+
+  .premium-trucker-product.is-enabled .premium-trucker-product__rating span:last-child {
+    color: var(--ptp-service);
+    font-weight: 700;
+  }
+
+  .premium-trucker-product.is-enabled :is(h1, .product-title, .product__title, [class*='title']) {
+    color: var(--ptp-text);
+    font-size: var(--ptp-heading-size);
+    line-height: 0.96;
+    letter-spacing: 0;
+    text-transform: uppercase;
+    font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+    font-style: italic;
+    text-wrap: balance;
+  }
+
+  .premium-trucker-product.is-enabled :is(.price, .product-price, [class*='price']) {
+    color: var(--ptp-accent);
+  }
+
+  .premium-trucker-product.is-enabled :is(.price, .product-price, [class*='price']) :is(.price-item, .sale-price, [class*='sale']) {
+    color: var(--ptp-accent);
+    font-size: clamp(26px, 3vw, 34px);
+    font-weight: 800;
+  }
+
+  .premium-trucker-product.is-enabled :is(.compare-at-price, .price__compare, s, [class*='compare']) {
+    color: rgb(255 255 255 / 0.42);
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .premium-trucker-product.is-enabled :is(.product-form, form[action*='/cart/add'], [class*='buy-buttons']) {
+    display: grid;
+    gap: 12px;
+  }
+
+  .premium-trucker-product.is-enabled :is(fieldset, .product-form__input, .variant-picker, [class*='variant']) {
+    border-color: rgb(255 255 255 / 0.08);
+  }
+
+  .premium-trucker-product.is-enabled :is(label, legend, .form__label, [class*='label']) {
+    color: var(--ptp-text);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+
+  .premium-trucker-product.is-enabled :is(input[type='radio'] + label, .swatch, [class*='swatch'], [class*='pill']) {
+    border-color: rgb(255 255 255 / 0.14);
+    border-radius: var(--ptp-button-radius);
+  }
+
+  .premium-trucker-product.is-enabled :is(input[type='radio']:checked + label, [aria-checked='true'], .is-selected, .selected) {
+    border-color: var(--ptp-accent);
+    box-shadow: 0 0 0 1px var(--ptp-accent);
+  }
+
+  .premium-trucker-product.is-enabled :is(quantity-input, .quantity, [class*='quantity']) {
+    color: var(--ptp-text);
+    border-color: rgb(255 255 255 / 0.09);
+    background: rgb(255 255 255 / 0.025);
+    border-radius: 7px;
+  }
+
+  .premium-trucker-product.is-enabled .premium-trucker-product__customize-button {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) 26px;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 58px;
+    padding: 12px 20px;
+    border-radius: var(--ptp-button-radius);
+    color: #fff;
+    background: linear-gradient(135deg, var(--ptp-accent), var(--ptp-accent-2));
+    box-shadow: 0 15px 34px color-mix(in srgb, var(--ptp-accent) 28%, transparent);
+    text-decoration: none;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+
+  .premium-trucker-product.is-enabled .premium-trucker-product__customize-button svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .premium-trucker-product.is-enabled .marked-product-actions[data-customhouse-pitchprint-required='true'] > :not(.marked-product-actions__block):not(.marked-product-form):not(button):not(a):not(input):not([role='button']):has(:is(button, a, input[type='button'], input[type='submit'], [role='button'])),
+  .premium-trucker-product.is-enabled .marked-product-actions[data-customhouse-pitchprint-required='true'] .marked-product-form > :not(input):not(.marked-product-actions__block):not(.marked-product-actions__cart-status):not(button):not(a):not([role='button']):has(:is(button, a, input[type='button'], input[type='submit'], [role='button'])) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    width: 100%;
+    max-width: none;
+    margin: 0 0 12px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    overflow-x: hidden;
+  }
+
+  .premium-trucker-product.is-enabled .marked-product-actions[data-customhouse-pitchprint-required='true'] [hidden],
+  .premium-trucker-product.is-enabled .marked-product-actions[data-customhouse-pitchprint-required='true'] [aria-hidden='true'],
+  .premium-trucker-product.is-enabled .marked-product-actions[data-customhouse-pitchprint-required='true'] .hidden,
+  .premium-trucker-product.is-enabled .marked-product-actions[data-customhouse-pitchprint-required='true'] .is-hidden {
+    display: none !important;
+  }
+
+  .premium-trucker-product.is-enabled .marked-product-actions[data-customhouse-pitchprint-required='true'] > :is(button, a, input[type='button'], input[type='submit'], [role='button']):not(.marked-product-actions__pill):not(.marked-product-actions__color-pill):not(.marked-product-actions__guide):not(.marked-product-actions__qty-button):not(.marked-product-actions__add),
+  .premium-trucker-product.is-enabled .marked-product-actions[data-customhouse-pitchprint-required='true'] > :not(.marked-product-actions__block):not(.marked-product-form):not(button):not(a):not(input):not([role='button']):has(:is(button, a, input[type='button'], input[type='submit'], [role='button'])) :is(button, a, input[type='button'], input[type='submit'], [role='button']),
+  .premium-trucker-product.is-enabled .marked-product-actions[data-customhouse-pitchprint-required='true'] .marked-product-form > :is(button, a, input[type='button'], input[type='submit'], [role='button']):not(.marked-product-actions__qty-button):not(.marked-product-actions__add),
+  .premium-trucker-product.is-enabled .marked-product-actions[data-customhouse-pitchprint-required='true'] .marked-product-form > :not(input):not(.marked-product-actions__block):not(.marked-product-actions__cart-status):not(button):not(a):not([role='button']):has(:is(button, a, input[type='button'], input[type='submit'], [role='button'])) :is(button, a, input[type='button'], input[type='submit'], [role='button']) {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    position: relative !important;
+    inset: auto !important;
+    display: inline-flex;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 58px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 10px !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 12px 20px !important;
+    border: 1px solid var(--ptp-accent) !important;
+    border-radius: var(--ptp-button-radius) !important;
+    background: linear-gradient(135deg, var(--ptp-accent), var(--ptp-accent-2)) !important;
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+    box-shadow: 0 15px 34px color-mix(in srgb, var(--ptp-accent) 28%, transparent) !important;
+    font-family: inherit !important;
+    font-size: 15px !important;
+    font-weight: 900 !important;
+    line-height: 1.15 !important;
+    letter-spacing: 0 !important;
+    text-align: center !important;
+    text-decoration: none !important;
+    text-transform: uppercase !important;
+    white-space: normal !important;
+    cursor: pointer !important;
+  }
+
+  .premium-trucker-product.is-enabled .marked-product-actions[data-customhouse-pitchprint-required='true'] :is(button, a, input[type='button'], input[type='submit'], [role='button']) :is(span, strong, em) {
+    color: inherit !important;
+    font: inherit !important;
+    line-height: inherit !important;
+  }
+
+  @media screen and (max-width: 749px) {
+    .premium-trucker-product.is-enabled .marked-product-actions[data-customhouse-pitchprint-required='true'] > :is(button, a, input[type='button'], input[type='submit'], [role='button']):not(.marked-product-actions__pill):not(.marked-product-actions__color-pill):not(.marked-product-actions__guide):not(.marked-product-actions__qty-button):not(.marked-product-actions__add),
+    .premium-trucker-product.is-enabled .marked-product-actions[data-customhouse-pitchprint-required='true'] > :not(.marked-product-actions__block):not(.marked-product-form):not(button):not(a):not(input):not([role='button']):has(:is(button, a, input[type='button'], input[type='submit'], [role='button'])) :is(button, a, input[type='button'], input[type='submit'], [role='button']),
+    .premium-trucker-product.is-enabled .marked-product-actions[data-customhouse-pitchprint-required='true'] .marked-product-form > :is(button, a, input[type='button'], input[type='submit'], [role='button']):not(.marked-product-actions__qty-button):not(.marked-product-actions__add),
+    .premium-trucker-product.is-enabled .marked-product-actions[data-customhouse-pitchprint-required='true'] .marked-product-form > :not(input):not(.marked-product-actions__block):not(.marked-product-actions__cart-status):not(button):not(a):not([role='button']):has(:is(button, a, input[type='button'], input[type='submit'], [role='button'])) :is(button, a, input[type='button'], input[type='submit'], [role='button']) {
+      min-height: 54px !important;
+      padding-inline: 16px !important;
+      font-size: 13px !important;
+    }
+  }
+
+  .premium-trucker-product__creator-actions[hidden] {
+    display: none !important;
+  }
+
+  .premium-trucker-product__creator-actions {
+    display: grid;
+    gap: 9px;
+    width: 100%;
+    margin-top: 14px;
+  }
+
+  .premium-trucker-product__creator-collection-button {
+    width: 100%;
+    min-height: 58px;
+    padding: 12px 20px;
+    border: 1px solid var(--ptp-accent, #8a2cff);
+    border-radius: var(--ptp-button-radius, 8px);
+    color: #fff;
+    background: rgb(8 8 10 / 0.78);
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.025);
+    font: inherit;
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: 0;
+    text-align: center;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  }
+
+  .premium-trucker-product__creator-collection-button:hover:not(:disabled) {
+    border-color: var(--ptp-accent-2, #c026d3);
+    background: rgb(138 44 255 / 0.13);
+    box-shadow: 0 12px 28px rgb(138 44 255 / 0.16);
+    transform: translateY(-1px);
+  }
+
+  .premium-trucker-product__creator-collection-button:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 3px;
+  }
+
+  .premium-trucker-product__creator-collection-button:disabled,
+  .premium-trucker-product__creator-collection-button[aria-busy='true'] {
+    cursor: wait;
+    opacity: 0.68;
+    transform: none;
+  }
+
+  .premium-trucker-product__creator-action-message {
+    margin: 0;
+    color: #fca5a5;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .premium-trucker-product__creator-action-message[hidden] {
+    display: none !important;
+  }
+
+  .premium-trucker-product.is-enabled .premium-trucker-product__customize-icon,
+  .premium-trucker-product.is-enabled .premium-trucker-product__customize-arrow {
+    display: inline-grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+  }
+
+  .premium-trucker-product__mobile-sticky-customize {
+    display: none;
+  }
+
+  .premium-trucker-product.is-enabled :is(.product-form__submit, button[name='add'], .add-to-cart-button) {
+    min-height: 56px;
+    border: 1px solid color-mix(in srgb, var(--ptp-service) 72%, transparent);
+    border-radius: var(--ptp-button-radius);
+    background: transparent;
+    color: var(--ptp-text);
+    font-weight: 900;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+
+  .premium-trucker-product.is-enabled :is(.shopify-payment-button__button, .shopify-payment-button button) {
+    min-height: 56px;
+    border: 1px solid rgb(255 255 255 / 0.1);
+    border-radius: var(--ptp-button-radius);
+    background: rgb(255 255 255 / 0.035);
+    color: var(--ptp-text);
+    font-weight: 900;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+
+  .premium-trucker-product.is-enabled :is(.product__description, .rte, [class*='description']) {
+    color: var(--ptp-muted);
+    font-size: 15px;
+    line-height: 1.55;
+  }
+
+  @media screen and (max-width: 1099px) {
+    .premium-trucker-product.is-enabled :is(.product-information__grid, [class*='product-information__grid']) {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 28px;
+    }
+
+    .premium-trucker-product.is-enabled :is(product-media-gallery, media-gallery, .product-media-gallery, .product__media-gallery, [class*='media-gallery']) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .premium-trucker-product.is-enabled :is(.thumbnail-list, .product-media-gallery__thumbnail-list, .product__media-list--thumbnails, [class*='thumbnail-list']) {
+      order: 2;
+      flex-direction: row;
+      max-height: none;
+      overflow: hidden;
+      padding-bottom: 4px;
+    }
+  }
+
+  @media screen and (max-width: 749px) {
+    .premium-trucker-product.is-enabled :is(.product-information__grid, [class*='product-information__grid']) {
+      padding-inline: var(--ptp-mobile-padding);
+      padding-block: 18px 34px;
+      gap: 22px;
+    }
+
+    .premium-trucker-product.is-enabled :is(.product-media-gallery, .product__media-gallery, [class*='media-gallery']) {
+      gap: 10px;
+    }
+
+    .premium-trucker-product.is-enabled :is(.thumbnail, .product-media-gallery__thumbnail, .product__media-thumbnail, [class*='thumbnail']) {
+      width: 88px;
+      min-width: 88px;
+      height: 88px;
+      min-height: 88px;
+      flex-basis: 88px;
+      border-radius: 7px;
+    }
+
+    .premium-trucker-product.is-enabled .premium-trucker-product__service-row {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .premium-trucker-product.is-enabled .premium-trucker-product__service-item {
+      min-width: 0;
+      display: grid;
+      justify-items: center;
+      gap: 6px;
+      padding: 10px 6px;
+      text-align: center;
+      border-inline-end: 1px solid rgb(255 255 255 / 0.08);
+      border-bottom: 0;
+    }
+
+    .premium-trucker-product.is-enabled .premium-trucker-product__service-item:last-child {
+      border-inline-end: 0;
+    }
+
+    .premium-trucker-product.is-enabled .premium-trucker-product__service-icon {
+      width: 24px;
+      min-width: 24px;
+      height: 24px;
+    }
+
+    .premium-trucker-product.is-enabled .premium-trucker-product__service-item strong {
+      font-size: 9px;
+    }
+
+    .premium-trucker-product.is-enabled .premium-trucker-product__service-item small {
+      font-size: 10px;
+    }
+
+    .premium-trucker-product.is-enabled :is(.premium-trucker-product__screenshot-description, .product__description, .rte, [class*='description']) {
+      display: -webkit-box !important;
+      max-height: 3.1em;
+      -webkit-line-clamp: 2 !important;
+      -webkit-box-orient: vertical !important;
+      overflow: hidden !important;
+    }
+
+    .premium-trucker-product.is-enabled .premium-trucker-product__color-list {
+      gap: 7px;
+    }
+
+    .premium-trucker-product.is-enabled .premium-trucker-product__color-pill {
+      gap: 7px;
+      min-height: 36px;
+      padding: 5px 10px 5px 6px;
+      font-size: 11px;
+    }
+
+    .premium-trucker-product.is-enabled .premium-trucker-product__color-swatch {
+      width: 24px;
+      height: 24px;
+    }
+
+    .premium-trucker-product.is-enabled :is(h1, .product-title, .product__title, [class*='title']) {
+      font-size: var(--ptp-heading-size-mobile);
+    }
+
+    .premium-trucker-product.is-enabled .premium-trucker-product__customize-button {
+      min-height: 56px;
+      grid-template-columns: 28px minmax(0, 1fr) 24px;
+      padding-inline: 16px;
+      font-size: 13px;
+    }
+
+    .premium-trucker-product__creator-collection-button {
+      min-height: 54px;
+      padding-inline: 16px;
+      font-size: 13px;
+    }
+
+    .premium-trucker-product.has-mobile-sticky-customize {
+      padding-bottom: calc(90px + env(safe-area-inset-bottom));
+    }
+
+    .premium-trucker-product__mobile-sticky-customize {
+      position: fixed;
+      width: 100%;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: calc(var(--layer-sticky, 100) + 20);
+      display: block;
+      overflow-x: hidden;
+      padding: 10px max(12px, env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+      background: linear-gradient(180deg, rgb(5 5 5 / 0), var(--ptp-page-bg) 28%);
+      box-shadow: 0 -14px 30px rgb(0 0 0 / 0.24);
+      pointer-events: none;
+    }
+
+    .premium-trucker-product__mobile-sticky-customize-button {
+      display: grid;
+      width: 100%;
+      max-width: 520px;
+      min-height: 56px;
+      grid-template-columns: 28px minmax(0, 1fr) 24px;
+      margin-inline: auto;
+      color: #fff;
+      background: linear-gradient(135deg, var(--ptp-accent), var(--ptp-accent-2));
+      box-shadow: 0 12px 28px color-mix(in srgb, var(--ptp-accent) 34%, transparent);
+      pointer-events: auto;
+    }
+  }
+
+  .sticky-add-to-cart__bar {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    opacity: 0;
+    transform: translateX(-50%) translateY(calc(100% + 40px));
+    z-index: calc(var(--layer-sticky) - 1); /* Below sticky header */
+    display: block;
+    width: 600px;
+    border-radius: calc(
+      var(--style-border-radius-buttons-primary) + min(var(--padding-sm), var(--style-border-radius-buttons-primary))
+    );
+    box-shadow: var(--shadow-popover);
+    padding: var(--padding-sm);
+    /* Layout styling */
+    display: flex;
+    align-items: center;
+    gap: var(--gap-md);
+
+    @starting-style {
+      opacity: 0;
+      transform: translateX(-50%) translateY(calc(100% + 40px));
+    }
+
+    &::before {
+      --border: 2px;
+      content: '';
+      position: absolute;
+      inset: calc(var(--border) * -1);
+      background: linear-gradient(var(--color-background) 0 100%), linear-gradient(hsl(0 0% 0% / 0.15) 0 100%);
+      background-clip: content-box, border-box;
+      border: var(--border) solid #0000;
+      border-radius: inherit;
+      z-index: -1;
+      backdrop-filter: blur(20px) saturate(180%) brightness(1.5);
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .sticky-add-to-cart__bar {
+      transition-property: transform, opacity, display;
+      transition-duration: 0.3s;
+      transition-timing-function: var(--ease-out-quad);
+      transition-behavior: allow-discrete;
+    }
+  }
+
+  .sticky-add-to-cart__bar[data-stuck='true'] {
+    transform: translateX(-50%) translateY(0%);
+    opacity: 1;
+  }
+
+  sticky-add-to-cart:not([data-variant-available='true']) .sticky-add-to-cart__bar {
+    opacity: 0;
+    transform: translateX(-50%) translateY(calc(100% + 40px));
+    display: none;
+  }
+
+  .sticky-add-to-cart__info[data-has-image='false'] {
+    padding-left: var(--padding-lg);
+  }
+
+  .sticky-add-to-cart__image {
+    flex-shrink: 0;
+    aspect-ratio: 1;
+    height: var(--height-buy-buttons);
+    overflow: hidden;
+    border-radius: var(--style-border-radius-buttons-primary);
+    background: var(--color-background-secondary);
+  }
+
+  .sticky-add-to-cart__image-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .sticky-add-to-cart__info {
+    flex: 1;
+    min-width: 0; /* Allow text truncation */
+  }
+
+  .sticky-add-to-cart__title {
+    font-size: var(--font-paragraph-medium--size);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--font-paragraph--line-height);
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sticky-add-to-cart__variant {
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-subdued-text));
+    font-size: var(--font-paragraph-small--size);
+    margin-top: var(--margin-3xs);
+  }
+
+  .sticky-add-to-cart__price {
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .sticky-add-to-cart__button {
+    height: var(--height-buy-buttons);
+    position: relative;
+  }
+
+  /* Mobile adjustments */
+  @media screen and (max-width: 749px) {
+    .sticky-add-to-cart__bar {
+      bottom: 0;
+      width: 100%;
+      max-width: none;
+      border-radius: 0;
+
+      &::before {
+        --border: 1px;
+      }
+    }
+
+    .sticky-add-to-cart__bar .add-to-cart-text__content {
+      display: none;
+    }
+
+    .sticky-add-to-cart__info[data-has-image='false'] {
+      padding-left: 0;
+    }
+
+    .sticky-add-to-cart__title {
+      font-size: var(--font-paragraph--size);
+    }
+
+    .sticky-add-to-cart__button {
+      padding: var(--padding-lg);
+    }
+
+    .sticky-add-to-cart__price {
+      font-size: var(--font-paragraph-small--size);
+    }
+
+    .sticky-add-to-cart__button {
+      width: var(--height-buy-buttons);
+    }
+
+    sticky-add-to-cart:not([data-variant-available='true']) .add-to-cart-text__content {
+      display: initial;
+    }
+
+    sticky-add-to-cart:not([data-variant-available='true']) .sticky-add-to-cart__button {
+      width: auto;
+    }
+  }
+
+  /* Small mobile - hide text content and compare price */
+  @media screen and (max-width: 389px) {
+    .sticky-add-to-cart__bar {
+      .compare-at-price {
+        display: none;
+      }
+    }
+
+    .sticky-add-to-cart__title {
+      display: none;
+    }
+
+    /* For product with only default variant show title */
+    .sticky-add-to-cart__info[data-singleton='true'] .sticky-add-to-cart__title {
+      display: block;
+    }
+
+    /* For single variant show title and variant, truncate both. variant should be identifiable with truncation */
+    .sticky-add-to-cart__info[data-single-option='true'] .sticky-add-to-cart__title {
+      display: block;
+    }
+
+    .sticky-add-to-cart__info[data-single-option='true'] .sticky-add-to-cart__variant {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "t:names.product_information",
+  "blocks": [
+    {
+      "type": "@theme"
+    },
+    {
+      "type": "@app"
+    }
+  ],
+  "disabled_on": {
+    "groups": ["header", "footer"]
+  },
+  "settings": [
+    {
+      "type": "header",
+      "content": "t:content.layout"
+    },
+    {
+      "type": "select",
+      "id": "content_width",
+      "label": "t:settings.width",
+      "options": [
+        {
+          "value": "content-center-aligned",
+          "label": "t:options.page"
+        },
+        {
+          "value": "content-full-width",
+          "label": "t:options.full"
+        }
+      ],
+      "default": "content-center-aligned"
+    },
+    {
+      "type": "select",
+      "id": "desktop_media_position",
+      "label": "t:settings.media_position",
+      "options": [
+        {
+          "value": "left",
+          "label": "t:options.left"
+        },
+        {
+          "value": "right",
+          "label": "t:options.right"
+        }
+      ],
+      "default": "left"
+    },
+    {
+      "type": "checkbox",
+      "id": "equal_columns",
+      "label": "t:settings.equal_columns",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "limit_details_width",
+      "label": "t:settings.limit_product_details_width",
+      "default": false,
+      "visible_if": "{{ section.settings.equal_columns }}"
+    },
+    {
+      "type": "range",
+      "id": "gap",
+      "label": "t:settings.gap",
+      "min": 0,
+      "max": 48,
+      "step": 4,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_sticky_add_to_cart",
+      "label": "t:settings.enable_sticky_add_to_cart",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "force_allow_purchase",
+      "label": "Keep Add to Cart active when sold out",
+      "info": "The theme will attempt to add the selected variant even when Shopify reports it unavailable. Shopify Admin must also have Continue selling when out of stock enabled.",
+      "default": true
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "t:settings.background_color",
+      "placeholder": "t:settings.default"
+    },
+    {
+      "type": "header",
+      "content": "Premium trucker page style"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_premium_style",
+      "label": "Enable screenshot-style product page",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "premium_max_width",
+      "label": "Content max width",
+      "min": 1000,
+      "max": 1600,
+      "step": 20,
+      "unit": "px",
+      "default": 1440
+    },
+    {
+      "type": "range",
+      "id": "premium_side_padding",
+      "label": "Desktop side padding",
+      "min": 12,
+      "max": 64,
+      "step": 2,
+      "unit": "px",
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "premium_mobile_padding",
+      "label": "Mobile side padding",
+      "min": 10,
+      "max": 32,
+      "step": 1,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "premium_grid_gap",
+      "label": "Desktop column gap",
+      "min": 20,
+      "max": 72,
+      "step": 2,
+      "unit": "px",
+      "default": 42
+    },
+    {
+      "type": "range",
+      "id": "premium_thumbnail_size",
+      "label": "Thumbnail size",
+      "min": 72,
+      "max": 132,
+      "step": 2,
+      "unit": "px",
+      "default": 104
+    },
+    {
+      "type": "range",
+      "id": "premium_media_radius",
+      "label": "Media corner radius",
+      "min": 0,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 8
+    },
+    {
+      "type": "range",
+      "id": "premium_button_radius",
+      "label": "Button corner radius",
+      "min": 0,
+      "max": 18,
+      "step": 1,
+      "unit": "px",
+      "default": 6
+    },
+    {
+      "type": "range",
+      "id": "premium_heading_size",
+      "label": "Desktop title size",
+      "min": 28,
+      "max": 68,
+      "step": 1,
+      "unit": "px",
+      "default": 46
+    },
+    {
+      "type": "range",
+      "id": "premium_heading_size_mobile",
+      "label": "Mobile title size",
+      "min": 26,
+      "max": 44,
+      "step": 1,
+      "unit": "px",
+      "default": 34
+    },
+    {
+      "type": "color",
+      "id": "premium_background_color",
+      "label": "Page background",
+      "default": "#050505"
+    },
+    {
+      "type": "color",
+      "id": "premium_panel_color",
+      "label": "Panel background",
+      "default": "#101010"
+    },
+    {
+      "type": "color",
+      "id": "premium_text_color",
+      "label": "Text color",
+      "default": "#f4f4f4"
+    },
+    {
+      "type": "color",
+      "id": "premium_muted_color",
+      "label": "Muted text color",
+      "default": "#a7a7a7"
+    },
+    {
+      "type": "color",
+      "id": "premium_border_color",
+      "label": "Border color",
+      "default": "#242424"
+    },
+    {
+      "type": "color",
+      "id": "premium_accent_color",
+      "label": "Primary accent",
+      "default": "#8a2cff"
+    },
+    {
+      "type": "color",
+      "id": "premium_accent_2_color",
+      "label": "Secondary accent",
+      "default": "#6f22d8"
+    },
+    {
+      "type": "color",
+      "id": "service_icon_color",
+      "label": "Service icon accent",
+      "default": "#9fbd00"
+    },
+    {
+      "type": "image_picker",
+      "id": "premium_background_image",
+      "label": "Optional background image"
+    },
+    {
+      "type": "header",
+      "content": "Dynamic product images"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_custom_gallery",
+      "label": "Use uploaded gallery images",
+      "default": false
+    },
+    {
+      "type": "select",
+      "id": "custom_gallery_aspect_ratio",
+      "label": "Main image shape",
+      "options": [
+        {
+          "value": "1 / 1",
+          "label": "Square"
+        },
+        {
+          "value": "4 / 3",
+          "label": "Landscape"
+        },
+        {
+          "value": "3 / 4",
+          "label": "Portrait"
+        },
+        {
+          "value": "16 / 10",
+          "label": "Wide"
+        }
+      ],
+      "default": "1 / 1"
+    },
+    {
+      "type": "select",
+      "id": "custom_gallery_image_fit",
+      "label": "Main image fit",
+      "options": [
+        {
+          "value": "cover",
+          "label": "Cover"
+        },
+        {
+          "value": "contain",
+          "label": "Contain"
+        }
+      ],
+      "default": "cover"
+    },
+    {
+      "type": "image_picker",
+      "id": "gallery_image_1",
+      "label": "Gallery image 1"
+    },
+    {
+      "type": "text",
+      "id": "gallery_image_1_alt",
+      "label": "Gallery image 1 alt text",
+      "default": "Product image 1"
+    },
+    {
+      "type": "image_picker",
+      "id": "gallery_image_2",
+      "label": "Gallery image 2"
+    },
+    {
+      "type": "text",
+      "id": "gallery_image_2_alt",
+      "label": "Gallery image 2 alt text",
+      "default": "Product image 2"
+    },
+    {
+      "type": "image_picker",
+      "id": "gallery_image_3",
+      "label": "Gallery image 3"
+    },
+    {
+      "type": "text",
+      "id": "gallery_image_3_alt",
+      "label": "Gallery image 3 alt text",
+      "default": "Product image 3"
+    },
+    {
+      "type": "image_picker",
+      "id": "gallery_image_4",
+      "label": "Gallery image 4"
+    },
+    {
+      "type": "text",
+      "id": "gallery_image_4_alt",
+      "label": "Gallery image 4 alt text",
+      "default": "Product image 4"
+    },
+    {
+      "type": "image_picker",
+      "id": "gallery_image_5",
+      "label": "Gallery image 5"
+    },
+    {
+      "type": "text",
+      "id": "gallery_image_5_alt",
+      "label": "Gallery image 5 alt text",
+      "default": "Product image 5"
+    },
+    {
+      "type": "image_picker",
+      "id": "gallery_image_6",
+      "label": "Gallery image 6"
+    },
+    {
+      "type": "text",
+      "id": "gallery_image_6_alt",
+      "label": "Gallery image 6 alt text",
+      "default": "Product image 6"
+    },
+    {
+      "type": "header",
+      "content": "Creator and reviews"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_product_meta",
+      "label": "Show creator and reviews row",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "creator_label",
+      "label": "Creator label",
+      "default": "Created by"
+    },
+    {
+      "type": "text",
+      "id": "creator_name",
+      "label": "Creator name",
+      "default": "Marcus Thompson"
+    },
+    {
+      "type": "image_picker",
+      "id": "creator_avatar_image",
+      "label": "Creator avatar image"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_verified_badge",
+      "label": "Show verified badge",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "rating_text",
+      "label": "Rating text",
+      "default": "4.8"
+    },
+    {
+      "type": "text",
+      "id": "reviews_text",
+      "label": "Reviews text",
+      "default": "(256 reviews)"
+    },
+    {
+      "type": "header",
+      "content": "Customizer button"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_customize_button",
+      "label": "Show customize button",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "customize_button_label",
+      "label": "Button label",
+      "default": "Customize this product"
+    },
+    {
+      "type": "url",
+      "id": "customize_button_link",
+      "label": "Button link"
+    },
+    {
+      "type": "image_picker",
+      "id": "customize_icon_image",
+      "label": "Button icon image"
+    },
+    {
+      "type": "header",
+      "content": "Service badges"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_service_badges",
+      "label": "Show service badges",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "production_time_heading",
+      "label": "Production heading",
+      "default": "Production time"
+    },
+    {
+      "type": "text",
+      "id": "production_time_text",
+      "label": "Production text",
+      "default": "3-5 Business Days"
+    },
+    {
+      "type": "image_picker",
+      "id": "production_icon_image",
+      "label": "Production icon image"
+    },
+    {
+      "type": "text",
+      "id": "shipping_time_heading",
+      "label": "Shipping heading",
+      "default": "Shipping time"
+    },
+    {
+      "type": "text",
+      "id": "shipping_time_text",
+      "label": "Shipping text",
+      "default": "3-7 Business Days"
+    },
+    {
+      "type": "image_picker",
+      "id": "shipping_icon_image",
+      "label": "Shipping icon image"
+    },
+    {
+      "type": "text",
+      "id": "returns_heading",
+      "label": "Returns heading",
+      "default": "Easy returns"
+    },
+    {
+      "type": "text",
+      "id": "returns_text",
+      "label": "Returns text",
+      "default": "30 Day Returns"
+    },
+    {
+      "type": "image_picker",
+      "id": "returns_icon_image",
+      "label": "Returns icon image"
+    },
+    {
+      "type": "header",
+      "content": "t:content.padding"
+    },
+    {
+      "type": "range",
+      "id": "padding-block-start",
+      "label": "t:settings.top",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "padding-block-end",
+      "label": "t:settings.bottom",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    }
+  ],
+  "presets": []
+}
+{% endschema %}

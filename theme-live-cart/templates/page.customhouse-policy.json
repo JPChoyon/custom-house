@@ -1,0 +1,101 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "main": {
+      "type": "customhouse-policy-page",
+      "blocks": {
+        "privacy_policy": {
+          "type": "navigation_link",
+          "settings": {
+            "label": "Privacy Policy",
+            "link_url": "/pages/privacy-policy"
+          }
+        },
+        "terms_of_service": {
+          "type": "navigation_link",
+          "settings": {
+            "label": "Terms of Service",
+            "link_url": "/pages/terms-of-service"
+          }
+        },
+        "refund_policy": {
+          "type": "navigation_link",
+          "settings": {
+            "label": "Refund Policy",
+            "link_url": "/pages/refund-policy"
+          }
+        },
+        "shipping_policy": {
+          "type": "navigation_link",
+          "settings": {
+            "label": "Shipping Policy",
+            "link_url": "/pages/shipping-policy"
+          }
+        },
+        "cookie_policy": {
+          "type": "navigation_link",
+          "settings": {
+            "label": "Cookie Policy",
+            "link_url": "/pages/cookie-policy"
+          }
+        },
+        "accessibility": {
+          "type": "navigation_link",
+          "settings": {
+            "label": "Accessibility",
+            "link_url": "/pages/accessibility"
+          }
+        },
+        "creator_terms": {
+          "type": "navigation_link",
+          "settings": {
+            "label": "Creator Terms",
+            "link_url": "/pages/creator-terms"
+          }
+        }
+      },
+      "block_order": [
+        "privacy_policy",
+        "terms_of_service",
+        "refund_policy",
+        "shipping_policy",
+        "cookie_policy",
+        "accessibility",
+        "creator_terms"
+      ],
+      "settings": {
+        "eyebrow_text": "POLICY CENTER",
+        "show_policy_navigation": true,
+        "show_bottom_cta": true,
+        "cta_heading": "Need Help Understanding This Policy?",
+        "cta_text": "Our team can help with questions about orders, customization, creator partnerships, and support.",
+        "cta_button_text": "Contact Support",
+        "cta_button_link": "/pages/contact",
+        "container_width": 1440,
+        "top_padding": 32,
+        "bottom_padding": 96,
+        "background_color": "#0F0F11",
+        "card_background_color": "#151518",
+        "heading_color": "#FFFFFF",
+        "body_text_color": "#C6C6CC",
+        "accent_color": "#D7FF2F",
+        "border_color": "#6D42B8",
+        "card_border_radius": 20,
+        "enable_graffiti_accents": true,
+        "texture_opacity": 55,
+        "graffiti_opacity": 18
+      }
+    }
+  },
+  "order": [
+    "main"
+  ]
+}

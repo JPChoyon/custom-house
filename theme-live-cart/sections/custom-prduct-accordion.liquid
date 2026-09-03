@@ -1,0 +1,884 @@
+{% liquid
+  assign section_id = 'ProductDetailsGraffiti-' | append: section.id
+  assign product_description = product.description | default: section.settings.description_fallback
+%}
+
+<section
+  id="{{ section_id }}"
+  class="pdg-section color-{{ section.id }}"
+  data-section-id="{{ section.id }}"
+>
+  <div class="pdg-shell">
+    {% if section.settings.show_decorations %}
+      <div class="pdg-x" aria-hidden="true"></div>
+      <div class="pdg-crown-mark" aria-hidden="true">
+        <svg viewBox="0 0 90 70" role="presentation" focusable="false">
+          <path d="M13 58 9 18l25 21L45 9l12 30 25-21-4 40H13Z" />
+        </svg>
+      </div>
+      <div class="pdg-splatter" aria-hidden="true"></div>
+    {% endif %}
+
+    <div class="pdg-inner">
+      <header class="pdg-header">
+        {% if section.settings.show_top_crown %}
+          <svg class="pdg-crown" viewBox="0 0 48 38" role="presentation" focusable="false">
+            <path d="M6 31 4 9l13 11 7-16 7 16L44 9l-2 22H6Z" />
+          </svg>
+        {% endif %}
+
+        <div class="pdg-title-row">
+          <span aria-hidden="true"></span>
+          <h2>
+            {{ section.settings.heading | escape }}
+            {% if section.settings.heading_accent != blank %}
+              <em>{{ section.settings.heading_accent | escape }}</em>
+            {% endif %}
+          </h2>
+          <span aria-hidden="true"></span>
+        </div>
+
+        {% if section.settings.subheading != blank %}
+          <p>{{ section.settings.subheading | escape }}</p>
+        {% endif %}
+      </header>
+
+      <div class="pdg-accordion" data-pdg-accordion>
+        <details class="pdg-item" {% if section.settings.description_open %}open{% endif %}>
+          <summary class="pdg-summary">
+            <span class="pdg-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                <path d="M7 3h7l3 3v15H7V3Z" />
+                <path d="M14 3v4h4" />
+                <path d="M9 11h6M9 15h6" />
+              </svg>
+            </span>
+            <span class="pdg-label">{{ section.settings.description_title | escape }}</span>
+            <span class="pdg-toggle" aria-hidden="true">
+              <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                <path d="m7 14 5-5 5 5" />
+              </svg>
+            </span>
+          </summary>
+          <div class="pdg-content">
+            {% if product_description != blank %}
+              <div class="pdg-rte rte">{{ product_description }}</div>
+            {% endif %}
+          </div>
+        </details>
+
+        <details class="pdg-item" {% if section.settings.materials_open %}open{% endif %}>
+          <summary class="pdg-summary">
+            <span class="pdg-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                <path d="m12 3 8 4-8 4-8-4 8-4Z" />
+                <path d="m4 12 8 4 8-4" />
+                <path d="m4 17 8 4 8-4" />
+              </svg>
+            </span>
+            <span class="pdg-label">{{ section.settings.materials_title | escape }}</span>
+            <span class="pdg-toggle" aria-hidden="true">
+              <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                <path d="m7 14 5-5 5 5" />
+              </svg>
+            </span>
+          </summary>
+          <div class="pdg-content">
+            <div class="pdg-rte rte">{{ section.settings.materials_text }}</div>
+          </div>
+        </details>
+
+        <details class="pdg-item" {% if section.settings.size_open %}open{% endif %}>
+          <summary class="pdg-summary">
+            <span class="pdg-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                <path d="M4 15 15 4l5 5L9 20H4v-5Z" />
+                <path d="m13 6 5 5" />
+              </svg>
+            </span>
+            <span class="pdg-label">{{ section.settings.size_title | escape }}</span>
+            <span class="pdg-toggle" aria-hidden="true">
+              <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                <path d="m7 14 5-5 5 5" />
+              </svg>
+            </span>
+          </summary>
+          <div class="pdg-content">
+            <div class="pdg-rte rte">{{ section.settings.size_text }}</div>
+          </div>
+        </details>
+
+        <details class="pdg-item" {% if section.settings.shipping_open %}open{% endif %}>
+          <summary class="pdg-summary">
+            <span class="pdg-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                <path d="M3 7h11v10H3V7Z" />
+                <path d="M14 10h4l3 3v4h-7v-7Z" />
+                <path d="M7 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM18 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+              </svg>
+            </span>
+            <span class="pdg-label">{{ section.settings.shipping_title | escape }}</span>
+            <span class="pdg-toggle" aria-hidden="true">
+              <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                <path d="m7 14 5-5 5 5" />
+              </svg>
+            </span>
+          </summary>
+          <div class="pdg-content">
+            <div class="pdg-rte rte">{{ section.settings.shipping_text }}</div>
+          </div>
+        </details>
+
+        <details class="pdg-item" {% if section.settings.returns_open %}open{% endif %}>
+          <summary class="pdg-summary">
+            <span class="pdg-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                <path d="M4 7v5h5" />
+                <path d="M5.5 12A7 7 0 1 0 8 6.7L4 10.5" />
+              </svg>
+            </span>
+            <span class="pdg-label">{{ section.settings.returns_title | escape }}</span>
+            <span class="pdg-toggle" aria-hidden="true">
+              <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                <path d="m7 14 5-5 5 5" />
+              </svg>
+            </span>
+          </summary>
+          <div class="pdg-content">
+            <div class="pdg-rte rte">{{ section.settings.returns_text }}</div>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  {{ section.settings.heading_font | font_face: font_display: 'swap' }}
+
+  #{{ section_id }} {
+    --pdg-bg: {{ section.settings.background_color }};
+    --pdg-panel: {{ section.settings.panel_color }};
+    --pdg-panel-2: color-mix(in srgb, var(--pdg-panel), var(--pdg-bg) 28%);
+    --pdg-border: {{ section.settings.border_color }};
+    --pdg-purple: {{ section.settings.accent_color }};
+    --pdg-green: {{ section.settings.highlight_color }};
+    --pdg-text: {{ section.settings.text_color }};
+    --pdg-muted: {{ section.settings.muted_text_color }};
+    --pdg-radius: {{ section.settings.corner_radius }}px;
+    --pdg-max: {{ section.settings.max_width }}px;
+    display: block;
+    padding: {{ section.settings.padding_top }}px 16px {{ section.settings.padding_bottom }}px;
+    background: {{ section.settings.page_background }};
+  }
+
+  #{{ section_id }} * {
+    box-sizing: border-box;
+  }
+
+  #{{ section_id }} .pdg-shell {
+    position: relative;
+    max-width: var(--pdg-max);
+    min-height: 520px;
+    margin: 0 auto;
+    overflow: hidden;
+    color: var(--pdg-text);
+    background:
+      radial-gradient(circle at 50% 35%, rgba(123, 45, 215, 0.1), transparent 34%),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.035), transparent 28%),
+      var(--pdg-bg);
+    border: 1px solid color-mix(in srgb, var(--pdg-border), transparent 22%);
+    border-radius: var(--pdg-radius);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025), 0 18px 60px rgba(0, 0, 0, 0.45);
+  }
+
+  #{{ section_id }} .pdg-inner {
+    position: relative;
+    z-index: 2;
+    width: min(880px, calc(100% - 48px));
+    margin: 0 auto;
+    padding: clamp(30px, 5vw, 58px) 0 clamp(34px, 5vw, 62px);
+  }
+
+  #{{ section_id }} .pdg-header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+
+  #{{ section_id }} .pdg-crown {
+    width: 34px;
+    height: 28px;
+    margin-bottom: 8px;
+    fill: none;
+    stroke: var(--pdg-green);
+    stroke-width: 3;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 8px color-mix(in srgb, var(--pdg-green), transparent 45%));
+  }
+
+  #{{ section_id }} .pdg-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+  }
+
+  #{{ section_id }} .pdg-title-row > span {
+    width: 34px;
+    height: 3px;
+    background: var(--pdg-purple);
+    border-radius: 99px;
+    box-shadow: 0 0 10px color-mix(in srgb, var(--pdg-purple), transparent 20%);
+  }
+
+  #{{ section_id }} h2 {
+    margin: 0;
+    color: var(--pdg-text);
+    font-family: {{ section.settings.heading_font.family }}, {{ section.settings.heading_font.fallback_families }};
+    font-style: {{ section.settings.heading_font.style }};
+    font-weight: {{ section.settings.heading_font.weight }};
+    font-size: clamp(26px, 4vw, 38px);
+    line-height: 1.05;
+    letter-spacing: 0;
+    text-transform: uppercase;
+    text-shadow: 0 2px 12px rgba(255, 255, 255, 0.16);
+  }
+
+  #{{ section_id }} h2 em {
+    color: var(--pdg-green);
+    font-style: inherit;
+    text-shadow: 0 0 14px color-mix(in srgb, var(--pdg-green), transparent 35%);
+  }
+
+  #{{ section_id }} .pdg-header p {
+    max-width: 620px;
+    margin: 10px auto 0;
+    color: var(--pdg-muted);
+    font-size: clamp(13px, 1.6vw, 15px);
+    line-height: 1.5;
+  }
+
+  #{{ section_id }} .pdg-accordion {
+    display: grid;
+    gap: 8px;
+  }
+
+  #{{ section_id }} .pdg-item {
+    overflow: hidden;
+    background:
+      linear-gradient(90deg, rgba(255, 255, 255, 0.035), transparent 34%),
+      linear-gradient(180deg, var(--pdg-panel), var(--pdg-panel-2));
+    border: 1px solid color-mix(in srgb, var(--pdg-border), transparent 32%);
+    border-radius: 14px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  }
+
+  #{{ section_id }} .pdg-item[open] {
+    border-color: color-mix(in srgb, var(--pdg-purple), transparent 26%);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--pdg-purple), transparent 72%), 0 18px 36px rgba(0, 0, 0, 0.35);
+  }
+
+  #{{ section_id }} .pdg-summary {
+    display: grid;
+    grid-template-columns: 50px 1fr 42px;
+    align-items: center;
+    min-height: 66px;
+    gap: 12px;
+    padding: 9px 18px;
+    color: var(--pdg-text);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  #{{ section_id }} .pdg-summary::-webkit-details-marker {
+    display: none;
+  }
+
+  #{{ section_id }} .pdg-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 43px;
+    height: 43px;
+    color: var(--pdg-green);
+    border: 1px solid color-mix(in srgb, var(--pdg-purple), transparent 22%);
+    border-radius: 50%;
+    background: radial-gradient(circle, color-mix(in srgb, var(--pdg-purple), transparent 75%), transparent 68%);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--pdg-purple), transparent 38%);
+  }
+
+  #{{ section_id }} .pdg-icon svg {
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  #{{ section_id }} .pdg-label {
+    color: var(--pdg-text);
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 1.25;
+  }
+
+  #{{ section_id }} .pdg-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    justify-self: end;
+    color: #fff;
+    background: var(--pdg-purple);
+    border-radius: 50%;
+    box-shadow: 0 0 14px color-mix(in srgb, var(--pdg-purple), transparent 20%);
+    transition: transform 0.2s ease;
+  }
+
+  #{{ section_id }} .pdg-toggle svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  #{{ section_id }} .pdg-item:not([open]) .pdg-toggle {
+    transform: rotate(180deg);
+  }
+
+  #{{ section_id }} .pdg-content {
+    padding: 0 18px 22px 80px;
+  }
+
+  #{{ section_id }} .pdg-item[open] .pdg-content {
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  #{{ section_id }} .pdg-rte {
+    max-width: 760px;
+    padding-top: 18px;
+    color: var(--pdg-muted);
+    font-size: 14px;
+    line-height: 1.75;
+  }
+
+  #{{ section_id }} .pdg-rte > :first-child {
+    margin-top: 0;
+  }
+
+  #{{ section_id }} .pdg-rte > :last-child {
+    margin-bottom: 0;
+  }
+
+  #{{ section_id }} .pdg-rte a {
+    color: var(--pdg-green);
+  }
+
+  #{{ section_id }} .pdg-x,
+  #{{ section_id }} .pdg-crown-mark,
+  #{{ section_id }} .pdg-splatter {
+    position: absolute;
+    z-index: 1;
+    pointer-events: none;
+    opacity: {{ section.settings.decoration_opacity | divided_by: 100.0 }};
+  }
+
+  #{{ section_id }} .pdg-x {
+    top: 4px;
+    left: 18px;
+    width: 152px;
+    height: 152px;
+    transform: rotate(-8deg);
+  }
+
+  #{{ section_id }} .pdg-x::before,
+  #{{ section_id }} .pdg-x::after {
+    content: "";
+    position: absolute;
+    top: 68px;
+    left: 0;
+    width: 160px;
+    height: 18px;
+    background: color-mix(in srgb, var(--pdg-purple), transparent 18%);
+    filter: blur(0.2px);
+    clip-path: polygon(0 18%, 100% 0, 96% 58%, 9% 100%);
+  }
+
+  #{{ section_id }} .pdg-x::after {
+    transform: rotate(88deg);
+  }
+
+  #{{ section_id }} .pdg-crown-mark {
+    top: 22px;
+    right: 28px;
+    width: 124px;
+    color: var(--pdg-purple);
+  }
+
+  #{{ section_id }} .pdg-crown-mark svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 18px color-mix(in srgb, var(--pdg-purple), transparent 38%));
+  }
+
+  #{{ section_id }} .pdg-crown-mark::after {
+    content: "";
+    display: block;
+    width: 108px;
+    height: 14px;
+    margin: -8px auto 0;
+    background: color-mix(in srgb, var(--pdg-purple), transparent 18%);
+    transform: rotate(-2deg);
+    filter: blur(0.4px);
+    clip-path: polygon(1% 29%, 100% 0, 92% 78%, 7% 100%);
+  }
+
+  #{{ section_id }} .pdg-splatter {
+    left: -8px;
+    bottom: 2px;
+    width: 220px;
+    height: 250px;
+    background:
+      radial-gradient(circle at 30% 65%, color-mix(in srgb, var(--pdg-purple), transparent 5%) 0 5px, transparent 6px),
+      radial-gradient(circle at 18% 35%, color-mix(in srgb, var(--pdg-purple), transparent 8%) 0 8px, transparent 9px),
+      radial-gradient(circle at 75% 70%, color-mix(in srgb, var(--pdg-purple), transparent 18%) 0 12px, transparent 13px),
+      linear-gradient(145deg, transparent 0 34%, color-mix(in srgb, var(--pdg-purple), transparent 10%) 35% 43%, transparent 44%),
+      linear-gradient(16deg, transparent 0 42%, color-mix(in srgb, var(--pdg-purple), transparent 22%) 43% 49%, transparent 50%);
+    clip-path: polygon(0 21%, 32% 38%, 20% 0, 45% 44%, 82% 22%, 52% 53%, 100% 58%, 54% 65%, 72% 100%, 36% 72%, 0 93%);
+  }
+
+  @supports not (color: color-mix(in srgb, red, blue)) {
+    #{{ section_id }} .pdg-shell,
+    #{{ section_id }} .pdg-item,
+    #{{ section_id }} .pdg-icon,
+    #{{ section_id }} .pdg-toggle {
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    #{{ section_id }} .pdg-panel-2 {
+      background: var(--pdg-panel);
+    }
+  }
+
+  @media (max-width: 749px) {
+    #{{ section_id }} {
+      padding: {{ section.settings.mobile_padding_top }}px 12px {{ section.settings.mobile_padding_bottom }}px;
+    }
+
+    #{{ section_id }} .pdg-shell {
+      min-height: auto;
+      border-radius: min(var(--pdg-radius), 18px);
+    }
+
+    #{{ section_id }} .pdg-inner {
+      width: calc(100% - 24px);
+      padding: 28px 0 30px;
+    }
+
+    #{{ section_id }} .pdg-title-row {
+      gap: 10px;
+    }
+
+    #{{ section_id }} .pdg-title-row > span {
+      width: 22px;
+    }
+
+    #{{ section_id }} h2 {
+      font-size: clamp(24px, 8vw, 32px);
+    }
+
+    #{{ section_id }} .pdg-summary {
+      grid-template-columns: 42px 1fr 34px;
+      min-height: 60px;
+      gap: 10px;
+      padding: 8px 12px;
+    }
+
+    #{{ section_id }} .pdg-icon {
+      width: 38px;
+      height: 38px;
+    }
+
+    #{{ section_id }} .pdg-label {
+      font-size: 15px;
+    }
+
+    #{{ section_id }} .pdg-toggle {
+      width: 28px;
+      height: 28px;
+    }
+
+    #{{ section_id }} .pdg-content {
+      padding: 0 14px 18px 64px;
+    }
+
+    #{{ section_id }} .pdg-rte {
+      padding-top: 15px;
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    #{{ section_id }} .pdg-x {
+      width: 96px;
+      height: 96px;
+      left: -6px;
+      opacity: 0.35;
+    }
+
+    #{{ section_id }} .pdg-x::before,
+    #{{ section_id }} .pdg-x::after {
+      width: 100px;
+      height: 12px;
+      top: 42px;
+    }
+
+    #{{ section_id }} .pdg-crown-mark {
+      width: 76px;
+      right: 6px;
+      top: 16px;
+      opacity: 0.32;
+    }
+
+    #{{ section_id }} .pdg-crown-mark::after {
+      width: 68px;
+      height: 9px;
+    }
+
+    #{{ section_id }} .pdg-splatter {
+      width: 140px;
+      height: 160px;
+      opacity: 0.28;
+    }
+  }
+
+  @media (max-width: 420px) {
+    #{{ section_id }} .pdg-content {
+      padding-left: 14px;
+    }
+  }
+</style>
+
+<script>
+  (() => {
+    const root = document.getElementById({{ section_id | json }});
+    if (!root) return;
+
+    const accordion = root.querySelector('[data-pdg-accordion]');
+    if (!accordion || accordion.dataset.pdgReady === 'true') return;
+    accordion.dataset.pdgReady = 'true';
+
+    if ({{ section.settings.close_others | json }}) {
+      accordion.querySelectorAll('details').forEach((current) => {
+        current.addEventListener('toggle', () => {
+          if (!current.open) return;
+
+          accordion.querySelectorAll('details[open]').forEach((item) => {
+            if (item !== current) item.removeAttribute('open');
+          });
+        });
+      });
+    }
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Graffiti product details",
+  "tag": "section",
+  "class": "section-product-details-graffiti",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Heading"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Product"
+    },
+    {
+      "type": "text",
+      "id": "heading_accent",
+      "label": "Accent heading",
+      "default": "Details"
+    },
+    {
+      "type": "text",
+      "id": "subheading",
+      "label": "Subheading",
+      "default": "Everything you need to know about this product"
+    },
+    {
+      "type": "font_picker",
+      "id": "heading_font",
+      "label": "Heading font",
+      "default": "helvetica_n4"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_top_crown",
+      "label": "Show crown above heading",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Accordion behavior"
+    },
+    {
+      "type": "checkbox",
+      "id": "close_others",
+      "label": "Close other panels when one opens",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "description_open",
+      "label": "Open description by default",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "materials_open",
+      "label": "Open materials by default",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "size_open",
+      "label": "Open size guide by default",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "shipping_open",
+      "label": "Open shipping by default",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "returns_open",
+      "label": "Open returns by default",
+      "default": false
+    },
+    {
+      "type": "header",
+      "content": "Dynamic description"
+    },
+    {
+      "type": "text",
+      "id": "description_title",
+      "label": "Description title",
+      "default": "Description"
+    },
+    {
+      "type": "richtext",
+      "id": "description_fallback",
+      "label": "Fallback description when no product is available",
+      "default": "<p>This premium product is designed for creators who demand quality and style. Whether you're building your brand or creating for clients, this product delivers the perfect canvas.</p>"
+    },
+    {
+      "type": "header",
+      "content": "Static panels"
+    },
+    {
+      "type": "text",
+      "id": "materials_title",
+      "label": "Materials title",
+      "default": "Materials"
+    },
+    {
+      "type": "richtext",
+      "id": "materials_text",
+      "label": "Materials text",
+      "default": "<p>Premium construction with durable, comfortable materials selected for everyday wear and long-lasting presentation.</p>"
+    },
+    {
+      "type": "text",
+      "id": "size_title",
+      "label": "Size guide title",
+      "default": "Size Guide"
+    },
+    {
+      "type": "richtext",
+      "id": "size_text",
+      "label": "Size guide text",
+      "default": "<p>Use your standard size for a regular fit. For custom measurements or special sizing questions, contact our support team before ordering.</p>"
+    },
+    {
+      "type": "text",
+      "id": "shipping_title",
+      "label": "Shipping title",
+      "default": "Shipping"
+    },
+    {
+      "type": "richtext",
+      "id": "shipping_text",
+      "label": "Shipping text",
+      "default": "<p>Orders are processed quickly and shipped with tracking. Delivery times may vary depending on destination and selected shipping method.</p>"
+    },
+    {
+      "type": "text",
+      "id": "returns_title",
+      "label": "Returns title",
+      "default": "Returns"
+    },
+    {
+      "type": "richtext",
+      "id": "returns_text",
+      "label": "Returns text",
+      "default": "<p>Returns are accepted according to your store policy. Items must be unused, in original condition, and requested within the return window.</p>"
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "page_background",
+      "label": "Outer background",
+      "default": "#030305"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Section background",
+      "default": "#08080d"
+    },
+    {
+      "type": "color",
+      "id": "panel_color",
+      "label": "Accordion panel",
+      "default": "#111017"
+    },
+    {
+      "type": "color",
+      "id": "border_color",
+      "label": "Border",
+      "default": "#3b254d"
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Purple accent",
+      "default": "#7a2fd6"
+    },
+    {
+      "type": "color",
+      "id": "highlight_color",
+      "label": "Green highlight",
+      "default": "#a9d900"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text",
+      "default": "#f4f2f6"
+    },
+    {
+      "type": "color",
+      "id": "muted_text_color",
+      "label": "Muted text",
+      "default": "#aaa6b3"
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "range",
+      "id": "max_width",
+      "min": 900,
+      "max": 1600,
+      "step": 20,
+      "unit": "px",
+      "label": "Maximum width",
+      "default": 1280
+    },
+    {
+      "type": "range",
+      "id": "corner_radius",
+      "min": 0,
+      "max": 32,
+      "step": 2,
+      "unit": "px",
+      "label": "Section corner radius",
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "label": "Desktop top padding",
+      "default": 8
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "label": "Desktop bottom padding",
+      "default": 8
+    },
+    {
+      "type": "range",
+      "id": "mobile_padding_top",
+      "min": 0,
+      "max": 80,
+      "step": 4,
+      "unit": "px",
+      "label": "Mobile top padding",
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "mobile_padding_bottom",
+      "min": 0,
+      "max": 80,
+      "step": 4,
+      "unit": "px",
+      "label": "Mobile bottom padding",
+      "default": 12
+    },
+    {
+      "type": "header",
+      "content": "Decorations"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_decorations",
+      "label": "Show graffiti decorations",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "decoration_opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "label": "Decoration opacity",
+      "default": 55
+    }
+  ],
+  "presets": [
+    {
+      "name": "Graffiti product details"
+    }
+  ]
+}
+{% endschema %}

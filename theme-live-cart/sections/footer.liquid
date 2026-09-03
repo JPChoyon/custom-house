@@ -1,0 +1,948 @@
+{% comment %}
+  Shopify section: Footer social/link strip
+  Drop this file into your theme's /sections folder, then add it in the footer group from the theme editor.
+{% endcomment %}
+
+<section
+  id="FooterStrip-{{ section.id }}"
+  class="footer-strip footer-strip--{{ section.id }}"
+  style="
+    --footer-bg: {{ section.settings.background_color }};
+    --footer-text: {{ section.settings.text_color }};
+    --footer-accent: {{ section.settings.accent_color }};
+    --footer-icon-cutout: {{ section.settings.background_color }};
+    --footer-max-width: {{ section.settings.content_width }}px;
+    --footer-min-height: {{ section.settings.min_height }}px;
+    --footer-padding-top: {{ section.settings.padding_top }}px;
+    --footer-padding-bottom: {{ section.settings.padding_bottom }}px;
+    --footer-padding-x: {{ section.settings.padding_x }}px;
+    --footer-mobile-padding-x: {{ section.settings.mobile_padding_x }}px;
+    --footer-label-size: {{ section.settings.label_font_size }}px;
+    --footer-link-size: {{ section.settings.link_font_size }}px;
+    --footer-mobile-label-size: {{ section.settings.mobile_label_font_size }}px;
+    --footer-mobile-link-size: {{ section.settings.mobile_link_font_size }}px;
+    --footer-icon-size: {{ section.settings.icon_size }}px;
+    --footer-mobile-icon-size: {{ section.settings.mobile_icon_size }}px;
+    --footer-icon-gap: {{ section.settings.icon_gap }}px;
+    --footer-link-gap: {{ section.settings.link_gap }}px;
+    --footer-group-gap: {{ section.settings.group_gap }}px;
+    --footer-text-weight: {{ section.settings.text_weight }};
+    --footer-line-height: {{ section.settings.top_line_height }}px;
+    --footer-line-offset: {{ section.settings.top_line_offset }}px;
+    --footer-line-inset: {{ section.settings.top_line_inset }}px;
+    --footer-line-opacity: {{ section.settings.top_line_opacity | divided_by: 100.0 }};
+    --footer-texture-opacity: {{ section.settings.texture_opacity | divided_by: 100.0 }};
+    --footer-image-opacity: {{ section.settings.background_image_opacity | divided_by: 100.0 }};
+  "
+>
+  {% assign desktop_background_image = section.settings.background_image %}
+  {% assign mobile_background_image = section.settings.mobile_background_image %}
+
+  {% if desktop_background_image == blank and mobile_background_image != blank %}
+    {% assign desktop_background_image = mobile_background_image %}
+  {% endif %}
+
+  {% if desktop_background_image != blank %}
+    <div
+      class="footer-strip__image footer-strip__image--desktop"
+      style="
+        background-image: url({{ desktop_background_image | image_url: width: 2400 }});
+        background-position: {{ section.settings.background_position | replace: '_', ' ' }};
+      "
+      aria-hidden="true"
+    ></div>
+  {% endif %}
+
+  {% if mobile_background_image != blank %}
+    <div
+      class="footer-strip__image footer-strip__image--mobile"
+      style="
+        background-image: url({{ mobile_background_image | image_url: width: 1200 }});
+        background-position: {{ section.settings.mobile_background_position | replace: '_', ' ' }};
+      "
+      aria-hidden="true"
+    ></div>
+  {% endif %}
+
+  <div class="footer-strip__texture" aria-hidden="true"></div>
+
+  <div class="footer-strip__inner">
+    <div class="footer-strip__social">
+      {% if section.settings.social_heading != blank %}
+        <div class="footer-strip__heading">
+          {{ section.settings.social_heading }}
+        </div>
+      {% endif %}
+
+      <div class="footer-strip__icons" aria-label="{{ section.settings.social_heading | escape }}">
+        {% for block in section.blocks %}
+          {% if block.type == 'social_icon' %}
+            {% assign social_label = block.settings.label | default: block.settings.icon %}
+            {% assign social_url = block.settings.url %}
+
+            {% if social_url != blank %}
+              <a
+                class="footer-strip__icon"
+                href="{{ social_url }}"
+                aria-label="{{ social_label | escape }}"
+                {{ block.shopify_attributes }}
+              >
+            {% else %}
+              <span
+                class="footer-strip__icon"
+                aria-label="{{ social_label | escape }}"
+                role="img"
+                {{ block.shopify_attributes }}
+              >
+            {% endif %}
+
+              {% if block.settings.icon == 'custom' and block.settings.custom_icon != blank %}
+                {{
+                  block.settings.custom_icon
+                  | image_url: width: 96
+                  | image_tag:
+                    class: 'footer-strip__custom-icon',
+                    loading: 'lazy',
+                    alt: social_label
+                }}
+              {% else %}
+                {% case block.settings.icon %}
+                  {% when 'instagram' %}
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <rect x="3.1" y="3.1" width="17.8" height="17.8" rx="5.1"></rect>
+                      <circle cx="12" cy="12" r="4.15"></circle>
+                      <circle class="footer-strip__icon-dot" cx="17.25" cy="6.85" r="1.15"></circle>
+                    </svg>
+                  {% when 'tiktok' %}
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path d="M15.72 3.1c.31 2.3 1.61 3.68 3.88 3.83v3.15a7.46 7.46 0 0 1-3.82-1.05v5.93c0 3-1.95 5.26-4.97 5.82-3.33.61-6.02-1.31-6.43-4.18-.45-3.15 1.74-5.82 4.9-5.96.4-.02.8.02 1.24.09v3.3a3.5 3.5 0 0 0-1.17-.12c-1.12.12-1.9.97-1.86 2.04.04 1.14.95 1.94 2.11 1.84 1.45-.12 2.26-1.12 2.26-2.82V3.1h3.86Z"></path>
+                    </svg>
+                  {% when 'facebook' %}
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <circle class="footer-strip__facebook-circle" cx="12" cy="12" r="10"></circle>
+                      <path class="footer-strip__facebook-f" d="M13.12 18.15v-5.57h1.86l.28-2.17h-2.14V9.03c0-.63.17-1.06 1.08-1.06h1.15V6.03c-.2-.03-.88-.09-1.68-.09-1.66 0-2.8 1.01-2.8 2.87v1.6H8.99v2.17h1.88v5.57h2.25Z"></path>
+                    </svg>
+                  {% when 'youtube' %}
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path d="M21.35 7.4a3 3 0 0 0-2.11-2.12C17.38 4.78 12 4.78 12 4.78s-5.38 0-7.24.5A3 3 0 0 0 2.65 7.4 31.42 31.42 0 0 0 2.15 12c0 1.55.17 3.1.5 4.6a3 3 0 0 0 2.11 2.12c1.86.5 7.24.5 7.24.5s5.38 0 7.24-.5a3 3 0 0 0 2.11-2.12c.33-1.5.5-3.05.5-4.6s-.17-3.1-.5-4.6ZM10.05 15.45v-6.9L15.68 12l-5.63 3.45Z"></path>
+                    </svg>
+                  {% when 'x' %}
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path d="M14.12 10.28 21.49 2h-1.74l-6.4 7.19L8.24 2H2.35l7.73 10.88L2.35 21.56h1.74l6.76-7.59 5.4 7.59h5.89l-8.02-11.28Zm-2.39 2.68-.78-1.08L4.71 3.27h2.7l5.03 6.94.78 1.08 6.54 9.03h-2.7l-5.33-7.36Z"></path>
+                    </svg>
+                  {% else %}
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path d="M12 2.4a9.6 9.6 0 1 0 0 19.2 9.6 9.6 0 0 0 0-19.2Zm3.8 6.01h-1.2c-.94 0-1.12.45-1.12 1.1v1.45h2.24l-.29 2.26h-1.95v5.79h-2.34v-5.79H9.18v-2.26h1.96V9.29c0-1.94 1.19-3 2.92-3 .83 0 1.55.06 1.74.09v2.03Z"></path>
+                    </svg>
+                {% endcase %}
+              {% endif %}
+
+            {% if social_url != blank %}
+              </a>
+            {% else %}
+              </span>
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+
+    <nav class="footer-strip__links" aria-label="{{ section.settings.navigation_label | escape }}">
+      {% for block in section.blocks %}
+        {% if block.type == 'utility_link' and block.settings.text != blank %}
+          {% if block.settings.url != blank %}
+            <a
+              class="footer-strip__link"
+              href="{{ block.settings.url }}"
+              {{ block.shopify_attributes }}
+            >
+              {{ block.settings.text }}
+            </a>
+          {% else %}
+            <span
+              class="footer-strip__link"
+              {{ block.shopify_attributes }}
+            >
+              {{ block.settings.text }}
+            </span>
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+    </nav>
+  </div>
+</section>
+
+<style>
+  #FooterStrip-{{ section.id }} {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    width: 100%;
+    min-height: var(--footer-min-height);
+    padding: var(--footer-padding-top) var(--footer-padding-x) var(--footer-padding-bottom);
+    background: var(--footer-bg);
+    color: var(--footer-text);
+    box-sizing: border-box;
+  }
+
+  {% if section.settings.show_top_line %}
+    #FooterStrip-{{ section.id }}::before {
+      content: "";
+      position: absolute;
+      z-index: 3;
+      top: var(--footer-line-offset);
+      left: var(--footer-line-inset);
+      right: var(--footer-line-inset);
+      height: var(--footer-line-height);
+      background: var(--footer-accent);
+      opacity: var(--footer-line-opacity);
+      box-shadow: 0 0 10px var(--footer-accent);
+    }
+  {% endif %}
+
+  #FooterStrip-{{ section.id }} .footer-strip__image,
+  #FooterStrip-{{ section.id }} .footer-strip__texture {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  #FooterStrip-{{ section.id }} .footer-strip__image {
+    z-index: 0;
+    background-repeat: no-repeat;
+    background-size: cover;
+    opacity: var(--footer-image-opacity);
+  }
+
+  #FooterStrip-{{ section.id }} .footer-strip__image--mobile {
+    display: none;
+  }
+
+  #FooterStrip-{{ section.id }} .footer-strip__texture {
+    z-index: 1;
+    opacity: var(--footer-texture-opacity);
+    background:
+      radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.22) 0 1px, transparent 1.6px) 0 0 / 13px 11px,
+      radial-gradient(circle at 40% 60%, rgba(255, 255, 255, 0.16) 0 1px, transparent 1.9px) 4px 5px / 21px 17px,
+      radial-gradient(ellipse at 58% 42%, rgba(255, 255, 255, 0.18), transparent 34%),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.04), transparent 18%, rgba(255, 255, 255, 0.09) 50%, transparent 82%);
+    mix-blend-mode: screen;
+  }
+
+  #FooterStrip-{{ section.id }} .footer-strip__inner {
+    position: relative;
+    z-index: 2;
+    min-height: calc(var(--footer-min-height) - var(--footer-padding-top) - var(--footer-padding-bottom));
+    max-width: var(--footer-max-width);
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--footer-group-gap);
+    box-sizing: border-box;
+  }
+
+  #FooterStrip-{{ section.id }} .footer-strip__social {
+    display: grid;
+    gap: 11px;
+    min-width: max-content;
+  }
+
+  #FooterStrip-{{ section.id }} .footer-strip__heading,
+  #FooterStrip-{{ section.id }} .footer-strip__link {
+    margin: 0;
+    color: var(--footer-text);
+    font-family: var(--font-heading-family, var(--font-body-family, Arial, sans-serif));
+    font-style: var(--font-heading-style, normal);
+    font-weight: var(--footer-text-weight);
+    line-height: 1.05;
+    letter-spacing: 0;
+    text-transform: uppercase;
+    text-decoration: none;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+  }
+
+  #FooterStrip-{{ section.id }} .footer-strip__heading {
+    font-size: var(--footer-label-size);
+  }
+
+  #FooterStrip-{{ section.id }} .footer-strip__icons {
+    display: flex;
+    align-items: center;
+    gap: var(--footer-icon-gap);
+    min-height: var(--footer-icon-size);
+  }
+
+  #FooterStrip-{{ section.id }} .footer-strip__icon {
+    width: var(--footer-icon-size);
+    height: var(--footer-icon-size);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--footer-text);
+    flex: 0 0 auto;
+    text-decoration: none;
+  }
+
+  #FooterStrip-{{ section.id }} .footer-strip__icon svg,
+  #FooterStrip-{{ section.id }} .footer-strip__custom-icon {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+  }
+
+  #FooterStrip-{{ section.id }} .footer-strip__icon svg {
+    fill: currentColor;
+  }
+
+  #FooterStrip-{{ section.id }} .footer-strip__icon svg rect,
+  #FooterStrip-{{ section.id }} .footer-strip__icon svg circle {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.15;
+  }
+
+  #FooterStrip-{{ section.id }} .footer-strip__icon svg .footer-strip__icon-dot {
+    fill: currentColor;
+    stroke: none;
+  }
+
+  #FooterStrip-{{ section.id }} .footer-strip__icon svg .footer-strip__facebook-circle {
+    fill: currentColor;
+    stroke: none;
+  }
+
+  #FooterStrip-{{ section.id }} .footer-strip__icon svg .footer-strip__facebook-f {
+    fill: var(--footer-icon-cutout);
+  }
+
+  #FooterStrip-{{ section.id }} .footer-strip__links {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px var(--footer-link-gap);
+    max-width: 100%;
+  }
+
+  #FooterStrip-{{ section.id }} .footer-strip__link {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    font-size: var(--footer-link-size);
+    white-space: nowrap;
+  }
+
+  {% if section.settings.show_separators %}
+    #FooterStrip-{{ section.id }} .footer-strip__link + .footer-strip__link::before {
+      content: "";
+      width: 2px;
+      height: 18px;
+      margin-right: var(--footer-link-gap);
+      background: currentColor;
+      opacity: 0.55;
+    }
+  {% endif %}
+
+  #FooterStrip-{{ section.id }} .footer-strip__icon:focus-visible,
+  #FooterStrip-{{ section.id }} .footer-strip__link:focus-visible {
+    outline: 2px solid var(--footer-accent);
+    outline-offset: 4px;
+  }
+
+  @media screen and (max-width: 749px) {
+    {% if section.settings.mobile_background_image != blank %}
+      #FooterStrip-{{ section.id }} .footer-strip__image--desktop {
+        display: none;
+      }
+
+      #FooterStrip-{{ section.id }} .footer-strip__image--mobile {
+        display: block;
+      }
+    {% endif %}
+
+    #FooterStrip-{{ section.id }} {
+      min-height: auto;
+      padding-right: var(--footer-mobile-padding-x);
+      padding-left: var(--footer-mobile-padding-x);
+    }
+
+    #FooterStrip-{{ section.id }} .footer-strip__inner {
+      min-height: auto;
+      flex-direction: column;
+      align-items: {% if section.settings.mobile_alignment == 'left' %}flex-start{% elsif section.settings.mobile_alignment == 'right' %}flex-end{% else %}center{% endif %};
+      justify-content: center;
+      gap: {{ section.settings.mobile_group_gap }}px;
+      text-align: {{ section.settings.mobile_alignment }};
+    }
+
+    #FooterStrip-{{ section.id }} .footer-strip__social {
+      justify-items: {% if section.settings.mobile_alignment == 'left' %}start{% elsif section.settings.mobile_alignment == 'right' %}end{% else %}center{% endif %};
+      min-width: 0;
+      width: 100%;
+    }
+
+    #FooterStrip-{{ section.id }} .footer-strip__heading {
+      font-size: var(--footer-mobile-label-size);
+    }
+
+    #FooterStrip-{{ section.id }} .footer-strip__icon {
+      width: var(--footer-mobile-icon-size);
+      height: var(--footer-mobile-icon-size);
+    }
+
+    #FooterStrip-{{ section.id }} .footer-strip__links {
+      width: 100%;
+      justify-content: {% if section.settings.mobile_alignment == 'left' %}flex-start{% elsif section.settings.mobile_alignment == 'right' %}flex-end{% else %}center{% endif %};
+      row-gap: 8px;
+    }
+
+    #FooterStrip-{{ section.id }} .footer-strip__link {
+      font-size: var(--footer-mobile-link-size);
+      min-height: 22px;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  @media screen and (max-width: 390px) {
+    #FooterStrip-{{ section.id }} .footer-strip__links {
+      column-gap: 12px;
+    }
+
+    {% if section.settings.show_separators %}
+      #FooterStrip-{{ section.id }} .footer-strip__link + .footer-strip__link::before {
+        margin-right: 12px;
+      }
+    {% endif %}
+  }
+</style>
+
+{% schema %}
+{
+  "name": "Footer social strip",
+  "tag": "section",
+  "class": "section-footer-social-strip",
+  "enabled_on": {
+    "groups": ["footer"]
+  },
+  "settings": [
+    {
+      "type": "header",
+      "content": "Content"
+    },
+    {
+      "type": "text",
+      "id": "social_heading",
+      "label": "Social heading",
+      "default": "FÖLJ OSS"
+    },
+    {
+      "type": "text",
+      "id": "navigation_label",
+      "label": "Navigation aria label",
+      "default": "Footer quick links"
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "range",
+      "id": "content_width",
+      "label": "Content max width",
+      "min": 900,
+      "max": 1800,
+      "step": 20,
+      "unit": "px",
+      "default": 1200
+    },
+    {
+      "type": "range",
+      "id": "min_height",
+      "label": "Minimum height",
+      "min": 70,
+      "max": 220,
+      "step": 2,
+      "unit": "px",
+      "default": 128
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "label": "Top padding",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 32
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "label": "Bottom padding",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 22
+    },
+    {
+      "type": "range",
+      "id": "padding_x",
+      "label": "Side padding desktop",
+      "min": 0,
+      "max": 120,
+      "step": 2,
+      "unit": "px",
+      "default": 42
+    },
+    {
+      "type": "range",
+      "id": "mobile_padding_x",
+      "label": "Side padding mobile",
+      "min": 12,
+      "max": 60,
+      "step": 2,
+      "unit": "px",
+      "default": 22
+    },
+    {
+      "type": "range",
+      "id": "group_gap",
+      "label": "Desktop group gap",
+      "min": 12,
+      "max": 120,
+      "step": 2,
+      "unit": "px",
+      "default": 36
+    },
+    {
+      "type": "range",
+      "id": "mobile_group_gap",
+      "label": "Mobile group gap",
+      "min": 8,
+      "max": 70,
+      "step": 1,
+      "unit": "px",
+      "default": 22
+    },
+    {
+      "type": "select",
+      "id": "mobile_alignment",
+      "label": "Mobile alignment",
+      "options": [
+        {
+          "value": "left",
+          "label": "Left"
+        },
+        {
+          "value": "center",
+          "label": "Center"
+        },
+        {
+          "value": "right",
+          "label": "Right"
+        }
+      ],
+      "default": "center"
+    },
+    {
+      "type": "header",
+      "content": "Colors and texture"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background color",
+      "default": "#151820"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text and icon color",
+      "default": "#f4f4f2"
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Top line color",
+      "default": "#7d3cc7"
+    },
+    {
+      "type": "image_picker",
+      "id": "background_image",
+      "label": "Desktop background image upload"
+    },
+    {
+      "type": "image_picker",
+      "id": "mobile_background_image",
+      "label": "Mobile background image upload"
+    },
+    {
+      "type": "select",
+      "id": "background_position",
+      "label": "Desktop background position",
+      "options": [
+        {
+          "value": "left_center",
+          "label": "Left center"
+        },
+        {
+          "value": "center_center",
+          "label": "Center"
+        },
+        {
+          "value": "right_center",
+          "label": "Right center"
+        },
+        {
+          "value": "center_top",
+          "label": "Center top"
+        },
+        {
+          "value": "center_bottom",
+          "label": "Center bottom"
+        }
+      ],
+      "default": "center_center"
+    },
+    {
+      "type": "select",
+      "id": "mobile_background_position",
+      "label": "Mobile background position",
+      "options": [
+        {
+          "value": "left_center",
+          "label": "Left center"
+        },
+        {
+          "value": "center_center",
+          "label": "Center"
+        },
+        {
+          "value": "right_center",
+          "label": "Right center"
+        },
+        {
+          "value": "center_top",
+          "label": "Center top"
+        },
+        {
+          "value": "center_bottom",
+          "label": "Center bottom"
+        }
+      ],
+      "default": "center_center"
+    },
+    {
+      "type": "range",
+      "id": "background_image_opacity",
+      "label": "Background image opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 70
+    },
+    {
+      "type": "range",
+      "id": "texture_opacity",
+      "label": "Built-in grunge texture opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 65
+    },
+    {
+      "type": "checkbox",
+      "id": "show_top_line",
+      "label": "Show top purple line",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "top_line_height",
+      "label": "Top line height",
+      "min": 1,
+      "max": 10,
+      "step": 1,
+      "unit": "px",
+      "default": 3
+    },
+    {
+      "type": "range",
+      "id": "top_line_offset",
+      "label": "Top line offset",
+      "min": 0,
+      "max": 40,
+      "step": 1,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "top_line_inset",
+      "label": "Top line side inset",
+      "min": 0,
+      "max": 80,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "top_line_opacity",
+      "label": "Top line opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 85
+    },
+    {
+      "type": "header",
+      "content": "Typography"
+    },
+    {
+      "type": "range",
+      "id": "label_font_size",
+      "label": "Social heading size",
+      "min": 10,
+      "max": 34,
+      "step": 1,
+      "unit": "px",
+      "default": 18
+    },
+    {
+      "type": "range",
+      "id": "link_font_size",
+      "label": "Link font size",
+      "min": 12,
+      "max": 34,
+      "step": 1,
+      "unit": "px",
+      "default": 21
+    },
+    {
+      "type": "range",
+      "id": "mobile_label_font_size",
+      "label": "Mobile social heading size",
+      "min": 10,
+      "max": 28,
+      "step": 1,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "mobile_link_font_size",
+      "label": "Mobile link font size",
+      "min": 10,
+      "max": 26,
+      "step": 1,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "select",
+      "id": "text_weight",
+      "label": "Text weight",
+      "options": [
+        {
+          "value": "600",
+          "label": "Semi bold"
+        },
+        {
+          "value": "700",
+          "label": "Bold"
+        },
+        {
+          "value": "800",
+          "label": "Extra bold"
+        },
+        {
+          "value": "900",
+          "label": "Black"
+        }
+      ],
+      "default": "800"
+    },
+    {
+      "type": "header",
+      "content": "Icons and links"
+    },
+    {
+      "type": "range",
+      "id": "icon_size",
+      "label": "Icon size",
+      "min": 14,
+      "max": 44,
+      "step": 1,
+      "unit": "px",
+      "default": 28
+    },
+    {
+      "type": "range",
+      "id": "mobile_icon_size",
+      "label": "Mobile icon size",
+      "min": 14,
+      "max": 40,
+      "step": 1,
+      "unit": "px",
+      "default": 26
+    },
+    {
+      "type": "range",
+      "id": "icon_gap",
+      "label": "Icon gap",
+      "min": 4,
+      "max": 30,
+      "step": 1,
+      "unit": "px",
+      "default": 13
+    },
+    {
+      "type": "range",
+      "id": "link_gap",
+      "label": "Link and separator gap",
+      "min": 8,
+      "max": 44,
+      "step": 1,
+      "unit": "px",
+      "default": 22
+    },
+    {
+      "type": "checkbox",
+      "id": "show_separators",
+      "label": "Show separators between links",
+      "default": true
+    }
+  ],
+  "blocks": [
+    {
+      "type": "social_icon",
+      "name": "Social icon",
+      "limit": 8,
+      "settings": [
+        {
+          "type": "select",
+          "id": "icon",
+          "label": "Icon",
+          "options": [
+            {
+              "value": "instagram",
+              "label": "Instagram"
+            },
+            {
+              "value": "tiktok",
+              "label": "TikTok"
+            },
+            {
+              "value": "facebook",
+              "label": "Facebook"
+            },
+            {
+              "value": "youtube",
+              "label": "YouTube"
+            },
+            {
+              "value": "x",
+              "label": "X"
+            },
+            {
+              "value": "custom",
+              "label": "Custom image"
+            }
+          ],
+          "default": "instagram"
+        },
+        {
+          "type": "text",
+          "id": "label",
+          "label": "Accessible label",
+          "default": "Instagram"
+        },
+        {
+          "type": "url",
+          "id": "url",
+          "label": "Link"
+        },
+        {
+          "type": "image_picker",
+          "id": "custom_icon",
+          "label": "Custom icon image"
+        }
+      ]
+    },
+    {
+      "type": "utility_link",
+      "name": "Utility link",
+      "limit": 8,
+      "settings": [
+        {
+          "type": "text",
+          "id": "text",
+          "label": "Text",
+          "default": "FAQ"
+        },
+        {
+          "type": "url",
+          "id": "url",
+          "label": "Link"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Footer social strip",
+      "category": "Footer",
+      "blocks": [
+        {
+          "type": "social_icon",
+          "settings": {
+            "icon": "instagram",
+            "label": "Instagram"
+          }
+        },
+        {
+          "type": "social_icon",
+          "settings": {
+            "icon": "tiktok",
+            "label": "TikTok"
+          }
+        },
+        {
+          "type": "social_icon",
+          "settings": {
+            "icon": "facebook",
+            "label": "Facebook"
+          }
+        },
+        {
+          "type": "utility_link",
+          "settings": {
+            "text": "FAQ"
+          }
+        },
+        {
+          "type": "utility_link",
+          "settings": {
+            "text": "KONTAKT"
+          }
+        },
+        {
+          "type": "utility_link",
+          "settings": {
+            "text": "VILLKOR"
+          }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

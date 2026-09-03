@@ -1,1 +1,1 @@
-export { action } from "./proxy.api.applications";
+export { action, loader } from "./proxy.api.creator-application";

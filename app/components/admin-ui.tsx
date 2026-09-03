@@ -38,14 +38,21 @@ export function SubmitButton({
 export function StatusBadge({ status }: { status: string }) {
   const label =
     {
-      PENDING: "Pending",
+      PENDING: "Pending Review",
       APPROVED: "Approved",
-      REJECTED: "Rejected",
+      REJECTED: "Needs Changes",
       SUSPENDED: "Suspended",
       PUBLISHING: "Publishing",
       PUBLISHED: "Published",
       FAILED: "Failed",
       ARCHIVED: "Archived",
+      REQUESTED: "Requested",
+      PROCESSING: "Processing",
+      PAID: "Paid",
+      CANCELLED: "Cancelled",
+      PENDING_VERIFICATION: "Pending Verification",
+      VERIFIED: "Verified",
+      DISABLED: "Disabled",
     }[status] ?? "Unknown";
 
   return (

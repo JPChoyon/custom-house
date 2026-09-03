@@ -1,95 +1,891 @@
 {{ 'customhouse.css' | asset_url | stylesheet_tag }}
-{% assign helium_legal_name = customer.metafields["app--960624--helium"]["legal_name"].value | default: customer.metafields["app--960624--helium"]["creator_legal_name"].value %}
-{% assign helium_display_name = customer.metafields["app--960624--helium"]["creator_display_name_1"].value | default: customer.metafields["app--960624--helium"]["creator_display_name"].value %}
-{% assign helium_bio = customer.metafields["app--960624--helium"]["short_creator_bio"].value | default: customer.metafields["app--960624--helium"]["creator_bio"].value %}
-{% assign helium_portfolio = customer.metafields["app--960624--helium"]["socialportfolio_url"].value %}
-{% assign helium_profile = customer.metafields["app--960624--helium"]["creator_profile_photo_1"].value | default: customer.metafields["app--960624--helium"]["creator_profile_photo"].value %}
-{% assign helium_profile_url = helium_profile.url | default: helium_profile.preview_image.src %}
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,500,0,0">
+{% assign creator_dashboard_url = request.path | default: '/pages/creator-dashboard' %}
+{% assign creator_dashboard_return_to = creator_dashboard_url | url_encode %}
+{% assign creator_dashboard_login_url = '/customer_authentication/login?return_to=' | append: creator_dashboard_return_to %}
+
 <section
   class="customhouse-card customhouse-dashboard-page"
   data-customhouse-dashboard
-  data-helium-legal-name="{{ helium_legal_name | escape }}"
-  data-helium-display-name="{{ helium_display_name | escape }}"
-  data-helium-bio="{{ helium_bio | escape }}"
-  data-helium-portfolio="{{ helium_portfolio | escape }}"
-  data-helium-profile-image="{{ helium_profile_url | escape }}"
+  data-pitchprint-client-src="{{ block.settings.pitchprint_client_src | escape }}"
+  data-pitchprint-api-key="{{ block.settings.pitchprint_api_key | escape }}"
+  data-shopify-first-name="{{ customer.first_name | escape }}"
+  data-shopify-last-name="{{ customer.last_name | escape }}"
+  data-shopify-email="{{ customer.email | escape }}"
 >
-  <header class="customhouse-dashboard-hero">
-    <h2 data-dashboard-heading>{{ block.settings.heading }}</h2>
-    <p>Your creator profile, collection, and recent activity in one place.</p>
-  </header>
-  <p data-dashboard-loading role="status">Loading…</p>
-  <p data-dashboard-message aria-live="polite" hidden></p>
-  <p><a data-dashboard-login href="{{ routes.account_login_url }}" hidden>Customer login</a></p>
-  <p><a data-dashboard-apply href="{{ block.settings.application_url | default: '/pages/become-a-creator' }}" hidden>Become a Creator</a></p>
-  <div data-dashboard-profile hidden>
-    <div class="customhouse-profile-header">
-      <img class="customhouse-dashboard-avatar" data-dashboard-image alt="" hidden width="76" height="76">
-      <div class="customhouse-profile-copy">
-        <p><strong data-dashboard-name></strong></p>
-        <span class="customhouse-status" data-dashboard-status></span>
+  <div class="customhouse-dashboard-loading" data-dashboard-loading role="status" aria-label="Loading creator dashboard">
+    <div class="customhouse-dashboard-skeleton">
+      <span></span>
+      <span></span>
+      <span></span>
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+  </div>
+  <p class="customhouse-dashboard-message" data-dashboard-message aria-live="polite" hidden></p>
+  <p class="customhouse-dashboard-gate"><a class="customhouse-action" data-dashboard-login href="{{ creator_dashboard_login_url }}" hidden>Customer login</a></p>
+  <p class="customhouse-dashboard-gate"><a class="customhouse-action" data-dashboard-apply href="{{ block.settings.application_url | default: '/pages/become-a-creator' }}" hidden>Become a Creator</a></p>
+
+  <div class="customhouse-dashboard-shell" data-dashboard-profile hidden>
+    <aside class="customhouse-dashboard-sidebar" aria-label="Creator dashboard navigation">
+      <a class="customhouse-dashboard-brand" href="{{ routes.root_url }}">
+        <span aria-hidden="true">X</span>
+        <strong>CUSTOMHOUSE</strong>
+      </a>
+      <div class="customhouse-sidebar-profile">
+        <div class="customhouse-avatar-wrap">
+          <img class="customhouse-dashboard-avatar" data-dashboard-image alt="" hidden width="120" height="120">
+          <span class="customhouse-avatar-fallback" data-dashboard-avatar-fallback>S</span>
+        </div>
+        <h3 data-dashboard-name></h3>
+        <span class="customhouse-hero-status" data-dashboard-hero-status hidden>Approved Creator</span>
       </div>
-    </div>
-    <form data-dashboard-image-form>
-      <label class="customhouse-field">
-        Profile picture
-        <input data-dashboard-image-input type="file" name="profileImage" accept="image/jpeg,image/png,image/webp">
-      </label>
-      <button type="submit">Upload profile picture</button>
-      <span data-dashboard-image-message role="status"></span>
-    </form>
-    <div class="customhouse-dashboard-grid" aria-label="Creator overview">
-      <details class="customhouse-dashboard-stat">
-        <summary>
-          <span>Total sales</span>
-          <strong data-dashboard-total-sales>Not configured</strong>
-        </summary>
-        <p>Sales reporting will appear here when verified creator sales tracking is configured.</p>
-      </details>
-      <details class="customhouse-dashboard-stat">
-        <summary>
-          <span>Total earnings</span>
+      <nav class="customhouse-sidebar-nav">
+        <button class="is-active" data-dashboard-tab-target="overview" type="button"><span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">home</span>Dashboard</button>
+        <button data-dashboard-tab-target="add-product" data-dashboard-new-product type="button"><span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">add_circle</span>Add Product</button>
+        <button data-dashboard-tab-target="my-products" data-dashboard-manage-collection type="button"><span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">inventory_2</span>My Products</button>
+        <button data-dashboard-tab-target="referrals" type="button"><span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">group_add</span>Referrals</button>
+        <button data-dashboard-tab-target="sales" type="button"><span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">monitoring</span>Sales & Earnings</button>
+        <button data-dashboard-tab-target="withdraw" type="button"><span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">payments</span>Withdraw</button>
+        <button data-dashboard-tab-target="account" type="button"><span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">account_circle</span>Account</button>
+      </nav>
+      <nav class="customhouse-sidebar-nav customhouse-sidebar-nav--secondary">
+        <a href="/pages/contact"><span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">help</span>Support</a>
+        <a href="{{ routes.account_logout_url }}"><span class="material-symbols-outlined notranslate customhouse-logout-icon" translate="no" aria-hidden="true">logout</span>Logout</a>
+      </nav>
+      <div class="customhouse-sidebar-cta">
+        <strong>Create. Design. Earn.</strong>
+        <p>Turn your ideas into amazing products and earn with every sale.</p>
+        <button data-dashboard-tab-target="add-product" data-dashboard-new-product type="button">Start Designing <span aria-hidden="true">→</span></button>
+      </div>
+    </aside>
+
+    <main class="customhouse-dashboard-main">
+      <header class="customhouse-dashboard-topbar">
+        <button class="customhouse-dashboard-menu" type="button" aria-label="Dashboard menu"><span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">menu</span></button>
+        <div class="customhouse-dashboard-topbar-profile">
+          <span class="customhouse-notification-dot"><span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">notifications</span></span>
+          <strong data-dashboard-top-name></strong>
+          <span class="customhouse-top-avatar" data-dashboard-top-initials>SK</span>
+        </div>
+      </header>
+
+      <section class="customhouse-dashboard-tabs-rail" data-dashboard-tabs-rail aria-label="Creator dashboard tabs">
+      <div class="customhouse-dashboard-tab-panel is-active" data-dashboard-tab-panel="overview">
+        <section class="customhouse-dashboard-hero">
+          <div>
+            <span>Welcome back,</span>
+            <h2 data-dashboard-heading>{{ block.settings.heading }}</h2>
+            <p>Here's what's happening with your store today.</p>
+          </div>
+          <div class="customhouse-store-card">
+            <span>Your Store</span>
+            <a class="customhouse-profile-link" data-dashboard-public-link hidden></a>
+            <button type="button" data-dashboard-copy-store>Copy Link</button>
+            <span class="customhouse-copy-feedback" data-dashboard-copy-store-message role="status" aria-live="polite"></span>
+          </div>
+        </section>
+
+        <div class="customhouse-dashboard-grid" aria-label="Creator overview">
+          <details class="customhouse-dashboard-stat" data-stat-icon="clock">
+            <summary>
+              <span>Total Sales</span>
+              <strong data-dashboard-total-sales>Not configured</strong>
+              <small>All time</small>
+            </summary>
+            <p>Paid creator-product sales after line discounts and refunds.</p>
+          </details>
+          <details class="customhouse-dashboard-stat" data-stat-icon="wallet">
+            <summary>
+              <span>Total Earnings</span>
+              <span hidden>Commission earnings</span>
+              <strong data-dashboard-total-earnings>Not configured</strong>
+              <small>All time</small>
+            </summary>
+            <p>Includes <span data-dashboard-commission-rate>10%</span> creator sales earnings plus final referral entitlement.</p>
+          </details>
+          <details class="customhouse-dashboard-stat" data-stat-icon="bag">
+            <summary>
+              <span>Total Orders</span>
+              <strong data-dashboard-orders>Not configured</strong>
+              <small>All time</small>
+            </summary>
+            <p>Unique paid orders containing creator-attributed products.</p>
+          </details>
+          <details class="customhouse-dashboard-stat" data-stat-icon="box">
+            <summary>
+              <span>Published Products</span>
+              <strong data-dashboard-products>0</strong>
+              <small>Live</small>
+            </summary>
+            <p>This is the number of approved creator products currently recorded as published.</p>
+          </details>
+        </div>
+        <span data-dashboard-collections hidden>0</span>
+        <span data-dashboard-items-sold hidden>0</span>
+
+        <section class="customhouse-dashboard-section customhouse-referral-panel">
+          <span class="customhouse-referral-icon material-symbols-outlined notranslate" translate="no" aria-hidden="true">redeem</span>
+          <div>
+            <h3>Invite creators and earn a 2% referral bonus</h3>
+            <p>Share your referral link and earn 2% of eligible referred creator earnings.</p>
+          </div>
+          <div class="customhouse-referral-row">
+            <input data-dashboard-referral-link type="text" readonly value="">
+            <button type="button" data-dashboard-copy-referral>Copy Link</button>
+            <span class="customhouse-copy-feedback" data-dashboard-copy-referral-message role="status" aria-live="polite"></span>
+          </div>
+          <p class="customhouse-referral-code">Referral Code: <strong data-dashboard-referral-code></strong></p>
+        </section>
+
+        <div class="customhouse-dashboard-bottom">
+        <section class="customhouse-dashboard-section customhouse-submissions-panel">
+          <div class="customhouse-section-heading">
+            <h3>Recent Activity</h3>
+            <a data-dashboard-view-submissions href="{{ routes.root_url }}">View All</a>
+          </div>
+          <div class="customhouse-submission-table" role="table" aria-label="Recent activity">
+            <div class="customhouse-submission-head" role="row">
+              <span>Product / Design</span>
+              <span>Status</span>
+              <span>Action</span>
+            </div>
+            <ul data-dashboard-submissions></ul>
+          </div>
+        </section>
+
+        <section class="customhouse-dashboard-section customhouse-earnings-panel" id="customhouse-earnings-overview">
+          <div class="customhouse-section-heading">
+            <h3>Earnings Overview</h3>
+            <span>This Month</span>
+          </div>
           <strong data-dashboard-total-earnings>Not configured</strong>
-        </summary>
-        <p>Earnings reporting will appear here when the creator payout calculation is configured.</p>
-      </details>
-      <details class="customhouse-dashboard-stat">
-        <summary>
-          <span>Orders</span>
-          <strong data-dashboard-orders>Not configured</strong>
-        </summary>
-        <p>Creator-attributed order details will appear here when order tracking is configured.</p>
-      </details>
-      <details class="customhouse-dashboard-stat">
-        <summary>
-          <span>Collections</span>
-          <strong data-dashboard-collections>0</strong>
-        </summary>
-        <p>This is the number of creator collections currently linked to your creator profile.</p>
-      </details>
-      <details class="customhouse-dashboard-stat">
-        <summary>
-          <span>Published products</span>
-          <strong data-dashboard-products>0</strong>
-        </summary>
-        <p>This is the number of approved creator products currently recorded as published.</p>
-      </details>
-    </div>
-    <p data-dashboard-bio></p>
-    <div class="customhouse-dashboard-links">
-      <a class="customhouse-action" data-dashboard-portfolio hidden>Creator portfolio</a>
-      <a class="customhouse-action" data-dashboard-collection href="{{ routes.root_url }}" hidden>View creator collection</a>
-    </div>
-    <section class="customhouse-dashboard-section">
-      <h3>Top selling products</h3>
-      <p class="customhouse-dashboard-empty" data-dashboard-top-products-empty>
-        Sales tracking is not configured yet.
-      </p>
-      <ol data-dashboard-top-products></ol>
+          <small>Total Earnings</small>
+          <p><b>0%</b> vs last month</p>
+          <div class="customhouse-earnings-chart" data-dashboard-earnings-chart aria-label="Commission earnings by date"></div>
+        </section>
+        </div>
+      </div>
+
+      <section class="customhouse-dashboard-tab-panel customhouse-dashboard-section customhouse-add-product-panel" data-dashboard-tab-panel="add-product" aria-label="Add Product">
+        <div class="customhouse-section-heading">
+          <div>
+            <h3>Add Product</h3>
+            <span hidden>Start a New Design</span>
+            <p>Choose a base product and start a new creator design.</p>
+          </div>
+        </div>
+        <div class="customhouse-base-products" data-dashboard-base-products></div>
+        <p class="customhouse-dashboard-message" data-dashboard-creator-products-message aria-live="polite"></p>
+      </section>
+
+      <section class="customhouse-dashboard-tab-panel customhouse-dashboard-section customhouse-creator-products-panel ch-designs" data-dashboard-tab-panel="my-products" aria-label="My Designs">
+        <div class="customhouse-dashboard-empty" data-dashboard-creator-products-empty>
+          <span data-empty-icon="bag"></span>
+          <strong>Your Designs</strong>
+          <p>You haven't created a design yet.</p>
+        </div>
+        <div class="customhouse-section-heading customhouse-my-designs-heading">
+          <h3>My Products</h3>
+          <p>Manage your designs, review status, and published products.</p>
+        </div>
+        <div class="ch-designs__toolbar" data-dashboard-design-toolbar>
+          <div class="ch-designs__filters" data-dashboard-design-filters aria-label="Filter designs"></div>
+          <label class="ch-designs__search">
+            <span class="visually-hidden">Search your designs</span>
+            <input data-dashboard-design-search type="search" placeholder="Search your designs" autocomplete="off">
+          </label>
+          <label class="ch-designs__sort">
+            <span class="visually-hidden">Sort designs</span>
+            <select data-dashboard-design-sort>
+              <option value="updated">Recently Updated</option>
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="published">Published First</option>
+            </select>
+          </label>
+        </div>
+        <ul class="customhouse-creator-products-list ch-designs__grid" data-dashboard-creator-products></ul>
+      </section>
+
+      <section class="customhouse-dashboard-tab-panel customhouse-dashboard-section customhouse-referrals-tab-panel" data-dashboard-tab-panel="referrals" aria-label="Referrals">
+        <div class="customhouse-section-heading">
+          <div>
+            <h3>Referrals</h3>
+            <p>Share your referral link and earn 2% of eligible referred creator earnings.</p>
+          </div>
+        </div>
+        <section class="customhouse-dashboard-section customhouse-referral-panel">
+          <span class="customhouse-referral-icon material-symbols-outlined notranslate" translate="no" aria-hidden="true">redeem</span>
+          <div>
+            <h3>Invite creators and earn a 2% referral bonus</h3>
+            <p>Share your referral link and earn 2% of eligible referred creator earnings.</p>
+          </div>
+          <div class="customhouse-referral-row">
+            <input data-dashboard-referral-link type="text" readonly value="">
+            <button type="button" data-dashboard-copy-referral>Copy Link</button>
+            <span class="customhouse-copy-feedback" data-dashboard-copy-referral-message role="status" aria-live="polite"></span>
+          </div>
+          <p class="customhouse-referral-code">Referral Code: <strong data-dashboard-referral-code></strong></p>
+        </section>
+        <div class="customhouse-dashboard-grid" aria-label="Referral financial overview">
+          <details class="customhouse-dashboard-stat" data-stat-icon="team">
+            <summary>
+              <span>Referred Creators</span>
+              <strong data-dashboard-referral-total-creators>0</strong>
+              <small>All statuses</small>
+            </summary>
+          </details>
+          <details class="customhouse-dashboard-stat" data-stat-icon="money">
+            <summary>
+              <span>Original 2%</span>
+              <strong data-dashboard-referral-original>0.00 kr</strong>
+              <small>Before refunds</small>
+            </summary>
+          </details>
+          <details class="customhouse-dashboard-stat" data-stat-icon="wallet">
+            <summary>
+              <span>Refund Adjustments</span>
+              <strong data-dashboard-referral-adjustments>0.00 kr</strong>
+              <small>Returns and reversals</small>
+            </summary>
+          </details>
+          <details class="customhouse-dashboard-stat" data-stat-icon="box">
+            <summary>
+              <span>Final Entitlement</span>
+              <strong data-dashboard-referral-final>0.00 kr</strong>
+              <small>Original plus adjustments</small>
+            </summary>
+          </details>
+        </div>
+        <div class="customhouse-dashboard-referral-statuses" aria-label="Referred creator statuses">
+          <span>Pending <strong data-dashboard-referral-pending>0</strong></span>
+          <span>Approved <strong data-dashboard-referral-approved>0</strong></span>
+          <span>Rejected <strong data-dashboard-referral-rejected>0</strong></span>
+          <span>Suspended <strong data-dashboard-referral-suspended>0</strong></span>
+        </div>
+        <div class="customhouse-dashboard-bottom">
+          <section class="customhouse-dashboard-section customhouse-referral-creators-panel">
+            <div class="customhouse-section-heading">
+              <h3>Referred Creators</h3>
+            </div>
+            <ul class="customhouse-referral-list" data-dashboard-referral-creators></ul>
+            <p class="customhouse-dashboard-empty" data-dashboard-referral-creators-empty>No referred creators have generated referral earnings yet.</p>
+          </section>
+          <section class="customhouse-dashboard-section customhouse-referral-history-panel">
+            <div class="customhouse-section-heading">
+              <h3>Earning History</h3>
+            </div>
+            <ul class="customhouse-referral-list" data-dashboard-referral-earnings></ul>
+            <p class="customhouse-dashboard-empty" data-dashboard-referral-earnings-empty>No referral earnings yet.</p>
+          </section>
+        </div>
+      </section>
+
+      <section class="customhouse-dashboard-tab-panel customhouse-dashboard-section customhouse-sales-tab-panel" data-dashboard-tab-panel="sales" aria-label="Sales and Earnings">
+        <div class="customhouse-section-heading">
+          <div>
+            <h3>Sales & Earnings</h3>
+            <p>Track your all-time sales, earnings, orders, and recent activity.</p>
+          </div>
+        </div>
+        <div class="customhouse-dashboard-grid customhouse-sales-summary-grid" aria-label="Sales overview">
+          <details class="customhouse-dashboard-stat" data-stat-icon="money">
+            <summary>
+              <span>Total Sales</span>
+              <strong data-dashboard-total-sales>Not configured</strong>
+              <small>All time</small>
+            </summary>
+          </details>
+          <details class="customhouse-dashboard-stat" data-stat-icon="wallet">
+            <summary>
+              <span>Total Earnings</span>
+              <strong data-dashboard-total-earnings>Not configured</strong>
+              <small>All time</small>
+            </summary>
+          </details>
+          <details class="customhouse-dashboard-stat" data-stat-icon="team">
+            <summary>
+              <span>Referral Earnings</span>
+              <strong data-dashboard-referral-earnings-total>0.00 kr</strong>
+              <small>Final entitlement</small>
+            </summary>
+          </details>
+          <details class="customhouse-dashboard-stat" data-stat-icon="bag">
+            <summary>
+              <span>Total Orders</span>
+              <strong data-dashboard-orders>Not configured</strong>
+              <small>All time</small>
+            </summary>
+          </details>
+          <span data-dashboard-product-earnings hidden>0.00 kr</span>
+          <span hidden>Commission earnings</span>
+        </div>
+        <section class="customhouse-dashboard-section customhouse-earnings-panel">
+          <div class="customhouse-section-heading">
+            <h3>Earnings Overview</h3>
+            <span>This Month</span>
+          </div>
+          <strong data-dashboard-total-earnings>Not configured</strong>
+          <small>Total Earnings</small>
+          <p><b>0%</b> vs last month</p>
+          <div class="customhouse-earnings-chart" data-dashboard-earnings-chart aria-label="Commission earnings by date"></div>
+        </section>
+      </section>
+
+      <section class="customhouse-dashboard-tab-panel customhouse-dashboard-section customhouse-profile-panel" data-dashboard-tab-panel="account" aria-label="Creator profile settings">
+        <div class="customhouse-profile-header customhouse-account-hero">
+          <div class="customhouse-profile-copy">
+            <div class="customhouse-profile-title-row">
+              <h3>Account</h3>
+              <button class="customhouse-profile-edit-icon" data-dashboard-edit-profile-icon type="button" aria-label="Edit creator profile">
+                <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">edit</span>
+              </button>
+            </div>
+            <p data-dashboard-bio></p>
+            <a class="customhouse-profile-social-link" data-dashboard-social-link target="_blank" rel="noreferrer" hidden></a>
+          </div>
+          <aside class="customhouse-account-summary-card" aria-label="Creator account summary">
+            <div class="customhouse-account-summary-avatar">
+              <img data-dashboard-account-image alt="" hidden width="72" height="72">
+              <span data-dashboard-account-avatar-fallback>CH</span>
+            </div>
+            <div>
+              <strong data-dashboard-account-summary-name>Creator</strong>
+              <a data-dashboard-account-summary-collection href="{{ routes.root_url }}" hidden>Creator collection</a>
+            </div>
+            <span class="customhouse-account-status-pill" data-dashboard-account-summary-status>Approved</span>
+          </aside>
+        </div>
+        <section class="customhouse-account-details" data-dashboard-account-details aria-label="Account details">
+          <header class="customhouse-account-section-heading">
+            <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">account_circle</span>
+            <h4>Account details</h4>
+          </header>
+          <div>
+            <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">person</span>
+            <span>Display Name</span>
+            <strong data-dashboard-account-display-name>Not provided</strong>
+          </div>
+          <div>
+            <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">verified_user</span>
+            <span>Legal Name</span>
+            <strong data-dashboard-account-legal-name>Not provided</strong>
+          </div>
+          <div>
+            <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">mail</span>
+            <span>Email</span>
+            <strong data-dashboard-account-email>Not provided</strong>
+          </div>
+          <div>
+            <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">location_city</span>
+            <span>City</span>
+            <strong data-dashboard-account-city>Not provided</strong>
+          </div>
+          <div>
+            <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">language</span>
+            <span>Country</span>
+            <strong data-dashboard-account-country>Not provided</strong>
+          </div>
+          <div>
+            <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">alternate_email</span>
+            <span>Creator Handle</span>
+            <strong data-dashboard-account-handle>Not provided</strong>
+            <a data-dashboard-account-handle-link href="{{ routes.root_url }}" hidden></a>
+          </div>
+          <div>
+            <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">health_and_safety</span>
+            <span>Creator Status</span>
+            <strong data-dashboard-account-status>Approved</strong>
+          </div>
+          <div>
+            <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">contract</span>
+            <span>Terms Agreement</span>
+            <strong data-dashboard-account-terms>Not provided</strong>
+          </div>
+          <div class="customhouse-account-details__wide">
+            <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">link</span>
+            <span>Portfolio / Social</span>
+            <a data-dashboard-account-portfolio href="#" target="_blank" rel="noreferrer">Not provided</a>
+          </div>
+          <div class="customhouse-account-details__wide">
+            <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">storefront</span>
+            <span>Collection</span>
+            <strong data-dashboard-account-collection-name>Not provided</strong>
+            <a data-dashboard-account-collection href="{{ routes.root_url }}" target="_blank" rel="noreferrer">Not provided</a>
+          </div>
+          <div class="customhouse-account-details__full">
+            <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">chat</span>
+            <span>Creator Bio</span>
+            <strong data-dashboard-account-bio>Not provided</strong>
+          </div>
+        </section>
+        <div class="customhouse-account-lower-grid">
+          <div class="customhouse-commission-panel">
+            <span class="customhouse-commission-icon" aria-hidden="true">$</span>
+            <span>Commission Rate</span>
+            <strong data-dashboard-commission-rate>10%</strong>
+            <small>on all eligible sales</small>
+          </div>
+          <form class="customhouse-profile-actions" data-dashboard-image-form>
+            <header class="customhouse-account-section-heading">
+              <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">bolt</span>
+              <h4>Account actions</h4>
+            </header>
+            <button class="customhouse-account-action-card" data-dashboard-edit-profile type="button">
+              <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">edit</span>
+              <strong>Edit profile</strong>
+              <small>Update your account details</small>
+            </button>
+            <a class="customhouse-account-action-card customhouse-secondary-button" data-dashboard-collection href="{{ routes.root_url }}" hidden>
+              <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">open_in_new</span>
+              <strong>View collection</strong>
+              <small>Explore your creator collection</small>
+            </a>
+            <a class="customhouse-account-action-card customhouse-secondary-button" data-dashboard-portfolio hidden>
+              <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">person</span>
+              <strong>Creator portfolio</strong>
+              <small>View your public profile</small>
+            </a>
+            <label class="customhouse-account-action-card customhouse-file-button">
+              <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">photo_camera</span>
+              <strong>Change photo</strong>
+              <small>Upload or change profile picture</small>
+              <input data-dashboard-image-input type="file" name="profileImage" accept="image/jpeg,image/png,image/webp">
+            </label>
+            <button class="customhouse-account-upload-submit" type="submit">Upload selected photo</button>
+            <span data-dashboard-image-message role="status"></span>
+          </form>
+        </div>
+        <div class="customhouse-account-visibility-note">
+          <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">health_and_safety</span>
+          <p>Your information is visible on your creator profile and collection.<br>We make sure all information is accurate and up to date.</p>
+          <a data-dashboard-account-learn-more href="{{ routes.root_url }}" target="_blank" rel="noreferrer">Learn more about your profile</a>
+        </div>
+      </section>
+
+      <section class="customhouse-dashboard-tab-panel customhouse-dashboard-section customhouse-withdraw-panel" data-dashboard-tab-panel="withdraw" aria-label="Withdraw earnings">
+        <div class="customhouse-section-heading">
+          <div>
+            <h3>Withdraw</h3>
+            <p>Request manual payouts from your available creator balance.</p>
+          </div>
+        </div>
+        <div class="customhouse-dashboard-grid customhouse-withdraw-summary-grid" aria-label="Payout balance">
+          <details class="customhouse-dashboard-stat" data-stat-icon="wallet" open>
+            <summary>
+              <span>Available to Withdraw</span>
+              <strong data-dashboard-payout-available>0.00 kr</strong>
+              <small data-dashboard-payout-currency>Balance</small>
+            </summary>
+          </details>
+          <details class="customhouse-dashboard-stat" data-stat-icon="money">
+            <summary>
+              <span>Pending Withdrawal</span>
+              <strong data-dashboard-payout-reserved>0.00 kr</strong>
+              <small>Reserved</small>
+            </summary>
+          </details>
+          <details class="customhouse-dashboard-stat" data-stat-icon="box">
+            <summary>
+              <span>Already Paid</span>
+              <strong data-dashboard-payout-paid>0.00 kr</strong>
+              <small>Manual payouts</small>
+            </summary>
+          </details>
+          <details class="customhouse-dashboard-stat" data-stat-icon="team">
+            <summary>
+              <span>Current Total Earnings</span>
+              <strong data-dashboard-payout-total-earned>0.00 kr</strong>
+              <small>Product + referral</small>
+            </summary>
+          </details>
+        </div>
+        <div class="customhouse-withdraw-hidden-totals" hidden>
+          <span data-dashboard-payout-product>0.00 kr</span>
+          <span data-dashboard-payout-referral>0.00 kr</span>
+        </div>
+        <div class="customhouse-dashboard-bottom customhouse-withdraw-workspace">
+            <section class="customhouse-dashboard-section customhouse-withdraw-methods-card">
+              <div class="customhouse-section-heading">
+                <div>
+                  <h3>Payout Methods</h3>
+                  <p>Manage your saved payout methods or add a new one.</p>
+                </div>
+              </div>
+            <h4 class="customhouse-payout-subheading">Saved Methods</h4>
+            <ul class="customhouse-referral-list" data-dashboard-payout-methods></ul>
+            <p class="customhouse-dashboard-empty" data-dashboard-payout-methods-empty>No saved payout methods yet.</p>
+            <p class="customhouse-payout-method-status-note" data-dashboard-payout-method-note hidden></p>
+            <h4 class="customhouse-payout-subheading" data-dashboard-payout-method-form-title>Add Payout Method</h4>
+            <form class="customhouse-payout-method-form" data-dashboard-payout-method-form>
+              <input type="hidden" name="payoutMethodId" data-payout-method-id>
+              <label>
+                Method
+                <select name="type" data-payout-method-type>
+                  <option value="PAYPAL">PayPal</option>
+                  <option value="BANK_TRANSFER">Bank Transfer</option>
+                </select>
+              </label>
+              <label data-payout-paypal-field>
+                PayPal Email
+                <input name="paypalEmail" type="email" autocomplete="email">
+              </label>
+              <label>
+                Account Holder Name
+                <input name="accountHolderName" autocomplete="name">
+              </label>
+              <div data-payout-bank-fields hidden>
+                <label>Bank Name <input name="bankName"></label>
+                <label>Country <input name="country" autocomplete="country-name"></label>
+                <label>IBAN <input name="iban"></label>
+                <label>SWIFT / BIC <input name="swiftBic"></label>
+                <label>Local Account Number <input name="accountNumber"></label>
+                <label>Routing / Clearing Number <input name="routingNumber"></label>
+              </div>
+              <label class="customhouse-native-profile-check">
+                <input type="checkbox" name="isDefault" checked>
+                <span>Set as default</span>
+              </label>
+              <div class="customhouse-payout-form-actions">
+                <button type="submit" data-dashboard-payout-method-submit>Save Method</button>
+                <button type="button" class="customhouse-secondary-button" data-dashboard-payout-method-cancel hidden>Cancel Edit</button>
+              </div>
+            </form>
+            <p class="customhouse-payout-method-status-note" data-dashboard-payout-method-save-message hidden></p>
+          </section>
+          <section class="customhouse-dashboard-section customhouse-withdraw-request-card">
+            <div class="customhouse-section-heading">
+              <div>
+                <h3>Request Withdrawal</h3>
+                <p>Submit a withdrawal request using your saved method.</p>
+              </div>
+            </div>
+            <form class="customhouse-payout-request-form" data-dashboard-payout-request-form>
+              <label>
+                Payout Method
+                <select name="payoutMethodId" data-dashboard-payout-method-select></select>
+              </label>
+              <p class="customhouse-payout-method-status-note" data-dashboard-payout-request-note hidden></p>
+              <label>
+                <span class="customhouse-payout-amount-label">
+                  Amount
+                  <small data-dashboard-payout-request-currency>Available balance</small>
+                </span>
+                <input name="amount" inputmode="decimal" placeholder="0.00">
+              </label>
+              <input type="hidden" name="currency" data-dashboard-payout-currency-select>
+              <label>
+                Note
+                <textarea name="creatorNote" placeholder="Optional note for admin"></textarea>
+              </label>
+              <button type="submit" data-dashboard-payout-request-button>Request Withdrawal</button>
+            </form>
+          </section>
+        </div>
+        <section class="customhouse-dashboard-section customhouse-withdraw-history-card">
+          <div class="customhouse-section-heading">
+            <h3>Payout History</h3>
+          </div>
+          <div class="customhouse-payout-history-table-wrap">
+            <table class="customhouse-payout-history-table">
+              <thead>
+                <tr>
+                  <th scope="col">Amount</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Reference</th>
+                  <th scope="col">Method</th>
+                  <th scope="col">Date</th>
+                </tr>
+              </thead>
+              <tbody data-dashboard-payout-history></tbody>
+            </table>
+          </div>
+          <p class="customhouse-dashboard-empty" data-dashboard-payout-history-empty>No payout requests yet.</p>
+        </section>
+      </section>
+      </section>
+
+      <div class="customhouse-side-stack" hidden>
+        <section class="customhouse-dashboard-section customhouse-top-products-panel">
+          <div class="customhouse-dashboard-empty" data-dashboard-top-products-empty>
+            <span data-empty-icon="bag"></span>
+            <strong>No sales yet</strong>
+            <p>Your top performing products will appear here once you start getting sales.</p>
+          </div>
+          <ol data-dashboard-top-products></ol>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div id="customhouse-modal-root" data-customhouse-modal-root></div>
+
+  <div class="ch-creator-modal customhouse-payout-method-modal" data-dashboard-payout-method-modal hidden>
+    <div class="ch-creator-modal__backdrop" data-dashboard-payout-method-modal-close></div>
+    <section class="ch-creator-modal__dialog ch-creator-modal__dialog--compact" role="dialog" aria-modal="true" aria-labelledby="customhouse-payout-method-modal-title">
+      <header>
+        <div>
+          <span>Edit Payout Method</span>
+          <h3 id="customhouse-payout-method-modal-title" data-dashboard-payout-method-modal-title>Edit payout method</h3>
+          <p data-dashboard-payout-method-modal-summary>Enter new details for this saved method.</p>
+        </div>
+        <button type="button" data-dashboard-payout-method-modal-close aria-label="Close payout method editor">
+          <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">close</span>
+        </button>
+      </header>
+      <form class="customhouse-payout-method-form customhouse-payout-method-modal-form" data-dashboard-payout-method-modal-form>
+        <input type="hidden" name="payoutMethodId" data-payout-method-modal-id>
+        <input type="hidden" name="type" data-payout-method-modal-type>
+        <div class="customhouse-payout-method-current">
+          <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true" data-payout-method-modal-current-icon>payments</span>
+          <div>
+            <small>Current saved details</small>
+            <strong data-payout-method-modal-current>Saved destination</strong>
+          </div>
+        </div>
+        <div class="customhouse-payout-method-modal-grid">
+          <label data-payout-modal-paypal-field>
+            <span>PayPal Email</span>
+            <input name="paypalEmail" type="email" autocomplete="email" placeholder="you@example.com">
+          </label>
+          <label>
+            <span>Account Holder Name</span>
+            <input name="accountHolderName" autocomplete="name" placeholder="Full legal name">
+          </label>
+        </div>
+        <div class="customhouse-payout-method-modal-grid" data-payout-modal-bank-fields hidden>
+          <label><span>Bank Name</span><input name="bankName" placeholder="Bank name"></label>
+          <label><span>Country</span><input name="country" autocomplete="country-name" placeholder="Country"></label>
+          <label><span>IBAN</span><input name="iban" placeholder="IBAN"></label>
+          <label><span>SWIFT / BIC</span><input name="swiftBic" placeholder="SWIFT / BIC"></label>
+          <label><span>Local Account Number</span><input name="accountNumber" placeholder="Account number"></label>
+          <label><span>Routing / Clearing Number</span><input name="routingNumber" placeholder="Routing number"></label>
+        </div>
+        <label class="customhouse-native-profile-check customhouse-payout-method-default-toggle">
+          <input type="checkbox" name="isDefault" data-payout-method-modal-default>
+          <span>Set as default</span>
+        </label>
+        <p class="customhouse-payout-method-status-note" data-dashboard-payout-method-modal-message hidden></p>
+        <footer>
+          <button type="button" class="customhouse-secondary-button" data-dashboard-payout-method-modal-close>Cancel</button>
+          <button type="submit" data-dashboard-payout-method-modal-submit>Save Changes</button>
+        </footer>
+      </form>
     </section>
-    <section class="customhouse-dashboard-section">
-      <h3>Recent submissions</h3>
-      <ul data-dashboard-submissions></ul>
+  </div>
+
+  <div class="customhouse-profile-modal" data-dashboard-profile-modal hidden>
+    <div class="customhouse-profile-modal-backdrop" data-dashboard-profile-modal-close></div>
+    <section class="customhouse-profile-modal-panel" role="dialog" aria-modal="true" aria-labelledby="customhouse-profile-modal-title">
+      <header>
+        <div>
+          <span>← Back to Account</span>
+          <h3 id="customhouse-profile-modal-title">Edit creator profile</h3>
+          <p>Keep your profile and creator presence up to date.</p>
+        </div>
+        <button type="button" data-dashboard-profile-modal-close aria-label="Close profile update form">
+          <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">close</span>
+        </button>
+      </header>
+      <p data-dashboard-profile-modal-message hidden></p>
+      <div class="customhouse-profile-form-wrap" data-dashboard-profile-form-wrap>
+        <form class="customhouse-native-profile-form" data-dashboard-profile-update-form>
+          <div class="customhouse-profile-editor-layout">
+            <div class="customhouse-profile-editor-main">
+              <section class="customhouse-profile-editor-photo" aria-label="Profile photo">
+                <div class="customhouse-profile-editor-avatar" data-profile-modal-avatar>
+                  <span data-profile-modal-avatar-initials>CK</span>
+                  <img data-profile-modal-avatar-image alt="Creator profile picture" width="88" height="88" hidden>
+                </div>
+                <div>
+                  <strong>Profile photo</strong>
+                  <p>JPG, PNG or WebP. Use a clear square image for best results.</p>
+                </div>
+              </section>
+              <div class="customhouse-native-profile-grid">
+                <label>
+                  <span>Creator Display Name *</span>
+                  <input name="displayName" data-profile-field="displayName" type="text" maxlength="80" autocomplete="name">
+                </label>
+                <label>
+                  <span>Legal Name</span>
+                  <input name="legalName" data-profile-field="legalName" type="text" maxlength="120" autocomplete="name">
+                </label>
+                <label>
+                  <span>Email</span>
+                  <input name="email" data-profile-field="email" type="email" readonly>
+                </label>
+                <label>
+                  <span>City</span>
+                  <input name="city" data-profile-field="city" type="text" maxlength="100" autocomplete="address-level2">
+                </label>
+                <label>
+                  <span>Country *</span>
+                  <input name="country" data-profile-field="country" type="text" maxlength="80" autocomplete="country-name">
+                </label>
+                <label>
+                  <span>Social / Portfolio URL</span>
+                  <input name="portfolioUrl" data-profile-field="portfolioUrl" type="url" inputmode="url" autocomplete="url">
+                </label>
+                <label class="customhouse-native-profile-wide">
+                  <span>Short Creator Bio *</span>
+                  <textarea name="bio" data-profile-field="bio" maxlength="1000" rows="5"></textarea>
+                </label>
+                <label class="customhouse-native-profile-check customhouse-native-profile-wide">
+                  <input name="termsAccepted" data-profile-field="termsAccepted" type="checkbox">
+                  <span>I agree to the Creator Terms.</span>
+                </label>
+              </div>
+              <div class="customhouse-profile-editor-note">
+                <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">verified_user</span>
+                <p>Your information is visible on your creator profile and collection. Make sure all information is accurate and up to date.</p>
+              </div>
+              <footer>
+                <button type="button" class="customhouse-secondary-button" data-dashboard-profile-modal-close>Cancel</button>
+                <button type="submit">Update account</button>
+              </footer>
+            </div>
+            <aside class="customhouse-profile-editor-sidebar">
+              <section class="customhouse-profile-editor-card customhouse-profile-editor-progress">
+                <div>
+                  <strong>Profile completeness</strong>
+                  <span data-profile-modal-progress-label>85%</span>
+                </div>
+                <meter min="0" max="100" value="85" data-profile-modal-progress>85%</meter>
+                <p>Great job! Add portfolio and categories to complete your profile.</p>
+              </section>
+              <section class="customhouse-profile-editor-card customhouse-profile-editor-preview">
+                <div>
+                  <span class="customhouse-profile-editor-avatar customhouse-profile-editor-avatar--small" data-profile-modal-sidebar-avatar>
+                    <span data-profile-modal-sidebar-initials>CK</span>
+                    <img data-profile-modal-sidebar-image alt="Creator profile picture" width="54" height="54" hidden>
+                  </span>
+                  <div>
+                    <strong data-profile-modal-summary-name>Creator</strong>
+                    <p data-profile-modal-summary-collection>Creator collection</p>
+                  </div>
+                  <em>Approved</em>
+                </div>
+                <a data-dashboard-modal-collection-link href="/apps/customhouse/creators" target="_blank" rel="noreferrer">
+                  <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">open_in_new</span>
+                  View my collection
+                </a>
+              </section>
+              <section class="customhouse-profile-editor-card customhouse-profile-editor-tips">
+                <h4>Profile tips</h4>
+                <ul>
+                  <li>Add a clear profile photo</li>
+                  <li>Write a short and engaging bio</li>
+                  <li>Share your portfolio or social link</li>
+                  <li>Keep your information up to date</li>
+                </ul>
+              </section>
+            </aside>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <div class="ch-creator-modal" data-dashboard-review-modal hidden>
+    <div class="ch-creator-modal__backdrop" data-dashboard-review-close></div>
+    <section class="ch-creator-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="customhouse-review-modal-title" aria-describedby="customhouse-review-modal-description">
+      <header>
+        <div>
+          <span>Creator Design</span>
+          <h3 id="customhouse-review-modal-title">Design saved</h3>
+          <p id="customhouse-review-modal-description">Review your design before submitting it for approval.</p>
+        </div>
+        <button type="button" data-dashboard-review-close aria-label="Close review modal">
+          <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">close</span>
+        </button>
+      </header>
+      <div class="ch-creator-modal__previews" data-dashboard-review-previews></div>
+      <div class="ch-creator-modal__variant-summary" data-dashboard-review-variants></div>
+      <dl class="ch-creator-modal__summary">
+        <div><dt>Product</dt><dd data-dashboard-review-product>Creator product</dd></div>
+        <div><dt>Status</dt><dd><span class="customhouse-status-badge customhouse-status-badge--draft" data-dashboard-review-status>Draft</span></dd></div>
+        <div><dt>Last saved</dt><dd data-dashboard-review-saved>Just now</dd></div>
+      </dl>
+      <footer>
+        <button type="button" class="customhouse-secondary-button" data-dashboard-review-edit>Continue Editing</button>
+        <button type="button" class="customhouse-secondary-button" data-dashboard-review-draft>Keep as Draft</button>
+        <button type="button" data-dashboard-review-submit>Submit for Review</button>
+      </footer>
+    </section>
+  </div>
+
+  <div class="ch-creator-modal ch-design-edit-modal" data-dashboard-details-modal hidden>
+    <div class="ch-creator-modal__backdrop" data-dashboard-details-close></div>
+    <section class="ch-creator-modal__dialog ch-creator-modal__dialog--compact" role="dialog" aria-modal="true" aria-labelledby="customhouse-details-modal-title" aria-describedby="customhouse-details-modal-description">
+      <header>
+        <div>
+          <span>Edit Design Details</span>
+          <h3 id="customhouse-details-modal-title">Edit design details</h3>
+          <p id="customhouse-details-modal-description">Update how your design appears in your collection.</p>
+        </div>
+        <button type="button" data-dashboard-details-close aria-label="Close design details">
+          <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">close</span>
+        </button>
+      </header>
+      <form class="ch-design-edit-modal__form" data-dashboard-details-form>
+        <p class="ch-design-edit-modal__notice" data-dashboard-details-lock hidden>Details are locked while this design is under review.</p>
+        <label>
+          <span>Design title</span>
+          <input data-dashboard-details-title type="text" maxlength="120" autocomplete="off">
+          <small data-dashboard-details-title-error></small>
+        </label>
+        <label>
+          <span>Description</span>
+          <textarea data-dashboard-details-description maxlength="1000" rows="5"></textarea>
+          <small><span data-dashboard-details-count>0</span> / 1000</small>
+        </label>
+        <dl class="ch-creator-modal__summary">
+          <div>
+            <dt>Base product</dt>
+            <dd data-dashboard-details-base>Base product</dd>
+          </div>
+          <div>
+            <dt>Status</dt>
+            <dd data-dashboard-details-status>Draft</dd>
+          </div>
+        </dl>
+        <p class="ch-design-edit-modal__error" data-dashboard-details-error role="alert" hidden></p>
+        <div class="ch-design-edit-modal__discard" data-dashboard-details-discard hidden>
+          <p>Discard unsaved changes?</p>
+          <div>
+            <button type="button" class="customhouse-secondary-button" data-dashboard-details-keep-editing>Keep Editing</button>
+            <button type="button" data-dashboard-details-discard-confirm>Discard</button>
+          </div>
+        </div>
+        <footer>
+          <button type="button" class="customhouse-secondary-button" data-dashboard-details-close>Cancel</button>
+          <button type="submit" data-dashboard-details-save disabled>Save Changes</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+
+  <div class="ch-creator-modal ch-design-delete-modal" data-dashboard-action-modal hidden>
+    <div class="ch-creator-modal__backdrop" data-dashboard-action-close></div>
+    <section class="ch-creator-modal__dialog ch-creator-modal__dialog--compact" role="dialog" aria-modal="true" aria-labelledby="customhouse-action-modal-title" aria-describedby="customhouse-action-modal-description">
+      <header>
+        <div>
+          <span data-dashboard-action-eyebrow>Design Action</span>
+          <h3 id="customhouse-action-modal-title" data-dashboard-action-title>Delete design?</h3>
+          <p id="customhouse-action-modal-description" data-dashboard-action-description>This action cannot be undone.</p>
+        </div>
+        <button type="button" data-dashboard-action-close aria-label="Close confirmation">
+          <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">close</span>
+        </button>
+      </header>
+      <p class="ch-design-edit-modal__error" data-dashboard-action-error role="alert" hidden></p>
+      <footer>
+        <button type="button" class="customhouse-secondary-button" data-dashboard-action-close>Cancel</button>
+        <button type="button" class="ch-design-delete-modal__confirm" data-dashboard-action-confirm>Delete Design</button>
+      </footer>
     </section>
   </div>
 </section>
@@ -100,7 +896,18 @@
   "target": "section",
   "settings": [
     { "type": "text", "id": "heading", "label": "Heading", "default": "My Creator Dashboard" },
-    { "type": "url", "id": "application_url", "label": "Become a Creator page" }
+    { "type": "url", "id": "application_url", "label": "Become a Creator page" },
+    {
+      "type": "url",
+      "id": "pitchprint_client_src",
+      "label": "PitchPrint client script URL"
+    },
+    {
+      "type": "text",
+      "id": "pitchprint_api_key",
+      "label": "PitchPrint public API key",
+      "info": "Use only the domain public API key. Do not enter a PitchPrint secret key."
+    }
   ]
 }
 {% endschema %}

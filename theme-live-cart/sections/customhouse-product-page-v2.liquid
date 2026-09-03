@@ -1,0 +1,1158 @@
+{% liquid
+  assign section_id = 'customhouse-product-v2-' | append: section.id
+  assign container_width = section.settings.container_width | default: 1440
+  assign top_padding = section.settings.top_padding | default: 28
+  assign bottom_padding = section.settings.bottom_padding | default: 72
+  assign gallery_max_height_desktop = section.settings.gallery_max_height_desktop | default: 500
+  assign gallery_max_height_mobile = section.settings.gallery_max_height_mobile | default: 300
+  assign current_variant = product.selected_or_first_available_variant
+  assign product_form_id = 'customhouse-product-v2-form-' | append: section.id
+  assign media_count = product.media.size
+  assign active_media = current_variant.featured_media | default: product.featured_media | default: product.media.first
+  assign active_media_id = active_media.id
+  assign active_media_is_in_gallery = false
+  for media in product.media
+    if media.id == active_media_id
+      assign active_media_is_in_gallery = true
+    endif
+  endfor
+  assign hidden_media_count = media_count | minus: 5
+  assign product_title = product.title | escape
+  assign recommendation_heading = section.settings.recommendation_heading
+  if product.vendor != blank and section.settings.use_vendor_recommendation_heading
+    assign recommendation_heading = 'More From ' | append: product.vendor
+  endif
+%}
+
+{{ 'customhouse-product-v2.css' | asset_url | stylesheet_tag }}
+
+<section
+  id="{{ section_id }}"
+  class="customhouse-product-v2"
+  data-customhouse-product-v2
+  data-section-id="{{ section.id }}"
+  data-product-id="{{ product.id }}"
+  data-add-to-cart-label="{{ section.settings.add_to_cart_label | escape }}"
+  data-sold-out-label="{{ section.settings.sold_out_label | escape }}"
+  data-unavailable-label="{{ section.settings.unavailable_label | escape }}"
+  aria-labelledby="{{ section_id }}-title"
+  style="
+    --customhouse-product-v2-bg: {{ section.settings.background_color }};
+    --customhouse-product-v2-card: {{ section.settings.card_background_color }};
+    --customhouse-product-v2-heading: {{ section.settings.heading_color }};
+    --customhouse-product-v2-body: {{ section.settings.body_text_color }};
+    --customhouse-product-v2-accent: {{ section.settings.accent_color }};
+    --customhouse-product-v2-border: {{ section.settings.border_color }};
+    --customhouse-product-v2-primary-bg: {{ section.settings.button_primary_background }};
+    --customhouse-product-v2-primary-text: {{ section.settings.button_primary_text }};
+    --customhouse-product-v2-secondary-bg: {{ section.settings.button_secondary_background }};
+    --customhouse-product-v2-secondary-text: {{ section.settings.button_secondary_text }};
+    --customhouse-product-v2-container: {{ container_width }}px;
+    --customhouse-product-v2-top-padding: {{ top_padding }}px;
+    --customhouse-product-v2-bottom-padding: {{ bottom_padding }}px;
+    --customhouse-product-v2-radius: {{ section.settings.card_radius }}px;
+    --customhouse-product-v2-gallery-height: {{ gallery_max_height_desktop }}px;
+    --customhouse-product-v2-gallery-height-mobile: {{ gallery_max_height_mobile }}px;
+  "
+>
+  {% if section.settings.enable_graffiti_accents %}
+    <svg class="customhouse-product-v2__graffiti customhouse-product-v2__graffiti--one" viewBox="0 0 220 100" aria-hidden="true" focusable="false">
+      <path d="M14 58c31-31 54-39 70-23 17 17-9 43-38 34 36 21 77 16 107-13 24-23 43-23 53 0" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <svg class="customhouse-product-v2__graffiti customhouse-product-v2__graffiti--two" viewBox="0 0 220 100" aria-hidden="true" focusable="false">
+      <path d="M18 70c29-42 55-57 78-45 23 13 1 51-35 44 28 17 67 18 93-5 19-17 35-46 55-30" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  {% endif %}
+
+  <div class="customhouse-product-v2__container">
+    <div class="customhouse-product-v2__hero">
+      <div class="customhouse-product-v2__media-column">
+        <div class="customhouse-product-v2__gallery{% if media_count <= 1 %} customhouse-product-v2__gallery--single{% endif %}" data-product-gallery>
+          {% if media_count > 1 %}
+            <div class="customhouse-product-v2__thumbs" aria-label="Product media thumbnails">
+              {% for media in product.media %}
+                {% liquid
+                  assign thumb_alt = media.alt | default: product.title | escape
+                  assign media_preview = media.preview_image | default: product.featured_image
+                  assign is_active_media = false
+                  if media.id == active_media_id
+                    assign is_active_media = true
+                  elsif active_media_is_in_gallery == false and forloop.first
+                    assign is_active_media = true
+                  endif
+                %}
+                <button
+                  class="customhouse-product-v2__thumb"
+                  type="button"
+                  data-media-target="{{ media.id }}"
+                  aria-label="Show media {{ forloop.index }} for {{ product_title }}"
+                  aria-current="{% if is_active_media %}true{% else %}false{% endif %}"
+                >
+                  {% if media_preview != blank %}
+                    {{ media_preview | image_url: width: 160 | image_tag: class: 'customhouse-product-v2__thumb-image', widths: '80, 120, 160', loading: 'eager', alt: thumb_alt }}
+                  {% else %}
+                    <span class="customhouse-product-v2__thumb-fallback">{{ media.media_type | replace: '_', ' ' }}</span>
+                  {% endif %}
+                  {% if forloop.index == 5 and hidden_media_count > 0 %}
+                    <span class="customhouse-product-v2__thumb-more">+{{ hidden_media_count }}</span>
+                  {% endif %}
+                </button>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+          <div class="customhouse-product-v2__media-card">
+            <div class="customhouse-product-v2__media-stage">
+              {% if media_count > 0 %}
+                {% for media in product.media %}
+                  {% liquid
+                    assign image_alt = media.alt | default: product.title | escape
+                    assign media_preview = media.preview_image | default: product.featured_image
+                    assign is_active_media = false
+                    if media.id == active_media_id
+                      assign is_active_media = true
+                    elsif active_media_is_in_gallery == false and forloop.first
+                      assign is_active_media = true
+                    endif
+                    assign image_loading = 'lazy'
+                    if forloop.first
+                      assign image_loading = 'eager'
+                    endif
+                  %}
+                  <figure class="customhouse-product-v2__media{% if is_active_media %} is-active{% endif %}" data-media-id="{{ media.id }}">
+                    {% case media.media_type %}
+                      {% when 'image' %}
+                        {{ media | image_url: width: 1200 | image_tag: class: 'customhouse-product-v2__image', widths: '420, 620, 820, 1000, 1200', sizes: '(min-width: 990px) 46vw, calc(100vw - 48px)', loading: image_loading, alt: image_alt }}
+                      {% when 'video' %}
+                        {{ media | media_tag: class: 'customhouse-product-v2__media-element customhouse-product-v2__media-element--video', image_size: '1200x', controls: true }}
+                      {% when 'external_video' %}
+                        {{ media | external_video_tag: class: 'customhouse-product-v2__media-element customhouse-product-v2__media-element--external-video' }}
+                      {% when 'model' %}
+                        {{ media | media_tag: class: 'customhouse-product-v2__media-element customhouse-product-v2__media-element--model', image_size: '1200x' }}
+                      {% else %}
+                        {% if media_preview != blank %}
+                          {{ media_preview | image_url: width: 1200 | image_tag: class: 'customhouse-product-v2__image', widths: '420, 620, 820, 1000, 1200', sizes: '(min-width: 990px) 46vw, calc(100vw - 48px)', loading: image_loading, alt: image_alt }}
+                        {% endif %}
+                    {% endcase %}
+                  </figure>
+                {% endfor %}
+              {% else %}
+                <div class="customhouse-product-v2__media-placeholder">Product image coming soon</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="customhouse-product-v2__gallery-benefits" aria-label="Production highlights">
+          <div class="customhouse-product-v2__micro-benefit">
+            <span class="customhouse-product-v2__micro-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false"><path d="M12 3l8 4v5c0 4.8-3.2 8.2-8 9-4.8-.8-8-4.2-8-9V7l8-4z"></path><path d="M9 12l2 2 4-5"></path></svg>
+            </span>
+            <span>{{ section.settings.micro_benefit_1 | escape }}</span>
+          </div>
+          <div class="customhouse-product-v2__micro-benefit">
+            <span class="customhouse-product-v2__micro-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false"><path d="M3 7h11v10H3z"></path><path d="M14 10h4l3 3v4h-7z"></path><path d="M7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"></path><path d="M18 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"></path></svg>
+            </span>
+            <span>{{ section.settings.micro_benefit_2 | escape }}</span>
+          </div>
+          <div class="customhouse-product-v2__micro-benefit">
+            <span class="customhouse-product-v2__micro-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false"><path d="M20 12a8 8 0 1 1-2.3-5.7"></path><path d="M20 4v6h-6"></path></svg>
+            </span>
+            <span>{{ section.settings.micro_benefit_3 | escape }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="customhouse-product-v2__info-card">
+        {% if product.vendor != blank %}
+          <span class="customhouse-product-v2__vendor">{{ product.vendor | escape }}</span>
+        {% endif %}
+
+        <h1 id="{{ section_id }}-title" class="customhouse-product-v2__title">{{ product.title | escape }}</h1>
+
+        {% if section.settings.show_rating_row %}
+          <div class="customhouse-product-v2__rating" aria-label="{{ section.settings.rating_label | escape }}">
+            <span class="customhouse-product-v2__stars" aria-hidden="true">*****</span>
+            <span>{{ section.settings.rating_label | escape }}</span>
+          </div>
+        {% endif %}
+
+        <div class="customhouse-product-v2__price-row" data-price-wrapper>
+          <span class="customhouse-product-v2__price" data-product-price>{{ current_variant.price | money }}</span>
+          <span class="customhouse-product-v2__compare-price" data-compare-price{% unless current_variant.compare_at_price > current_variant.price %} hidden{% endunless %}>
+            {% if current_variant.compare_at_price > current_variant.price %}
+              {{ current_variant.compare_at_price | money }}
+            {% endif %}
+          </span>
+          <span class="customhouse-product-v2__saving-badge" data-saving-badge{% unless current_variant.compare_at_price > current_variant.price %} hidden{% endunless %}>
+            {% if current_variant.compare_at_price > current_variant.price %}
+              You save {{ current_variant.compare_at_price | minus: current_variant.price | money }}
+            {% endif %}
+          </span>
+        </div>
+
+        {% if shop.taxes_included or shop.shipping_policy.body != blank %}
+          <p class="customhouse-product-v2__tax-note">
+            {% if shop.taxes_included %}Tax included.{% endif %}
+            {% if shop.shipping_policy.body != blank %} Shipping calculated at checkout.{% endif %}
+          </p>
+        {% endif %}
+
+        {% if product.description != blank %}
+          <div class="customhouse-product-v2__short-description">
+            {{ product.description | strip_html | truncatewords: 34 }}
+          </div>
+        {% endif %}
+
+        {% form 'product', product, id: product_form_id, class: 'customhouse-product-v2__form', novalidate: 'novalidate', data-type: 'add-to-cart-form' %}
+          <input type="hidden" name="id" value="{{ current_variant.id }}" data-variant-id>
+          <input type="hidden" name="properties[_CustomHouse template]" value="customhouse-v2">
+          <div data-customhouse-line-item-properties></div>
+
+          {% unless product.has_only_default_variant %}
+            {% for option in product.options_with_values %}
+              {% liquid
+                assign option_name_downcase = option.name | downcase
+                assign is_color_option = false
+                assign is_size_option = false
+                if option_name_downcase contains 'color' or option_name_downcase contains 'colour'
+                  assign is_color_option = true
+                endif
+                if option_name_downcase contains 'size'
+                  assign is_size_option = true
+                endif
+              %}
+              <fieldset class="customhouse-product-v2__fieldset" data-option-index="{{ forloop.index0 }}">
+                <legend class="customhouse-product-v2__label">
+                  <span>{{ option.name | escape }}</span>
+                  <span class="customhouse-product-v2__option-meta">
+                    <span class="customhouse-product-v2__selected-option" data-selected-option>{{ option.selected_value | escape }}</span>
+                    {% if is_size_option %}
+                      <a class="customhouse-product-v2__size-guide" href="#{{ section_id }}-accordion-3-panel">Size Guide</a>
+                    {% endif %}
+                  </span>
+                </legend>
+                <div class="{% if is_color_option %}customhouse-product-v2__swatches{% else %}customhouse-product-v2__pills{% endif %}">
+                  {% for value in option.values %}
+                    {% liquid
+                      assign input_id = section_id | append: '-option-' | append: option.position | append: '-' | append: forloop.index
+                      assign swatch_value = value | downcase
+                      assign swatch_color = value
+                      if swatch_value contains 'black'
+                        assign swatch_color = '#111111'
+                      elsif swatch_value contains 'white'
+                        assign swatch_color = '#F8F8F8'
+                      elsif swatch_value contains 'grey' or swatch_value contains 'gray'
+                        assign swatch_color = '#8A8A8A'
+                      elsif swatch_value contains 'purple'
+                        assign swatch_color = '#7B3FF2'
+                      elsif swatch_value contains 'lime' or swatch_value contains 'green'
+                        assign swatch_color = '#D7FF2F'
+                      endif
+                    %}
+                    <input
+                      class="customhouse-product-v2__option-input"
+                      id="{{ input_id }}"
+                      type="radio"
+                      name="options[{{ option.name | escape }}]"
+                      value="{{ value | escape }}"
+                      {% if option.selected_value == value %}checked{% endif %}
+                      data-option-input
+                    >
+                    <label class="customhouse-product-v2__option-label{% if is_color_option %} customhouse-product-v2__option-label--color{% endif %}" for="{{ input_id }}">
+                      {% if is_color_option %}
+                        <span class="customhouse-product-v2__swatch" style="background: {{ swatch_color | escape }};" aria-hidden="true"></span>
+                      {% endif %}
+                      <span>{{ value | escape }}</span>
+                    </label>
+                  {% endfor %}
+                </div>
+              </fieldset>
+            {% endfor %}
+          {% endunless %}
+
+          {% if product.selling_plan_groups.size > 0 %}
+            <fieldset class="customhouse-product-v2__fieldset">
+              <legend class="customhouse-product-v2__label">
+                <span>{{ section.settings.selling_plan_label | escape }}</span>
+              </legend>
+              <div class="customhouse-product-v2__pills">
+                {% assign selling_plan_is_checked = false %}
+                {% unless product.requires_selling_plan %}
+                  <input class="customhouse-product-v2__option-input" id="{{ section_id }}-selling-plan-none" type="radio" name="selling_plan" value="" checked>
+                  <label class="customhouse-product-v2__option-label" for="{{ section_id }}-selling-plan-none">{{ section.settings.one_time_purchase_label | escape }}</label>
+                  {% assign selling_plan_is_checked = true %}
+                {% endunless %}
+                {% for group in product.selling_plan_groups %}
+                  {% for selling_plan in group.selling_plans %}
+                    {% liquid
+                      assign is_selling_plan_checked = false
+                      unless selling_plan_is_checked
+                        assign is_selling_plan_checked = true
+                        assign selling_plan_is_checked = true
+                      endunless
+                    %}
+                    <input class="customhouse-product-v2__option-input" id="{{ section_id }}-selling-plan-{{ selling_plan.id }}" type="radio" name="selling_plan" value="{{ selling_plan.id }}" {% if is_selling_plan_checked %}checked{% endif %}>
+                    <label class="customhouse-product-v2__option-label" for="{{ section_id }}-selling-plan-{{ selling_plan.id }}">{{ selling_plan.name | escape }}</label>
+                  {% endfor %}
+                {% endfor %}
+              </div>
+            </fieldset>
+          {% endif %}
+
+          <div class="customhouse-product-v2__primary-actions-row">
+            <div class="customhouse-product-v2__quantity-row">
+              <label class="customhouse-product-v2__label" for="{{ section_id }}-quantity">{{ section.settings.quantity_label | escape }}</label>
+              <div class="customhouse-product-v2__quantity">
+                <button class="customhouse-product-v2__quantity-button" type="button" data-quantity-minus aria-label="Decrease quantity">
+                  <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M6 12h12"></path></svg>
+                </button>
+                <input class="customhouse-product-v2__quantity-input" id="{{ section_id }}-quantity" type="number" name="quantity" min="1" value="1" inputmode="numeric" data-quantity-input>
+                <button class="customhouse-product-v2__quantity-button" type="button" data-quantity-plus aria-label="Increase quantity">
+                  <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+                </button>
+              </div>
+            </div>
+
+            {% if section.settings.customizer_button_text != blank %}
+              {% if section.settings.customizer_button_link != blank %}
+                <a class="customhouse-product-v2__button customhouse-product-v2__button--customizer" href="{{ section.settings.customizer_button_link }}" data-customhouse-customizer-trigger data-customhouse-customizer-hook="{{ section.settings.customizer_app_hook | escape }}">
+                  <span class="customhouse-product-v2__button-leading-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false"><path d="M15 4l5 5"></path><path d="M14 5l-9.5 9.5L3 21l6.5-1.5L19 10"></path><path d="M5 4h.01"></path><path d="M20 17h.01"></path><path d="M10 3h.01"></path></svg>
+                  </span>
+                  <span>{{ section.settings.customizer_button_text | escape }}</span>
+                  <span class="customhouse-product-v2__button-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>
+                  </span>
+                </a>
+              {% else %}
+                <button class="customhouse-product-v2__button customhouse-product-v2__button--customizer" type="button" data-customhouse-customizer-trigger data-customhouse-customizer-hook="{{ section.settings.customizer_app_hook | escape }}">
+                  <span class="customhouse-product-v2__button-leading-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false"><path d="M15 4l5 5"></path><path d="M14 5l-9.5 9.5L3 21l6.5-1.5L19 10"></path><path d="M5 4h.01"></path><path d="M20 17h.01"></path><path d="M10 3h.01"></path></svg>
+                  </span>
+                  <span>{{ section.settings.customizer_button_text | escape }}</span>
+                  <span class="customhouse-product-v2__button-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>
+                  </span>
+                </button>
+              {% endif %}
+            {% endif %}
+          </div>
+
+          <div class="customhouse-product-v2__actions">
+            <button class="customhouse-product-v2__button customhouse-product-v2__button--cart" type="submit" name="add" data-add-to-cart {% unless current_variant.available %}disabled{% endunless %}>
+              <span class="customhouse-product-v2__button-leading-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false"><path d="M7 8h14l-1.4 8.5a2 2 0 0 1-2 1.7H9.1a2 2 0 0 1-2-1.7L5.5 4H3"></path><path d="M9 8a3 3 0 0 1 6 0"></path><path d="M9 21h.01"></path><path d="M18 21h.01"></path></svg>
+              </span>
+              <span data-add-to-cart-text>
+                {% if current_variant.available %}
+                  {{ section.settings.add_to_cart_label | escape }}
+                {% else %}
+                  {{ section.settings.sold_out_label | escape }}
+                {% endif %}
+              </span>
+            </button>
+
+            {% if section.settings.show_dynamic_checkout_buttons %}
+              <div class="customhouse-product-v2__payment-buttons">
+                {{ form | payment_button }}
+              </div>
+            {% endif %}
+          </div>
+
+          <p class="customhouse-product-v2__form-message" data-product-message aria-live="polite"></p>
+        {% endform %}
+      </div>
+    </div>
+
+    {% if section.settings.show_benefit_cards %}
+      <div class="customhouse-product-v2__section-card">
+        <div class="customhouse-product-v2__benefits-grid">
+          {% for index in (1..4) %}
+            {% liquid
+              assign icon_key = 'benefit_' | append: index | append: '_icon'
+              assign title_key = 'benefit_' | append: index | append: '_title'
+              assign text_key = 'benefit_' | append: index | append: '_text'
+            %}
+            <article class="customhouse-product-v2__benefit">
+              <span class="customhouse-product-v2__icon-orb" aria-hidden="true">
+                {% case index %}
+                  {% when 1 %}
+                    <svg viewBox="0 0 24 24" focusable="false">
+                      <path d="M12 3l7 3v5c0 4.6-2.9 8.4-7 10-4.1-1.6-7-5.4-7-10V6l7-3z"></path>
+                      <path d="M9 12l2 2 4-5"></path>
+                    </svg>
+                  {% when 2 %}
+                    <svg viewBox="0 0 24 24" focusable="false">
+                      <path d="M5 17l4 2 10-10-4-4L5 15v2z"></path>
+                      <path d="M13 7l4 4"></path>
+                      <path d="M4 21h16"></path>
+                    </svg>
+                  {% when 3 %}
+                    <svg viewBox="0 0 24 24" focusable="false">
+                      <path d="M4 13h7l-2 7 11-12h-7l2-6L4 13z"></path>
+                    </svg>
+                  {% else %}
+                    <svg viewBox="0 0 24 24" focusable="false">
+                      <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z"></path>
+                      <path d="M3.6 9h16.8"></path>
+                      <path d="M3.6 15h16.8"></path>
+                      <path d="M12 3c2.2 2.4 3.2 5.4 3.2 9s-1 6.6-3.2 9c-2.2-2.4-3.2-5.4-3.2-9S9.8 5.4 12 3z"></path>
+                    </svg>
+                {% endcase %}
+              </span>
+              <h2 class="customhouse-product-v2__benefit-title">{{ section.settings[title_key] | escape }}</h2>
+              <p class="customhouse-product-v2__benefit-text">{{ section.settings[text_key] | escape }}</p>
+              <span class="customhouse-product-v2__benefit-line" aria-hidden="true"></span>
+            </article>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    {% if section.settings.show_how_it_works %}
+      <div class="customhouse-product-v2__section-card">
+        <span class="customhouse-product-v2__section-kicker">{{ section.settings.how_kicker | escape }}</span>
+        <h2 class="customhouse-product-v2__section-heading">
+          {{ section.settings.how_heading_before | escape }} <strong>{{ section.settings.how_heading_accent | escape }}</strong> {{ section.settings.how_heading_after | escape }}
+        </h2>
+        {% if section.settings.how_text != blank %}
+          <p class="customhouse-product-v2__section-text">{{ section.settings.how_text | escape }}</p>
+        {% endif %}
+        <div class="customhouse-product-v2__steps">
+          {% for index in (1..4) %}
+            {% liquid
+              assign step_title_key = 'step_' | append: index | append: '_title'
+              assign step_text_key = 'step_' | append: index | append: '_text'
+            %}
+            <article class="customhouse-product-v2__step">
+              <span class="customhouse-product-v2__step-marker" aria-hidden="true">
+                <span>{{ index | prepend: '0' | slice: -2, 2 }}</span>
+              </span>
+              <h3 class="customhouse-product-v2__step-title">{{ section.settings[step_title_key] | escape }}</h3>
+              <p class="customhouse-product-v2__step-text">{{ section.settings[step_text_key] | escape }}</p>
+            </article>
+          {% endfor %}
+        </div>
+        {% if section.settings.customizer_button_text != blank %}
+          {% if section.settings.customizer_button_link != blank %}
+            <a class="customhouse-product-v2__button customhouse-product-v2__button--customizer customhouse-product-v2__how-cta" href="{{ section.settings.customizer_button_link }}" data-customhouse-customizer-trigger data-customhouse-customizer-hook="{{ section.settings.customizer_app_hook | escape }}">
+              <span>{{ section.settings.how_button_text | escape }}</span>
+              <span class="customhouse-product-v2__button-icon" aria-hidden="true">-&gt;</span>
+            </a>
+          {% else %}
+            <button class="customhouse-product-v2__button customhouse-product-v2__button--customizer customhouse-product-v2__how-cta" type="button" data-customhouse-customizer-trigger data-customhouse-customizer-hook="{{ section.settings.customizer_app_hook | escape }}">
+              <span>{{ section.settings.how_button_text | escape }}</span>
+              <span class="customhouse-product-v2__button-icon" aria-hidden="true">-&gt;</span>
+            </button>
+          {% endif %}
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if section.settings.show_accordions %}
+      <div class="customhouse-product-v2__section-card">
+        <span class="customhouse-product-v2__section-kicker">{{ section.settings.details_kicker | escape }}</span>
+        <h2 class="customhouse-product-v2__section-heading">
+          {{ section.settings.details_heading_before | escape }} <strong>{{ section.settings.details_heading_accent | escape }}</strong>
+        </h2>
+        <div class="customhouse-product-v2__accordion-wrap" data-product-accordion>
+          {% for index in (1..5) %}
+            {% liquid
+              assign title_key = 'accordion_' | append: index | append: '_title'
+              assign content_key = 'accordion_' | append: index | append: '_content'
+              assign panel_id = section_id | append: '-accordion-' | append: index
+            %}
+            <div class="customhouse-product-v2__accordion-item{% if forloop.first %} is-active{% endif %}" data-accordion-item>
+              <button class="customhouse-product-v2__accordion-button" type="button" id="{{ panel_id }}-button" aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}" aria-controls="{{ panel_id }}-panel">
+                <span>{{ section.settings[title_key] | escape }}</span>
+                <span class="customhouse-product-v2__accordion-state" aria-hidden="true"></span>
+              </button>
+              <div class="customhouse-product-v2__accordion-panel" id="{{ panel_id }}-panel" role="region" aria-labelledby="{{ panel_id }}-button">
+                <div class="customhouse-product-v2__accordion-content">
+                  {% if forloop.first %}
+                    {{ product.description }}
+                  {% else %}
+                    {{ section.settings[content_key] }}
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    {% if section.settings.show_product_recommendations %}
+      <div class="customhouse-product-v2__section-card" data-recommendations-section>
+        <h2 class="customhouse-product-v2__section-heading">{{ recommendation_heading | escape }}</h2>
+        {% if section.settings.recommendation_subheading != blank %}
+          <p class="customhouse-product-v2__section-text">{{ section.settings.recommendation_subheading | escape }}</p>
+        {% endif %}
+        <div data-recommendations-inner>
+          {% liquid
+            assign shown_recommendations = 0
+          %}
+          <div class="customhouse-product-v2__products-grid">
+            {% if section.settings.recommendation_collection != blank %}
+              {% for recommended_product in section.settings.recommendation_collection.products limit: 8 %}
+                {% unless recommended_product.id == product.id %}
+                  {% liquid
+                    assign recommended_product_image_alt = recommended_product.featured_image.alt | default: recommended_product.title | escape
+                  %}
+                  <a class="customhouse-product-v2__product-card" href="{{ recommended_product.url }}">
+                    <span class="customhouse-product-v2__product-media">
+                      {% if recommended_product.featured_image %}
+                        {{ recommended_product.featured_image | image_url: width: 520 | image_tag: class: 'customhouse-product-v2__product-image', widths: '220, 320, 420, 520', sizes: '(min-width: 990px) 25vw, (min-width: 750px) 50vw, calc(100vw - 48px)', loading: 'lazy', alt: recommended_product_image_alt }}
+                      {% endif %}
+                    </span>
+                    <span class="customhouse-product-v2__product-info">
+                      <span class="customhouse-product-v2__product-card-title">{{ recommended_product.title | escape }}</span>
+                      {% if section.settings.show_rating_row %}
+                        <span class="customhouse-product-v2__product-card-rating">
+                          <span aria-hidden="true">*****</span>
+                          <span>{{ section.settings.rating_label | escape }}</span>
+                        </span>
+                      {% endif %}
+                      <span class="customhouse-product-v2__product-price">
+                        <span>{{ recommended_product.price | money }}</span>
+                        {% if recommended_product.compare_at_price > recommended_product.price %}
+                          <span class="customhouse-product-v2__product-compare">{{ recommended_product.compare_at_price | money }}</span>
+                        {% endif %}
+                      </span>
+                      <span class="customhouse-product-v2__product-card-button">{{ section.settings.recommendation_button_text | escape }}</span>
+                    </span>
+                  </a>
+                  {% assign shown_recommendations = shown_recommendations | plus: 1 %}
+                  {% if shown_recommendations == 4 %}{% break %}{% endif %}
+                {% endunless %}
+              {% endfor %}
+            {% elsif recommendations.products_count > 0 %}
+              {% for recommended_product in recommendations.products limit: 4 %}
+                {% liquid
+                  assign recommended_product_image_alt = recommended_product.featured_image.alt | default: recommended_product.title | escape
+                %}
+                <a class="customhouse-product-v2__product-card" href="{{ recommended_product.url }}">
+                  <span class="customhouse-product-v2__product-media">
+                    {% if recommended_product.featured_image %}
+                      {{ recommended_product.featured_image | image_url: width: 520 | image_tag: class: 'customhouse-product-v2__product-image', widths: '220, 320, 420, 520', sizes: '(min-width: 990px) 25vw, (min-width: 750px) 50vw, calc(100vw - 48px)', loading: 'lazy', alt: recommended_product_image_alt }}
+                    {% endif %}
+                  </span>
+                  <span class="customhouse-product-v2__product-info">
+                    <span class="customhouse-product-v2__product-card-title">{{ recommended_product.title | escape }}</span>
+                    {% if section.settings.show_rating_row %}
+                      <span class="customhouse-product-v2__product-card-rating">
+                        <span aria-hidden="true">*****</span>
+                        <span>{{ section.settings.rating_label | escape }}</span>
+                      </span>
+                    {% endif %}
+                    <span class="customhouse-product-v2__product-price">
+                      <span>{{ recommended_product.price | money }}</span>
+                      {% if recommended_product.compare_at_price > recommended_product.price %}
+                        <span class="customhouse-product-v2__product-compare">{{ recommended_product.compare_at_price | money }}</span>
+                      {% endif %}
+                    </span>
+                    <span class="customhouse-product-v2__product-card-button">{{ section.settings.recommendation_button_text | escape }}</span>
+                  </span>
+                </a>
+                {% assign shown_recommendations = shown_recommendations | plus: 1 %}
+              {% endfor %}
+            {% endif %}
+          </div>
+          {% if shown_recommendations == 0 %}
+            <p class="customhouse-product-v2__recommendations-empty">{{ section.settings.recommendation_empty_text | escape }}</p>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  {% if section.settings.show_sticky_mobile_cta %}
+    <div class="customhouse-product-v2__sticky-cta" aria-label="Product actions">
+      {% if section.settings.customizer_button_link != blank %}
+        <a class="customhouse-product-v2__button customhouse-product-v2__button--customizer" href="{{ section.settings.customizer_button_link }}" data-customhouse-customizer-trigger data-customhouse-customizer-hook="{{ section.settings.customizer_app_hook | escape }}">
+          {{ section.settings.customizer_button_text | escape }}
+        </a>
+      {% else %}
+        <button class="customhouse-product-v2__button customhouse-product-v2__button--customizer" type="button" data-customhouse-customizer-trigger data-customhouse-customizer-hook="{{ section.settings.customizer_app_hook | escape }}">
+          {{ section.settings.customizer_button_text | escape }}
+        </button>
+      {% endif %}
+      <button class="customhouse-product-v2__button customhouse-product-v2__button--cart" type="submit" name="add" form="{{ product_form_id }}" data-sticky-add-to-cart {% unless current_variant.available %}disabled{% endunless %}>
+        <span data-sticky-add-to-cart-text>{% if current_variant.available %}{{ section.settings.add_to_cart_label | escape }}{% else %}{{ section.settings.sold_out_label | escape }}{% endif %}</span>
+      </button>
+    </div>
+  {% endif %}
+
+  <script type="application/json" data-product-json>{{ product | json }}</script>
+  <script type="application/json" data-variant-json>
+    [
+      {% for variant in product.variants %}
+        {
+          "id": {{ variant.id | json }},
+          "available": {{ variant.available | json }},
+          "options": {{ variant.options | json }},
+          "featuredMediaId": {% if variant.featured_media %}{{ variant.featured_media.id | json }}{% else %}null{% endif %},
+          "price": {{ variant.price | money | json }},
+          "compareAtPrice": {% if variant.compare_at_price > variant.price %}{{ variant.compare_at_price | money | json }}{% else %}null{% endif %},
+          "saving": {% if variant.compare_at_price > variant.price %}{{ variant.compare_at_price | minus: variant.price | money | prepend: 'You save ' | json }}{% else %}null{% endif %}
+        }{% unless forloop.last %},{% endunless %}
+      {% endfor %}
+    ]
+  </script>
+</section>
+
+<script src="{{ 'customhouse-product-v2.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "CustomHouse product v2",
+  "tag": "section",
+  "class": "section-customhouse-product-v2",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "range",
+      "id": "container_width",
+      "label": "Container width",
+      "min": 960,
+      "max": 1600,
+      "step": 20,
+      "unit": "px",
+      "default": 1440
+    },
+    {
+      "type": "range",
+      "id": "top_padding",
+      "label": "Top padding",
+      "min": 12,
+      "max": 100,
+      "step": 4,
+      "unit": "px",
+      "default": 28
+    },
+    {
+      "type": "range",
+      "id": "bottom_padding",
+      "label": "Bottom padding",
+      "min": 32,
+      "max": 140,
+      "step": 4,
+      "unit": "px",
+      "default": 72
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_graffiti_accents",
+      "label": "Enable graffiti accents",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "gallery_max_height_desktop",
+      "label": "Product gallery max height desktop",
+      "min": 420,
+      "max": 660,
+      "step": 10,
+      "unit": "px",
+      "default": 500
+    },
+    {
+      "type": "range",
+      "id": "gallery_max_height_mobile",
+      "label": "Product gallery max height mobile",
+      "min": 260,
+      "max": 380,
+      "step": 10,
+      "unit": "px",
+      "default": 300
+    },
+    {
+      "type": "range",
+      "id": "card_radius",
+      "label": "Card radius",
+      "min": 10,
+      "max": 28,
+      "step": 1,
+      "unit": "px",
+      "default": 18
+    },
+    {
+      "type": "header",
+      "content": "Product form"
+    },
+    {
+      "type": "text",
+      "id": "customizer_button_text",
+      "label": "Customizer button text",
+      "default": "Customize This Product"
+    },
+    {
+      "type": "url",
+      "id": "customizer_button_link",
+      "label": "Customizer button link"
+    },
+    {
+      "type": "text",
+      "id": "customizer_app_hook",
+      "label": "Customizer app hook",
+      "default": "inkybay-customizer"
+    },
+    {
+      "type": "text",
+      "id": "add_to_cart_label",
+      "label": "Add to cart label",
+      "default": "Add to Cart"
+    },
+    {
+      "type": "text",
+      "id": "sold_out_label",
+      "label": "Sold out label",
+      "default": "Sold Out"
+    },
+    {
+      "type": "text",
+      "id": "unavailable_label",
+      "label": "Unavailable variant label",
+      "default": "Unavailable"
+    },
+    {
+      "type": "text",
+      "id": "quantity_label",
+      "label": "Quantity label",
+      "default": "Quantity"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_dynamic_checkout_buttons",
+      "label": "Show dynamic checkout buttons",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_sticky_mobile_cta",
+      "label": "Show sticky mobile CTA bar",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "selling_plan_label",
+      "label": "Selling plan label",
+      "default": "Purchase option"
+    },
+    {
+      "type": "text",
+      "id": "one_time_purchase_label",
+      "label": "One-time purchase label",
+      "default": "One-time purchase"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_rating_row",
+      "label": "Show rating row",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "rating_label",
+      "label": "Rating label",
+      "default": "4.8 (250 reviews)"
+    },
+    {
+      "type": "text",
+      "id": "micro_benefit_1",
+      "label": "Micro benefit 1",
+      "default": "Production time 3-5 business days"
+    },
+    {
+      "type": "text",
+      "id": "micro_benefit_2",
+      "label": "Micro benefit 2",
+      "default": "Worldwide shipping"
+    },
+    {
+      "type": "text",
+      "id": "micro_benefit_3",
+      "label": "Micro benefit 3",
+      "default": "Easy returns"
+    },
+    {
+      "type": "header",
+      "content": "Benefit cards"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_benefit_cards",
+      "label": "Show benefit cards",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "benefit_1_icon",
+      "label": "Benefit 1 icon",
+      "default": "Q"
+    },
+    {
+      "type": "text",
+      "id": "benefit_1_title",
+      "label": "Benefit 1 title",
+      "default": "Premium Quality"
+    },
+    {
+      "type": "textarea",
+      "id": "benefit_1_text",
+      "label": "Benefit 1 text",
+      "default": "Top-grade materials and stitching for lasting comfort, structure, and daily wear."
+    },
+    {
+      "type": "text",
+      "id": "benefit_2_icon",
+      "label": "Benefit 2 icon",
+      "default": "E"
+    },
+    {
+      "type": "text",
+      "id": "benefit_2_title",
+      "label": "Benefit 2 title",
+      "default": "Embroidery Ready"
+    },
+    {
+      "type": "textarea",
+      "id": "benefit_2_text",
+      "label": "Benefit 2 text",
+      "default": "Prepared for crisp custom artwork, bold text, and clean personalized details."
+    },
+    {
+      "type": "text",
+      "id": "benefit_3_icon",
+      "label": "Benefit 3 icon",
+      "default": "F"
+    },
+    {
+      "type": "text",
+      "id": "benefit_3_title",
+      "label": "Benefit 3 title",
+      "default": "Fast Production"
+    },
+    {
+      "type": "textarea",
+      "id": "benefit_3_text",
+      "label": "Benefit 3 text",
+      "default": "Efficient production gets your custom product moving quickly without losing polish."
+    },
+    {
+      "type": "text",
+      "id": "benefit_4_icon",
+      "label": "Benefit 4 icon",
+      "default": "W"
+    },
+    {
+      "type": "text",
+      "id": "benefit_4_title",
+      "label": "Benefit 4 title",
+      "default": "Worldwide Shipping"
+    },
+    {
+      "type": "textarea",
+      "id": "benefit_4_text",
+      "label": "Benefit 4 text",
+      "default": "Reliable shipping partners and tracking help every order arrive with confidence."
+    },
+    {
+      "type": "header",
+      "content": "How it works"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_how_it_works",
+      "label": "Show how it works",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "how_kicker",
+      "label": "How it works kicker",
+      "default": "Personalization process"
+    },
+    {
+      "type": "text",
+      "id": "how_heading_before",
+      "label": "Heading before accent",
+      "default": "Design It."
+    },
+    {
+      "type": "text",
+      "id": "how_heading_accent",
+      "label": "Heading accent",
+      "default": "Preview It."
+    },
+    {
+      "type": "text",
+      "id": "how_heading_after",
+      "label": "Heading after accent",
+      "default": "Wear It."
+    },
+    {
+      "type": "textarea",
+      "id": "how_text",
+      "label": "How it works text",
+      "default": "Create something unique in a few simple steps."
+    },
+    {
+      "type": "text",
+      "id": "how_button_text",
+      "label": "How it works button text",
+      "default": "Start Designing"
+    },
+    {
+      "type": "text",
+      "id": "step_1_title",
+      "label": "Step 1 title",
+      "default": "Choose Product"
+    },
+    {
+      "type": "textarea",
+      "id": "step_1_text",
+      "label": "Step 1 text",
+      "default": "Pick your favorite product and get started."
+    },
+    {
+      "type": "text",
+      "id": "step_2_title",
+      "label": "Step 2 title",
+      "default": "Customize"
+    },
+    {
+      "type": "textarea",
+      "id": "step_2_text",
+      "label": "Step 2 text",
+      "default": "Add text, logos, artwork, and personal details."
+    },
+    {
+      "type": "text",
+      "id": "step_3_title",
+      "label": "Step 3 title",
+      "default": "Preview"
+    },
+    {
+      "type": "textarea",
+      "id": "step_3_text",
+      "label": "Step 3 text",
+      "default": "Review your design before placing the order."
+    },
+    {
+      "type": "text",
+      "id": "step_4_title",
+      "label": "Step 4 title",
+      "default": "Order"
+    },
+    {
+      "type": "textarea",
+      "id": "step_4_text",
+      "label": "Step 4 text",
+      "default": "Checkout and let CustomHouse handle the rest."
+    },
+    {
+      "type": "header",
+      "content": "Product details accordion"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_accordions",
+      "label": "Show accordions",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "details_kicker",
+      "label": "Details kicker",
+      "default": "Product details"
+    },
+    {
+      "type": "text",
+      "id": "details_heading_before",
+      "label": "Details heading before accent",
+      "default": "Product"
+    },
+    {
+      "type": "text",
+      "id": "details_heading_accent",
+      "label": "Details heading accent",
+      "default": "Details"
+    },
+    {
+      "type": "text",
+      "id": "accordion_1_title",
+      "label": "Accordion 1 title",
+      "default": "Description"
+    },
+    {
+      "type": "text",
+      "id": "accordion_2_title",
+      "label": "Accordion 2 title",
+      "default": "Materials"
+    },
+    {
+      "type": "richtext",
+      "id": "accordion_2_content",
+      "label": "Accordion 2 content",
+      "default": "<p>Premium materials selected for comfort, durability, and clean customization results.</p>"
+    },
+    {
+      "type": "text",
+      "id": "accordion_3_title",
+      "label": "Accordion 3 title",
+      "default": "Size Guide"
+    },
+    {
+      "type": "richtext",
+      "id": "accordion_3_content",
+      "label": "Accordion 3 content",
+      "default": "<p>Check the product measurements before ordering. If you are between sizes, choose the larger size for a relaxed fit.</p>"
+    },
+    {
+      "type": "text",
+      "id": "accordion_4_title",
+      "label": "Accordion 4 title",
+      "default": "Shipping"
+    },
+    {
+      "type": "richtext",
+      "id": "accordion_4_content",
+      "label": "Accordion 4 content",
+      "default": "<p>Production and shipping times vary by product and destination. Tracking is provided when the order ships.</p>"
+    },
+    {
+      "type": "text",
+      "id": "accordion_5_title",
+      "label": "Accordion 5 title",
+      "default": "Returns"
+    },
+    {
+      "type": "richtext",
+      "id": "accordion_5_content",
+      "label": "Accordion 5 content",
+      "default": "<p>Because customized products are made for you, returns may be limited unless the item arrives damaged or incorrect.</p>"
+    },
+    {
+      "type": "header",
+      "content": "Product recommendations"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_product_recommendations",
+      "label": "Show product recommendations",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "use_vendor_recommendation_heading",
+      "label": "Use vendor in recommendation heading",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "recommendation_heading",
+      "label": "Recommendation heading",
+      "default": "More From CustomHouse"
+    },
+    {
+      "type": "textarea",
+      "id": "recommendation_subheading",
+      "label": "Recommendation subheading",
+      "default": "Check out more designs from this creator."
+    },
+    {
+      "type": "collection",
+      "id": "recommendation_collection",
+      "label": "Fallback recommendation collection"
+    },
+    {
+      "type": "text",
+      "id": "recommendation_empty_text",
+      "label": "Empty recommendation text",
+      "default": "Recommendations will appear here when available."
+    },
+    {
+      "type": "text",
+      "id": "recommendation_button_text",
+      "label": "Recommendation button text",
+      "default": "View Product"
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background color",
+      "default": "#0F0F11"
+    },
+    {
+      "type": "color",
+      "id": "card_background_color",
+      "label": "Card background color",
+      "default": "#18181B"
+    },
+    {
+      "type": "color",
+      "id": "heading_color",
+      "label": "Heading color",
+      "default": "#FFFFFF"
+    },
+    {
+      "type": "color",
+      "id": "body_text_color",
+      "label": "Body text color",
+      "default": "#C6C6CC"
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Accent color",
+      "default": "#D7FF2F"
+    },
+    {
+      "type": "color",
+      "id": "border_color",
+      "label": "Border color",
+      "default": "#6D42B8"
+    },
+    {
+      "type": "color",
+      "id": "button_primary_background",
+      "label": "Primary button background",
+      "default": "#8D2FFF"
+    },
+    {
+      "type": "color",
+      "id": "button_primary_text",
+      "label": "Primary button text",
+      "default": "#FFFFFF"
+    },
+    {
+      "type": "color",
+      "id": "button_secondary_background",
+      "label": "Secondary button background",
+      "default": "#0F0F11"
+    },
+    {
+      "type": "color",
+      "id": "button_secondary_text",
+      "label": "Secondary button text",
+      "default": "#FFFFFF"
+    }
+  ],
+  "presets": [
+    {
+      "name": "CustomHouse product v2"
+    }
+  ]
+}
+{% endschema %}

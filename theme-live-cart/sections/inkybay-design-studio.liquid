@@ -1,0 +1,658 @@
+{% liquid
+  assign product_collection = section.settings.product_collection
+  assign has_product_cards = false
+  if product_collection != blank and product_collection.products_count > 0
+    assign has_product_cards = true
+  endif
+
+  assign product_limit = section.settings.product_limit | default: 12 | plus: 0
+  assign pitchprint_launch_parameter = section.settings.pitchprint_launch_parameter | default: 'open_customizer' | handleize
+%}
+
+<section
+  id="PitchprintDesignStudioLauncher-{{ section.id }}"
+  class="pitchprint-design-studio-launcher"
+  style="
+    --ids-bg: {{ section.settings.background_color }};
+    --ids-panel: {{ section.settings.panel_color }};
+    --ids-text: {{ section.settings.text_color }};
+    --ids-muted: {{ section.settings.muted_color }};
+    --ids-accent: {{ section.settings.accent_color }};
+    --ids-accent-2: {{ section.settings.accent_2_color }};
+    --ids-border: {{ section.settings.border_color }};
+  "
+  data-pitchprint-studio-launcher
+>
+  <div class="pitchprint-design-studio-launcher__background" aria-hidden="true"></div>
+  <div class="pitchprint-design-studio-launcher__loading-overlay" data-pitchprint-loading hidden>
+    <span aria-hidden="true"></span>
+    <p data-pitchprint-loading-text>{{ section.settings.loading_text | replace: 'InkyBay', 'PitchPrint' | replace: 'inkybay', 'PitchPrint' | escape }}</p>
+    <button type="button" class="pitchprint-design-studio-launcher__loading-close" data-pitchprint-loading-close aria-label="Close PitchPrint customizer">Close</button>
+  </div>
+
+  <div class="pitchprint-design-studio-launcher__inner">
+    <div class="pitchprint-design-studio-launcher__panel">
+      {% if section.settings.eyebrow != blank %}
+        <p class="pitchprint-design-studio-launcher__eyebrow">
+          <span aria-hidden="true"></span>
+          {{ section.settings.eyebrow | replace: 'InkyBay', 'PitchPrint' | replace: 'inkybay', 'PitchPrint' | escape }}
+        </p>
+      {% endif %}
+
+      {% if section.settings.heading != blank %}
+        <h1>{{ section.settings.heading | replace: 'InkyBay', 'PitchPrint' | replace: 'inkybay', 'PitchPrint' | escape }}</h1>
+      {% endif %}
+
+      {% if section.settings.description != blank %}
+        <div class="pitchprint-design-studio-launcher__description rte">
+          {{ section.settings.description | replace: 'InkyBay', 'PitchPrint' | replace: 'inkybay', 'PitchPrint' }}
+        </div>
+      {% endif %}
+
+      <div class="pitchprint-design-studio-launcher__steps" aria-label="Design Studio steps">
+        <div>
+          <strong>01</strong>
+          <span>{{ section.settings.step_1_label | replace: 'InkyBay', 'PitchPrint' | replace: 'inkybay', 'PitchPrint' | replace: 'Choose product', 'Choose a product' | escape }}</span>
+        </div>
+        <div>
+          <strong>02</strong>
+          <span>{{ section.settings.step_2_label | replace: 'InkyBay', 'PitchPrint' | replace: 'inkybay', 'PitchPrint' | replace: 'Open customizer', 'Open product page' | replace: 'Select product', 'Open product page' | escape }}</span>
+        </div>
+        <div>
+          <strong>03</strong>
+          <span>{{ section.settings.step_3_label | replace: 'InkyBay', 'PitchPrint' | replace: 'inkybay', 'PitchPrint' | replace: 'Customize & add to cart', 'Customize with PitchPrint' | replace: 'Customize in PitchPrint', 'Customize with PitchPrint' | escape }}</span>
+        </div>
+      </div>
+
+      {% if has_product_cards %}
+        <div class="pitchprint-design-studio-launcher__products" role="list" aria-label="{{ section.settings.product_grid_label | replace: 'InkyBay', 'PitchPrint' | replace: 'inkybay', 'PitchPrint' | escape }}">
+          {% assign rendered_product_cards = 0 %}
+          {% for card_product in product_collection.products %}
+            {% if rendered_product_cards < product_limit %}
+              {% liquid
+                assign rendered_product_cards = rendered_product_cards | plus: 1
+                assign card_image = card_product.featured_image
+                assign pitchprint_product_url = card_product.url
+              %}
+              <article class="pitchprint-design-studio-launcher__product-card" role="listitem">
+                <a class="pitchprint-design-studio-launcher__product-link" href="{{ pitchprint_product_url }}" data-pitchprint-card-link aria-label="{{ section.settings.card_button_label | replace: 'InkyBay', 'PitchPrint' | replace: 'inkybay', 'PitchPrint' | escape }}: {{ card_product.title | escape }}">
+                  <span class="pitchprint-design-studio-launcher__product-media">
+                    {% if card_image != blank %}
+                      {{ card_image | image_url: width: 420 | image_tag: loading: 'lazy', alt: card_product.title }}
+                    {% else %}
+                      <span aria-hidden="true">{{ card_product.title | slice: 0, 1 | upcase }}</span>
+                    {% endif %}
+                  </span>
+                  <span class="pitchprint-design-studio-launcher__product-body">
+                    <strong>{{ card_product.title | escape }}</strong>
+                    <span class="pitchprint-design-studio-launcher__product-button">
+                      {{ section.settings.card_button_label | replace: 'InkyBay', 'PitchPrint' | replace: 'inkybay', 'PitchPrint' | escape }}
+                    </span>
+                  </span>
+                </a>
+              </article>
+            {% endif %}
+          {% endfor %}
+        </div>
+
+        {% if product_collection.products_count > product_limit %}
+          <p class="pitchprint-design-studio-launcher__footer">Showing {{ product_limit }} of {{ product_collection.products_count }} products.</p>
+        {% elsif section.settings.footer_text != blank %}
+          <p class="pitchprint-design-studio-launcher__footer">{{ section.settings.footer_text | replace: 'InkyBay', 'PitchPrint' | replace: 'inkybay', 'PitchPrint' | escape }}</p>
+        {% endif %}
+      {% else %}
+        <div class="pitchprint-design-studio-launcher__setup" role="alert">
+          <strong>Product collection is not configured.</strong>
+          <p>Open the Theme Editor, select this section, and choose the collection that contains your PitchPrint customizable products.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<style>
+  #PitchprintDesignStudioLauncher-{{ section.id }} {
+    position: relative;
+    min-height: min(820px, calc(100vh - var(--header-height, 0px)));
+    display: grid;
+    place-items: center;
+    padding: clamp(42px, 8vw, 96px) 20px;
+    background:
+      radial-gradient(circle at 15% 12%, color-mix(in srgb, var(--ids-accent) 22%, transparent), transparent 34%),
+      radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--ids-accent-2) 18%, transparent), transparent 30%),
+      linear-gradient(180deg, #050505, var(--ids-bg));
+    color: var(--ids-text);
+    overflow: hidden;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} *,
+  #PitchprintDesignStudioLauncher-{{ section.id }} *::before,
+  #PitchprintDesignStudioLauncher-{{ section.id }} *::after {
+    box-sizing: border-box;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__background {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: radial-gradient(rgba(255,255,255,.065) 1px, transparent 1px);
+    background-size: 30px 30px;
+    mask-image: linear-gradient(180deg, rgba(0,0,0,.72), transparent 86%);
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__inner {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 980px);
+    margin: 0 auto;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__panel {
+    padding: clamp(32px, 6vw, 72px);
+    border: 1px solid var(--ids-border);
+    border-radius: 22px;
+    background:
+      linear-gradient(145deg, rgba(255,255,255,.055), rgba(255,255,255,.012)),
+      var(--ids-panel);
+    box-shadow: 0 30px 90px rgba(0,0,0,.48), inset 0 1px 0 rgba(255,255,255,.055);
+    text-align: center;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 18px;
+    color: color-mix(in srgb, var(--ids-accent) 76%, white);
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__eyebrow span {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--ids-accent);
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--ids-accent) 14%, transparent), 0 0 22px var(--ids-accent);
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} h1 {
+    max-width: 820px;
+    margin: 0 auto;
+    color: var(--ids-text);
+    font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+    font-size: clamp(44px, 8vw, 88px);
+    font-style: italic;
+    font-weight: 900;
+    letter-spacing: -.035em;
+    line-height: .92;
+    text-transform: uppercase;
+    text-wrap: balance;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__description {
+    max-width: 690px;
+    margin: 22px auto 0;
+    color: var(--ids-muted);
+    font-size: clamp(15px, 1.8vw, 18px);
+    line-height: 1.65;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__description p {
+    margin: 0;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__steps {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 34px 0 0;
+    border: 1px solid var(--ids-border);
+    border-radius: 12px;
+    background: rgba(255,255,255,.03);
+    overflow: hidden;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__steps div {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 68px;
+    padding: 12px;
+    border-inline-end: 1px solid var(--ids-border);
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__steps div:last-child {
+    border-inline-end: 0;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__steps strong {
+    color: var(--ids-accent);
+    font-size: 13px;
+    font-weight: 900;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__steps span {
+    color: var(--ids-text);
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__products {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+    margin: 34px auto 0;
+    max-width: 1060px;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__product-card {
+    flex: 1 1 calc((100% - 40px) / 3);
+    max-width: calc((100% - 40px) / 3);
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 12px;
+    background: rgba(255,255,255,.035);
+    text-align: left;
+    transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease, background .2s ease;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__product-card:hover,
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__product-card:focus-within {
+    border-color: color-mix(in srgb, var(--ids-accent) 82%, white);
+    background: rgba(255,255,255,.06);
+    box-shadow: 0 16px 34px color-mix(in srgb, var(--ids-accent) 20%, transparent);
+    transform: translateY(-2px);
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__product-link {
+    display: grid;
+    grid-template-rows: 248px minmax(132px, auto);
+    height: 100%;
+    min-width: 0;
+    color: var(--ids-text);
+    text-decoration: none;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__product-media {
+    display: grid;
+    place-items: center;
+    height: 248px;
+    padding: 18px;
+    background: linear-gradient(145deg, rgba(255,255,255,.08), rgba(255,255,255,.018));
+    color: var(--ids-muted);
+    font-size: 38px;
+    font-weight: 900;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__product-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+    display: block;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__product-body {
+    display: grid;
+    align-content: space-between;
+    gap: 14px;
+    min-width: 0;
+    min-height: 132px;
+    padding: 16px;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__product-body strong {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    color: var(--ids-text);
+    font-size: 14px;
+    font-weight: 900;
+    line-height: 1.25;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__product-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 48px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--ids-accent), var(--ids-accent-2));
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--ids-accent) 28%, transparent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1.2;
+    text-align: center;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 999999;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 16px;
+    padding: 24px;
+    background: rgba(5,5,5,.92);
+    color: var(--ids-text);
+    text-align: center;
+    backdrop-filter: blur(10px);
+  }
+#PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__loading-overlay[hidden] {
+    display: none;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__loading-overlay span {
+    width: 42px;
+    height: 42px;
+    border: 3px solid rgba(255,255,255,.18);
+    border-top-color: var(--ids-accent);
+    border-radius: 999px;
+    animation: pitchprint-launcher-spin .75s linear infinite;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__loading-overlay p {
+    margin: 0;
+    color: var(--ids-text);
+    font-size: 14px;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__loading-close {
+    position: fixed;
+    top: 18px;
+    right: 18px;
+    z-index: 2;
+    min-height: 38px;
+    padding: 0 14px;
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 999px;
+    background: rgba(15,15,18,.82);
+    color: #fff;
+    cursor: pointer;
+    font: 800 12px/1 system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    text-transform: uppercase;
+  }
+#PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__setup {
+    max-width: 720px;
+    margin: 32px auto 0;
+    padding: 18px 20px;
+    border: 1px solid rgba(255, 187, 74, .38);
+    border-radius: 12px;
+    background: rgba(255, 187, 74, .08);
+    text-align: left;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__setup strong,
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__setup p {
+    display: block;
+    margin: 0;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__setup p {
+    margin-top: 7px;
+    color: var(--ids-muted);
+    line-height: 1.55;
+  }
+
+  #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__footer {
+    margin: 18px 0 0;
+    color: var(--ids-muted);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  @keyframes pitchprint-launcher-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  @media screen and (max-width: 989px) {
+    #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__product-card {
+      flex-basis: calc((100% - 20px) / 2);
+      max-width: calc((100% - 20px) / 2);
+    }
+  }
+
+  @media screen and (max-width: 749px) {
+    #PitchprintDesignStudioLauncher-{{ section.id }} {
+      min-height: 72vh;
+      padding: 24px 14px 42px;
+    }
+
+    #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__panel {
+      padding: 30px 18px;
+      border-radius: 16px;
+    }
+
+    #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__steps {
+      grid-template-columns: 1fr;
+    }
+
+    #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__steps div {
+      min-height: 54px;
+      border-inline-end: 0;
+      border-bottom: 1px solid var(--ids-border);
+    }
+
+    #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__steps div:last-child {
+      border-bottom: 0;
+    }
+
+    #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__products {
+      gap: 14px;
+      max-width: 380px;
+      margin-inline: auto;
+    }
+
+    #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__product-card {
+      flex: 1 1 100%;
+      max-width: 100%;
+    }
+
+    #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__product-link {
+      grid-template-rows: 190px minmax(118px, auto);
+    }
+
+    #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__product-media {
+      height: 190px;
+      padding: 14px;
+    }
+
+    #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__product-body {
+      min-height: 118px;
+      padding: 12px;
+    }
+
+    #PitchprintDesignStudioLauncher-{{ section.id }} .pitchprint-design-studio-launcher__product-button {
+      min-height: 44px;
+      padding: 9px 10px;
+      font-size: 10px;
+      white-space: nowrap;
+    }
+  }
+</style>
+
+
+
+{% schema %}
+{
+  "name": "PitchPrint Design Studio",
+  "settings": [
+    {
+      "type": "header",
+      "content": "PitchPrint products"
+    },
+    {
+      "type": "collection",
+      "id": "product_collection",
+      "label": "Products to show"
+    },
+    {
+      "type": "range",
+      "id": "product_limit",
+      "label": "Product card limit",
+      "min": 1,
+      "max": 24,
+      "step": 1,
+      "default": 12
+    },
+    {
+      "type": "text",
+      "id": "pitchprint_launch_parameter",
+      "label": "PitchPrint launch parameter",
+      "default": "open_customizer",
+      "info": "Cards add this parameter to the Shopify product URL. It should match the Auto-open URL parameter in the product information section."
+    },
+    {
+      "type": "text",
+      "id": "pitchprint_direct_url_template",
+      "label": "Direct PitchPrint URL template",
+      "info": "Optional. Use this only if PitchPrint gives you a direct designer URL. Supported placeholders: [product_handle], [product_id], [variant_id]."
+    },
+    {
+      "type": "text",
+      "id": "pitchprint_url_metafield_namespace",
+      "label": "Direct URL metafield namespace",
+      "default": "custom"
+    },
+    {
+      "type": "text",
+      "id": "pitchprint_url_metafield_key",
+      "label": "Direct URL metafield key",
+      "default": "pitchprint_url",
+      "info": "Optional product metafield that stores the exact PitchPrint designer URL for each product. This takes priority over the URL template."
+    },
+    {
+      "type": "text",
+      "id": "card_button_label",
+      "label": "Card button label",
+      "default": "Customize with PitchPrint"
+    },
+    {
+      "type": "text",
+      "id": "loading_text",
+      "label": "Loading text",
+      "default": "Opening PitchPrint customizer"
+    },
+    {
+      "type": "header",
+      "content": "Content"
+    },
+    {
+      "type": "text",
+      "id": "eyebrow",
+      "label": "Eyebrow",
+      "default": "Custom design center"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Create your custom product"
+    },
+    {
+      "type": "richtext",
+      "id": "description",
+      "label": "Description",
+      "default": "<p>Choose a product below and launch the PitchPrint customization panel to create your design.</p>"
+    },
+    {
+      "type": "text",
+      "id": "step_1_label",
+      "label": "Step 1 label",
+      "default": "Choose a product"
+    },
+    {
+      "type": "text",
+      "id": "step_2_label",
+      "label": "Step 2 label",
+      "default": "Open product page"
+    },
+    {
+      "type": "text",
+      "id": "step_3_label",
+      "label": "Step 3 label",
+      "default": "Customize with PitchPrint"
+    },
+    {
+      "type": "text",
+      "id": "product_grid_label",
+      "label": "Product grid accessibility label",
+      "default": "PitchPrint customizable products"
+    },
+    {
+      "type": "text",
+      "id": "footer_text",
+      "label": "Footer text",
+      "default": "Choose a product card to open its product page and start customization with PitchPrint."
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Page background",
+      "default": "#050505"
+    },
+    {
+      "type": "color",
+      "id": "panel_color",
+      "label": "Panel background",
+      "default": "#0d0d0d"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "muted_color",
+      "label": "Muted text",
+      "default": "#aaaaaa"
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Primary accent",
+      "default": "#9b36ff"
+    },
+    {
+      "type": "color",
+      "id": "accent_2_color",
+      "label": "Secondary accent",
+      "default": "#6e24df"
+    },
+    {
+      "type": "color",
+      "id": "border_color",
+      "label": "Border color",
+      "default": "#292929"
+    }
+  ],
+  "presets": [
+    {
+      "name": "PitchPrint Design Studio"
+    }
+  ]
+}
+{% endschema %}

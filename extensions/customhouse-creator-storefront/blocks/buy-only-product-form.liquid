@@ -1,2 +1,48 @@
-{% if product.metafields.customhouse.product_origin.value == 'creator' and product.metafields.customhouse.design_mode.value == 'buy_only' %}<div class="customhouse-card"><form method="post" action="{{ routes.cart_add_url }}"><label class="customhouse-field">Variant<select name="id">{% for variant in product.variants %}<option value="{{ variant.id }}"{% unless variant.available %} disabled{% endunless %}>{{ variant.title | escape }} — {{ variant.price | money }}</option>{% endfor %}</select></label><label class="customhouse-field">Quantity<input type="number" name="quantity" min="1" value="1"></label><button type="submit">{{ block.settings.button }}</button></form></div>{% endif %}
+{% liquid
+  assign product_origin = product.metafields.customhouse.product_origin.value | downcase
+  assign design_mode = product.metafields.customhouse.design_mode.value | downcase
+  assign design_status = product.metafields.customhouse.design_status.value | downcase
+  assign fixed_color = product.metafields.customhouse.fixed_color.value | default: product.metafields.customhouse.fixed_color
+  assign production_method = product.metafields.customhouse.production_method.value | default: product.metafields.customhouse.production_method
+  assign is_creator_locked_product = false
+  if product_origin == 'creator' and design_mode == 'buy_only' and design_status == 'published'
+    assign is_creator_locked_product = true
+  endif
+%}
+{% if is_creator_locked_product %}
+  <div class="customhouse-card customhouse-buy-only-form">
+    <dl class="customhouse-buy-only-fixed" aria-label="Creator product details">
+      {% if fixed_color != blank %}<div><dt>Color</dt><dd>{{ fixed_color | escape }}</dd></div>{% endif %}
+      {% if production_method != blank %}<div><dt>Printing method</dt><dd>{{ production_method | replace: 'EMBROIDERY', 'Embroidery' | replace: 'DTF', 'DTF printing' | replace: 'DTG', 'DTG printing' | escape }}</dd></div>{% endif %}
+    </dl>
+    <form method="post" action="{{ routes.cart_add_url }}">
+      <label class="customhouse-field">Size
+        <select name="id">
+          {% for variant in product.variants %}
+            {% liquid
+              assign include_variant = true
+              if fixed_color != blank
+                assign include_variant = false
+                for option in variant.selected_options
+                  assign option_name = option.name | downcase
+                  if option_name == 'color' or option_name == 'colour' or option_name == 'farg' or option_name == 'färg'
+                    if option.value == fixed_color
+                      assign include_variant = true
+                    endif
+                  endif
+                endfor
+              endif
+            %}
+            {% if include_variant %}
+              <option value="{{ variant.id }}"{% unless variant.available %} disabled{% endunless %}>{{ variant.title | escape }} - {{ variant.price | money }}</option>
+            {% endif %}
+          {% endfor %}
+        </select>
+      </label>
+      <label class="customhouse-field">Quantity<input type="number" name="quantity" min="1" value="1"></label>
+      <p class="customhouse-made-to-order-note">This customized Creator product is made to order and cannot be returned.</p>
+      <button type="submit">{{ block.settings.button }}</button>
+    </form>
+  </div>
+{% endif %}
 {% schema %}{"name":"Buy-only Product Form","target":"section","settings":[{"type":"text","id":"button","label":"Button","default":"Add to cart"}]}{% endschema %}

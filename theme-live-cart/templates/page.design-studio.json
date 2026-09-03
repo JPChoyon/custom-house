@@ -1,0 +1,40 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "main": {
+      "type": "inkybay-design-studio",
+      "settings": {
+        "product_collection": "all",
+        "product_limit": 3,
+        "auto_open_parameter": "open_customizer",
+        "eyebrow": "Custom design center",
+        "heading": "Create your own design",
+        "description": "<p>Enter the full InkyBay DesignLab, select a customizable product, and create your design using native text, artwork, color, size, and quantity tools.</p>",
+        "step_1_label": "Choose product",
+        "step_2_label": "Open customizer",
+        "step_3_label": "Customize & add to cart",
+        "product_grid_label": "PitchPrint customizable products",
+        "card_action_label": "Customize now",
+        "footer_text": "You will be taken directly to the official InkyBay Product Customizer.",
+        "background_color": "#050505",
+        "panel_color": "#0d0d0d",
+        "text_color": "#ffffff",
+        "muted_color": "#aaaaaa",
+        "accent_color": "#9b36ff",
+        "accent_2_color": "#6e24df",
+        "border_color": "#292929"
+      }
+    }
+  },
+  "order": [
+    "main"
+  ]
+}

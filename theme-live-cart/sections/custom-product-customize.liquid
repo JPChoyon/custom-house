@@ -1,0 +1,1038 @@
+{% liquid
+  assign section_id = 'pp-' | append: section.id
+  assign steps_count = section.blocks.size
+%}
+
+{%- style -%}
+  {{ section.settings.heading_font | font_face: font_display: 'swap' }}
+  {{ section.settings.body_font | font_face: font_display: 'swap' }}
+
+  #{{ section_id }} {
+    --pp-bg: {{ section.settings.background_color }};
+    --pp-panel: {{ section.settings.panel_color }};
+    --pp-text: {{ section.settings.text_color }};
+    --pp-muted: {{ section.settings.muted_color }};
+    --pp-purple: {{ section.settings.accent_color }};
+    --pp-lime: {{ section.settings.highlight_color }};
+    --pp-border: {{ section.settings.border_color }};
+    --pp-radius: {{ section.settings.border_radius }}px;
+    --pp-shadow: {{ section.settings.glow_strength }}px;
+    --pp-max-width: {{ section.settings.max_width }}px;
+    --pp-pad-y: {{ section.settings.padding_y }}px;
+    --pp-pad-x: {{ section.settings.padding_x }}px;
+    background: var(--pp-bg);
+    color: var(--pp-text);
+    padding: {{ section.settings.outer_padding_y }}px {{ section.settings.outer_padding_x }}px;
+  }
+
+  #{{ section_id }} .pp-wrap {
+    max-width: var(--pp-max-width);
+    margin: 0 auto;
+  }
+
+  #{{ section_id }} .pp-panel {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border: {{ section.settings.border_width }}px solid var(--pp-border);
+    border-radius: var(--pp-radius);
+    background:
+      radial-gradient(circle at 19% 47%, color-mix(in srgb, var(--pp-purple) 18%, transparent), transparent 21%),
+      radial-gradient(circle at 82% 36%, color-mix(in srgb, var(--pp-purple) 12%, transparent), transparent 23%),
+      linear-gradient(180deg, color-mix(in srgb, var(--pp-panel) 92%, #ffffff 4%), var(--pp-panel));
+    box-shadow:
+      inset 0 0 35px rgba(255, 255, 255, .03),
+      0 0 var(--pp-shadow) color-mix(in srgb, var(--pp-purple) 48%, transparent);
+    padding: var(--pp-pad-y) var(--pp-pad-x);
+  }
+
+  {% if section.settings.background_image != blank %}
+    #{{ section_id }} .pp-panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -3;
+      background-image: url({{ section.settings.background_image | image_url: width: 2400 }});
+      background-size: cover;
+      background-position: center;
+      opacity: {{ section.settings.background_image_opacity | divided_by: 100.0 }};
+    }
+  {% endif %}
+
+  #{{ section_id }} .pp-panel::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    pointer-events: none;
+    background:
+      linear-gradient(115deg, transparent 0 2%, color-mix(in srgb, var(--pp-purple) 22%, transparent) 2.2% 2.6%, transparent 2.9% 100%),
+      radial-gradient(ellipse at 0% 95%, color-mix(in srgb, var(--pp-purple) 36%, transparent), transparent 18%),
+      radial-gradient(ellipse at 100% 6%, color-mix(in srgb, var(--pp-purple) 20%, transparent), transparent 17%);
+    opacity: {{ section.settings.texture_opacity | divided_by: 100.0 }};
+  }
+
+  #{{ section_id }} .pp-mark {
+    position: absolute;
+    z-index: -1;
+    pointer-events: none;
+    opacity: {{ section.settings.decor_opacity | divided_by: 100.0 }};
+    color: var(--pp-purple);
+    font-family: Arial, sans-serif;
+    font-size: clamp(120px, 18vw, 260px);
+    font-weight: 800;
+    line-height: 1;
+    filter: blur(.2px);
+    transform: rotate(-10deg);
+    -webkit-text-stroke: 3px currentColor;
+    color: transparent;
+  }
+
+  #{{ section_id }} .pp-mark--left {
+    left: 22px;
+    top: 8px;
+  }
+
+  #{{ section_id }} .pp-mark--right {
+    right: 28px;
+    top: 18px;
+    transform: rotate(8deg);
+  }
+
+  #{{ section_id }} .pp-kicker {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin: 0 0 12px;
+    color: var(--pp-lime);
+    font-family: {{ section.settings.body_font.family }}, {{ section.settings.body_font.fallback_families }};
+    font-size: clamp(11px, 1.1vw, 15px);
+    font-weight: 800;
+    letter-spacing: .28em;
+    line-height: 1.4;
+    text-align: center;
+    text-transform: uppercase;
+    text-shadow: 0 0 12px color-mix(in srgb, var(--pp-lime) 45%, transparent);
+  }
+
+  #{{ section_id }} .pp-kicker::before,
+  #{{ section_id }} .pp-kicker::after {
+    content: "";
+    display: block;
+    width: clamp(24px, 3vw, 38px);
+    height: 2px;
+    background: var(--pp-purple);
+    box-shadow: 0 0 10px var(--pp-purple);
+  }
+
+  #{{ section_id }} .pp-title {
+    margin: 0;
+    font-family: {{ section.settings.heading_font.family }}, {{ section.settings.heading_font.fallback_families }};
+    font-size: clamp(32px, 4.2vw, {{ section.settings.heading_size }}px);
+    font-weight: 900;
+    font-style: italic;
+    line-height: .96;
+    letter-spacing: 0;
+    text-align: center;
+    text-transform: uppercase;
+    text-shadow: 0 3px 0 rgba(255,255,255,.08), 0 0 18px rgba(255,255,255,.12);
+  }
+
+  #{{ section_id }} .pp-title span {
+    display: inline-block;
+    margin: 0 .12em;
+    white-space: nowrap;
+  }
+
+  #{{ section_id }} .pp-title__main {
+    color: var(--pp-text);
+  }
+
+  #{{ section_id }} .pp-title__accent {
+    color: var(--pp-purple);
+    text-shadow: 0 0 16px color-mix(in srgb, var(--pp-purple) 60%, transparent);
+  }
+
+  #{{ section_id }} .pp-title__highlight {
+    color: var(--pp-lime);
+    text-shadow: 0 0 16px color-mix(in srgb, var(--pp-lime) 55%, transparent);
+  }
+
+  #{{ section_id }} .pp-subtitle {
+    max-width: 720px;
+    margin: 16px auto 0;
+    color: var(--pp-muted);
+    font-family: {{ section.settings.body_font.family }}, {{ section.settings.body_font.fallback_families }};
+    font-size: clamp(14px, 1.3vw, {{ section.settings.subtitle_size }}px);
+    font-weight: 600;
+    line-height: 1.5;
+    text-align: center;
+  }
+
+  #{{ section_id }} .pp-subtitle p,
+  #{{ section_id }} .pp-step-text p {
+    margin: 0;
+  }
+
+  #{{ section_id }} .pp-steps {
+    display: grid;
+    grid-template-columns: repeat({{ steps_count | at_least: 1 }}, minmax(0, 1fr));
+    gap: clamp(18px, 2.6vw, 38px);
+    align-items: start;
+    margin-top: clamp(32px, 4.6vw, 58px);
+  }
+
+  #{{ section_id }} .pp-step {
+    position: relative;
+    min-width: 0;
+    text-align: center;
+  }
+
+  #{{ section_id }} .pp-step:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    top: clamp(43px, 4.6vw, 58px);
+    right: calc(-1 * clamp(32px, 4.2vw, 72px));
+    width: clamp(44px, 6.5vw, 92px);
+    height: 22px;
+    background-color: var(--pp-purple);
+    filter: drop-shadow(0 0 7px color-mix(in srgb, var(--pp-purple) 70%, transparent));
+    clip-path: polygon(0 45%, 80% 45%, 80% 18%, 100% 50%, 80% 82%, 80% 55%, 0 55%);
+    opacity: .9;
+  }
+
+  #{{ section_id }} .pp-icon-wrap {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: clamp(92px, 9vw, {{ section.settings.icon_circle_size }}px);
+    height: clamp(92px, 9vw, {{ section.settings.icon_circle_size }}px);
+    margin: 0 auto 18px;
+    border: 2px solid var(--pp-purple);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,.05) 0%, rgba(255,255,255,.015) 48%, rgba(0,0,0,.18) 100%);
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,.05),
+      0 0 24px color-mix(in srgb, var(--pp-purple) 75%, transparent),
+      inset 0 0 20px color-mix(in srgb, var(--pp-purple) 26%, transparent);
+  }
+
+  #{{ section_id }} .pp-number {
+    position: absolute;
+    left: clamp(-58px, -4.4vw, -36px);
+    top: -8px;
+    z-index: -1;
+    color: transparent;
+    font-family: {{ section.settings.body_font.family }}, {{ section.settings.body_font.fallback_families }};
+    font-size: clamp(42px, 4vw, {{ section.settings.number_size }}px);
+    font-weight: 900;
+    line-height: 1;
+    -webkit-text-stroke: 2px color-mix(in srgb, var(--pp-purple) 70%, transparent);
+    text-shadow: 0 0 11px color-mix(in srgb, var(--pp-purple) 42%, transparent);
+  }
+
+  #{{ section_id }} .pp-icon {
+    width: {{ section.settings.icon_size }}px;
+    max-width: 54%;
+    height: auto;
+    color: var(--pp-lime);
+    filter: drop-shadow(0 0 8px color-mix(in srgb, var(--pp-lime) 62%, transparent));
+  }
+
+  #{{ section_id }} .pp-step-title {
+    margin: 0 0 10px;
+    color: var(--pp-text);
+    font-family: {{ section.settings.body_font.family }}, {{ section.settings.body_font.fallback_families }};
+    font-size: clamp(17px, 1.6vw, {{ section.settings.step_title_size }}px);
+    font-weight: 900;
+    line-height: 1.18;
+    text-shadow: 0 0 10px rgba(255,255,255,.17);
+  }
+
+  #{{ section_id }} .pp-step-text {
+    max-width: 230px;
+    margin: 0 auto;
+    color: var(--pp-muted);
+    font-family: {{ section.settings.body_font.family }}, {{ section.settings.body_font.fallback_families }};
+    font-size: clamp(13px, 1.1vw, {{ section.settings.step_text_size }}px);
+    font-weight: 600;
+    line-height: 1.55;
+  }
+
+  #{{ section_id }} .pp-button-row {
+    display: flex;
+    justify-content: center;
+    margin-top: clamp(34px, 4vw, 48px);
+  }
+
+  #{{ section_id }} .pp-button {
+    display: inline-grid;
+    grid-template-columns: 28px auto 34px;
+    align-items: center;
+    gap: 22px;
+    min-width: min(100%, {{ section.settings.button_width }}px);
+    min-height: 60px;
+    padding: 14px 32px;
+    border: 1px solid color-mix(in srgb, var(--pp-purple) 72%, white);
+    border-radius: {{ section.settings.button_radius }}px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--pp-purple) 90%, white 10%), var(--pp-purple));
+    color: {{ section.settings.button_text_color }};
+    font-family: {{ section.settings.body_font.family }}, {{ section.settings.body_font.fallback_families }};
+    font-size: clamp(14px, 1.35vw, {{ section.settings.button_text_size }}px);
+    font-weight: 900;
+    line-height: 1;
+    text-align: center;
+    text-decoration: none;
+    text-transform: uppercase;
+    box-shadow: 0 0 24px color-mix(in srgb, var(--pp-purple) 70%, transparent);
+    transition: transform .18s ease, filter .18s ease, box-shadow .18s ease;
+  }
+
+  #{{ section_id }} .pp-button:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.08);
+    box-shadow: 0 0 32px color-mix(in srgb, var(--pp-purple) 85%, transparent);
+  }
+
+  #{{ section_id }} .pp-button svg {
+    width: 28px;
+    height: 28px;
+    color: currentColor;
+  }
+
+  @media screen and (max-width: 989px) {
+    #{{ section_id }} {
+      padding: {{ section.settings.outer_padding_y_tablet }}px {{ section.settings.outer_padding_x_tablet }}px;
+    }
+
+    #{{ section_id }} .pp-panel {
+      padding: {{ section.settings.padding_y_tablet }}px {{ section.settings.padding_x_tablet }}px;
+    }
+
+    #{{ section_id }} .pp-steps {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 46px 28px;
+    }
+
+    #{{ section_id }} .pp-step:nth-child(2n)::after {
+      display: none;
+    }
+  }
+
+  @media screen and (max-width: 640px) {
+    #{{ section_id }} {
+      padding: {{ section.settings.outer_padding_y_mobile }}px {{ section.settings.outer_padding_x_mobile }}px;
+    }
+
+    #{{ section_id }} .pp-panel {
+      padding: {{ section.settings.padding_y_mobile }}px {{ section.settings.padding_x_mobile }}px;
+    }
+
+    #{{ section_id }} .pp-kicker {
+      letter-spacing: .16em;
+    }
+
+    #{{ section_id }} .pp-title span {
+      display: block;
+      margin: 4px 0;
+    }
+
+    #{{ section_id }} .pp-steps {
+      grid-template-columns: 1fr;
+      gap: 42px;
+      margin-top: 34px;
+    }
+
+    #{{ section_id }} .pp-step:not(:last-child)::after {
+      display: block;
+      top: auto;
+      right: 50%;
+      bottom: -33px;
+      width: 34px;
+      height: 46px;
+      transform: translateX(50%) rotate(90deg);
+    }
+
+    #{{ section_id }} .pp-number {
+      left: calc(50% - 82px);
+      top: -10px;
+    }
+
+    #{{ section_id }} .pp-button {
+      grid-template-columns: 24px minmax(0, auto) 28px;
+      gap: 14px;
+      min-height: 56px;
+      padding: 13px 20px;
+      width: 100%;
+    }
+
+    #{{ section_id }} .pp-mark {
+      font-size: 112px;
+    }
+  }
+{%- endstyle -%}
+
+<section id="{{ section_id }}" class="pp-section">
+  <div class="pp-wrap">
+    <div class="pp-panel">
+      {% if section.settings.show_decorations %}
+        <span class="pp-mark pp-mark--left" aria-hidden="true">{{ section.settings.left_mark }}</span>
+        <span class="pp-mark pp-mark--right" aria-hidden="true">{{ section.settings.right_mark }}</span>
+      {% endif %}
+
+      {% if section.settings.kicker != blank %}
+        <p class="pp-kicker">{{ section.settings.kicker }}</p>
+      {% endif %}
+
+      <h2 class="pp-title">
+        {% if section.settings.title_part_1 != blank %}
+          <span class="pp-title__main">{{ section.settings.title_part_1 }}</span>
+        {% endif %}
+        {% if section.settings.title_part_2 != blank %}
+          <span class="pp-title__accent">{{ section.settings.title_part_2 }}</span>
+        {% endif %}
+        {% if section.settings.title_part_3 != blank %}
+          <span class="pp-title__highlight">{{ section.settings.title_part_3 }}</span>
+        {% endif %}
+      </h2>
+
+      {% if section.settings.subtitle != blank %}
+        <div class="pp-subtitle">{{ section.settings.subtitle }}</div>
+      {% endif %}
+
+      <div class="pp-steps">
+        {% for block in section.blocks %}
+          <div class="pp-step" {{ block.shopify_attributes }}>
+            <div class="pp-icon-wrap">
+              {% if section.settings.show_numbers %}
+                <span class="pp-number">{{ block.settings.number }}</span>
+              {% endif %}
+              {% if block.settings.custom_icon != blank %}
+                <img
+                  class="pp-icon"
+                  src="{{ block.settings.custom_icon | image_url: width: 180 }}"
+                  alt="{{ block.settings.title | escape }}"
+                  width="90"
+                  height="90"
+                  loading="lazy"
+                >
+              {% else %}
+                {% case block.settings.icon %}
+                  {% when 'cap' %}
+                    <svg class="pp-icon" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+                      <path d="M9 38c2.6-12.6 12.2-20 23-20s20.4 7.4 23 20" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
+                      <path d="M15 39c8.2-3.7 25.8-3.7 34 0v9c-9.7-4.2-24.3-4.2-34 0v-9Z" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round"/>
+                      <path d="M7 42c5.7 0 8.7-1.7 8.7-1.7M56.9 42c-5.7 0-8.7-1.7-8.7-1.7" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
+                      <path d="M32 20v-5m0 0 4 3m-4-3-4 3" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                      <circle cx="32" cy="29" r="4.7" stroke="currentColor" stroke-width="3"/>
+                    </svg>
+                  {% when 'edit' %}
+                    <svg class="pp-icon" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+                      <path d="M15 9h6M43 9h6M15 55h6M43 55h6M9 15v6M9 43v6M55 15v6M55 43v6" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
+                      <path d="m23 43 7.2-1.6L49 22.6 41.4 15 22.6 33.8 21 41l2 2Z" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round"/>
+                      <path d="m37.6 18.8 7.6 7.6" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
+                    </svg>
+                  {% when 'eye' %}
+                    <svg class="pp-icon" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+                      <path d="M32 19c13.5 0 22 13 22 13s-8.5 13-22 13S10 32 10 32s8.5-13 22-13Z" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round"/>
+                      <circle cx="32" cy="32" r="7" stroke="currentColor" stroke-width="3.4"/>
+                      <path d="M12 15h8M12 15v8M52 15h-8M52 15v8M12 49h8M12 49v-8M52 49h-8M52 49v-8" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
+                    </svg>
+                  {% else %}
+                    <svg class="pp-icon" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+                      <path d="m32 8 22 12.2v23.6L32 56 10 43.8V20.2L32 8Z" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round"/>
+                      <path d="m10.8 20.6 21.2 12 21.2-12M32 32.6v22.2M21 14.4l22 12.2v9.8" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                {% endcase %}
+              {% endif %}
+            </div>
+
+            {% if block.settings.title != blank %}
+              <h3 class="pp-step-title">{{ block.settings.title }}</h3>
+            {% endif %}
+
+            {% if block.settings.text != blank %}
+              <div class="pp-step-text">{{ block.settings.text }}</div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+
+      {% if section.settings.button_label != blank %}
+        <div class="pp-button-row">
+          <a class="pp-button" href="{{ section.settings.button_link | default: '#' }}">
+            <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+              <path d="m18.6 5.6 7.8 7.8L12.2 27.6H4.4v-7.8L18.6 5.6Z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/>
+              <path d="m16.4 7.8 7.8 7.8M7 19.4l5.6 5.6M20.8 4l3.2-3.2 7.2 7.2-3.2 3.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>{{ section.settings.button_label }}</span>
+            <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+              <path d="M4 16h22M18 8l8 8-8 8" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "Personalization process",
+  "tag": "section",
+  "class": "section-personalization-process",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Content"
+    },
+    {
+      "type": "text",
+      "id": "kicker",
+      "label": "Small heading",
+      "default": "Personalization Process"
+    },
+    {
+      "type": "text",
+      "id": "title_part_1",
+      "label": "Title part 1",
+      "default": "Design It."
+    },
+    {
+      "type": "text",
+      "id": "title_part_2",
+      "label": "Title part 2",
+      "default": "Preview It."
+    },
+    {
+      "type": "text",
+      "id": "title_part_3",
+      "label": "Title part 3",
+      "default": "Wear It."
+    },
+    {
+      "type": "richtext",
+      "id": "subtitle",
+      "label": "Subtitle",
+      "default": "<p>Create something unique in just a few simple steps.</p>"
+    },
+    {
+      "type": "text",
+      "id": "button_label",
+      "label": "Button label",
+      "default": "Start Designing"
+    },
+    {
+      "type": "url",
+      "id": "button_link",
+      "label": "Button link"
+    },
+    {
+      "type": "header",
+      "content": "Images and decoration"
+    },
+    {
+      "type": "image_picker",
+      "id": "background_image",
+      "label": "Optional background texture image"
+    },
+    {
+      "type": "range",
+      "id": "background_image_opacity",
+      "label": "Background image opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 35
+    },
+    {
+      "type": "checkbox",
+      "id": "show_decorations",
+      "label": "Show graffiti marks",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "left_mark",
+      "label": "Left graffiti mark",
+      "default": "X"
+    },
+    {
+      "type": "text",
+      "id": "right_mark",
+      "label": "Right graffiti mark",
+      "default": "M"
+    },
+    {
+      "type": "range",
+      "id": "decor_opacity",
+      "label": "Graffiti mark opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 35
+    },
+    {
+      "type": "range",
+      "id": "texture_opacity",
+      "label": "Paint texture opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 45
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Outside background",
+      "default": "#050506"
+    },
+    {
+      "type": "color",
+      "id": "panel_color",
+      "label": "Panel background",
+      "default": "#08080c"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Main text",
+      "default": "#f4f1f6"
+    },
+    {
+      "type": "color",
+      "id": "muted_color",
+      "label": "Muted text",
+      "default": "#a9a3ad"
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Purple accent",
+      "default": "#7b19e8"
+    },
+    {
+      "type": "color",
+      "id": "highlight_color",
+      "label": "Lime accent",
+      "default": "#c7ef00"
+    },
+    {
+      "type": "color",
+      "id": "border_color",
+      "label": "Panel border",
+      "default": "#59466b"
+    },
+    {
+      "type": "color",
+      "id": "button_text_color",
+      "label": "Button text",
+      "default": "#ffffff"
+    },
+    {
+      "type": "header",
+      "content": "Typography"
+    },
+    {
+      "type": "font_picker",
+      "id": "heading_font",
+      "label": "Heading font",
+      "default": "assistant_n7"
+    },
+    {
+      "type": "font_picker",
+      "id": "body_font",
+      "label": "Body font",
+      "default": "assistant_n4"
+    },
+    {
+      "type": "range",
+      "id": "heading_size",
+      "label": "Heading size",
+      "min": 36,
+      "max": 86,
+      "step": 1,
+      "unit": "px",
+      "default": 54
+    },
+    {
+      "type": "range",
+      "id": "subtitle_size",
+      "label": "Subtitle size",
+      "min": 12,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 17
+    },
+    {
+      "type": "range",
+      "id": "step_title_size",
+      "label": "Step title size",
+      "min": 14,
+      "max": 28,
+      "step": 1,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "step_text_size",
+      "label": "Step text size",
+      "min": 12,
+      "max": 22,
+      "step": 1,
+      "unit": "px",
+      "default": 15
+    },
+    {
+      "type": "range",
+      "id": "button_text_size",
+      "label": "Button text size",
+      "min": 12,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 17
+    },
+    {
+      "type": "header",
+      "content": "Sizing"
+    },
+    {
+      "type": "range",
+      "id": "max_width",
+      "label": "Maximum width",
+      "min": 900,
+      "max": 1800,
+      "step": 20,
+      "unit": "px",
+      "default": 1380
+    },
+    {
+      "type": "range",
+      "id": "border_width",
+      "label": "Border width",
+      "min": 0,
+      "max": 4,
+      "step": 1,
+      "unit": "px",
+      "default": 2
+    },
+    {
+      "type": "range",
+      "id": "border_radius",
+      "label": "Border radius",
+      "min": 0,
+      "max": 36,
+      "step": 1,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "glow_strength",
+      "label": "Panel glow",
+      "min": 0,
+      "max": 60,
+      "step": 2,
+      "unit": "px",
+      "default": 18
+    },
+    {
+      "type": "range",
+      "id": "icon_circle_size",
+      "label": "Icon circle size",
+      "min": 86,
+      "max": 140,
+      "step": 2,
+      "unit": "px",
+      "default": 116
+    },
+    {
+      "type": "range",
+      "id": "icon_size",
+      "label": "Icon size",
+      "min": 34,
+      "max": 78,
+      "step": 2,
+      "unit": "px",
+      "default": 52
+    },
+    {
+      "type": "range",
+      "id": "number_size",
+      "label": "Number size",
+      "min": 38,
+      "max": 74,
+      "step": 2,
+      "unit": "px",
+      "default": 56
+    },
+    {
+      "type": "checkbox",
+      "id": "show_numbers",
+      "label": "Show step numbers",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "button_width",
+      "label": "Button width",
+      "min": 240,
+      "max": 520,
+      "step": 10,
+      "unit": "px",
+      "default": 380
+    },
+    {
+      "type": "range",
+      "id": "button_radius",
+      "label": "Button radius",
+      "min": 0,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 8
+    },
+    {
+      "type": "header",
+      "content": "Desktop spacing"
+    },
+    {
+      "type": "range",
+      "id": "outer_padding_y",
+      "label": "Outer vertical padding",
+      "min": 0,
+      "max": 100,
+      "step": 2,
+      "unit": "px",
+      "default": 6
+    },
+    {
+      "type": "range",
+      "id": "outer_padding_x",
+      "label": "Outer horizontal padding",
+      "min": 0,
+      "max": 80,
+      "step": 2,
+      "unit": "px",
+      "default": 32
+    },
+    {
+      "type": "range",
+      "id": "padding_y",
+      "label": "Panel vertical padding",
+      "min": 24,
+      "max": 110,
+      "step": 2,
+      "unit": "px",
+      "default": 48
+    },
+    {
+      "type": "range",
+      "id": "padding_x",
+      "label": "Panel horizontal padding",
+      "min": 18,
+      "max": 110,
+      "step": 2,
+      "unit": "px",
+      "default": 84
+    },
+    {
+      "type": "header",
+      "content": "Tablet spacing"
+    },
+    {
+      "type": "range",
+      "id": "outer_padding_y_tablet",
+      "label": "Outer vertical padding",
+      "min": 0,
+      "max": 80,
+      "step": 2,
+      "unit": "px",
+      "default": 18
+    },
+    {
+      "type": "range",
+      "id": "outer_padding_x_tablet",
+      "label": "Outer horizontal padding",
+      "min": 0,
+      "max": 60,
+      "step": 2,
+      "unit": "px",
+      "default": 22
+    },
+    {
+      "type": "range",
+      "id": "padding_y_tablet",
+      "label": "Panel vertical padding",
+      "min": 24,
+      "max": 90,
+      "step": 2,
+      "unit": "px",
+      "default": 44
+    },
+    {
+      "type": "range",
+      "id": "padding_x_tablet",
+      "label": "Panel horizontal padding",
+      "min": 18,
+      "max": 80,
+      "step": 2,
+      "unit": "px",
+      "default": 38
+    },
+    {
+      "type": "header",
+      "content": "Mobile spacing"
+    },
+    {
+      "type": "range",
+      "id": "outer_padding_y_mobile",
+      "label": "Outer vertical padding",
+      "min": 0,
+      "max": 70,
+      "step": 2,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "outer_padding_x_mobile",
+      "label": "Outer horizontal padding",
+      "min": 0,
+      "max": 36,
+      "step": 2,
+      "unit": "px",
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "padding_y_mobile",
+      "label": "Panel vertical padding",
+      "min": 20,
+      "max": 76,
+      "step": 2,
+      "unit": "px",
+      "default": 34
+    },
+    {
+      "type": "range",
+      "id": "padding_x_mobile",
+      "label": "Panel horizontal padding",
+      "min": 14,
+      "max": 42,
+      "step": 2,
+      "unit": "px",
+      "default": 18
+    }
+  ],
+  "blocks": [
+    {
+      "type": "step",
+      "name": "Step",
+      "settings": [
+        {
+          "type": "text",
+          "id": "number",
+          "label": "Number",
+          "default": "01"
+        },
+        {
+          "type": "select",
+          "id": "icon",
+          "label": "Icon",
+          "default": "cap",
+          "options": [
+            {
+              "value": "cap",
+              "label": "Cap"
+            },
+            {
+              "value": "edit",
+              "label": "Customize"
+            },
+            {
+              "value": "eye",
+              "label": "Preview"
+            },
+            {
+              "value": "box",
+              "label": "Order box"
+            }
+          ]
+        },
+        {
+          "type": "image_picker",
+          "id": "custom_icon",
+          "label": "Custom icon"
+        },
+        {
+          "type": "text",
+          "id": "title",
+          "label": "Title",
+          "default": "Choose Product"
+        },
+        {
+          "type": "richtext",
+          "id": "text",
+          "label": "Text",
+          "default": "<p>Pick your favorite product and get started.</p>"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Personalization process",
+      "blocks": [
+        {
+          "type": "step",
+          "settings": {
+            "number": "01",
+            "icon": "cap",
+            "title": "Choose Product",
+            "text": "<p>Pick your favorite product and get started.</p>"
+          }
+        },
+        {
+          "type": "step",
+          "settings": {
+            "number": "02",
+            "icon": "edit",
+            "title": "Customize",
+            "text": "<p>Add text, logos, and artwork. Make it truly yours.</p>"
+          }
+        },
+        {
+          "type": "step",
+          "settings": {
+            "number": "03",
+            "icon": "eye",
+            "title": "Preview",
+            "text": "<p>See how your design looks in real-time.</p>"
+          }
+        },
+        {
+          "type": "step",
+          "settings": {
+            "number": "04",
+            "icon": "box",
+            "title": "Order",
+            "text": "<p>Place your order and we'll handle the rest.</p>"
+          }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

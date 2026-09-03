@@ -13,38 +13,42 @@ import {
 import db from "../db.server";
 import { authenticate } from "../shopify.server";
 import { parseJsonList } from "../services/domain";
-import {
-  formatHeliumMappingEntry,
-  HELIUM_EXPECTED_TYPES,
-  HELIUM_FIELDS,
-  parseHeliumMetafieldMap,
-  serializeHeliumMetafieldMap,
-} from "../services/helium-sync";
-import { AdminGraphqlClient } from "../services/shopify-graphql.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { session, admin } = await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
   const config = await db.shopConfig.upsert({
     where: { shop: session.shop },
     update: {},
     create: { shop: session.shop },
   });
-  const data = await new AdminGraphqlClient(admin).request<{
-    metafieldDefinitions: {
-      nodes: Array<{
-        namespace: string;
-        key: string;
-        name: string;
-        type: { name: string };
-      }>;
-    };
-  }>(`#graphql query CustomerMetafieldDiscovery { metafieldDefinitions(first: 100, ownerType: CUSTOMER) { nodes { namespace key name type { name } } } }`);
-  return { config, definitions: data.metafieldDefinitions.nodes };
+  return { config };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
   const { session } = await authenticate.admin(request);
   const form = await request.formData();
+  const intent = String(form.get("intent") || "save");
+
+  if (intent === "reset-defaults") {
+    return db.shopConfig.upsert({
+      where: { shop: session.shop },
+      create: { shop: session.shop },
+      update: {
+        creatorApplicationsEnabled: true,
+        allowReapplicationAfterRejection: false,
+        requireAdminApproval: true,
+        automaticCollectionCreationEnabled: true,
+        collectionTitleTemplate: "{creatorName} Designs",
+        collectionHandleSuffix: "designs",
+        onlineStorePublicationId: null,
+        creatorProfileMetaobjectType: null,
+        creatorProfileFieldMapJson: null,
+        inkybayAllowedHostsJson: JSON.stringify(["pitchprint.com"]),
+        inkybayBuyOnlyHiddenSelectorsJson: "[]",
+      },
+    });
+  }
+
   const hosts = String(form.get("hosts") || "")
     .split(/[\s,]+/)
     .map((value) => value.trim().toLowerCase())
@@ -53,14 +57,7 @@ export async function action({ request }: ActionFunctionArgs) {
     .split(/\r?\n/)
     .map((value) => value.trim())
     .filter(Boolean);
-  const heliumCreatorFormId = String(
-    form.get("heliumCreatorFormId") || "",
-  ).trim();
-  if (
-    heliumCreatorFormId &&
-    !/^[A-Za-z0-9_-]{1,64}$/.test(heliumCreatorFormId)
-  )
-    throw new Response("Invalid Helium form ID", { status: 400 });
+
   const settings = {
     creatorApplicationsEnabled: form.has("applications"),
     allowReapplicationAfterRejection: form.has("reapplication"),
@@ -75,11 +72,12 @@ export async function action({ request }: ActionFunctionArgs) {
     creatorProfileMetaobjectType:
       String(form.get("metaobjectType") || "") || null,
     creatorProfileFieldMapJson: String(form.get("fieldMap") || "") || null,
-    heliumCreatorFormId: heliumCreatorFormId || null,
-    heliumMetafieldMapJson: serializeHeliumMetafieldMap(form),
-    inkybayAllowedHostsJson: JSON.stringify(hosts),
+    inkybayAllowedHostsJson: JSON.stringify([
+      ...new Set([...hosts, "pitchprint.com"]),
+    ]),
     inkybayBuyOnlyHiddenSelectorsJson: JSON.stringify(selectors),
   };
+
   return db.shopConfig.upsert({
     where: { shop: session.shop },
     create: { shop: session.shop, ...settings },
@@ -88,142 +86,181 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Settings() {
-  const { config, definitions } = useLoaderData<typeof loader>();
-  const helium = parseHeliumMetafieldMap(config.heliumMetafieldMapJson);
-  const labels: Record<(typeof HELIUM_FIELDS)[number], string> = { legalName: "Legal name", creatorDisplayName: "Creator display name", country: "Country", city: "City", creatorProfilePhoto: "Creator profile photo", shortCreatorBio: "Short creator bio", portfolioUrl: "Portfolio URL", socialProfiles: "Social profiles", termsAccepted: "Terms accepted", applicationMessage: "Application message" };
+  const { config } = useLoaderData<typeof loader>();
+
   return (
     <s-page heading="Creator Marketplace Settings">
       <AdminStyles />
-      <s-section>
-        <Form method="post">
-          <p>
-            <label>
-              <input
-                type="checkbox"
-                name="applications"
-                defaultChecked={config.creatorApplicationsEnabled}
-              />{" "}
-            Enable creator applications
-          </label>
-        </p>
-        <p>
-          <label>
-            <input type="checkbox" name="reapplication" defaultChecked={config.allowReapplicationAfterRejection} /> Allow reapplication after rejection
-          </label>
-        </p>
-          <p>
-            <label>
-              <input
-                type="checkbox"
-                name="approval"
-                defaultChecked={config.requireAdminApproval}
-              />{" "}
-              Require admin approval
-            </label>
-          </p>
-          <p>
-            <label>
-              <input
-                type="checkbox"
-                name="collections"
-                defaultChecked={config.automaticCollectionCreationEnabled}
-              />{" "}
-              Create creator collections
-            </label>
-          </p>
-          <p>
-            <label>
-              Collection title{" "}
-              <input
-                name="titleTemplate"
-                defaultValue={config.collectionTitleTemplate}
-              />
-            </label>
-          </p>
-          <p>
-            <label>
-              Handle suffix{" "}
-              <input
-                name="handleSuffix"
-                defaultValue={config.collectionHandleSuffix}
-              />
-            </label>
-          </p>
-          <p>
-            <label>
-              Online Store publication GID{" "}
-              <input
-                name="publicationId"
-                defaultValue={config.onlineStorePublicationId ?? ""}
-              />
-            </label>
-          </p>
-          <p>
-            <label>
-              Allowed InkyBay hosts{" "}
-              <textarea
-                name="hosts"
-                defaultValue={parseJsonList(
-                  config.inkybayAllowedHostsJson,
-                ).join("\n")}
-              />
-            </label>
-          </p>
-          <p>
-            <label>
-              Buy-only selectors (one per line){" "}
-              <textarea
-                name="selectors"
-                defaultValue={parseJsonList(
-                  config.inkybayBuyOnlyHiddenSelectorsJson,
-                ).join("\n")}
-              />
-            </label>
-          </p>
-          <p>
-            <label>
-              Creator metaobject type{" "}
-              <input
-                name="metaobjectType"
-                defaultValue={config.creatorProfileMetaobjectType ?? ""}
-              />
-            </label>
-          </p>
-          <p>
-            <label>
-              Field map JSON{" "}
-              <textarea
-                name="fieldMap"
-                defaultValue={config.creatorProfileFieldMapJson ?? ""}
-              />
-            </label>
-          </p>
-          <h2>Helium Customer Fields metafields</h2>
-          <p>
-            Select definitions discovered from Shopify. No Helium key is assumed.
-          </p>
-          <p>
-            <label>
-              Creator Application form ID{" "}
-              <input
-                name="heliumCreatorFormId"
-                defaultValue={config.heliumCreatorFormId ?? ""}
-                placeholder="Helium form ID"
-              />
-            </label>
-          </p>
-          {HELIUM_FIELDS.map((field) => (
-            <p key={field}>
-              <label>
-                <input type="checkbox" name={`helium.${field}.enabled`} defaultChecked={helium[field]?.enabled !== false && Boolean(helium[field])}/> Enable {labels[field]}{" "}
-                <select name={`helium.${field}.definition`} defaultValue={formatHeliumMappingEntry(helium, field)}><option value="">Not mapped</option>{definitions.map((definition) => <option key={`${definition.namespace}.${definition.key}`} value={`${definition.namespace}|${definition.key}|${definition.type.name}`}>{definition.name} — {definition.namespace}.{definition.key} ({definition.type.name})</option>)}</select>
-              </label>
-              <span> {!helium[field] ? "Needs configuration" : !definitions.some((definition) => definition.namespace === helium[field]?.namespace && definition.key === helium[field]?.key) ? "Missing definition" : !HELIUM_EXPECTED_TYPES[field].includes(helium[field]!.type) ? "Invalid type" : "Mapped correctly"}</span>
+      <div className="settings-admin-page">
+        <header className="settings-admin-header">
+          <div>
+            <h1>Creator Marketplace Settings</h1>
+            <p>
+              Configure creator applications, collection rules, PitchPrint
+              integration, and profile settings from one responsive workspace.
             </p>
-          ))}
-          <SubmitButton>Save settings</SubmitButton>
+          </div>
+          <a href="/app/setup" className="settings-learn-link">
+            Setup guide
+          </a>
+        </header>
+
+        <Form method="post" className="settings-form">
+          <div className="settings-grid">
+            <section className="settings-card">
+              <div className="settings-card-heading">
+                <span className="settings-icon settings-icon--general" />
+                <div>
+                  <h2>General Settings</h2>
+                  <p>Control creator application behavior and approvals.</p>
+                </div>
+              </div>
+              <div className="settings-toggle-list">
+                <label className="settings-toggle-row">
+                  <span>Enable creator applications</span>
+                  <input
+                    type="checkbox"
+                    name="applications"
+                    defaultChecked={config.creatorApplicationsEnabled}
+                  />
+                </label>
+                <label className="settings-toggle-row">
+                  <span>Allow reapplication after rejection</span>
+                  <input
+                    type="checkbox"
+                    name="reapplication"
+                    defaultChecked={config.allowReapplicationAfterRejection}
+                  />
+                </label>
+                <label className="settings-toggle-row">
+                  <span>Require admin approval</span>
+                  <input
+                    type="checkbox"
+                    name="approval"
+                    defaultChecked={config.requireAdminApproval}
+                  />
+                </label>
+                <label className="settings-toggle-row">
+                  <span>Create creator collections</span>
+                  <input
+                    type="checkbox"
+                    name="collections"
+                    defaultChecked={config.automaticCollectionCreationEnabled}
+                  />
+                </label>
+              </div>
+            </section>
+
+            <section className="settings-card">
+              <div className="settings-card-heading">
+                <span className="settings-icon settings-icon--collection" />
+                <div>
+                  <h2>Collection Settings</h2>
+                  <p>Configure collection creation for creator products.</p>
+                </div>
+              </div>
+              <div className="settings-field-stack">
+                <label>
+                  <span>Collection title</span>
+                  <input
+                    name="titleTemplate"
+                    defaultValue={config.collectionTitleTemplate}
+                  />
+                </label>
+                <label>
+                  <span>Handle suffix</span>
+                  <input
+                    name="handleSuffix"
+                    defaultValue={config.collectionHandleSuffix}
+                  />
+                </label>
+                <label>
+                  <span>Online Store publication GID</span>
+                  <input
+                    name="publicationId"
+                    defaultValue={config.onlineStorePublicationId ?? ""}
+                    placeholder="gid://shopify/Publication/..."
+                  />
+                </label>
+              </div>
+            </section>
+
+            <section className="settings-card">
+              <div className="settings-card-heading">
+                <span className="settings-icon settings-icon--integration" />
+                <div>
+                  <h2>Integration Settings</h2>
+                  <p>Configure PitchPrint and profile metaobject mapping.</p>
+                </div>
+              </div>
+              <div className="settings-field-stack">
+                <label>
+                  <span>Allowed PitchPrint hosts</span>
+                  <textarea
+                    name="hosts"
+                    rows={4}
+                    defaultValue={parseJsonList(
+                      config.inkybayAllowedHostsJson,
+                    ).join("\n")}
+                    placeholder={"pitchprint.com\ncustom.pitchprint.com"}
+                  />
+                  <small>One host per line.</small>
+                </label>
+                <label>
+                  <span>Buy-only selectors</span>
+                  <textarea
+                    name="selectors"
+                    rows={4}
+                    defaultValue={parseJsonList(
+                      config.inkybayBuyOnlyHiddenSelectorsJson,
+                    ).join("\n")}
+                    placeholder={".buy-button\n.product-form__submit"}
+                  />
+                  <small>One selector per line.</small>
+                </label>
+                <label>
+                  <span>Creator metaobject type</span>
+                  <input
+                    name="metaobjectType"
+                    defaultValue={config.creatorProfileMetaobjectType ?? ""}
+                    placeholder="creator_profile"
+                  />
+                </label>
+                <label>
+                  <span>Field map JSON</span>
+                  <textarea
+                    name="fieldMap"
+                    rows={6}
+                    defaultValue={config.creatorProfileFieldMapJson ?? ""}
+                    placeholder={
+                      '{\n  "legal_name": "legalName",\n  "display_name": "displayName"\n}'
+                    }
+                  />
+                  <small>
+                    JSON object mapping Custom House creator profile fields to Shopify metaobject fields.
+                  </small>
+                </label>
+              </div>
+            </section>
+          </div>
+
+          <div className="settings-action-bar">
+            <SubmitButton
+              name="intent"
+              value="reset-defaults"
+              confirmMessage="Reset creator marketplace settings to defaults?"
+            >
+              Reset to defaults
+            </SubmitButton>
+            <button type="reset" className="settings-secondary-button">
+              Discard changes
+            </button>
+            <SubmitButton name="intent" value="save">
+              Save settings
+            </SubmitButton>
+          </div>
         </Form>
-      </s-section>
+      </div>
     </s-page>
   );
 }

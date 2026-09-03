@@ -1,11 +1,17 @@
 import db from "../db.server";
 import { createHash } from "node:crypto";
 import { safeJson, slugify } from "./domain";
+import {
+  ensureCreatorCollectionRecord,
+  syncCreatorCollectionStatus,
+} from "./creator-collections.server";
+import { referralFieldsForCode } from "./creator-referral.server";
 import type { ShopifyGraphqlClient } from "./shopify-graphql.server";
 import {
   creatorStatusFromTags,
   hasConflictingCreatorTags,
   isHeliumCreatorFormSubmission,
+  isHeliumProfileUpdateFormSubmission,
   normalizeCustomerGid,
   parseHeliumFormIds,
   parseHeliumMetafieldMap,
@@ -33,8 +39,95 @@ type CustomerMetafield = {
   } | null;
 };
 
+const HELIUM_FIELD_FALLBACKS: Record<
+  HeliumField,
+  Array<{ namespace: string; key: string; type?: string }>
+> = {
+  legalName: [
+    { namespace: "app--960624--helium", key: "legal_name" },
+    { namespace: "app--960624--helium", key: "creator_legal_name" },
+    { namespace: "customer_fields", key: "legal_name" },
+    { namespace: "customer_fields", key: "creator_legal_name" },
+  ],
+  creatorDisplayName: [
+    { namespace: "app--960624--helium", key: "creator_display_name_1" },
+    { namespace: "app--960624--helium", key: "creator_display_name" },
+    { namespace: "customer_fields", key: "creator_display_name_1" },
+    { namespace: "customer_fields", key: "creator_display_name" },
+  ],
+  country: [
+    { namespace: "app--960624--helium", key: "country" },
+    { namespace: "app--960624--helium", key: "creator_country" },
+    { namespace: "customer_fields", key: "country" },
+    { namespace: "customer_fields", key: "creator_country" },
+  ],
+  city: [
+    { namespace: "app--960624--helium", key: "city" },
+    { namespace: "app--960624--helium", key: "creator_city" },
+    { namespace: "customer_fields", key: "city" },
+    { namespace: "customer_fields", key: "creator_city" },
+  ],
+  creatorProfilePhoto: [
+    { namespace: "app--960624--helium", key: "creator_profile_photo_1" },
+    { namespace: "app--960624--helium", key: "creator_profile_photo" },
+    { namespace: "customer_fields", key: "creator_profile_photo_1" },
+    { namespace: "customer_fields", key: "creator_profile_photo" },
+  ],
+  shortCreatorBio: [
+    { namespace: "app--960624--helium", key: "short_creator_bio" },
+    { namespace: "app--960624--helium", key: "creator_bio" },
+    { namespace: "customer_fields", key: "short_creator_bio" },
+    { namespace: "customer_fields", key: "creator_bio" },
+  ],
+  portfolioUrl: [
+    { namespace: "app--960624--helium", key: "socialportfolio_url" },
+    { namespace: "app--960624--helium", key: "portfolio_url" },
+    { namespace: "customer_fields", key: "socialportfolio_url" },
+    { namespace: "customer_fields", key: "portfolio_url" },
+  ],
+  socialProfiles: [
+    { namespace: "app--960624--helium", key: "socialportfolio_url" },
+    { namespace: "app--960624--helium", key: "social_profiles" },
+    { namespace: "app--960624--helium", key: "social_links" },
+    { namespace: "app--960624--helium", key: "instagram_profile_url" },
+    { namespace: "app--960624--helium", key: "facebook_profile_url" },
+    { namespace: "app--960624--helium", key: "tiktok_profile_url" },
+    { namespace: "app--960624--helium", key: "x__twitter_profile_url" },
+    { namespace: "app--960624--helium", key: "youtube_channel_url" },
+    { namespace: "customer_fields", key: "socialportfolio_url" },
+    { namespace: "customer_fields", key: "social_profiles" },
+    { namespace: "customer_fields", key: "social_links" },
+    { namespace: "customer_fields", key: "instagram_profile_url" },
+    { namespace: "customer_fields", key: "facebook_profile_url" },
+    { namespace: "customer_fields", key: "tiktok_profile_url" },
+    { namespace: "customer_fields", key: "x__twitter_profile_url" },
+    { namespace: "customer_fields", key: "youtube_channel_url" },
+  ],
+  termsAccepted: [
+    { namespace: "app--960624--helium", key: "terms_agreement" },
+    { namespace: "app--960624--helium", key: "terms_accepted" },
+    { namespace: "app--960624--helium", key: "terms_and_conditions" },
+    { namespace: "customer_fields", key: "terms_agreement" },
+    { namespace: "customer_fields", key: "terms_accepted" },
+    { namespace: "customer_fields", key: "terms_and_conditions" },
+  ],
+  applicationMessage: [
+    { namespace: "app--960624--helium", key: "application_message" },
+    { namespace: "customer_fields", key: "application_message" },
+  ],
+};
+
 function mappedMetafieldQuery(map: HeliumMetafieldMap) {
-  const entries = Object.values(map).filter((entry) => entry.enabled);
+  const entries = [
+    ...Object.values(map).filter((entry) => entry.enabled),
+    ...Object.values(HELIUM_FIELD_FALLBACKS).flat(),
+  ].filter(
+    (entry, index, list) =>
+      list.findIndex(
+        (candidate) =>
+          candidate.namespace === entry.namespace && candidate.key === entry.key,
+      ) === index,
+  );
   const variableDefinitions = entries
     .flatMap((_, index) => [
       `$metafieldNamespace${index}: String!`,
@@ -47,6 +140,14 @@ function mappedMetafieldQuery(map: HeliumMetafieldMap) {
         `metafield${index}: metafield(namespace: $metafieldNamespace${index}, key: $metafieldKey${index}) { namespace key value reference { ... on MediaImage { image { url } } ... on GenericFile { url } } }`,
     )
     .join("\n");
+  const namespaceSelection = `
+    heliumMetafields: metafields(first: 100, namespace: "app--960624--helium") {
+      nodes { namespace key value reference { ... on MediaImage { image { url } } ... on GenericFile { url } } }
+    }
+    customerFieldsMetafields: metafields(first: 100, namespace: "customer_fields") {
+      nodes { namespace key value reference { ... on MediaImage { image { url } } ... on GenericFile { url } } }
+    }
+  `;
   const variables = Object.fromEntries(
     entries.flatMap((entry, index) => [
       [`metafieldNamespace${index}`, entry.namespace],
@@ -55,15 +156,26 @@ function mappedMetafieldQuery(map: HeliumMetafieldMap) {
   );
   return {
     variableDefinitions,
-    selection,
+    selection: `${selection}\n${namespaceSelection}`,
     variables,
     values(customer: Record<string, unknown>): CustomerMetafield[] {
-      return entries
+      const explicit = entries
         .map(
           (_, index) =>
             customer[`metafield${index}`] as CustomerMetafield | null,
         )
         .filter((value): value is CustomerMetafield => Boolean(value));
+      const heliumNodes = (customer.heliumMetafields as { nodes?: CustomerMetafield[] } | null)
+        ?.nodes || [];
+      const customerFieldNodes = (customer.customerFieldsMetafields as { nodes?: CustomerMetafield[] } | null)
+        ?.nodes || [];
+      return [...explicit, ...heliumNodes, ...customerFieldNodes].filter(
+        (item, index, list) =>
+          list.findIndex(
+            (candidate) =>
+              candidate.namespace === item.namespace && candidate.key === item.key,
+          ) === index,
+      );
     },
   };
 }
@@ -107,40 +219,65 @@ function mapMetafieldValues(
   metafields: CustomerMetafield[],
 ): HeliumCustomerInput["fields"] {
   const fields: HeliumCustomerInput["fields"] = {};
-  for (const [field, identifier] of Object.entries(map) as Array<
-    [HeliumField, { namespace: string; key: string }]
-  >) {
-    const metafield = metafields.find(
-      (item) =>
-        item.namespace === identifier.namespace && item.key === identifier.key,
-    );
+  for (const field of [
+    "legalName",
+    "creatorDisplayName",
+    "country",
+    "city",
+    "creatorProfilePhoto",
+    "shortCreatorBio",
+    "portfolioUrl",
+    "socialProfiles",
+    "termsAccepted",
+    "applicationMessage",
+  ] as HeliumField[]) {
+    const configured = map[field];
+    const candidates = [
+      ...(configured?.enabled !== false && configured ? [configured] : []),
+      ...(HELIUM_FIELD_FALLBACKS[field] || []),
+    ];
+    const metafield = candidates
+      .map((candidate) =>
+        metafields.find(
+          (item) =>
+            item.namespace === candidate.namespace && item.key === candidate.key,
+        ),
+      )
+      .find((item) => item?.value || item?.reference);
     fields![field] = field === "creatorProfilePhoto" ? (metafield?.reference?.image?.url || metafield?.reference?.url || metafield?.value) : metafield?.value;
   }
   return fields;
 }
 
-function sanitizedApplicationAnswers(value: string | undefined): string {
-  if (!value) return "{}";
-  try {
-    return JSON.stringify(JSON.parse(value), (key, item) =>
-      /email|phone|address|first.?name|last.?name/i.test(key)
-        ? undefined
-        : item,
-    );
-  } catch {
-    // Unstructured answers cannot be reliably stripped of protected customer data.
-    return "{}";
-  }
+function heliumApplicationData(input: HeliumCustomerInput) {
+  return {
+    legalName: input.fields?.legalName,
+    displayName: input.fields?.creatorDisplayName,
+    country: input.fields?.country,
+    city: input.fields?.city,
+    bio: input.fields?.shortCreatorBio,
+    portfolioUrl: input.fields?.portfolioUrl,
+    socialLinksJson: input.fields?.socialProfiles || "[]",
+    profileImageUrl: input.fields?.creatorProfilePhoto,
+    message: input.fields?.applicationMessage,
+    termsAcceptedAt: input.fields?.termsAccepted ? new Date() : undefined,
+  };
 }
 
-function heliumApplicationData(input: HeliumCustomerInput) { return { legalName: input.fields?.legalName, displayName: input.fields?.creatorDisplayName, country: input.fields?.country, city: input.fields?.city, bio: input.fields?.shortCreatorBio, portfolioUrl: input.fields?.portfolioUrl, socialLinksJson: input.fields?.socialProfiles || "[]", profileImageUrl: input.fields?.creatorProfilePhoto, message: input.fields?.applicationMessage }; }
-
 async function ensureHeliumApplication(shop: string, creatorId: string, status: string | null, input: HeliumCustomerInput) {
-  const existing = await db.creatorApplication.findFirst({ where: { creatorId, source: "HELIUM_IMPORT" }, orderBy: { createdAt: "desc" } });
   const data = heliumApplicationData(input);
-  if (existing) { await db.creatorApplication.update({ where: { id: existing.id }, data }); return "UPDATED" as const; }
-  await db.creatorApplication.create({ data: { shop, creatorId, source: "HELIUM_IMPORT", answersJson: sanitizedApplicationAnswers(input.fields?.applicationMessage), status: status === "APPROVED" ? "APPROVED" : status === "REJECTED" ? "REJECTED" : "PENDING", ...data } });
-  return "CREATED" as const;
+  await db.creator.update({
+    where: { id: creatorId },
+    data: {
+      ...data,
+      aboutWork: input.fields?.applicationMessage,
+      submittedAt: new Date(),
+      reviewedAt: status === "APPROVED" || status === "REJECTED" ? new Date() : null,
+      approvedAt: status === "APPROVED" ? new Date() : undefined,
+      rejectedAt: status === "REJECTED" ? new Date() : undefined,
+    },
+  });
+  return "UPDATED" as const;
 }
 
 export async function fetchHeliumCustomer(
@@ -211,6 +348,7 @@ export async function applyHeliumSync(
   input: HeliumCustomerInput,
   source: "WEBHOOK" | "IMPORT" | "LAZY",
   dryRun = false,
+  options: { useExistingStatus?: boolean } = {},
 ) {
   const customerId = normalizeCustomerGid(input.customerId);
   const existing = await findCreatorByCustomerIdentity(shop, customerId);
@@ -219,7 +357,7 @@ export async function applyHeliumSync(
     ...input,
     customerId,
     snapshotHash: externalSnapshotHash,
-  });
+  }, options);
   if (dryRun) return plan;
   if (plan.action === "SKIP") {
     if (existing && (existing.externalSnapshotHash !== externalSnapshotHash || existing.externalSyncConflict !== (plan.result === "CONFLICT"))) await db.creator.update({ where: { id: existing.id }, data: { externalSnapshotHash, lastExternalSyncAt: new Date(), externalSyncConflict: plan.result === "CONFLICT" } });
@@ -238,18 +376,20 @@ export async function applyHeliumSync(
           afterJson: safeJson({ externalStatus: plan.status }),
         },
       });
-    if (existing && plan.status) await ensureHeliumApplication(shop, existing.id, plan.status, input);
+    if (existing && plan.status)
+      await ensureHeliumApplication(shop, existing.id, plan.status, input);
     return plan;
   }
   if (plan.action === "CREATE") {
     const displayName = String(plan.data.displayName);
     const handle = await uniqueHandle(shop, displayName);
-    await db.$transaction(async (tx) => {
+    const created = await db.$transaction(async (tx) => {
       const created = await tx.creator.create({
         data: {
           shop,
           customerId,
           handle,
+          ...referralFieldsForCode(handle),
           displayName,
           applicationSource: "HELIUM_IMPORT",
           statusAuthority: "HELIUM_IMPORT",
@@ -260,43 +400,21 @@ export async function applyHeliumSync(
           legalName: plan.data.legalName as string | null,
           country: plan.data.country as string | null,
           city: plan.data.city as string | null,
-          socialLinksJson: String(plan.data.socialLinksJson || "[]"),
-          bio: plan.data.bio as string | null,
-          portfolioUrl: plan.data.portfolioUrl as string | null,
-          profileImageUrl: plan.data.profileImageUrl as string | null,
-          approvedAt: plan.status === "APPROVED" ? new Date() : null,
-          rejectedAt: plan.status === "REJECTED" ? new Date() : null,
-          suspendedAt: plan.status === "SUSPENDED" ? new Date() : null,
-        },
-      });
-      await tx.creatorApplication.create({
-        data: {
-          shop,
-          creatorId: created.id,
-          source: "HELIUM_IMPORT",
-          answersJson: sanitizedApplicationAnswers(
-            input.fields?.applicationMessage,
-          ),
-          legalName: input.fields?.legalName,
-          displayName: input.fields?.creatorDisplayName,
-          country: input.fields?.country,
-          city: input.fields?.city,
-          bio: input.fields?.shortCreatorBio,
-          portfolioUrl: input.fields?.portfolioUrl,
-          socialLinksJson: input.fields?.socialProfiles || "[]",
-          profileImageUrl: input.fields?.creatorProfilePhoto,
-          message: input.fields?.applicationMessage,
-          termsAcceptedAt: input.fields?.termsAccepted ? new Date() : null,
-          status:
-            plan.status === "APPROVED"
-              ? "APPROVED"
-              : plan.status === "REJECTED"
-                ? "REJECTED"
-                : "PENDING",
+          emailSnapshot: null,
+          submittedAt: new Date(),
           reviewedAt:
             plan.status === "APPROVED" || plan.status === "REJECTED"
               ? new Date()
               : null,
+          socialLinksJson: String(plan.data.socialLinksJson || "[]"),
+          bio: plan.data.bio as string | null,
+          portfolioUrl: plan.data.portfolioUrl as string | null,
+          aboutWork: input.fields?.applicationMessage,
+          termsAcceptedAt: input.fields?.termsAccepted ? new Date() : null,
+          profileImageUrl: plan.data.profileImageUrl as string | null,
+          approvedAt: plan.status === "APPROVED" ? new Date() : null,
+          rejectedAt: plan.status === "REJECTED" ? new Date() : null,
+          suspendedAt: plan.status === "SUSPENDED" ? new Date() : null,
         },
       });
       await tx.auditLog.create({
@@ -311,6 +429,9 @@ export async function applyHeliumSync(
       });
       return created;
     });
+    if (created.status === "APPROVED") {
+      await ensureCreatorCollectionRecord(shop, created.id);
+    }
     return plan;
   }
   const statusDates = plan.data.status
@@ -343,6 +464,9 @@ export async function applyHeliumSync(
       afterJson: safeJson({ status: creator.status, source }),
     },
   });
+  if (creator.status === "APPROVED" || creator.status === "SUSPENDED") {
+    await syncCreatorCollectionStatus(shop, creator.id);
+  }
   return plan;
 }
 
@@ -365,10 +489,17 @@ export async function lazySyncCreator(
     customer,
     config?.heliumCreatorFormId,
   );
-  if (!creatorStatusFromTags(input.tags)) return false;
-  if (!creatorStatusFromTags(customer.tags))
+  const existing = await findCreatorByCustomerIdentity(shop, customer.customerId);
+  const profileUpdateSubmission =
+    Boolean(existing) && isHeliumProfileUpdateFormSubmission(customer.formIds);
+  const existingRefresh = Boolean(existing);
+  if (!creatorStatusFromTags(input.tags) && !profileUpdateSubmission && !existingRefresh)
+    return false;
+  if (!creatorStatusFromTags(customer.tags) && !profileUpdateSubmission && !existingRefresh)
     await addInitialCreatorTags(client, customer.customerId);
-  await applyHeliumSync(shop, input, "LAZY");
+  await applyHeliumSync(shop, input, "LAZY", false, {
+    useExistingStatus: existingRefresh && !creatorStatusFromTags(input.tags),
+  });
   return true;
 }
 
@@ -458,17 +589,21 @@ export async function syncExistingCreators(
         },
         config?.heliumCreatorFormId,
       );
-      if (!creatorStatusFromTags(input.tags)) {
+      const existingCreator = await findCreatorByCustomerIdentity(shop, customer.id);
+      const profileUpdateSubmission =
+        Boolean(existingCreator) && isHeliumProfileUpdateFormSubmission(formIds);
+      if (!creatorStatusFromTags(input.tags) && !profileUpdateSubmission) {
         counts.customersWithoutCreatorSignal++;
         continue;
       }
       const conflict = hasConflictingCreatorTags(input.tags);
       if (conflict) counts.conflict++;
-      const existingCreator = await findCreatorByCustomerIdentity(shop, customer.id);
-      const existingApplication = existingCreator ? await db.creatorApplication.findFirst({ where: { creatorId: existingCreator.id, source: "HELIUM_IMPORT" }, select: { id: true } }) : null;
-      if (existingApplication) counts.applicationUpdate++; else counts.applicationCreate++;
+      const existingApplication = existingCreator?.applicationSource === "HELIUM_IMPORT";
+      if (!profileUpdateSubmission) {
+        if (existingApplication) counts.applicationUpdate++; else counts.applicationCreate++;
+      }
       if (input.fields?.creatorProfilePhoto?.startsWith("gid://")) counts.invalidImageReference++;
-      if (!dryRun && !originalStatus)
+      if (!dryRun && !originalStatus && !profileUpdateSubmission)
         await addInitialCreatorTags(client, customer.id);
       const plan = await applyHeliumSync(
         shop,

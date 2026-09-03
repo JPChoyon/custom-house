@@ -2,55 +2,33 @@ import type { LoaderFunctionArgs } from "react-router";
 import { creatorDashboard } from "../services/submission.server";
 import { apiData, apiError, proxyContext } from "../services/proxy.server";
 import { enforceRateLimit } from "../services/rate-limit.server";
-import {
-  lazySyncCreator,
-  loadWithLazySync,
-  normalizeCustomerGid,
-} from "../services/helium-sync.server";
 
 type DashboardStatus = "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED" | "NOT_APPLIED" | "SYNC_CONFLICT";
 
-async function presentation(
+async function profileImageUrl(
   client: {
     request<T>(document: string, variables?: Record<string, unknown>): Promise<T>;
   },
-  customerId: string,
   profileImageUrl?: string | null,
 ) {
+  if (!profileImageUrl?.startsWith("gid://")) {
+    return profileImageUrl?.startsWith("https://") ? profileImageUrl : null;
+  }
   const result = await client.request<{
-    customer: {
-      firstName: string | null;
-      lastName: string | null;
-    } | null;
     profileImage: {
       image?: { url: string } | null;
+      url?: string | null;
     } | null;
   }>(
-    `#graphql query CreatorPresentation($customerId: ID!, $profileImageId: ID!) {
-      customer(id: $customerId) { firstName lastName }
+    `#graphql query CreatorProfileImage($profileImageId: ID!) {
       profileImage: node(id: $profileImageId) {
         ... on MediaImage { image { url } }
+        ... on GenericFile { url }
       }
     }`,
-    {
-      customerId,
-      profileImageId: profileImageUrl?.startsWith("gid://")
-        ? profileImageUrl
-        : customerId,
-    },
+    { profileImageId: profileImageUrl },
   );
-  return {
-    legalName: [
-      result.customer?.firstName,
-      result.customer?.lastName,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .trim(),
-    profileImageUrl:
-      result.profileImage?.image?.url ||
-      (profileImageUrl?.startsWith("https://") ? profileImageUrl : null),
-  };
+  return result.profileImage?.image?.url || result.profileImage?.url || null;
 }
 
 function diagnostic(details: {
@@ -77,17 +55,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }
 
     enforceRateLimit(`${shop}:${context.customerId}:dashboard`);
-    const dashboard = await loadWithLazySync(
-      () => creatorDashboard(shop, context.customerId!),
-      () => lazySyncCreator(shop, context.customerId!, context.client),
-    );
-    const live = dashboard.creatorFound
-      ? await presentation(
-          context.client,
-          normalizeCustomerGid(context.customerId),
-          dashboard.profileImageUrl,
-        )
-      : null;
+    const dashboard = await creatorDashboard(shop, context.customerId);
+    const liveProfileImageUrl =
+      dashboard.creatorFound && dashboard.profileImageUrl?.startsWith("gid://")
+        ? await profileImageUrl(context.client, dashboard.profileImageUrl)
+        : dashboard.creatorFound
+          ? dashboard.profileImageUrl
+          : null;
     diagnostic({
       shop,
       customerIdExists: true,
@@ -97,10 +71,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return apiData({
       loggedIn: true,
       ...dashboard,
-      legalName: live?.legalName || dashboard.displayName,
-      displayName: live?.legalName || dashboard.displayName,
-      profileImageUrl:
-        live?.profileImageUrl || dashboard.profileImageUrl || null,
+      profileImageUrl: liveProfileImageUrl || dashboard.profileImageUrl || null,
     });
   } catch (error) {
     diagnostic({ shop, customerIdExists, creatorFound: false, creatorStatus: null });

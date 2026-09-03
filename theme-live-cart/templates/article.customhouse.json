@@ -1,0 +1,42 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "main": {
+      "type": "customhouse-article",
+      "settings": {
+        "eyebrow_text": "BLOG",
+        "show_featured_image": true,
+        "show_article_meta": true,
+        "show_tags": true,
+        "show_share_buttons": true,
+        "back_to_blog_text": "Back to the blog",
+        "show_bottom_cta": true,
+        "cta_heading": "Redo att skapa något eget?",
+        "cta_text": "Utforska CustomHouse produkter och skapa personlig merchandise med egen design, logotyp eller text.",
+        "cta_button_text": "Börja Designa",
+        "container_width": 1440,
+        "top_padding": 40,
+        "bottom_padding": 96,
+        "card_radius": 20,
+        "background_color": "#0F0F11",
+        "card_background_color": "#18181B",
+        "heading_color": "#FFFFFF",
+        "body_text_color": "#C6C6CC",
+        "accent_color": "#D7FF2F",
+        "border_color": "#6D42B8",
+        "enable_graffiti_accents": true
+      }
+    }
+  },
+  "order": [
+    "main"
+  ]
+}

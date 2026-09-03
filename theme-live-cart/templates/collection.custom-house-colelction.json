@@ -1,0 +1,237 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "main": {
+      "type": "main-collection",
+      "blocks": {
+        "filters": {
+          "type": "filters",
+          "static": true,
+          "settings": {
+            "enable_filtering": true,
+            "filter_style": "horizontal",
+            "filter_width": "centered",
+            "text_label_case": "default",
+            "show_swatch_label": false,
+            "show_filter_label": false,
+            "enable_sorting": true,
+            "enable_grid_density": true,
+            "background_color": "",
+            "text_color": "",
+            "padding-block-start": 8,
+            "padding-block-end": 8,
+            "padding-inline-start": 0,
+            "padding-inline-end": 0,
+            "facets_margin_bottom": 8,
+            "facets_margin_right": 20
+          },
+          "blocks": {}
+        },
+        "product-card": {
+          "type": "_product-card",
+          "static": true,
+          "settings": {
+            "product_card_gap": 4,
+            "background_color": "",
+            "border": "none",
+            "border_width": 1,
+            "border_opacity": 100,
+            "border_color": "",
+            "border_radius": 0,
+            "padding-block-start": 0,
+            "padding-block-end": 0,
+            "padding-inline-start": 0,
+            "padding-inline-end": 0
+          },
+          "blocks": {
+            "card-gallery": {
+              "type": "_product-card-gallery",
+              "settings": {
+                "image_ratio": "adapt",
+                "border": "none",
+                "border_width": 1,
+                "border_opacity": 100,
+                "border_color": "",
+                "border_radius": 0,
+                "padding-block-start": 0,
+                "padding-block-end": 0,
+                "padding-inline-start": 0,
+                "padding-inline-end": 0
+              },
+              "blocks": {}
+            },
+            "product_title_4nY4eT": {
+              "type": "product-title",
+              "name": "t:names.product_title",
+              "settings": {
+                "width": "100%",
+                "max_width": "normal",
+                "alignment": "left",
+                "type_preset": "rte",
+                "font": "var(--font-body--family)",
+                "font_size": "1rem",
+                "line_height": "normal",
+                "letter_spacing": "normal",
+                "case": "none",
+                "wrap": "pretty",
+                "text_color": "",
+                "background": false,
+                "background_color": "#00000026",
+                "corner_radius": 0,
+                "padding-block-start": 4,
+                "padding-block-end": 0,
+                "padding-inline-start": 0,
+                "padding-inline-end": 0
+              },
+              "blocks": {}
+            },
+            "price_EzJzMm": {
+              "type": "price",
+              "settings": {
+                "show_sale_price_first": true,
+                "show_installments": false,
+                "show_tax_info": false,
+                "type_preset": "h6",
+                "width": "100%",
+                "alignment": "left",
+                "font": "var(--font-body--family)",
+                "font_size": "1rem",
+                "line_height": "normal",
+                "letter_spacing": "normal",
+                "case": "none",
+                "text_color": "",
+                "padding-block-start": 0,
+                "padding-block-end": 0,
+                "padding-inline-start": 0,
+                "padding-inline-end": 0
+              },
+              "blocks": {}
+            }
+          },
+          "block_order": [
+            "card-gallery",
+            "product_title_4nY4eT",
+            "price_EzJzMm"
+          ]
+        }
+      },
+      "disabled": true,
+      "settings": {
+        "layout_type": "grid",
+        "product_card_size": "medium",
+        "mobile_product_card_size": "small",
+        "enable_infinite_scroll": true,
+        "products_per_page": 24,
+        "product_grid_width": "centered",
+        "full_width_on_mobile": true,
+        "columns_gap_horizontal": 16,
+        "columns_gap_vertical": 24,
+        "padding-inline-start": 0,
+        "padding-inline-end": 0,
+        "background_color": "{{ settings.color_palette.background }}",
+        "padding-block-start": 0,
+        "padding-block-end": 32
+      }
+    },
+    "customhouse_collection_grid_G9qUWP": {
+      "type": "customhouse-collection-grid",
+      "blocks": {
+        "info_item_JkqGwk": {
+          "type": "info_item",
+          "settings": {
+            "icon": "award",
+            "heading": "Premium Embroidery",
+            "text": "Top quality materials"
+          }
+        },
+        "info_item_BjEfLe": {
+          "type": "info_item",
+          "settings": {
+            "icon": "globe",
+            "heading": "Worldwide Shipping",
+            "text": "Fast and reliable delivery"
+          }
+        },
+        "info_item_DxzaPf": {
+          "type": "info_item",
+          "settings": {
+            "icon": "crown",
+            "heading": "Creator Collections",
+            "text": "Unique designs by creators"
+          }
+        },
+        "info_item_yfxRTt": {
+          "type": "info_item",
+          "settings": {
+            "icon": "edit",
+            "heading": "Custom Made",
+            "text": "Design it your way"
+          }
+        }
+      },
+      "block_order": [
+        "info_item_JkqGwk",
+        "info_item_BjEfLe",
+        "info_item_DxzaPf",
+        "info_item_yfxRTt"
+      ],
+      "name": "CustomHouse collection",
+      "settings": {
+        "enable_custom_width": true,
+        "section_max_width": 1500,
+        "product_source": "current_collection",
+        "selected_collection": "",
+        "manual_products": [],
+        "show_banner": true,
+        "hero_image_layout": "full",
+        "banner_heading": "",
+        "banner_description": "<p>Explore every piece from our creators and official drops. Customize it. Make it yours.</p>",
+        "show_products_count": true,
+        "products_count_label": "Products",
+        "show_creator_count": true,
+        "creator_count_override": 0,
+        "creator_count_label": "Creators",
+        "show_info_bar": true,
+        "info_bar_label": "Marketplace benefits",
+        "show_toolbar": true,
+        "show_category_filter": true,
+        "show_type_filter": true,
+        "show_color_filter": true,
+        "show_price_filter": true,
+        "show_size_filter": true,
+        "show_sort": true,
+        "show_grid_toggle": true,
+        "cards_per_row_desktop": "4",
+        "cards_per_row_tablet": "3",
+        "cards_per_row_mobile": "1",
+        "maximum_rows": 2,
+        "show_creator": true,
+        "show_rating": true,
+        "show_wishlist": true,
+        "show_customize_button": true,
+        "show_view_product": true,
+        "show_badge": true,
+        "customize_base_url": "",
+        "show_cta": true,
+        "cta_heading": "Can't find what <strong>you want?</strong>",
+        "cta_text": "Create your own unique design and make it truly yours.",
+        "cta_button_text": "Start designing",
+        "cta_button_link": "",
+        "show_pagination": true,
+        "products_per_page": 8
+      }
+    }
+  },
+  "order": [
+    "main",
+    "customhouse_collection_grid_G9qUWP"
+  ]
+}

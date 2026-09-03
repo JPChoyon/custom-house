@@ -1,0 +1,290 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "main": {
+      "type": "main-page",
+      "blocks": {
+        "page-content": {
+          "type": "page-content",
+          "settings": {
+            "text_color": ""
+          },
+          "blocks": {}
+        }
+      },
+      "block_order": [
+        "page-content"
+      ],
+      "disabled": true,
+      "settings": {
+        "content_direction": "column",
+        "gap": 32,
+        "background_color": "{{ settings.color_palette.background }}",
+        "padding-block-start": 40,
+        "padding-block-end": 80
+      }
+    },
+    "faq_hero_RN9Qdg": {
+      "type": "faq-hero",
+      "disabled": true,
+      "name": "FAQ hero",
+      "settings": {
+        "eyebrow": "FREQUENTLY ASKED QUESTIONS",
+        "heading": "Answers Before You Start Creating",
+        "description": "Find quick answers about CustomHouse, product customization, creator collections, production, shipping, and support.",
+        "show_chips": true,
+        "chips_aria_label": "FAQ categories",
+        "chip_1_text": "Product Customization",
+        "chip_2_text": "Creator Collections",
+        "chip_3_text": "Shipping & Support",
+        "heading_size": 64,
+        "heading_mobile_size": 38,
+        "heading_font_style": "normal",
+        "heading_text_transform": "none",
+        "eyebrow_size": 15,
+        "eyebrow_weight": 800,
+        "eyebrow_letter_spacing": 28,
+        "description_size": 21,
+        "text_shadow_opacity": 70,
+        "container_width": 1440,
+        "content_width": 1120,
+        "hero_height": 460,
+        "section_padding": 56,
+        "brush_width": 136,
+        "brush_height": 9,
+        "brush_margin_top": 18,
+        "brush_margin_bottom": 32,
+        "description_width": 820,
+        "description_margin_top": 24,
+        "background_color": "#0e0e10",
+        "accent_color": "#d7ff2f",
+        "text_color": "#ffffff",
+        "description_color": "#bfc0c5",
+        "texture_opacity": 55,
+        "vignette_opacity": 55,
+        "line_art_color": "#ffffff",
+        "line_art_opacity": 8,
+        "graffiti_color": "#4f2a95",
+        "graffiti_opacity": 24,
+        "graffiti_size": 260,
+        "graffiti_top_offset": 16,
+        "graffiti_bottom_offset": 28,
+        "chips_width": 880,
+        "chips_margin_top": 36,
+        "chip_background_color": "#111113",
+        "chip_background_opacity": 70,
+        "chip_border_color": "#6d42b8",
+        "chip_accent_mix": 20,
+        "chip_height": 56,
+        "chip_radius": 14,
+        "chip_gap": 28,
+        "chip_text_size": 16,
+        "chip_weight": 700,
+        "dot_size": 7
+      }
+    },
+    "faq_accordion_HWi6RW": {
+      "type": "faq-accordion",
+      "blocks": {
+        "faq_item_TRrD3N": {
+          "type": "faq_item",
+          "settings": {
+            "category": "customization",
+            "question": "How do I customize a product?",
+            "answer": "<p>Choose your product, launch the design experience, add your artwork, text, or logo, preview the final result, and then place your order.</p>"
+          }
+        },
+        "faq_item_rVUpxE": {
+          "type": "faq_item",
+          "settings": {
+            "category": "customization",
+            "question": "Can I upload my own logo or artwork?",
+            "answer": "<p>Yes. You can upload your own logo, artwork, or design files during customization. Use the clearest file available so production can preserve the detail.</p>"
+          }
+        },
+        "faq_item_r93hqQ": {
+          "type": "faq_item",
+          "settings": {
+            "category": "customization",
+            "question": "Can I preview my design before ordering?",
+            "answer": "<p>Yes. The customization experience lets you review your product preview before checkout so you can confirm the placement, scale, and overall look.</p>"
+          }
+        },
+        "faq_item_kaJebL": {
+          "type": "faq_item",
+          "settings": {
+            "category": "orders",
+            "question": "How long does production take?",
+            "answer": "<p>Production timing depends on the product and order volume. Most custom orders move into production after the design file has been checked and approved.</p>"
+          }
+        },
+        "faq_item_QJYbVF": {
+          "type": "faq_item",
+          "settings": {
+            "category": "orders",
+            "question": "Can I change my order after placing it?",
+            "answer": "<p>Contact support as quickly as possible. If production has not started, the team may be able to help update details before the order moves forward.</p>"
+          }
+        },
+        "faq_item_9YVmXr": {
+          "type": "faq_item",
+          "settings": {
+            "category": "orders",
+            "question": "What happens if my design file has an issue?",
+            "answer": "<p>If a file issue is found, CustomHouse will contact you with the next steps so the artwork can be corrected before fulfillment continues.</p>"
+          }
+        },
+        "faq_item_kYbMw3": {
+          "type": "faq_item",
+          "settings": {
+            "category": "creators",
+            "question": "Can I become a creator?",
+            "answer": "<p>Yes. Creators can apply or contact the CustomHouse team to discuss collection ideas, audience fit, and product opportunities.</p>"
+          }
+        },
+        "faq_item_r7dLDC": {
+          "type": "faq_item",
+          "settings": {
+            "category": "creators",
+            "question": "How do creator collections work?",
+            "answer": "<p>Creator collections are curated product drops built around a creator's artwork, brand, or community. CustomHouse helps turn the concept into ready-to-order merchandise.</p>"
+          }
+        },
+        "faq_item_8YdHfp": {
+          "type": "faq_item",
+          "settings": {
+            "category": "creators",
+            "question": "Do creators earn commission or credits?",
+            "answer": "<p>Creator reward structures can vary by collection or partnership. The CustomHouse team will confirm the details during onboarding.</p>"
+          }
+        },
+        "faq_item_aCBJGA": {
+          "type": "faq_item",
+          "settings": {
+            "category": "shipping",
+            "question": "Do you ship worldwide?",
+            "answer": "<p>CustomHouse supports shipping to many locations. Available delivery options and costs are shown during checkout based on your shipping address.</p>"
+          }
+        },
+        "faq_item_jrgLBf": {
+          "type": "faq_item",
+          "settings": {
+            "category": "shipping",
+            "question": "How can I contact support?",
+            "answer": "<p>You can contact support through the site's contact form or support email. Include your order number when possible so the team can help faster.</p>"
+          }
+        },
+        "faq_item_4cXk89": {
+          "type": "faq_item",
+          "settings": {
+            "category": "shipping",
+            "question": "How do I track my order?",
+            "answer": "<p>Once your order ships, tracking details are sent to the email used at checkout. Use that link to follow the delivery status.</p>"
+          }
+        }
+      },
+      "block_order": [
+        "faq_item_TRrD3N",
+        "faq_item_rVUpxE",
+        "faq_item_r93hqQ",
+        "faq_item_kaJebL",
+        "faq_item_QJYbVF",
+        "faq_item_9YVmXr",
+        "faq_item_kYbMw3",
+        "faq_item_r7dLDC",
+        "faq_item_8YdHfp",
+        "faq_item_aCBJGA",
+        "faq_item_jrgLBf",
+        "faq_item_4cXk89"
+      ],
+      "name": "FAQ accordion",
+      "settings": {
+        "enable_heading": true,
+        "enable_tabs": true,
+        "enable_graffiti": true,
+        "label": "FREQUENTLY ASKED QUESTIONS",
+        "heading": "Everything You Need to Know",
+        "description": "Find quick answers about CustomHouse, product customization, creator collections, production, shipping, and support.",
+        "tab_customization": "Customization",
+        "tab_orders": "Orders",
+        "tab_creators": "Creators",
+        "tab_shipping": "Shipping",
+        "container_width": 1440,
+        "accordion_width": 1060,
+        "top_padding": 72,
+        "bottom_padding": 88,
+        "card_radius": 18,
+        "heading_size": 60,
+        "background_color": "#0e0e10",
+        "heading_color": "#ffffff",
+        "body_text_color": "#bfc0c5",
+        "accent_color": "#d7ff2f",
+        "border_color": "#6d42b8",
+        "texture_opacity": 55,
+        "graffiti_opacity": 24
+      }
+    },
+    "faq_cta_hz8TMw": {
+      "type": "faq-cta",
+      "name": "FAQ CTA",
+      "settings": {
+        "eyebrow": "STILL NEED HELP?",
+        "heading": "Have More Questions?",
+        "description": "Our team is here to help with product customization, creator partnerships, orders, shipping, and anything else you need to know about CustomHouse.",
+        "primary_button_text": "Contact Support",
+        "primary_button_link": "",
+        "enable_secondary_button": true,
+        "secondary_button_text": "Start Designing",
+        "secondary_button_link": "",
+        "enable_graffiti": true,
+        "container_width": 1440,
+        "banner_width": 1240,
+        "banner_min_height": 450,
+        "top_padding": 72,
+        "bottom_padding": 88,
+        "banner_padding_y": 72,
+        "banner_padding_x": 96,
+        "border_radius": 22,
+        "eyebrow_size": 15,
+        "heading_size": 66,
+        "heading_mobile_size": 38,
+        "description_size": 18,
+        "description_width": 740,
+        "brush_width": 136,
+        "brush_height": 9,
+        "background_color": "#0E0E10",
+        "banner_background_color": "#111114",
+        "heading_color": "#FFFFFF",
+        "body_text_color": "#BFC0C5",
+        "accent_color": "#D7FF2F",
+        "border_color": "#6D42B8",
+        "primary_button_background": "#D7FF2F",
+        "primary_button_text_color": "#050505",
+        "secondary_button_background": "#111114",
+        "secondary_button_text_color": "#FFFFFF",
+        "button_min_width": 260,
+        "button_height": 68,
+        "button_radius": 10,
+        "button_text_size": 18,
+        "texture_opacity": 55,
+        "graffiti_opacity": 22,
+        "graffiti_size": 260,
+        "line_art_opacity": 10
+      }
+    }
+  },
+  "order": [
+    "main",
+    "faq_hero_RN9Qdg",
+    "faq_accordion_HWi6RW",
+    "faq_cta_hz8TMw"
+  ]
+}

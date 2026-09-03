@@ -1,9 +1,47 @@
-import { DomainError } from "./domain";
-import { validateProfileImage } from "./creator-application";
+import { DomainError } from "./domain.ts";
+import { validateProfileImage } from "./creator-application.ts";
 import type { ShopifyGraphqlClient } from "./shopify-graphql.server";
-import { throwUserErrors } from "./shopify-graphql.server";
+import { throwUserErrors } from "./shopify-graphql.server.ts";
 
 type UserError = { message: string };
+type ProfileImageMedia = {
+  id: string;
+  fileStatus: string;
+  image?: { url: string } | null;
+};
+
+async function profileImageUrl(
+  mediaId: string,
+  client: ShopifyGraphqlClient,
+) {
+  const result = await client.request<{
+    profileImage: ProfileImageMedia | null;
+  }>(
+    `#graphql query ProfileImageUrl($id: ID!) {
+      profileImage: node(id: $id) {
+        ... on MediaImage {
+          id
+          fileStatus
+          image { url }
+        }
+      }
+    }`,
+    { id: mediaId },
+  );
+  return result.profileImage?.image?.url || null;
+}
+
+async function waitForProfileImageUrl(
+  mediaId: string,
+  client: ShopifyGraphqlClient,
+) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const imageUrl = await profileImageUrl(mediaId, client);
+    if (imageUrl) return imageUrl;
+    await new Promise((resolve) => setTimeout(resolve, 700));
+  }
+  return null;
+}
 
 export async function uploadProfileImage(file: File, client: ShopifyGraphqlClient) {
   const bytes = new Uint8Array(await file.arrayBuffer());
@@ -20,12 +58,30 @@ export async function uploadProfileImage(file: File, client: ShopifyGraphqlClien
   form.append("file", new Blob([bytes], { type: file.type }), file.name);
   const upload = await fetch(target.url, { method: "POST", body: form });
   if (!upload.ok) throw new DomainError("UPLOAD_FAILED", "Profile image upload failed.", 502);
-  const created = await client.request<{ fileCreate: { files: Array<{ id: string; fileStatus: string }>; userErrors: UserError[] } }>(
-    `#graphql mutation ProfileImageCreate($files: [FileCreateInput!]!) { fileCreate(files: $files) { files { id fileStatus } userErrors { message } } }`,
+  const created = await client.request<{
+    fileCreate: { files: ProfileImageMedia[]; userErrors: UserError[] };
+  }>(
+    `#graphql mutation ProfileImageCreate($files: [FileCreateInput!]!) {
+      fileCreate(files: $files) {
+        files {
+          ... on MediaImage {
+            id
+            fileStatus
+            image { url }
+          }
+        }
+        userErrors { message }
+      }
+    }`,
     { files: [{ originalSource: target.resourceUrl, contentType: "IMAGE", alt: "Creator profile image" }] },
   );
   throwUserErrors(created.fileCreate.userErrors, "Profile image creation");
   const media = created.fileCreate.files[0];
   if (!media) throw new DomainError("UPLOAD_FAILED", "Shopify did not create the profile image.", 502);
-  return { profileImageUrl: media.id, status: media.fileStatus };
+  return {
+    profileImageId: media.id,
+    profileImageUrl:
+      media.image?.url || (await waitForProfileImageUrl(media.id, client)),
+    status: media.fileStatus,
+  };
 }

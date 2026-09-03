@@ -1,0 +1,776 @@
+{% liquid
+  assign section_id = 'customhouse-blog-' | append: section.id
+  assign container_width = section.settings.container_width | default: 1440
+  assign top_padding = section.settings.top_padding | default: 56
+  assign bottom_padding = section.settings.bottom_padding | default: 64
+  assign articles_per_page = section.settings.articles_per_page | default: 9
+%}
+
+<style>
+  body.template-blog,
+  body:has(#{{ section_id }}.customhouse-blog),
+  body.template-blog main,
+  main:has(#{{ section_id }}.customhouse-blog),
+  #MainContent:has(#{{ section_id }}.customhouse-blog),
+  .content-for-layout:has(#{{ section_id }}.customhouse-blog),
+  .shopify-section:has(#{{ section_id }}.customhouse-blog),
+  .section-customhouse-blog:has(#{{ section_id }}.customhouse-blog),
+  #shopify-section-{{ section.id }},
+  .shopify-section.section-customhouse-blog {
+    background-color: #0F0F11 !important;
+    background-image: none !important;
+  }
+
+  #{{ section_id }} {
+    --customhouse-blog-bg: {{ section.settings.background_color }};
+    --customhouse-blog-card-bg: {{ section.settings.card_background_color }};
+    --customhouse-blog-heading: {{ section.settings.heading_color }};
+    --customhouse-blog-body: {{ section.settings.body_text_color }};
+    --customhouse-blog-accent: {{ section.settings.accent_color }};
+    --customhouse-blog-border: {{ section.settings.border_color }};
+    --customhouse-blog-muted: color-mix(in srgb, var(--customhouse-blog-body) 72%, transparent);
+    --customhouse-blog-container: {{ container_width }}px;
+    --customhouse-blog-top-padding: {{ top_padding }}px;
+    --customhouse-blog-bottom-padding: {{ bottom_padding }}px;
+    --customhouse-blog-radius: {{ section.settings.card_radius }}px;
+    --customhouse-blog-body-font: Inter, Arial, sans-serif;
+  }
+
+  #{{ section_id }}.customhouse-blog {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    min-height: 100vh;
+    margin: 0;
+    padding-block: var(--customhouse-blog-top-padding) var(--customhouse-blog-bottom-padding);
+    color: var(--customhouse-blog-body);
+    font-family: var(--customhouse-blog-body-font);
+    background-color: #0F0F11;
+    background-image: linear-gradient(180deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.32));
+  }
+
+  #{{ section_id }}.customhouse-blog::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -4;
+    opacity: 0.28;
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 300 300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.76' numOctaves='5' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='table' tableValues='0 .06'/%3E%3CfeFuncG type='table' tableValues='0 .06'/%3E%3CfeFuncB type='table' tableValues='.005 .07'/%3E%3CfeFuncA type='table' tableValues='.16 .38'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-position: center;
+    background-size: 260px 260px;
+    pointer-events: none;
+  }
+
+  #{{ section_id }}.customhouse-blog::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -3;
+    background:
+      linear-gradient(90deg, rgba(0, 0, 0, 0.68), transparent 24%, transparent 76%, rgba(0, 0, 0, 0.68)),
+      linear-gradient(180deg, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.42));
+    pointer-events: none;
+  }
+
+  #{{ section_id }} .customhouse-blog__container {
+    position: relative;
+    z-index: 1;
+    width: min(100% - 48px, var(--customhouse-blog-container));
+    margin-inline: auto;
+  }
+
+  #{{ section_id }} .customhouse-blog__graffiti {
+    position: absolute;
+    z-index: -1;
+    width: clamp(110px, 16vw, 230px);
+    height: clamp(74px, 10vw, 150px);
+    color: var(--customhouse-blog-border);
+    opacity: 0.16;
+    pointer-events: none;
+  }
+
+  #{{ section_id }} .customhouse-blog__graffiti--left {
+    top: 88px;
+    left: max(-86px, -5vw);
+    transform: rotate(-13deg);
+  }
+
+  #{{ section_id }} .customhouse-blog__graffiti--right {
+    right: max(-92px, -5.5vw);
+    bottom: 118px;
+    transform: rotate(11deg);
+  }
+
+  #{{ section_id }} .customhouse-blog__header {
+    width: min(100%, 860px);
+    margin: 0 auto clamp(30px, 5vw, 52px);
+    text-align: center;
+  }
+
+  #{{ section_id }} .customhouse-blog__eyebrow {
+    display: inline-block;
+    color: var(--customhouse-blog-accent);
+    font-size: clamp(12px, 0.9vw, 15px);
+    font-weight: 950;
+    line-height: 1.1;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    text-shadow: 0 0 18px color-mix(in srgb, var(--customhouse-blog-accent) 34%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-blog__brush {
+    display: block;
+    width: 116px;
+    height: 8px;
+    max-width: 34vw;
+    margin: 14px auto 20px;
+    border-radius: 999px;
+    background: var(--customhouse-blog-accent);
+    clip-path: polygon(0 58%, 11% 43%, 24% 48%, 35% 22%, 51% 35%, 66% 20%, 83% 43%, 100% 39%, 87% 56%, 68% 61%, 51% 78%, 34% 62%, 18% 72%);
+    box-shadow:
+      0 0 16px color-mix(in srgb, var(--customhouse-blog-accent) 58%, transparent),
+      0 0 34px color-mix(in srgb, var(--customhouse-blog-accent) 24%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-blog__heading {
+    margin: 0;
+    color: var(--customhouse-blog-heading);
+    font-family: Impact, "Arial Black", sans-serif;
+    font-size: clamp(42px, 5.5vw, 78px);
+    font-weight: 900;
+    line-height: 0.98;
+    letter-spacing: 0;
+    text-wrap: balance;
+    text-shadow:
+      0 4px 0 rgba(255, 255, 255, 0.08),
+      0 14px 34px rgba(0, 0, 0, 0.66);
+  }
+
+  #{{ section_id }} .customhouse-blog__description {
+    max-width: 700px;
+    margin: 18px auto 0;
+    color: var(--customhouse-blog-muted);
+    font-size: clamp(15px, 1.25vw, 18px);
+    line-height: 1.68;
+    text-wrap: balance;
+  }
+
+  #{{ section_id }} .customhouse-blog__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(28px, 2.2vw, 32px);
+    min-width: 0;
+  }
+
+  #{{ section_id }} .customhouse-blog__grid--single {
+    grid-template-columns: minmax(0, min(100%, 460px));
+    justify-content: start;
+  }
+
+  #{{ section_id }} .customhouse-blog__card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    height: 100%;
+    overflow: hidden;
+    color: var(--customhouse-blog-body);
+    text-decoration: none;
+    border: 1px solid rgba(123, 63, 242, 0.55);
+    border-radius: var(--customhouse-blog-radius);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.008)),
+      var(--customhouse-blog-card-bg);
+    box-shadow:
+      0 24px 58px rgba(0, 0, 0, 0.44),
+      0 0 0 1px rgba(255, 255, 255, 0.025) inset,
+      0 0 30px color-mix(in srgb, var(--customhouse-blog-border) 12%, transparent);
+    transition:
+      transform 220ms ease,
+      border-color 220ms ease,
+      box-shadow 220ms ease;
+  }
+
+  #{{ section_id }} .customhouse-blog__card:hover,
+  #{{ section_id }} .customhouse-blog__card:focus-within {
+    transform: translateY(-6px);
+    border-color: color-mix(in srgb, var(--customhouse-blog-accent) 72%, var(--customhouse-blog-border));
+    box-shadow:
+      0 30px 70px rgba(0, 0, 0, 0.52),
+      0 0 0 1px color-mix(in srgb, var(--customhouse-blog-accent) 22%, transparent) inset,
+      0 0 34px color-mix(in srgb, var(--customhouse-blog-accent) 18%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-blog__media {
+    position: relative;
+    display: block;
+    overflow: hidden;
+    aspect-ratio: 16 / 9;
+    background:
+      radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--customhouse-blog-border) 18%, transparent), transparent 54%),
+      #101013;
+  }
+
+  #{{ section_id }} .customhouse-blog__image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center top;
+    background: #111114;
+    transition: transform 420ms ease;
+  }
+
+  #{{ section_id }} .customhouse-blog__card:hover .customhouse-blog__image,
+  #{{ section_id }} .customhouse-blog__card:focus-within .customhouse-blog__image {
+    transform: scale(1.018);
+  }
+
+  #{{ section_id }} .customhouse-blog__placeholder {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    color: color-mix(in srgb, var(--customhouse-blog-accent) 42%, var(--customhouse-blog-border));
+    font-size: 12px;
+    font-weight: 950;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+  }
+
+  #{{ section_id }} .customhouse-blog__content {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    padding: clamp(18px, 1.7vw, 22px);
+  }
+
+  #{{ section_id }} .customhouse-blog__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin: 0 0 14px;
+    padding: 0;
+    color: var(--customhouse-blog-muted);
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.3;
+    list-style: none;
+  }
+
+  #{{ section_id }} .customhouse-blog__meta-item {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 7px 10px;
+    border: 1px solid color-mix(in srgb, var(--customhouse-blog-border) 34%, rgba(255, 255, 255, 0.12));
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.032);
+  }
+
+  #{{ section_id }} .customhouse-blog__article-title {
+    margin: 0;
+    color: var(--customhouse-blog-heading);
+    font-size: clamp(18px, 1.35vw, 22px);
+    font-weight: 950;
+    line-height: 1.2;
+    letter-spacing: 0;
+    text-wrap: balance;
+  }
+
+  #{{ section_id }} .customhouse-blog__article-title-link {
+    color: inherit;
+    text-decoration: none;
+    transition: color 180ms ease, text-shadow 180ms ease;
+  }
+
+  #{{ section_id }} .customhouse-blog__article-title-link:hover,
+  #{{ section_id }} .customhouse-blog__article-title-link:focus-visible {
+    color: var(--customhouse-blog-accent);
+    text-shadow: 0 0 18px color-mix(in srgb, var(--customhouse-blog-accent) 24%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-blog__excerpt {
+    display: -webkit-box;
+    margin: 12px 0 0;
+    overflow: hidden;
+    color: var(--customhouse-blog-muted);
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+
+  #{{ section_id }} .customhouse-blog__read-more {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: flex-start;
+    min-height: 38px;
+    margin-top: auto;
+    padding: 10px 14px;
+    color: var(--customhouse-blog-heading);
+    font-size: 13px;
+    font-weight: 950;
+    line-height: 1;
+    text-decoration: none;
+    text-transform: uppercase;
+    border: 1px solid color-mix(in srgb, var(--customhouse-blog-border) 48%, rgba(255, 255, 255, 0.12));
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.028);
+    transition:
+      color 180ms ease,
+      border-color 180ms ease,
+      box-shadow 180ms ease,
+      transform 180ms ease;
+  }
+
+  #{{ section_id }} .customhouse-blog__excerpt + .customhouse-blog__read-more,
+  #{{ section_id }} .customhouse-blog__article-title + .customhouse-blog__read-more {
+    margin-top: 18px;
+  }
+
+  #{{ section_id }} .customhouse-blog__read-more:hover,
+  #{{ section_id }} .customhouse-blog__read-more:focus-visible,
+  #{{ section_id }} .customhouse-blog__card:hover .customhouse-blog__read-more {
+    color: #0F0F11;
+    border-color: var(--customhouse-blog-accent);
+    background: var(--customhouse-blog-accent);
+    box-shadow: 0 0 24px color-mix(in srgb, var(--customhouse-blog-accent) 26%, transparent);
+    transform: translateY(-2px);
+  }
+
+  #{{ section_id }} .customhouse-blog__empty {
+    width: min(100%, 760px);
+    margin-inline: auto;
+    padding: clamp(28px, 5vw, 54px);
+    text-align: center;
+    border: 1px solid color-mix(in srgb, var(--customhouse-blog-border) 58%, rgba(255, 255, 255, 0.12));
+    border-radius: var(--customhouse-blog-radius);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.008)),
+      var(--customhouse-blog-card-bg);
+    box-shadow:
+      0 26px 70px rgba(0, 0, 0, 0.48),
+      0 0 34px color-mix(in srgb, var(--customhouse-blog-border) 14%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-blog__empty-heading {
+    margin: 0;
+    color: var(--customhouse-blog-heading);
+    font-size: clamp(26px, 3vw, 42px);
+    font-weight: 950;
+    line-height: 1.1;
+  }
+
+  #{{ section_id }} .customhouse-blog__empty-text {
+    margin: 12px auto 0;
+    color: var(--customhouse-blog-muted);
+    font-size: 16px;
+    line-height: 1.65;
+  }
+
+  #{{ section_id }} .customhouse-blog__pagination {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+    margin-top: clamp(28px, 4vw, 44px);
+  }
+
+  #{{ section_id }} .customhouse-blog__pagination-link,
+  #{{ section_id }} .customhouse-blog__pagination-current,
+  #{{ section_id }} .customhouse-blog__pagination-gap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 42px;
+    min-height: 42px;
+    padding: 10px 14px;
+    color: var(--customhouse-blog-heading);
+    font-size: 14px;
+    font-weight: 900;
+    line-height: 1;
+    text-decoration: none;
+    border: 1px solid color-mix(in srgb, var(--customhouse-blog-border) 48%, rgba(255, 255, 255, 0.12));
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  #{{ section_id }} .customhouse-blog__pagination-link {
+    transition:
+      color 180ms ease,
+      border-color 180ms ease,
+      box-shadow 180ms ease,
+      transform 180ms ease;
+  }
+
+  #{{ section_id }} .customhouse-blog__pagination-link:hover,
+  #{{ section_id }} .customhouse-blog__pagination-link:focus-visible {
+    color: var(--customhouse-blog-accent);
+    border-color: var(--customhouse-blog-accent);
+    box-shadow: 0 0 22px color-mix(in srgb, var(--customhouse-blog-accent) 18%, transparent);
+    transform: translateY(-2px);
+  }
+
+  #{{ section_id }} .customhouse-blog__pagination-current {
+    color: #0F0F11;
+    border-color: var(--customhouse-blog-accent);
+    background: var(--customhouse-blog-accent);
+    box-shadow: 0 0 24px color-mix(in srgb, var(--customhouse-blog-accent) 26%, transparent);
+  }
+
+  #{{ section_id }} .customhouse-blog__pagination-gap {
+    color: var(--customhouse-blog-muted);
+  }
+
+  @media screen and (max-width: 989px) {
+    #{{ section_id }} .customhouse-blog__grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 24px;
+    }
+  }
+
+  @media screen and (max-width: 749px) {
+    #{{ section_id }}.customhouse-blog {
+      overflow-x: hidden;
+      overflow-x: clip;
+    }
+
+    #{{ section_id }} .customhouse-blog__container {
+      width: min(100% - 24px, var(--customhouse-blog-container));
+    }
+
+    #{{ section_id }} .customhouse-blog__graffiti {
+      display: none;
+    }
+
+    #{{ section_id }} .customhouse-blog__header {
+      margin-bottom: 28px;
+    }
+
+    #{{ section_id }} .customhouse-blog__heading {
+      font-size: clamp(36px, 12vw, 52px);
+      line-height: 1;
+    }
+
+    #{{ section_id }} .customhouse-blog__description {
+      font-size: 15px;
+    }
+
+    #{{ section_id }} .customhouse-blog__grid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 18px;
+    }
+
+    #{{ section_id }} .customhouse-blog__grid--single {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    #{{ section_id }} .customhouse-blog__card,
+    #{{ section_id }} .customhouse-blog__empty {
+      border-radius: max(14px, calc(var(--customhouse-blog-radius) - 4px));
+    }
+
+    #{{ section_id }} .customhouse-blog__media {
+      aspect-ratio: 16 / 9;
+    }
+
+    #{{ section_id }} .customhouse-blog__content {
+      padding: 18px 16px;
+    }
+
+    #{{ section_id }} .customhouse-blog__article-title {
+      font-size: clamp(19px, 5.5vw, 23px);
+    }
+
+    #{{ section_id }} .customhouse-blog__meta-item {
+      max-width: 100%;
+      overflow-wrap: anywhere;
+    }
+
+    #{{ section_id }} .customhouse-blog__read-more {
+      width: 100%;
+    }
+
+    #{{ section_id }} .customhouse-blog__pagination {
+      gap: 8px;
+    }
+
+    #{{ section_id }} .customhouse-blog__pagination-link,
+    #{{ section_id }} .customhouse-blog__pagination-current,
+    #{{ section_id }} .customhouse-blog__pagination-gap {
+      min-width: 38px;
+      min-height: 38px;
+      padding: 9px 12px;
+      font-size: 13px;
+    }
+  }
+</style>
+
+<section id="{{ section_id }}" class="customhouse-blog" data-testid="blog-posts">
+  <div class="customhouse-blog__container">
+    {% if section.settings.show_graffiti_accents %}
+      <svg class="customhouse-blog__graffiti customhouse-blog__graffiti--left" viewBox="0 0 220 140" aria-hidden="true" focusable="false">
+        <path d="M18 88c30-44 58-64 84-58 18 4 20 27 1 34-32 12-62 12-70 35-6 18 18 28 44 12 38-24 58-72 90-66 24 5 24 41-2 51-19 7-42 2-56 20 18 11 52 15 88-3" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <svg class="customhouse-blog__graffiti customhouse-blog__graffiti--right" viewBox="0 0 220 140" aria-hidden="true" focusable="false">
+        <path d="M23 72c31-28 59-37 84-27 20 8 9 36-18 39-20 2-41-3-54 12 22 15 61 16 91-7 25-19 41-52 65-44 20 7 13 38-11 53-22 14-47 15-67 23" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    {% endif %}
+
+    <header class="customhouse-blog__header">
+      {% if section.settings.eyebrow_text != blank %}
+        <span class="customhouse-blog__eyebrow">{{ section.settings.eyebrow_text | escape }}</span>
+        <span class="customhouse-blog__brush" aria-hidden="true"></span>
+      {% endif %}
+
+      {% if section.settings.heading_text != blank %}
+        <h1 class="customhouse-blog__heading">{{ section.settings.heading_text | escape }}</h1>
+      {% endif %}
+
+      {% if section.settings.description_text != blank %}
+        <p class="customhouse-blog__description">{{ section.settings.description_text | escape }}</p>
+      {% endif %}
+    </header>
+
+    {% paginate blog.articles by articles_per_page %}
+      {% if blog.articles.size > 0 %}
+        <div class="customhouse-blog__grid{% if blog.articles.size == 1 %} customhouse-blog__grid--single{% endif %}">
+          {% for article in blog.articles %}
+            <article class="customhouse-blog__card">
+              <a class="customhouse-blog__media" href="{{ article.url }}" aria-label="{{ article.title | escape }}">
+                {% if article.image %}
+                  {% liquid
+                    assign image_alt = article.image.alt | default: article.title
+                  %}
+                  {{ article.image | image_url: width: 1200 | image_tag: class: 'customhouse-blog__image', widths: '360, 540, 720, 900, 1200', sizes: '(min-width: 990px) 31vw, (min-width: 750px) 46vw, calc(100vw - 24px)', loading: 'lazy', alt: image_alt }}
+                {% else %}
+                  <span class="customhouse-blog__placeholder">CustomHouse</span>
+                {% endif %}
+              </a>
+
+              <div class="customhouse-blog__content">
+                {% if section.settings.show_date or section.settings.show_author %}
+                  <ul class="customhouse-blog__meta" aria-label="Article information">
+                    {% if section.settings.show_date and article.published_at %}
+                      <li class="customhouse-blog__meta-item">{{ article.published_at | date: "%b %d, %Y" }}</li>
+                    {% endif %}
+                    {% if section.settings.show_author and article.author != blank %}
+                      <li class="customhouse-blog__meta-item">{{ article.author | escape }}</li>
+                    {% endif %}
+                  </ul>
+                {% endif %}
+
+                <h2 class="customhouse-blog__article-title">
+                  <a class="customhouse-blog__article-title-link" href="{{ article.url }}">{{ article.title | escape }}</a>
+                </h2>
+
+                {% if section.settings.show_excerpt %}
+                  {% liquid
+                    assign article_excerpt = article.excerpt_or_content | strip_html | truncatewords: 24
+                  %}
+                  {% if article_excerpt != blank %}
+                    <p class="customhouse-blog__excerpt">{{ article_excerpt }}</p>
+                  {% endif %}
+                {% endif %}
+
+                <a class="customhouse-blog__read-more" href="{{ article.url }}">Läs mer</a>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="customhouse-blog__empty">
+          <h2 class="customhouse-blog__empty-heading">No articles yet</h2>
+          <p class="customhouse-blog__empty-text">New CustomHouse stories and inspiration will be added soon.</p>
+        </div>
+      {% endif %}
+
+      {% if paginate.pages > 1 %}
+        <nav class="customhouse-blog__pagination" role="navigation" aria-label="Pagination">
+          {% if paginate.previous %}
+            <a class="customhouse-blog__pagination-link customhouse-blog__pagination-link--prev" href="{{ paginate.previous.url }}" aria-label="Previous page">Previous</a>
+          {% endif %}
+
+          {% for part in paginate.parts %}
+            {% if part.is_link %}
+              <a class="customhouse-blog__pagination-link" href="{{ part.url }}" aria-label="Page {{ part.title }}">{{ part.title }}</a>
+            {% else %}
+              {% if part.title == paginate.current_page %}
+                <span class="customhouse-blog__pagination-current" aria-current="page">{{ part.title }}</span>
+              {% else %}
+                <span class="customhouse-blog__pagination-gap">{{ part.title }}</span>
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+
+          {% if paginate.next %}
+            <a class="customhouse-blog__pagination-link customhouse-blog__pagination-link--next" href="{{ paginate.next.url }}" aria-label="Next page">Next</a>
+          {% endif %}
+        </nav>
+      {% endif %}
+    {% endpaginate %}
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "CustomHouse blog",
+  "tag": "section",
+  "class": "section-customhouse-blog",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Heading"
+    },
+    {
+      "type": "text",
+      "id": "eyebrow_text",
+      "label": "Eyebrow text",
+      "default": "BLOG"
+    },
+    {
+      "type": "text",
+      "id": "heading_text",
+      "label": "Heading text",
+      "default": "News & Inspiration"
+    },
+    {
+      "type": "textarea",
+      "id": "description_text",
+      "label": "Description text",
+      "default": "Explore ideas, creator stories, custom merchandise tips, and product inspiration from CustomHouse."
+    },
+    {
+      "type": "header",
+      "content": "Blog posts"
+    },
+    {
+      "type": "range",
+      "id": "articles_per_page",
+      "label": "Articles per page",
+      "min": 3,
+      "max": 24,
+      "step": 1,
+      "default": 9
+    },
+    {
+      "type": "checkbox",
+      "id": "show_author",
+      "label": "Show author",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_date",
+      "label": "Show date",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_excerpt",
+      "label": "Show excerpt",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_graffiti_accents",
+      "label": "Show graffiti accents",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "range",
+      "id": "container_width",
+      "label": "Container width",
+      "min": 960,
+      "max": 1600,
+      "step": 20,
+      "unit": "px",
+      "default": 1440
+    },
+    {
+      "type": "range",
+      "id": "top_padding",
+      "label": "Top padding",
+      "min": 24,
+      "max": 140,
+      "step": 4,
+      "unit": "px",
+      "default": 56
+    },
+    {
+      "type": "range",
+      "id": "bottom_padding",
+      "label": "Bottom padding",
+      "min": 32,
+      "max": 160,
+      "step": 4,
+      "unit": "px",
+      "default": 64
+    },
+    {
+      "type": "range",
+      "id": "card_radius",
+      "label": "Card radius",
+      "min": 12,
+      "max": 32,
+      "step": 1,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background color",
+      "default": "#0F0F11"
+    },
+    {
+      "type": "color",
+      "id": "card_background_color",
+      "label": "Card background color",
+      "default": "#17171A"
+    },
+    {
+      "type": "color",
+      "id": "heading_color",
+      "label": "Heading color",
+      "default": "#FFFFFF"
+    },
+    {
+      "type": "color",
+      "id": "body_text_color",
+      "label": "Body text color",
+      "default": "#B8B8B8"
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Accent color",
+      "default": "#C8FF16"
+    },
+    {
+      "type": "color",
+      "id": "border_color",
+      "label": "Border color",
+      "default": "#7B3FF2"
+    }
+  ],
+  "presets": [
+    {
+      "name": "CustomHouse blog"
+    }
+  ]
+}
+{% endschema %}

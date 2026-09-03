@@ -1,0 +1,2137 @@
+{%- assign block_settings = block.settings -%}
+<div
+  id="ProductInformation-{{ section.id }}"
+  class="
+    product-details
+    {% if block_settings.sticky_details_desktop %} sticky-content--desktop{% endif %}
+    {% if block_settings.height == 'fill' -%} full-height--desktop{% endif -%}
+  "
+  style="--details-position: {{ block_settings.details_position }};"
+  data-testid="product-information-details"
+  {% if settings.transition_to_main_product %}
+    data-view-transition-type="product-details"
+  {% endif %}
+>
+  {% capture children %}
+    <div class="view-product-title">
+      <a
+        href="{{ closest.product.selected_or_first_available_variant.url }}"
+      >
+        {{- closest.product.title }}
+      </a>
+    </div>
+    {% content_for 'blocks' %}
+
+    {%- liquid
+      assign product = closest.product
+      assign selected_variant = product.selected_or_first_available_variant | default: product.variants.first
+      assign product_form_id = 'MarkedProductForm-' | append: section.id
+      assign force_allow_purchase = section.settings.force_allow_purchase
+      assign product_type = product.metafields.customhouse.product_type.value | downcase
+      assign pitchprint_enabled = product.metafields.customhouse.pitchprint_enabled.value
+      assign is_creator_fixed_product = false
+      assign is_pitchprint_designlab_product = false
+      assign is_pitchprint_required_product = false
+      assign size_option = blank
+      assign size_option_name = 'Size'
+      assign size_option_position = 1
+      assign selected_size_value = selected_variant.option1
+      assign color_option = blank
+      assign color_option_name = 'Color'
+      assign color_option_position = 0
+      assign selected_color_value = blank
+      assign production_method_pricing = product.metafields.customhouse.production_method_pricing.value
+
+      if product_type == 'creator_fixed' or product.tags contains 'creator-fixed'
+        assign is_creator_fixed_product = true
+      endif
+
+      unless is_creator_fixed_product
+        if product_type == 'global_customizable' and pitchprint_enabled == true
+          assign is_pitchprint_designlab_product = true
+        elsif product.tags contains 'pitchprint' or product.tags contains 'pitchprint-enabled'
+          assign is_pitchprint_designlab_product = true
+        elsif product.tags contains 'pitchprint-designlab' or product.tags contains 'pitchprint-options'
+          assign is_pitchprint_designlab_product = true
+        endif
+      endunless
+
+      if is_pitchprint_designlab_product and product.tags contains 'pitchprint-required'
+        assign is_pitchprint_required_product = true
+      endif
+
+      for option in product.options_with_values
+        assign option_name = option.name | downcase
+        if option_name contains 'size'
+          assign size_option = option
+          assign size_option_name = option.name
+          assign size_option_position = option.position
+          break
+        endif
+      endfor
+
+      for option in product.options_with_values
+        assign option_name = option.name | downcase
+        assign option_name_handle = option.name | handleize
+        if option_name contains 'color' or option_name contains 'colour' or option_name_handle contains 'farg'
+          assign color_option = option
+          assign color_option_name = option.name
+          assign color_option_position = option.position
+          break
+        endif
+      endfor
+
+      case size_option_position
+        when 2
+          assign selected_size_value = selected_variant.option2
+        when 3
+          assign selected_size_value = selected_variant.option3
+        else
+          assign selected_size_value = selected_variant.option1
+      endcase
+
+      case color_option_position
+        when 1
+          assign selected_color_value = selected_variant.option1
+        when 2
+          assign selected_color_value = selected_variant.option2
+        when 3
+          assign selected_color_value = selected_variant.option3
+      endcase
+
+    -%}
+
+    <div
+      class="marked-product-actions"
+      data-marked-product-actions
+      data-product-variants="{{ product.variants | json | escape }}"
+      data-size-option-position="{{ size_option_position }}"
+      data-color-option-position="{{ color_option_position }}"
+      data-product-id="{{ product.id }}"
+      data-product-handle="{{ product.handle | escape }}"
+      data-product-title="{{ product.title | escape }}"
+      data-currency="{{ cart.currency.iso_code | default: localization.country.currency.iso_code | default: shop.currency | escape }}"
+      data-selected-color="{{ selected_color_value | escape }}"
+      data-selected-size="{{ selected_size_value | escape }}"
+      data-initial-variant-id="{{ selected_variant.id }}"
+      data-initial-quantity="1"
+      data-force-allow-purchase="{% if force_allow_purchase %}true{% else %}false{% endif %}"
+      {% if is_pitchprint_required_product %}
+        data-customhouse-pitchprint-required="true"
+      {% endif %}
+    >
+      {%- if color_option != blank -%}
+        <div class="marked-product-actions__block marked-product-actions__block--color">
+          <div class="marked-product-actions__color-header">
+            <p class="marked-product-actions__label">{{ color_option_name }}:</p>
+            <strong class="marked-product-actions__color-current" data-color-option-current>
+              {{ selected_color_value | default: color_option.values.first }}
+            </strong>
+          </div>
+          <div class="marked-product-actions__color-pills" aria-label="{{ color_option_name }}">
+            {%- for value in color_option.values -%}
+              {%- liquid
+                assign color_handle = value | handleize
+                assign swatch_color = '#555555'
+                case color_handle
+                  when 'black', 'svart'
+                    assign swatch_color = '#050505'
+                  when 'white', 'vit'
+                    assign swatch_color = '#f3f3f3'
+                  when 'navy'
+                    assign swatch_color = '#12243d'
+                  when 'green', 'forest-green', 'dark-green', 'gron', 'morkgron'
+                    assign swatch_color = '#156044'
+                  when 'red', 'rod'
+                    assign swatch_color = '#dd201c'
+                  when 'blue', 'bla'
+                    assign swatch_color = '#2457d6'
+                  when 'purple', 'lila'
+                    assign swatch_color = '#8a2cff'
+                  when 'gray', 'grey', 'gra'
+                    assign swatch_color = '#6f6f6f'
+                  when 'charcoal'
+                    assign swatch_color = '#282828'
+                  when 'silver'
+                    assign swatch_color = '#bfc2c5'
+                  when 'gold', 'guld'
+                    assign swatch_color = '#d4a640'
+                  when 'yellow', 'gul'
+                    assign swatch_color = '#f2cf28'
+                  when 'orange'
+                    assign swatch_color = '#e37822'
+                  when 'brown', 'brun'
+                    assign swatch_color = '#69452c'
+                  when 'pink', 'rosa'
+                    assign swatch_color = '#e66da3'
+                endcase
+              -%}
+              <button
+                class="marked-product-actions__color-pill{% if value == selected_color_value %} is-active{% endif %}"
+                type="button"
+                data-color-option-value="{{ value | escape }}"
+                aria-pressed="{% if value == selected_color_value %}true{% else %}false{% endif %}"
+                style="--marked-color-swatch: {{ swatch_color }};"
+              >
+                <span class="marked-product-actions__color-swatch" aria-hidden="true"></span>
+                <span>{{ value }}</span>
+              </button>
+            {%- endfor -%}
+          </div>
+        </div>
+      {%- endif -%}
+
+      <div class="marked-product-actions__block marked-product-actions__block--size">
+        <div class="marked-product-actions__size-row">
+          <div class="marked-product-actions__size-content">
+            <div class="marked-product-actions__size-header">
+              <p class="marked-product-actions__label">{{ size_option_name }}:</p>
+              <button class="marked-product-actions__guide" type="button" data-size-guide-open>
+                <span aria-hidden="true">&#9776;</span>
+                Size Guide
+              </button>
+            </div>
+            <div class="marked-product-actions__pills" aria-label="{{ size_option_name }}">
+              {%- if size_option != blank -%}
+                {%- for value in size_option.values -%}
+                  <button
+                    class="marked-product-actions__pill{% if value == selected_size_value %} is-active{% endif %}"
+                    type="button"
+                    data-size-option-value="{{ value | escape }}"
+                    aria-pressed="{% if value == selected_size_value %}true{% else %}false{% endif %}"
+                  >
+                    {{ value }}
+                  </button>
+                {%- endfor -%}
+              {%- else -%}
+                <button class="marked-product-actions__pill is-active" type="button" aria-pressed="true">One Size</button>
+              {%- endif -%}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {% form 'product', product, id: product_form_id, class: 'marked-product-form', novalidate: 'novalidate', data-customhouse-pitchprint-form: is_pitchprint_required_product %}
+        <input
+          type="hidden"
+          name="id"
+          value="{{ selected_variant.id }}"
+          {% if force_allow_purchase == false and selected_variant.available == false %}
+            disabled
+          {% endif %}
+        >
+
+        <div class="marked-product-actions__block marked-product-actions__block--quantity">
+          <label class="marked-product-actions__label" for="Quantity-{{ section.id }}">Quantity:</label>
+          <div class="marked-product-actions__quantity">
+            <button class="marked-product-actions__qty-button" type="button" data-quantity-minus aria-label="Decrease quantity">&minus;</button>
+            <input
+              id="Quantity-{{ section.id }}"
+              class="marked-product-actions__qty-input"
+              type="number"
+              name="quantity"
+              value="1"
+              min="1"
+              inputmode="numeric"
+            >
+            <button class="marked-product-actions__qty-button" type="button" data-quantity-plus aria-label="Increase quantity">+</button>
+          </div>
+        </div>
+
+        <div class="marked-product-actions__block marked-product-actions__block--add">
+          <button
+            class="marked-product-actions__add"
+            type="submit"
+            name="add"
+            data-add-to-cart-button
+            {% if force_allow_purchase == false and selected_variant.available == false %}
+              disabled
+            {% endif %}
+          >
+            <span aria-hidden="true">&#128722;</span>
+            <span data-add-to-cart-label>
+              {%- if selected_variant.available or force_allow_purchase -%}
+                Add to cart
+              {%- else -%}
+                Sold out
+              {%- endif -%}
+            </span>
+          </button>
+          <p class="marked-product-actions__cart-status" data-cart-status role="status" aria-live="polite" hidden></p>
+        </div>
+
+        {% unless is_pitchprint_required_product %}
+          <div class="marked-product-actions__block marked-product-actions__block--buy-now">
+            <div class="marked-product-actions__buy-now">
+              {{ form | payment_button }}
+            </div>
+          </div>
+        {% endunless %}
+      {% endform %}
+
+      {% if is_pitchprint_required_product and production_method_pricing != blank %}
+        <script
+          type="application/json"
+          data-customhouse-production-pricing-json
+        >
+          {{ production_method_pricing | json }}
+        </script>
+      {% endif %}
+
+    </div>
+
+    <div
+      id="MarkedSizeGuide-{{ section.id }}"
+      class="marked-size-guide-modal"
+      data-size-guide-modal
+      aria-hidden="true"
+      hidden
+    >
+      <div class="marked-size-guide-modal__backdrop" data-size-guide-close></div>
+      <div class="marked-size-guide-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="MarkedSizeGuideTitle-{{ section.id }}">
+        <div class="marked-size-guide-modal__header">
+          <h2 id="MarkedSizeGuideTitle-{{ section.id }}">Size Guide</h2>
+          <button class="marked-size-guide-modal__close" type="button" data-size-guide-close aria-label="Close size guide">&times;</button>
+        </div>
+        <div class="marked-size-guide-modal__body">
+          <p>Approximate body measurements in inches.</p>
+          <div class="marked-size-guide-modal__table-wrap">
+            <table class="marked-size-guide-modal__table">
+              <thead>
+                <tr>
+                  <th>Size</th>
+                  <th>Chest</th>
+                  <th>Length</th>
+                  <th>Shoulder</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>S</td>
+                  <td>36-38</td>
+                  <td>27</td>
+                  <td>16.5</td>
+                </tr>
+                <tr>
+                  <td>M</td>
+                  <td>38-40</td>
+                  <td>28</td>
+                  <td>17</td>
+                </tr>
+                <tr>
+                  <td>L</td>
+                  <td>40-42</td>
+                  <td>29</td>
+                  <td>17.5</td>
+                </tr>
+                <tr>
+                  <td>XL</td>
+                  <td>42-44</td>
+                  <td>30</td>
+                  <td>18</td>
+                </tr>
+                <tr>
+                  <td>2XL</td>
+                  <td>44-46</td>
+                  <td>31</td>
+                  <td>18.5</td>
+                </tr>
+                <tr>
+                  <td>3XL</td>
+                  <td>46-48</td>
+                  <td>32</td>
+                  <td>19</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endcapture %}
+
+  {% render 'group',
+    children: children,
+    settings: block_settings,
+    shopify_attributes: block.shopify_attributes,
+    background_color: block_settings.background_color,
+    block_id: block.id
+  %}
+</div>
+
+<style>
+  #ProductInformation-{{ section.id }},
+  #ProductInformation-{{ section.id }} > .group-block,
+  #ProductInformation-{{ section.id }} .group-block,
+  #ProductInformation-{{ section.id }} .group-block__content,
+  #ProductInformation-{{ section.id }} .group-block-content {
+    width: 100% !important;
+    max-width: none !important;
+    align-self: stretch !important;
+    justify-self: stretch !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: none !important;
+    flex: 1 1 100% !important;
+    align-self: stretch !important;
+    justify-self: stretch !important;
+    margin-block-start: 0 !important;
+    color: currentColor;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions,
+  #ProductInformation-{{ section.id }} .marked-product-actions * {
+    box-sizing: border-box;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__block {
+    display: block !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: none !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__block--size {
+    margin-block-end: 0 !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__block--color {
+    margin-block-end: 18px !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__color-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+    margin-block-end: 10px !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__color-current {
+    color: rgba(255, 255, 255, 0.68) !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    text-transform: uppercase !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__color-pills {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__color-pill {
+    display: inline-flex !important;
+    min-height: 58px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    border-radius: 8px !important;
+    padding: 8px 15px 8px 9px !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+    color: currentColor !important;
+    font-family: inherit !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    text-transform: uppercase !important;
+    cursor: pointer !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__color-pill.is-active {
+    border-color: #9b36ff !important;
+    background: rgba(155, 54, 255, 0.25) !important;
+    box-shadow: 0 0 0 1px rgba(155, 54, 255, 0.45) !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__color-swatch {
+    display: inline-block !important;
+    width: 40px !important;
+    height: 40px !important;
+    flex: 0 0 40px !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    border-radius: 999px !important;
+    background: var(--marked-color-swatch, #555) !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__size-row {
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 18px !important;
+    margin-block-end: 18px !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__size-content {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__size-header {
+    display: flex !important;
+    width: 100% !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    margin-block-end: 8px !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__label {
+    display: block !important;
+    margin: 0 0 8px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    text-transform: uppercase !important;
+    color: currentColor !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__size-header .marked-product-actions__label {
+    margin: 0 !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__pills {
+    display: flex !important;
+    width: 100% !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__pill {
+    display: inline-flex !important;
+    min-width: 44px !important;
+    min-height: 42px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 1px solid rgba(145, 42, 255, 0.75) !important;
+    border-radius: 8px !important;
+    padding: 7px 14px !important;
+    background: transparent !important;
+    color: #9d4dff !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    font-family: inherit !important;
+    line-height: 1 !important;
+    appearance: none !important;
+    cursor: pointer !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__pill.is-active {
+    border-color: #9b36ff !important;
+    background: #7825e8 !important;
+    color: #fff !important;
+    box-shadow: 0 0 0 1px rgba(155, 54, 255, 0.45), 0 8px 18px rgba(120, 37, 232, 0.28) !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__guide {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin-block-start: 0 !important;
+    border: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    color: currentColor !important;
+    font-family: inherit !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    text-decoration: none !important;
+    opacity: 0.82 !important;
+    cursor: pointer !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__guide:hover {
+    opacity: 1 !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-size-guide-modal[hidden] {
+    display: none !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-size-guide-modal {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 9999 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 18px !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-size-guide-modal__backdrop {
+    position: absolute !important;
+    inset: 0 !important;
+    background: rgba(0, 0, 0, 0.72) !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-size-guide-modal__dialog {
+    position: relative !important;
+    z-index: 1 !important;
+    width: min(92vw, 520px) !important;
+    max-height: 86vh !important;
+    overflow: auto !important;
+    border: 1px solid rgba(145, 42, 255, 0.55) !important;
+    border-radius: 10px !important;
+    background: #070707 !important;
+    color: #fff !important;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45) !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-size-guide-modal__header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 16px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+    padding: 16px 18px !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-size-guide-modal__header h2 {
+    margin: 0 !important;
+    font-size: 18px !important;
+    font-weight: 800 !important;
+    line-height: 1.2 !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-size-guide-modal__close {
+    display: inline-flex !important;
+    width: 34px !important;
+    height: 34px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    border-radius: 8px !important;
+    padding: 0 !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: #fff !important;
+    font-size: 22px !important;
+    line-height: 1 !important;
+    cursor: pointer !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-size-guide-modal__body {
+    padding: 18px !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-size-guide-modal__body p {
+    margin: 0 0 14px !important;
+    color: rgba(255, 255, 255, 0.72) !important;
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-size-guide-modal__table-wrap {
+    width: 100% !important;
+    overflow-x: auto !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-size-guide-modal__table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    min-width: 420px !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-size-guide-modal__table th,
+  #ProductInformation-{{ section.id }} .marked-size-guide-modal__table td {
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    padding: 11px 12px !important;
+    text-align: left !important;
+    font-size: 13px !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-size-guide-modal__table th {
+    background: rgba(145, 42, 255, 0.18) !important;
+    color: #fff !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-size-guide-modal__table td:first-child {
+    color: #b76cff !important;
+    font-weight: 800 !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-form {
+    display: flex !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: none !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__block--options {
+    margin: 2px 0 8px !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__options,
+  #ProductInformation-{{ section.id }} #INKYBAY_PRODUCT_OPTION_DIV,
+  #ProductInformation-{{ section.id }} [id^='INKYBAY_OPTION_SET_'] {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    background: transparent !important;
+    color: currentColor !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__options label,
+  #ProductInformation-{{ section.id }} .marked-product-actions__options legend,
+  #ProductInformation-{{ section.id }} .marked-product-actions__options p,
+  #ProductInformation-{{ section.id }} .marked-product-actions__options span {
+    color: currentColor !important;
+    font-family: inherit !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__options input:not([type='checkbox']):not([type='radio']):not([type='file']),
+  #ProductInformation-{{ section.id }} .marked-product-actions__options select,
+  #ProductInformation-{{ section.id }} .marked-product-actions__options textarea {
+    width: 100% !important;
+    min-height: 42px !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    border-radius: 8px !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: currentColor !important;
+    font-family: inherit !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__options input[type='file'] {
+    width: 100% !important;
+    color: currentColor !important;
+    font-family: inherit !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__options-status {
+    margin: 8px 0 0 !important;
+    color: rgba(255, 255, 255, 0.68) !important;
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__options-status[hidden] {
+    display: none !important;
+  }
+
+  .marked-inkybay-native-control {
+    position: fixed !important;
+    top: -10000px !important;
+    left: -10000px !important;
+    width: 1px !important;
+    height: 1px !important;
+    min-width: 1px !important;
+    min-height: 1px !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__block--quantity {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__block--quantity .marked-product-actions__label {
+    margin: 0 !important;
+    white-space: nowrap !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__quantity {
+    display: inline-flex !important;
+    width: 120px !important;
+    min-width: 120px !important;
+    flex: 0 0 120px !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    border-radius: 8px !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__qty-button,
+  #ProductInformation-{{ section.id }} .marked-product-actions__qty-input {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 34px !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    color: currentColor !important;
+    box-shadow: none !important;
+    font: inherit !important;
+    text-align: center !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__qty-button {
+    flex: 0 0 38px !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__qty-input {
+    flex: 0 0 44px !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__qty-button {
+    cursor: pointer !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__qty-input {
+    appearance: textfield !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__qty-input::-webkit-outer-spin-button,
+  #ProductInformation-{{ section.id }} .marked-product-actions__qty-input::-webkit-inner-spin-button {
+    margin: 0 !important;
+    appearance: none !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__buy-now,
+  #ProductInformation-{{ section.id }} .marked-product-actions__buy-now .shopify-payment-button {
+    display: block !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: none !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__add,
+  #ProductInformation-{{ section.id }} .marked-product-actions__buy-now .shopify-payment-button__button,
+  #ProductInformation-{{ section.id }} .marked-product-actions__buy-now button {
+    display: inline-flex !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: none !important;
+    min-height: 54px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 12px !important;
+    border-radius: 8px !important;
+    padding: 0 22px !important;
+    font-size: 13px !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    text-align: center !important;
+    text-decoration: none !important;
+    text-transform: uppercase !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__add {
+    border: 1px solid #c8ff00 !important;
+    background: #000 !important;
+    color: #fff !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__add:disabled {
+    cursor: not-allowed !important;
+    opacity: 0.55 !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__add[aria-busy='true'] {
+    cursor: wait !important;
+    opacity: 0.72 !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__cart-status {
+    margin: 8px 0 0 !important;
+    color: rgba(255, 255, 255, 0.78) !important;
+    font-size: 12px !important;
+    line-height: 1.45 !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__cart-status.is-error {
+    color: #ff8585 !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__cart-status[hidden] {
+    display: none !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__buy-now .shopify-payment-button__button,
+  #ProductInformation-{{ section.id }} .marked-product-actions__buy-now button {
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: currentColor !important;
+  }
+
+  #ProductInformation-{{ section.id }} .marked-product-actions__buy-now .shopify-payment-button__button--hidden,
+  #ProductInformation-{{ section.id }} .marked-product-actions__buy-now .shopify-payment-button__more-options {
+    display: none !important;
+  }
+
+  @media screen and (max-width: 749px) {
+    #ProductInformation-{{ section.id }} .marked-product-actions__size-row {
+      display: block !important;
+      width: 100% !important;
+    }
+
+    #ProductInformation-{{ section.id }} .marked-product-actions__pills {
+      display: grid !important;
+      grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+      gap: 8px !important;
+    }
+
+    #ProductInformation-{{ section.id }} .marked-product-actions__pill {
+      width: 100% !important;
+      padding-inline: 8px !important;
+    }
+
+    #ProductInformation-{{ section.id }} .marked-product-actions__size-header .marked-product-actions__guide {
+      flex: 0 0 auto !important;
+      white-space: nowrap !important;
+    }
+
+  }
+
+</style>
+
+{% stylesheet %}
+  /* Clear padding on mobile, if not full-width */
+  @media screen and (max-width: 749px) {
+    .product-information.section--page-width .product-details > .group-block {
+      padding-inline: 0;
+    }
+  }
+
+  .view-product-title {
+    display: none;
+  }
+
+  /* Container styles */
+  .product-details {
+    display: flex;
+    align-self: start;
+    justify-content: center;
+  }
+
+  @media screen and (min-width: 750px) {
+    .product-details > .group-block {
+      height: min-content;
+    }
+
+    .full-height--desktop {
+      height: 100%;
+      max-height: calc(100vh - var(--header-group-height, 0));
+      min-height: fit-content;
+    }
+
+    .full-height--desktop .group-block {
+      align-self: var(--details-position, 'flex-start');
+    }
+  }
+
+  @media screen and (max-width: 749px) {
+  }
+{% endstylesheet %}
+
+<script>
+  (function () {
+    const productInfo = document.getElementById('ProductInformation-{{ section.id }}');
+
+    if (!productInfo || productInfo.dataset.markedProductReady === 'true') return;
+
+    productInfo.dataset.markedProductReady = 'true';
+
+    const productActions = productInfo.querySelector('[data-marked-product-actions]');
+    const productForm = productInfo.querySelector('.marked-product-form');
+    const quantityInput = productInfo.querySelector('.marked-product-actions__qty-input');
+    const addButton = productInfo.querySelector('[data-add-to-cart-button]');
+    const addButtonLabel = productInfo.querySelector('[data-add-to-cart-label]');
+    const cartStatus = productInfo.querySelector('[data-cart-status]');
+    const forceAllowPurchase = Boolean(
+      productActions && productActions.dataset.forceAllowPurchase === 'true'
+    );
+    const pitchPrintRequired = Boolean(
+      productActions && productActions.dataset.customhousePitchprintRequired === 'true'
+    );
+    let isAddingToCart = false;
+
+    function closeSizeGuide() {
+      const modal = productInfo.querySelector('[data-size-guide-modal]');
+
+      if (!modal) return;
+
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+    }
+    function setControlValue(control, value) {
+      if (!control) return;
+
+      control.value = String(value);
+      control.setAttribute('value', String(value));
+      control.dispatchEvent(new Event('input', { bubbles: true }));
+      control.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    function setCartStatus(message, isError) {
+      if (!cartStatus) return;
+
+      cartStatus.textContent = message || '';
+      cartStatus.classList.toggle('is-error', Boolean(isError));
+      cartStatus.hidden = !message;
+    }
+
+    function getShopifyRouteRoot() {
+      return window.Shopify && window.Shopify.routes && window.Shopify.routes.root
+        ? window.Shopify.routes.root
+        : '/';
+    }
+
+    function getShopifyRoute(path) {
+      return getShopifyRouteRoot().replace(/\/?$/, '/') + String(path || '').replace(/^\//, '');
+    }
+
+    function redirectToCart() {
+      window.location.href = getShopifyRoute('cart');
+    }
+
+    function openPitchPrintCustomize() {
+      const productRoot = productInfo.closest('[data-customhouse-pitchprint-required="true"]');
+      const trigger = productRoot && productRoot.querySelector('[data-pitchprint-customize-trigger]');
+
+      if (!trigger) {
+        setCartStatus('Please use Customize before adding this product to the cart.', true);
+        return;
+      }
+
+      setCartStatus('', false);
+      trigger.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+    }
+
+    async function cartContainsVariant(variantId) {
+      try {
+        const response = await fetch(getShopifyRoute('cart.js'), {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json'
+          },
+          credentials: 'same-origin'
+        });
+
+        if (!response.ok) return false;
+
+        const cart = await response.json();
+        const items = Array.isArray(cart && cart.items) ? cart.items : [];
+
+        return items.some(function (item) {
+          return String(item && item.id) === String(variantId);
+        });
+      } catch (error) {
+        return false;
+      }
+    }
+
+    function getVariants(actions) {
+      if (!actions) return [];
+
+      try {
+        return JSON.parse(actions.dataset.productVariants || '[]');
+      } catch (error) {
+        return [];
+      }
+    }
+
+    function getCurrentVariant(actions) {
+      const variants = getVariants(actions);
+      const variantInput = actions && actions.querySelector('.marked-product-form [name="id"]');
+      const variantId = variantInput ? String(variantInput.value || '') : '';
+
+      return variants.find(function (variant) {
+        return String(variant.id) === variantId;
+      }) || null;
+    }
+
+    function updatePurchaseState(selectedVariant) {
+      const hasVariant = Boolean(selectedVariant && selectedVariant.id);
+      const canAttemptPurchase = hasVariant && (
+        forceAllowPurchase || selectedVariant.available
+      );
+
+      const variantInput = productForm && productForm.querySelector('[name="id"]');
+
+      if (variantInput) {
+        variantInput.disabled = !canAttemptPurchase;
+      }
+
+      if (addButton) {
+        addButton.disabled = !canAttemptPurchase;
+      }
+
+      if (addButtonLabel) {
+        addButtonLabel.textContent = canAttemptPurchase ? 'Add to cart' : 'Sold out';
+      }
+    }
+
+    function getVariantImageKey(url) {
+      if (!url) return '';
+
+      try {
+        const parsedUrl = new URL(url, window.location.origin);
+        return parsedUrl.pathname.replace(/_(\d+x|pico|icon|thumb|small|compact|medium|large|grande|master)(?=\.)/i, '').toLowerCase();
+      } catch (error) {
+        return String(url).split('?')[0].replace(/_(\d+x|pico|icon|thumb|small|compact|medium|large|grande|master)(?=\.)/i, '').toLowerCase();
+      }
+    }
+
+    function syncVariantImage(selectedVariant) {
+      const sectionRoot = productInfo.closest('.premium-trucker-product') || document;
+      const gallery = sectionRoot.querySelector('[data-premium-gallery]');
+
+      if (!gallery || !selectedVariant) return;
+
+      const variantImage = selectedVariant.featured_media || selectedVariant.featured_image || null;
+      const mediaIds = [
+        selectedVariant.featured_media && selectedVariant.featured_media.id,
+        selectedVariant.featured_image && selectedVariant.featured_image.id,
+        variantImage && variantImage.id
+      ].filter(Boolean).map(String);
+      const imageKeys = [
+        variantImage && variantImage.src,
+        variantImage && variantImage.url,
+        selectedVariant.featured_image && selectedVariant.featured_image.src,
+        selectedVariant.featured_image && selectedVariant.featured_image.url
+      ].map(getVariantImageKey).filter(Boolean);
+      const searchTerms = [
+        variantImage && variantImage.alt,
+        selectedVariant.title
+      ].concat(Array.isArray(selectedVariant.options) ? selectedVariant.options : [])
+        .filter(Boolean)
+        .map(function (term) {
+          return String(term).trim().toLowerCase();
+        });
+      const galleryItems = Array.from(gallery.querySelectorAll('[data-gallery-slide], [data-gallery-thumb]'));
+
+      let match = galleryItems.find(function (item) {
+        return [item.dataset.galleryMediaId, item.dataset.galleryImageId].some(function (id) {
+          return id && mediaIds.includes(String(id));
+        });
+      });
+
+      if (!match && imageKeys.length) {
+        match = galleryItems.find(function (item) {
+          const image = item.querySelector('img');
+          const itemKeys = [
+            item.dataset.gallerySrc,
+            image && image.currentSrc,
+            image && image.src
+          ].map(getVariantImageKey).filter(Boolean);
+
+          return itemKeys.some(function (itemKey) {
+            return imageKeys.includes(itemKey);
+          });
+        });
+      }
+
+      if (!match && searchTerms.length) {
+        match = galleryItems.find(function (item) {
+          const image = item.querySelector('img');
+          const searchText = [
+            item.dataset.gallerySrc,
+            item.getAttribute('aria-label'),
+            image && image.alt,
+            image && image.currentSrc,
+            image && image.src
+          ].filter(Boolean).join(' ').toLowerCase();
+
+          return searchTerms.some(function (term) {
+            return term && searchText.includes(term);
+          });
+        });
+      }
+
+      if (match && match.dataset.galleryIndex) {
+        gallery.dispatchEvent(new CustomEvent('premium:gallery:show', {
+          bubbles: true,
+          detail: { index: match.dataset.galleryIndex }
+        }));
+      }
+    }
+
+    async function addCurrentVariantToCart() {
+      if (!productForm || !addButton) return;
+      if (isAddingToCart) return;
+
+      if (pitchPrintRequired) {
+        openPitchPrintCustomize();
+        return;
+      }
+
+      const variantInput = productForm.querySelector('[name="id"]');
+      const variantId = Number.parseInt(variantInput && variantInput.value, 10);
+      const quantity = Math.max(
+        Number.parseInt(quantityInput && quantityInput.value, 10) || 1,
+        1
+      );
+
+      if (!variantId) {
+        setCartStatus('Please select a valid product option.', true);
+        return;
+      }
+
+      isAddingToCart = true;
+      addButton.disabled = true;
+      addButton.setAttribute('aria-busy', 'true');
+      setCartStatus('Adding your product to the cart…', false);
+
+      try {
+        const cartAddUrl = getShopifyRoute('cart/add.js');
+
+        const response = await fetch(cartAddUrl, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            items: [
+              {
+                id: variantId,
+                quantity: quantity
+              }
+            ]
+          })
+        });
+
+        const payload = await response.json().catch(function () {
+          return {};
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            payload.description ||
+            payload.message ||
+            'Shopify did not allow this variant to be added.'
+          );
+        }
+
+        setCartStatus('Added to cart. Redirecting…', false);
+        redirectToCart();
+      } catch (error) {
+        const errorMessage = error && error.message ? error.message : '';
+        const isPostAddThemeCartError =
+          errorMessage.includes('Cannot read properties of undefined') &&
+          errorMessage.toLowerCase().includes('cart');
+
+        if (isPostAddThemeCartError || await cartContainsVariant(variantId)) {
+          setCartStatus('Added to cart. Redirecting…', false);
+          redirectToCart();
+          return;
+        }
+
+        setCartStatus(
+          errorMessage || 'This variant could not be added. Check Shopify overselling and market availability.',
+          true
+        );
+        updatePurchaseState(getCurrentVariant(productActions));
+      } finally {
+        isAddingToCart = false;
+        addButton.removeAttribute('aria-busy');
+        updatePurchaseState(getCurrentVariant(productActions));
+      }
+    }
+
+    function syncSelectedVariant(selectedVariant, dispatchVariantEvents) {
+      if (!selectedVariant) return;
+
+      const variantId = String(selectedVariant.id);
+      const variantControls = Array.from(
+        productInfo.querySelectorAll('form[action*="/cart/add"] [name="id"], .marked-product-form [name="id"]')
+      );
+
+      variantControls.forEach(function (control) {
+        if (control.tagName === 'SELECT') {
+          const hasVariant = Array.from(control.options || []).some(function (option) {
+            return String(option.value) === variantId;
+          });
+
+          if (!hasVariant) return;
+        }
+
+        control.disabled = !(forceAllowPurchase || selectedVariant.available);
+        setControlValue(control, variantId);
+      });
+
+      updatePurchaseState(selectedVariant);
+      setCartStatus('', false);
+      syncVariantImage(selectedVariant);
+
+      try {
+        const nextUrl = new URL(window.location.href);
+        nextUrl.searchParams.set('variant', variantId);
+        window.history.replaceState({}, '', nextUrl.toString());
+      } catch (error) {
+        // URL synchronization is optional.
+      }
+
+      if (dispatchVariantEvents !== false) {
+        const detail = {
+          variant: selectedVariant,
+          source: 'marked-product-actions'
+        };
+        productInfo.dispatchEvent(new CustomEvent('variant:change', { bubbles: true, detail: detail }));
+        document.dispatchEvent(new CustomEvent('variant:change', { detail: detail }));
+      }
+    }
+
+    function getVariantForOptionValue(actions, optionPosition, selectedValue) {
+      const optionIndex = Math.max(
+        Number.parseInt(optionPosition, 10) || 1,
+        1
+      ) - 1;
+      const variants = getVariants(actions);
+
+      const currentVariantInput = actions.querySelector('input[name="id"]');
+      const currentVariantId = currentVariantInput ? String(currentVariantInput.value || '') : '';
+      const currentVariant = variants.find(function (variant) {
+        return String(variant.id) === currentVariantId;
+      });
+
+      if (currentVariant && Array.isArray(currentVariant.options)) {
+        const desiredOptions = currentVariant.options.slice();
+        desiredOptions[optionIndex] = selectedValue;
+
+        const exactVariant = variants.find(function (variant) {
+          return Array.isArray(variant.options) && variant.options.every(function (value, index) {
+            return String(value) === String(desiredOptions[index]);
+          });
+        });
+
+        if (exactVariant) return exactVariant;
+      }
+
+      const matchingVariants = variants.filter(function (variant) {
+        return Array.isArray(variant.options) && String(variant.options[optionIndex]) === String(selectedValue);
+      });
+
+      return matchingVariants.find(function (variant) {
+        return variant.available;
+      }) || matchingVariants[0] || null;
+    }
+
+    if (productForm) {
+      productForm.addEventListener('submit', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        addCurrentVariantToCart();
+      }, true);
+    }
+
+    if (addButton) {
+      addButton.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        addCurrentVariantToCart();
+      }, true);
+    }
+
+    document.addEventListener('variant:change', function (event) {
+      const variant = event.detail && event.detail.variant;
+      const source = event.detail && event.detail.source;
+
+      if (!variant || source === 'marked-product-actions') return;
+
+      const variants = getVariants(productActions);
+      const localVariant = variants.find(function (item) {
+        return String(item.id) === String(variant.id);
+      });
+
+      if (localVariant) {
+        syncSelectedVariant(localVariant, false);
+      }
+    });
+
+    productInfo.addEventListener('change', function (event) {
+      const target = event.target;
+
+      if (!target || target.closest('.marked-product-form')) return;
+      if (!target.matches('input[type="radio"], select')) return;
+
+      window.setTimeout(function () {
+        const variants = getVariants(productActions);
+        const urlVariantId = new URL(window.location.href).searchParams.get('variant');
+        const nativeVariantControl = Array.from(
+          productInfo.querySelectorAll('form[action*="/cart/add"] [name="id"]')
+        ).find(function (control) {
+          return !control.closest('.marked-product-form') && control.value;
+        });
+        const variantId = urlVariantId || (nativeVariantControl && nativeVariantControl.value);
+        const variant = variants.find(function (item) {
+          return String(item.id) === String(variantId || '');
+        });
+
+        if (variant) {
+          syncSelectedVariant(variant, false);
+        }
+      }, 80);
+    });
+
+    updatePurchaseState(getCurrentVariant(productActions));
+
+    document.addEventListener('click', function (event) {
+      const quantityButton = event.target.closest('[data-quantity-minus], [data-quantity-plus]');
+
+      if (quantityButton && productInfo.contains(quantityButton)) {
+        const actions = quantityButton.closest('[data-marked-product-actions]');
+        const input = actions && actions.querySelector('.marked-product-actions__qty-input');
+
+        if (!input) return;
+
+        const currentValue = Number.parseInt(input.value, 10) || 1;
+        const nextValue = quantityButton.hasAttribute('data-quantity-plus')
+          ? currentValue + 1
+          : Math.max(1, currentValue - 1);
+
+        input.value = String(nextValue);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        return;
+      }
+
+      const sizeButton = event.target.closest('[data-size-option-value]');
+
+      if (sizeButton && productInfo.contains(sizeButton)) {
+        const actions = sizeButton.closest('[data-marked-product-actions]');
+
+        if (!actions) return;
+
+        const selectedValue = sizeButton.dataset.sizeOptionValue;
+        const selectedVariant = getVariantForOptionValue(
+          actions,
+          actions.dataset.sizeOptionPosition,
+          selectedValue
+        );
+
+        actions.querySelectorAll('[data-size-option-value]').forEach(function (button) {
+          const isSelected = button === sizeButton;
+          button.classList.toggle('is-active', isSelected);
+          button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+        });
+
+        if (selectedVariant) {
+          syncSelectedVariant(selectedVariant);
+        } else {
+          updatePurchaseState(null);
+          setCartStatus('This size does not have a matching Shopify variant.', true);
+        }
+
+        return;
+      }
+
+      const colorButton = event.target.closest('[data-color-option-value]');
+
+      if (colorButton && productInfo.contains(colorButton)) {
+        const actions = colorButton.closest('[data-marked-product-actions]');
+
+        if (!actions) return;
+
+        const selectedValue = colorButton.dataset.colorOptionValue;
+        const selectedVariant = getVariantForOptionValue(
+          actions,
+          actions.dataset.colorOptionPosition,
+          selectedValue
+        );
+
+        actions.querySelectorAll('[data-color-option-value]').forEach(function (button) {
+          const isSelected = button === colorButton;
+          button.classList.toggle('is-active', isSelected);
+          button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+        });
+
+        const currentColor = actions.querySelector('[data-color-option-current]');
+        if (currentColor) currentColor.textContent = selectedValue;
+
+        if (selectedVariant) {
+          syncSelectedVariant(selectedVariant);
+        } else {
+          updatePurchaseState(null);
+          setCartStatus('This color does not have a matching Shopify variant.', true);
+        }
+
+        return;
+      }
+
+      const guideOpenButton = event.target.closest('[data-size-guide-open]');
+
+      if (guideOpenButton && productInfo.contains(guideOpenButton)) {
+        const modal = productInfo.querySelector('[data-size-guide-modal]');
+
+        if (!modal) return;
+
+        modal.hidden = false;
+        modal.setAttribute('aria-hidden', 'false');
+        const closeButton = modal.querySelector('[data-size-guide-close]');
+
+        if (closeButton) closeButton.focus();
+        return;
+      }
+
+      const guideCloseButton = event.target.closest('[data-size-guide-close]');
+
+      if (guideCloseButton && productInfo.contains(guideCloseButton)) {
+        closeSizeGuide();
+      }
+    });
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') closeSizeGuide();
+    });
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "t:names.details",
+  "blocks": [
+    {
+      "type": "@theme"
+    },
+    {
+      "type": "@app"
+    },
+    {
+      "type": "text"
+    },
+    {
+      "type": "icon"
+    },
+    {
+      "type": "image"
+    },
+    {
+      "type": "button"
+    },
+    {
+      "type": "video"
+    },
+    {
+      "type": "group"
+    },
+    {
+      "type": "spacer"
+    },
+    {
+      "type": "accordion"
+    },
+    {
+      "type": "product-recommendations"
+    },
+    {
+      "type": "price"
+    },
+    {
+      "type": "variant-picker"
+    },
+    {
+      "type": "buy-buttons"
+    },
+    {
+      "type": "product-description"
+    },
+    {
+      "type": "review"
+    },
+    {
+      "type": "accelerated-checkout"
+    },
+    {
+      "type": "_divider"
+    },
+    {
+      "type": "product-inventory"
+    },
+    {
+      "type": "product-custom-property"
+    }
+  ],
+  "tag": null,
+  "settings": [
+    {
+      "type": "header",
+      "content": "t:content.size"
+    },
+    {
+      "type": "select",
+      "id": "width",
+      "label": "t:settings.width",
+      "options": [
+        {
+          "value": "fit-content",
+          "label": "t:options.fit_content"
+        },
+        {
+          "value": "fill",
+          "label": "t:options.fill"
+        },
+        {
+          "value": "custom",
+          "label": "t:options.custom"
+        }
+      ],
+      "default": "fill"
+    },
+    {
+      "type": "range",
+      "id": "custom_width",
+      "label": "t:settings.custom_width",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%",
+      "default": 100,
+      "visible_if": "{{ block.settings.width == 'custom' }}"
+    },
+    {
+      "type": "select",
+      "id": "width_mobile",
+      "label": "t:settings.width_mobile",
+      "options": [
+        {
+          "value": "fit-content",
+          "label": "t:options.fit_content"
+        },
+        {
+          "value": "fill",
+          "label": "t:options.fill"
+        },
+        {
+          "value": "custom",
+          "label": "t:options.custom"
+        }
+      ],
+      "default": "fill"
+    },
+    {
+      "type": "range",
+      "id": "custom_width_mobile",
+      "label": "t:settings.custom_width",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%",
+      "default": 100,
+      "visible_if": "{{ block.settings.width_mobile == 'custom' }}"
+    },
+    {
+      "type": "select",
+      "id": "height",
+      "label": "t:settings.height",
+      "options": [
+        {
+          "value": "fit",
+          "label": "t:options.fit_content"
+        },
+        {
+          "value": "fill",
+          "label": "t:options.fill"
+        }
+      ],
+      "default": "fit"
+    },
+    {
+      "type": "header",
+      "content": "t:content.layout"
+    },
+    {
+      "type": "select",
+      "id": "details_position",
+      "label": "t:settings.position",
+      "options": [
+        {
+          "value": "flex-start",
+          "label": "t:options.top"
+        },
+        {
+          "value": "center",
+          "label": "t:options.center"
+        },
+        {
+          "value": "flex-end",
+          "label": "t:options.bottom"
+        }
+      ],
+      "default": "flex-start",
+      "visible_if": "{{ block.settings.height == \"fill\" }}"
+    },
+    {
+      "type": "range",
+      "id": "gap",
+      "label": "t:settings.gap",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 12
+    },
+    {
+      "type": "checkbox",
+      "id": "sticky_details_desktop",
+      "label": "t:settings.make_details_sticky_desktop",
+      "default": false
+    },
+    {
+      "type": "header",
+      "content": "t:content.appearance"
+    },
+    {
+      "type": "select",
+      "id": "background_media",
+      "label": "t:settings.background_media",
+      "options": [
+        {
+          "value": "none",
+          "label": "t:options.none"
+        },
+        {
+          "value": "image",
+          "label": "t:options.image"
+        },
+        {
+          "value": "video",
+          "label": "t:options.video"
+        }
+      ],
+      "default": "none"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "t:settings.background_color",
+      "placeholder": "t:settings.default",
+      "visible_if": "{{ block.settings.background_media == 'none' }}"
+    },
+    {
+      "type": "video",
+      "id": "video",
+      "label": "t:settings.video",
+      "visible_if": "{{ block.settings.background_media == 'video' }}"
+    },
+    {
+      "type": "select",
+      "id": "video_position",
+      "label": "t:settings.video_position",
+      "options": [
+        {
+          "value": "cover",
+          "label": "t:options.cover"
+        },
+        {
+          "value": "contain",
+          "label": "t:options.contain"
+        }
+      ],
+      "default": "cover",
+      "visible_if": "{{ block.settings.background_media == 'video' }}"
+    },
+    {
+      "type": "image_picker",
+      "id": "background_image",
+      "label": "t:settings.image",
+      "visible_if": "{{ block.settings.background_media == 'image' }}"
+    },
+    {
+      "type": "select",
+      "id": "background_image_position",
+      "label": "t:settings.image_position",
+      "options": [
+        {
+          "value": "cover",
+          "label": "t:options.cover"
+        },
+        {
+          "value": "fit",
+          "label": "t:options.fit"
+        }
+      ],
+      "default": "cover",
+      "visible_if": "{{ block.settings.background_media == 'image' }}"
+    },
+    {
+      "type": "header",
+      "content": "t:content.borders"
+    },
+    {
+      "type": "select",
+      "id": "border",
+      "label": "t:settings.style",
+      "options": [
+        {
+          "value": "none",
+          "label": "t:options.none"
+        },
+        {
+          "value": "solid",
+          "label": "t:options.solid"
+        }
+      ],
+      "default": "none"
+    },
+    {
+      "type": "range",
+      "id": "border_width",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "label": "t:settings.thickness",
+      "default": 1,
+      "visible_if": "{{ block.settings.border != 'none' }}"
+    },
+    {
+      "type": "range",
+      "id": "border_opacity",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%",
+      "label": "t:settings.opacity",
+      "default": 100,
+      "visible_if": "{{ block.settings.border != 'none' }}"
+    },
+    {
+      "type": "color",
+      "id": "border_color",
+      "label": "t:settings.color",
+      "placeholder": "t:settings.default",
+      "visible_if": "{{ block.settings.border != 'none' }}"
+    },
+    {
+      "type": "range",
+      "id": "border_radius",
+      "label": "t:settings.border_radius",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "header",
+      "content": "t:content.padding"
+    },
+    {
+      "type": "range",
+      "id": "padding-block-start",
+      "label": "t:settings.top",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "padding-block-end",
+      "label": "t:settings.bottom",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "padding-inline-start",
+      "label": "t:settings.left",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "padding-inline-end",
+      "label": "t:settings.right",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:names.details",
+      "settings": {
+        "width": "custom",
+        "custom_width": 100,
+        "padding-block-start": 0,
+        "padding-block-end": 0,
+        "padding-inline-start": 0,
+        "padding-inline-end": 0,
+        "gap": 12,
+        "video_position": "cover",
+        "background_image_position": "cover",
+        "border": "none",
+        "border_width": 1,
+        "border_opacity": 100
+      },
+      "blocks": {
+        "text_TMtYp8": {
+          "type": "text",
+          "settings": {
+            "text": "t:html_defaults.home_to_shirts",
+            "alignment": "left",
+            "padding-block-start": 16,
+            "padding-inline-end": 0,
+            "padding-block-end": 0,
+            "padding-inline-start": 0
+          }
+        },
+        "heading_m7KmQQ": {
+          "type": "text",
+          "settings": {
+            "text": "<h1>{{ closest.product.title }}</h1>",
+            "type_preset": "h2",
+            "alignment": "left"
+          }
+        },
+        "text_GMQR8L": {
+          "type": "text",
+          "settings": {
+            "text": "t:html_defaults.reviews",
+            "alignment": "left"
+          }
+        },
+        "price_a7krng": {
+          "type": "price",
+          "settings": {
+            "show_tax_info": true,
+            "type_preset": "h4",
+            "alignment": "left"
+          }
+        },
+        "variant_picker_R3rGDr": {
+          "type": "variant-picker",
+          "settings": {
+            "variant_style": "pills",
+            "padding-block-start": 0,
+            "padding-block-end": 8,
+            "padding-inline-start": 0,
+            "padding-inline-end": 0
+          }
+        },
+        "buy_buttons_eYQEYi": {
+          "type": "buy-buttons",
+          "settings": {
+            "padding-block-start": 0,
+            "padding-block-end": 0,
+            "padding-inline-start": 0,
+            "padding-inline-end": 0
+          },
+          "blocks": {
+            "add-to-cart": {
+              "type": "add-to-cart",
+              "static": true,
+              "settings": {
+                "style_class": "button-secondary"
+              }
+            },
+            "accelerated-checkout": {
+              "type": "accelerated-checkout",
+              "static": true
+            }
+          },
+          "block_order": []
+        },
+        "group_Q4eVWb": {
+          "type": "group",
+          "settings": {
+            "width": "custom",
+            "custom_width": 100,
+            "padding-block-start": 8,
+            "padding-block-end": 4,
+            "padding-inline-start": 0,
+            "padding-inline-end": 0,
+            "content_direction": "column",
+            "horizontal_alignment": "flex-start",
+            "vertical_alignment": "center",
+            "horizontal_alignment_flex_direction_column": "flex-start",
+            "vertical_alignment_flex_direction_column": "center",
+            "gap": 8,
+            "video_position": "cover",
+            "background_image_position": "cover",
+            "border": "none",
+            "border_width": 1,
+            "border_opacity": 100
+          },
+          "blocks": {
+            "group_Hrq6NU": {
+              "type": "group",
+              "settings": {
+                "width": "custom",
+                "custom_width": 100,
+                "padding-block-start": 0,
+                "padding-block-end": 0,
+                "padding-inline-start": 0,
+                "padding-inline-end": 0,
+                "content_direction": "row",
+                "horizontal_alignment": "flex-start",
+                "vertical_alignment": "center",
+                "horizontal_alignment_flex_direction_column": "flex-start",
+                "vertical_alignment_flex_direction_column": "center",
+                "gap": 12,
+                "video_position": "cover",
+                "background_image_position": "cover",
+                "border": "none",
+                "border_width": 1,
+                "border_opacity": 100
+              },
+              "blocks": {
+                "icon_bBpnME": {
+                  "type": "icon",
+                  "settings": {
+                    "icon": "truck",
+                    "width": 16
+                  }
+                },
+                "text_83R7CQ": {
+                  "type": "text",
+                  "settings": {
+                    "text": "t:html_defaults.free_shipping_over",
+                    "alignment": "left",
+                    "padding-block-start": 0,
+                    "padding-block-end": 0,
+                    "padding-inline-start": 0,
+                    "padding-inline-end": 0
+                  }
+                }
+              },
+              "block_order": ["icon_bBpnME", "text_83R7CQ"]
+            },
+            "group_WbpVdV": {
+              "type": "group",
+              "settings": {
+                "width": "custom",
+                "custom_width": 100,
+                "padding-block-start": 0,
+                "padding-block-end": 0,
+                "padding-inline-start": 0,
+                "padding-inline-end": 0,
+                "content_direction": "row",
+                "horizontal_alignment": "flex-start",
+                "vertical_alignment": "center",
+                "horizontal_alignment_flex_direction_column": "flex-start",
+                "vertical_alignment_flex_direction_column": "center",
+                "gap": 12,
+                "video_position": "cover",
+                "background_image_position": "cover",
+                "border": "none",
+                "border_width": 1,
+                "border_opacity": 100
+              },
+              "blocks": {
+                "icon_FVd3C4": {
+                  "type": "icon",
+                  "settings": {
+                    "icon": "return",
+                    "width": 16
+                  }
+                },
+                "text_EmGGUV": {
+                  "type": "text",
+                  "settings": {
+                    "text": "t:html_defaults.free_returns",
+                    "alignment": "left",
+                    "padding-block-start": 0,
+                    "padding-block-end": 0,
+                    "padding-inline-start": 0,
+                    "padding-inline-end": 0
+                  }
+                }
+              },
+              "block_order": ["icon_FVd3C4", "text_EmGGUV"]
+            }
+          },
+          "block_order": ["group_Hrq6NU", "group_WbpVdV"]
+        },
+        "accordion": {
+          "type": "accordion",
+          "settings": {},
+          "blocks": {
+            "accordion-row-1": {
+              "type": "_accordion-row",
+              "settings": {
+                "heading": "t:text_defaults.materials"
+              },
+              "blocks": {
+                "text": {
+                  "type": "text"
+                }
+              },
+              "block_order": ["text"]
+            },
+            "accordion-row-2": {
+              "type": "_accordion-row",
+              "settings": {
+                "heading": "t:text_defaults.care_instructions"
+              },
+              "blocks": {
+                "text": {
+                  "type": "text"
+                }
+              },
+              "block_order": ["text"]
+            },
+            "accordion-row-3": {
+              "type": "_accordion-row",
+              "settings": {
+                "heading": "t:text_defaults.fit"
+              },
+              "blocks": {
+                "text": {
+                  "type": "text"
+                }
+              },
+              "block_order": ["text"]
+            }
+          },
+          "block_order": ["accordion-row-1", "accordion-row-2", "accordion-row-3"]
+        },
+        "complementary_products": {
+          "type": "product-recommendations",
+          "settings": {
+            "recommendation_type": "complementary"
+          },
+          "blocks": {
+            "recommendations-header": {
+              "type": "text",
+              "settings": {
+                "text": "t:html_defaults.styled_with",
+                "type_preset": "h5"
+              }
+            }
+          },
+          "block_order": ["recommendations-header"]
+        }
+      },
+      "block_order": [
+        "text_TMtYp8",
+        "heading_m7KmQQ",
+        "text_GMQR8L",
+        "price_a7krng",
+        "variant_picker_R3rGDr",
+        "buy_buttons_eYQEYi",
+        "group_Q4eVWb",
+        "accordion",
+        "complementary_products"
+      ]
+    }
+  ]
+}
+{% endschema %}
