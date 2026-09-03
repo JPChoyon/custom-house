@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { loadDashboardState, resolveDashboardState } from "../extensions/customhouse-creator-storefront/assets/customhouse-dashboard.js";
+import {
+  creatorPitchPrintLaunchConfig,
+  loadDashboardState,
+  resolveDashboardState,
+} from "../extensions/customhouse-creator-storefront/assets/customhouse-dashboard.js";
 import { countActiveCollectionProducts } from "../app/services/creator-collection-products.server.ts";
 import { uploadProfileImage } from "../app/services/profile-image.server.ts";
 import type { ShopifyGraphqlClient } from "../app/services/shopify-graphql.server.ts";
@@ -648,9 +652,13 @@ test("creator dashboard PitchPrint bridge uses Creator setup contract instead of
   assert.match(script, /flowMode: "CREATOR_DESIGN"/);
   assert.match(script, /creatorContext: true/);
   assert.match(script, /launchContext: "creator_dashboard"/);
-  assert.match(script, /const projectId = creatorPitchPrintLaunchProjectId\(product\)/);
+  assert.match(script, /const \{ designId, projectId, mode \} = creatorPitchPrintLaunchConfig\(product\)/);
+  assert.match(script, /designId,/);
   assert.match(script, /projectId,/);
+  assert.doesNotMatch(script, /creatorPitchPrintLaunchProjectId\(product\)/);
+  assert.doesNotMatch(script, /creatorPitchPrintLaunchProjectIdSource/);
   assert.doesNotMatch(script, /const projectId = product\.pitchprintProjectId \|\| ""/);
+  assert.doesNotMatch(script, /product\.pitchprintProjectId \|\| product\.pitchprintDesignId/);
   assert.match(script, /productOrigin:\s*baseProductOrigin/);
   assert.match(script, /designMode: "creator_design"/);
   assert.match(script, /isCreatorProduct: true/);
@@ -682,6 +690,40 @@ test("creator dashboard PitchPrint bridge uses Creator setup contract instead of
   assert.doesNotMatch(script, /selectedPitchPrintVariants/);
   assert.doesNotMatch(script, /data-variant-quantity-action/);
   assert.doesNotMatch(script, /Select at least one size and quantity\./);
+});
+
+test("creator PitchPrint launch config separates template design ID from saved project ID", () => {
+  const newDesign = creatorPitchPrintLaunchConfig({
+    pitchprintDesignId: " pp_design_global_hoodie ",
+    pitchprintProjectId: "",
+  });
+  assert.deepEqual(newDesign, {
+    designId: "pp_design_global_hoodie",
+    projectId: "",
+    mode: "new",
+  });
+  assert.notEqual(newDesign.projectId, newDesign.designId);
+
+  const savedProject = creatorPitchPrintLaunchConfig({
+    pitchprintDesignId: "pp_design_global_hoodie",
+    pitchprintProjectId: " pp_project_saved_123 ",
+  });
+  assert.deepEqual(savedProject, {
+    designId: "pp_design_global_hoodie",
+    projectId: "pp_project_saved_123",
+    mode: "edit",
+  });
+});
+
+test("creator PitchPrint launch config requires a template design ID only", () => {
+  assert.throws(
+    () =>
+      creatorPitchPrintLaunchConfig({
+        pitchprintDesignId: "",
+        pitchprintProjectId: "",
+      }),
+    /PitchPrint is not configured for this product/,
+  );
 });
 
 test("profile picture upload stores Shopify media and returns a display URL", async () => {

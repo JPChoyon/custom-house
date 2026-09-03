@@ -1046,14 +1046,21 @@ function creatorSetupForProduct(product) {
   return setup?.schema === "creator_design_setup_v1" ? setup : null;
 }
 
-function creatorPitchPrintLaunchProjectId(product) {
-  return String(product?.pitchprintProjectId || product?.pitchprintDesignId || "").trim();
+function normalizePitchPrintLaunchId(value) {
+  return String(value || "").trim();
 }
 
-function creatorPitchPrintLaunchProjectIdSource(product) {
-  if (product?.pitchprintProjectId) return "creator_product_saved_project";
-  if (product?.pitchprintDesignId) return "base_product_pitchprint_design_id";
-  return "missing";
+export function creatorPitchPrintLaunchConfig(product) {
+  const designId = normalizePitchPrintLaunchId(product?.pitchprintDesignId);
+  const projectId = normalizePitchPrintLaunchId(product?.pitchprintProjectId);
+  if (!designId) {
+    throw new Error("PitchPrint is not configured for this product.");
+  }
+  return {
+    designId,
+    projectId,
+    mode: projectId ? "edit" : "new",
+  };
 }
 
 function optionValuesFromVariants(variants, pattern) {
@@ -1404,24 +1411,21 @@ function bindPitchPrintManager(root) {
     cleanupPitchPrintSession();
     manager.isDesignerOpening = true;
     manager.activeCreatorProductId = product.id;
-    const projectId = creatorPitchPrintLaunchProjectId(product);
-    manager.activeProjectId = projectId;
     manager.token += 1;
     const token = manager.token;
     const restoreButton = setActionLoading(sourceButton, "Preparing designer...");
     try {
-      if (!projectId) {
-        throw new Error("PitchPrint is not configured for this base product.");
-      }
+      const { designId, projectId, mode } = creatorPitchPrintLaunchConfig(product);
+      manager.activeProjectId = projectId;
       const apiKey = root.dataset.pitchprintApiKey || "";
       if (!apiKey) throw new Error("PitchPrint public API key is not configured.");
-      const mode = product.pitchprintProjectId ? "edit" : "new";
       pitchPrintDiagnostics(root, "config", {
         clientSrc: root.dataset.pitchprintClientSrc || PITCHPRINT_CLIENT_SRC,
         apiKey: maskPitchPrintKey(apiKey),
-        designId: product.pitchprintDesignId || "",
-        projectId,
-        projectIdSource: creatorPitchPrintLaunchProjectIdSource(product),
+        designIdPresent: Boolean(designId),
+        projectIdPresent: Boolean(projectId),
+        designIdLength: designId.length,
+        projectIdLength: projectId.length,
         mode,
       });
       const [Client, identity] = await Promise.all([
@@ -1433,7 +1437,7 @@ function bindPitchPrintManager(root) {
       const customHouseConfig = creatorPitchPrintConfig(root, product, identity);
       const client = new Client({
         apiKey,
-        designId: product.pitchprintDesignId || "",
+        designId,
         mode,
         projectId,
         userId: identity.userId,
@@ -1507,9 +1511,11 @@ function bindPitchPrintManager(root) {
         restoreButton();
         showCreatorToast(root, "Unable to open the designer. Please try again.", true);
         pitchPrintDiagnostics(root, "app-validation-timeout", {
-          designId: product.pitchprintDesignId || "",
-          projectId,
-          projectIdSource: creatorPitchPrintLaunchProjectIdSource(product),
+          designIdPresent: Boolean(designId),
+          projectIdPresent: Boolean(projectId),
+          designIdLength: designId.length,
+          projectIdLength: projectId.length,
+          mode,
         });
       }, 12000);
     } catch (error) {

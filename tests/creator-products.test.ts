@@ -745,6 +745,7 @@ test("authenticated Creator A can attach a PitchPrint project to their own Draft
   );
 
   assert.equal(updated.pitchprintProjectId, "pp_project_123");
+  assert.equal(updated.pitchprintDesignId, "pp_design_global_hoodie");
   assert.equal(updated.previewUrl, "https://cdn.pitchprint.test/preview-1.png");
   assert.equal(updated.status, "DRAFT");
   assert.deepEqual(JSON.parse(updated.designVariantSelectionsJson), {
