@@ -331,6 +331,10 @@ model CreatorCollection {
   publicHandle            String                  @unique
   displayName             String
   status                  CreatorCollectionStatus @default(ACTIVE)
+  bannerImageUrl          String?
+  bannerTitle             String?
+  bannerSubtitle          String?
+  bannerUpdatedAt         DateTime?
   shopifyCollectionId     String?                 @unique
   shopifyCollectionHandle String?                 @unique
   shopifyCollectionUrl    String?

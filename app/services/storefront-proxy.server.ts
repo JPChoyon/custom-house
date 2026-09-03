@@ -161,6 +161,151 @@ function productPreviewImages(input: {
   return [...images];
 }
 
+function publicImageUrl(value: string | null | undefined) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+type PublicSocialPlatform =
+  | "instagram"
+  | "facebook"
+  | "tiktok"
+  | "youtube"
+  | "x"
+  | "website";
+
+type PublicCreatorSocialLink = {
+  platform: PublicSocialPlatform;
+  label: string;
+  url: string;
+  icon: string;
+};
+
+const SOCIAL_PLATFORM_META: Record<
+  PublicSocialPlatform,
+  { label: string; icon: string }
+> = {
+  instagram: { label: "Instagram", icon: "photo_camera" },
+  facebook: { label: "Facebook", icon: "groups" },
+  tiktok: { label: "TikTok", icon: "music_note" },
+  youtube: { label: "YouTube", icon: "smart_display" },
+  x: { label: "X", icon: "alternate_email" },
+  website: { label: "Website", icon: "link" },
+};
+
+function publicLinkUrl(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "https:" || url.protocol === "http:"
+      ? url.toString()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function parseSocialLinksJson(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string") : [];
+  } catch {
+    return value
+      .split(/[\s,\r\n]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+}
+
+function socialPlatformForUrl(
+  url: string,
+  fallback?: string | null,
+): PublicSocialPlatform {
+  const platform = String(fallback || "").toLowerCase();
+  const host = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+  if (host.includes("instagram.com") || platform.includes("instagram")) return "instagram";
+  if (host.includes("facebook.com") || host.includes("fb.com") || platform.includes("facebook")) return "facebook";
+  if (host.includes("tiktok.com") || platform.includes("tiktok")) return "tiktok";
+  if (host.includes("youtube.com") || host.includes("youtu.be") || platform.includes("youtube")) return "youtube";
+  if (host === "x.com" || host.includes("twitter.com") || platform === "x" || platform.includes("twitter")) return "x";
+  return "website";
+}
+
+export function publicCreatorSocialLinks(creator: {
+  portfolioUrl?: string | null;
+  socialLinksJson?: string | null;
+  primaryPlatform?: string | null;
+  primaryProfileUrl?: string | null;
+}) {
+  const candidates = [
+    {
+      value: creator.primaryProfileUrl,
+      platform: creator.primaryPlatform,
+    },
+    ...parseSocialLinksJson(creator.socialLinksJson).map((value) => ({
+      value,
+      platform: null,
+    })),
+    {
+      value: creator.portfolioUrl,
+      platform: "website",
+    },
+  ];
+  const seenUrls = new Set<string>();
+  const seenPlatforms = new Set<PublicSocialPlatform>();
+  const links: PublicCreatorSocialLink[] = [];
+  for (const candidate of candidates) {
+    const url = publicLinkUrl(candidate.value);
+    if (!url || seenUrls.has(url)) continue;
+    const platform = socialPlatformForUrl(url, candidate.platform);
+    if (seenPlatforms.has(platform)) continue;
+    const meta = SOCIAL_PLATFORM_META[platform];
+    seenUrls.add(url);
+    seenPlatforms.add(platform);
+    links.push({ platform, label: meta.label, icon: meta.icon, url });
+  }
+  return links;
+}
+
+function cssString(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/[\r\n]/g, "");
+}
+
+function heroBackgroundAttr(imageUrl: string | null) {
+  if (!imageUrl) return "";
+  const style = `background-image: linear-gradient(90deg, rgba(0,0,0,.82) 0%, rgba(0,0,0,.62) 45%, rgba(0,0,0,.30) 100%), url("${cssString(imageUrl)}");`;
+  return ` style="${escapeHtml(style)}"`;
+}
+
+function socialLinksHtml(creator: Parameters<typeof publicCreatorSocialLinks>[0]) {
+  const links = publicCreatorSocialLinks(creator);
+  if (!links.length) return "";
+  return `<nav class="customhouse-public-socials" aria-label="Creator social links">
+    ${links
+      .map(
+        (link) =>
+          `<a class="customhouse-public-social" data-social-platform="${escapeHtml(link.platform)}" href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(link.label)}">
+            <span class="material-symbols-outlined" aria-hidden="true">${escapeHtml(link.icon)}</span>
+          </a>`,
+      )
+      .join("")}
+  </nav>`;
+}
+
+function publicSocialLinksRecord(
+  creator: Parameters<typeof publicCreatorSocialLinks>[0],
+) {
+  return Object.fromEntries(
+    publicCreatorSocialLinks(creator).map((link) => [link.platform, link.url]),
+  );
+}
+
 function publicCss() {
   return `<style>
     [data-customhouse],[data-customhouse-shell]{--ch-primary:#8a2cff;--ch-primary-2:#5b22e8;--ch-service:#c8ff00;--ch-text:#f8fafc;--ch-muted:#b8bfd0;--ch-border:rgba(255,255,255,.13);--ch-soft:#151515;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ch-text);letter-spacing:0}
@@ -183,14 +328,19 @@ function publicCss() {
     .customhouse-proxy-footer strong{display:block;color:#fff;font-size:1rem;text-transform:uppercase}
     .customhouse-proxy-footer p{margin:.35rem 0 0;color:var(--ch-muted);font-size:.86rem}
     .customhouse-proxy-footer__links{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:1rem}
-    .customhouse-public-page,.customhouse-product-page{width:min(1180px,calc(100vw - 2rem));margin:0 auto;padding:1rem 0 2.5rem}
+    .customhouse-public-page,.customhouse-product-page{width:min(1180px,calc(100vw - 2rem));margin:0 auto;padding:0 0 2.5rem}
     .customhouse-public-hero{position:relative;min-height:260px;display:grid;align-content:center;gap:1.25rem;padding:2.15rem clamp(1.1rem,4vw,3rem) 2.35rem;border:1px solid rgba(255,255,255,.1);border-radius:0 0 12px 12px;background:radial-gradient(circle at 78% 20%,rgba(138,44,255,.16),transparent 28%),linear-gradient(100deg,#09090a 0%,#050506 46%,rgba(18,18,20,.92) 100%);overflow:hidden}
+    .customhouse-public-hero--with-banner{background-size:cover;background-position:center;background-repeat:no-repeat;background-origin:border-box;background-clip:border-box}
     .customhouse-public-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,transparent 0 52%,rgba(200,255,0,.035) 52% 56%,transparent 56%);pointer-events:none}
     .customhouse-public-hero-copy{position:relative;z-index:1;max-width:470px}
     .customhouse-public-hero span,.customhouse-public-link{color:var(--ch-primary);font-size:.78rem;font-weight:800;text-transform:uppercase;text-decoration:none}
     .customhouse-public-hero h1{margin:.15rem 0 0;font-size:clamp(3rem,7vw,5.2rem);line-height:.88;text-transform:uppercase;font-family:Impact,Haettenschweiler,"Arial Narrow Bold",sans-serif;font-style:italic;font-weight:900}
     .customhouse-product-panel h1{margin:.15rem 0 0;font-size:clamp(1.85rem,3.4vw,3rem);line-height:1.02;text-transform:uppercase;font-family:Impact,Haettenschweiler,"Arial Narrow Bold",sans-serif;font-style:italic;font-weight:900}
     .customhouse-public-hero p,.customhouse-product-panel p{color:var(--ch-muted);line-height:1.45}
+    .customhouse-public-socials{display:flex;flex-wrap:wrap;gap:.55rem;margin-top:1rem}
+    .customhouse-public-social{display:grid;place-items:center;width:38px;height:38px;border:1px solid rgba(255,255,255,.14);border-radius:999px;background:rgba(255,255,255,.08);color:#fff;text-decoration:none;transition:background .18s ease,border-color .18s ease,color .18s ease,transform .18s ease}
+    .customhouse-public-social:hover{border-color:rgba(200,255,0,.52);background:rgba(255,255,255,.14);color:var(--ch-service);transform:translateY(-1px)}
+    .customhouse-public-social .material-symbols-outlined{color:inherit;font-size:1.18rem}
     .customhouse-public-stats{display:flex;flex-wrap:wrap;gap:.85rem;margin-top:1.2rem}
     .customhouse-public-stat{display:flex;align-items:center;justify-content:center;text-align:left;gap:.55rem;min-width:118px;padding:.72rem .8rem;border:1px solid rgba(200,255,0,.34);border-radius:10px;background:linear-gradient(180deg,rgba(200,255,0,.07),rgba(255,255,255,.02))}
     .customhouse-public-stat-icon{display:inline-flex;align-items:center;justify-content:center;width:auto;height:auto;color:var(--ch-service);background:transparent}
@@ -206,7 +356,7 @@ function publicCss() {
     .customhouse-public-share-menu[hidden]{display:none}
     .customhouse-public-share-menu a,.customhouse-public-share-menu button{width:100%;justify-content:flex-start;padding:.58rem .68rem;border:0;background:transparent;color:#fff;text-align:left;box-shadow:none}
     .customhouse-public-share-menu a:hover,.customhouse-public-share-menu a:focus,.customhouse-public-share-menu button:hover,.customhouse-public-share-menu button:focus{background:rgba(138,44,255,.18);color:var(--ch-service)}
-    .customhouse-public-services{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin:1rem 0 1.5rem;border:1px solid var(--ch-border);border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.02));overflow:hidden}
+    .customhouse-public-services{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin:0 0 1.5rem;border:1px solid var(--ch-border);border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.02));overflow:hidden}
     .customhouse-public-service{display:flex;align-items:center;justify-content:center;text-align:left;gap:.85rem;padding:1.25rem 1.35rem}
     .customhouse-public-service+.customhouse-public-service{border-left:1px solid var(--ch-border)}
     .customhouse-public-service-icon{display:inline-flex;align-items:center;justify-content:center;width:auto;height:auto;background:transparent;color:var(--ch-service)}
@@ -296,7 +446,7 @@ function publicCss() {
     [data-customhouse-cart-message],.customhouse-public-empty{color:var(--ch-muted)}
     @media(max-width:1100px){.customhouse-public-grid,.customhouse-more__grid{grid-template-columns:repeat(3,minmax(0,1fr))}.customhouse-public-services{grid-template-columns:repeat(2,minmax(0,1fr))}.customhouse-public-service:nth-child(3){border-left:0;border-top:1px solid var(--ch-border)}.customhouse-public-service:nth-child(4){border-top:1px solid var(--ch-border)}}
     @media(max-width:900px){.customhouse-public-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.customhouse-product-layout{grid-template-columns:1fr;gap:1.5rem}.customhouse-product-page{padding:1rem 0 2rem}.customhouse-product-gallery{display:flex;flex-direction:column-reverse;gap:.75rem}.customhouse-product-thumbs{display:flex;gap:.65rem;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:.15rem}.customhouse-product-thumb{width:76px;min-width:76px;scroll-snap-align:start}.customhouse-service-row{grid-template-columns:1fr}.customhouse-service-row span+span{border-left:0;border-top:1px solid var(--ch-border)}.customhouse-more__grid{grid-template-columns:repeat(2,minmax(0,1fr))}.customhouse-more__controls{gap:4rem}}
-    @media(max-width:760px){.customhouse-proxy-header__inner{grid-template-columns:1fr auto;align-items:center;gap:.65rem;min-height:62px}.customhouse-proxy-logo{font-size:1.08rem}.customhouse-proxy-actions a{width:36px;height:36px}.customhouse-proxy-nav{grid-column:1/-1;justify-content:flex-start;gap:.85rem;overflow-x:auto;scrollbar-width:none;padding:0 0 .75rem}.customhouse-proxy-nav::-webkit-scrollbar{display:none}.customhouse-proxy-nav a{font-size:.76rem}.customhouse-proxy-footer__inner{grid-template-columns:1fr}.customhouse-proxy-footer__links{justify-content:flex-start}.customhouse-public-page,.customhouse-product-page{width:min(100vw - 1rem,1180px)}.customhouse-public-hero{min-height:auto;padding:1.35rem 1rem 1.5rem;border-radius:0 0 10px 10px}.customhouse-public-hero h1{font-size:clamp(2.5rem,15vw,4rem)}.customhouse-public-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}.customhouse-public-stat{min-width:0;padding:.6rem .58rem;gap:.45rem}.customhouse-public-stat-icon.material-symbols-outlined{font-size:1.6rem}.customhouse-public-share{align-items:stretch;flex-direction:column}.customhouse-public-share-toggle,.customhouse-public-share-copy{width:100%}.customhouse-public-share-menu{width:100%}.customhouse-public-services{grid-template-columns:1fr}.customhouse-public-service+.customhouse-public-service{border-left:0;border-top:1px solid var(--ch-border)}.customhouse-public-service{padding:1.05rem}.customhouse-public-service-icon.material-symbols-outlined{font-size:1.7rem}.customhouse-public-toolbar{align-items:stretch;flex-direction:column}.customhouse-public-toolbar-right{width:100%;justify-content:space-between}.customhouse-public-filter,.customhouse-public-sort{width:100%;min-width:0}.customhouse-public-view{flex:0 0 auto}.customhouse-public-grid{grid-template-columns:1fr}.customhouse-product-panel h1{font-size:clamp(1.9rem,10vw,2.8rem)}.customhouse-product-media img{padding:1rem}.customhouse-option-pill{flex:1 1 auto}.customhouse-field--color .customhouse-option-pill{flex:0 1 calc(50% - .4rem)}.customhouse-more{padding:1.5rem .8rem 1rem}.customhouse-more__title::before,.customhouse-more__title::after{width:28px}.customhouse-more__grid{grid-template-columns:1fr}.customhouse-more__image{max-height:170px}.customhouse-more__card h3{font-size:.9rem}.customhouse-more__button{min-height:32px}}
+    @media(max-width:760px){.customhouse-proxy-header__inner{grid-template-columns:1fr auto;align-items:center;gap:.65rem;min-height:62px}.customhouse-proxy-logo{font-size:1.08rem}.customhouse-proxy-actions a{width:36px;height:36px}.customhouse-proxy-nav{grid-column:1/-1;justify-content:flex-start;gap:.85rem;overflow-x:auto;scrollbar-width:none;padding:0 0 .75rem}.customhouse-proxy-nav::-webkit-scrollbar{display:none}.customhouse-proxy-nav a{font-size:.76rem}.customhouse-proxy-footer__inner{grid-template-columns:1fr}.customhouse-proxy-footer__links{justify-content:flex-start}.customhouse-public-page,.customhouse-product-page{width:min(100vw - 1rem,1180px)}.customhouse-public-hero{min-height:auto;padding:1.35rem 1rem 1.5rem;border-radius:0 0 10px 10px}.customhouse-public-hero h1{font-size:clamp(2.5rem,15vw,4rem)}.customhouse-public-socials{gap:.45rem}.customhouse-public-social{width:36px;height:36px}.customhouse-public-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}.customhouse-public-stat{min-width:0;padding:.6rem .58rem;gap:.45rem}.customhouse-public-stat-icon.material-symbols-outlined{font-size:1.6rem}.customhouse-public-share{align-items:stretch;flex-direction:column}.customhouse-public-share-toggle,.customhouse-public-share-copy{width:100%}.customhouse-public-share-menu{width:100%}.customhouse-public-services{grid-template-columns:1fr}.customhouse-public-service+.customhouse-public-service{border-left:0;border-top:1px solid var(--ch-border)}.customhouse-public-service{padding:1.05rem}.customhouse-public-service-icon.material-symbols-outlined{font-size:1.7rem}.customhouse-public-toolbar{align-items:stretch;flex-direction:column}.customhouse-public-toolbar-right{width:100%;justify-content:space-between}.customhouse-public-filter,.customhouse-public-sort{width:100%;min-width:0}.customhouse-public-view{flex:0 0 auto}.customhouse-public-grid{grid-template-columns:1fr}.customhouse-product-panel h1{font-size:clamp(1.9rem,10vw,2.8rem)}.customhouse-product-media img{padding:1rem}.customhouse-option-pill{flex:1 1 auto}.customhouse-field--color .customhouse-option-pill{flex:0 1 calc(50% - .4rem)}.customhouse-more{padding:1.5rem .8rem 1rem}.customhouse-more__title::before,.customhouse-more__title::after{width:28px}.customhouse-more__grid{grid-template-columns:1fr}.customhouse-more__image{max-height:170px}.customhouse-more__card h3{font-size:.9rem}.customhouse-more__button{min-height:32px}}
     @media(max-width:420px){.customhouse-proxy-header__inner,.customhouse-proxy-footer__inner{width:min(100vw - 1rem,1180px)}.customhouse-proxy-logo{font-size:1rem}.customhouse-proxy-nav{gap:.72rem}.customhouse-proxy-nav a{font-size:.7rem}.customhouse-proxy-actions a{width:34px;height:34px}.customhouse-proxy-actions .material-symbols-outlined{font-size:1.12rem}}
   </style>`;
 }
@@ -335,9 +485,22 @@ function siteFooter() {
   </footer>`;
 }
 
-function collectionHtml(input: {
-  collection: { publicHandle: string; displayName: string };
-  creator: { displayName: string; handle: string };
+export function collectionHtml(input: {
+  collection: {
+    publicHandle: string;
+    displayName: string;
+    bannerImageUrl?: string | null;
+    bannerTitle?: string | null;
+    bannerSubtitle?: string | null;
+  };
+  creator: {
+    displayName: string;
+    handle: string;
+    portfolioUrl?: string | null;
+    socialLinksJson?: string | null;
+    primaryPlatform?: string | null;
+    primaryProfileUrl?: string | null;
+  };
   products: Array<{
     id: string;
     title: string;
@@ -356,6 +519,11 @@ function collectionHtml(input: {
   const collectionName =
     input.collection.displayName?.trim() ||
     `${input.creator.displayName} Designs`;
+  const heroTitle = input.collection.bannerTitle?.trim() || collectionName;
+  const heroDescription =
+    input.collection.bannerSubtitle?.trim() ||
+    `Explore every piece from ${input.creator.displayName}. Unique creator designs, ready to purchase.`;
+  const heroImageUrl = publicImageUrl(input.collection.bannerImageUrl);
   const productCount = input.products.length;
   const collectionPath = getCreatorCollectionStorefrontUrl(input.collection) || "";
   const shareText = `Shop ${collectionName} on CustomHouse.`;
@@ -406,10 +574,11 @@ function collectionHtml(input: {
       <body>
         ${siteHeader()}
         <main class="customhouse-public-page" data-customhouse>
-          <header class="customhouse-public-hero">
+          <header class="customhouse-public-hero${heroImageUrl ? " customhouse-public-hero--with-banner" : ""}"${heroBackgroundAttr(heroImageUrl)}>
             <div class="customhouse-public-hero-copy">
-              <h1>${escapeHtml(collectionName)}</h1>
-              <p>Explore every piece from ${escapeHtml(input.creator.displayName)}. Unique creator designs, ready to purchase.</p>
+              <h1>${escapeHtml(heroTitle)}</h1>
+              <p>${escapeHtml(heroDescription)}</p>
+              ${socialLinksHtml(input.creator)}
               <div class="customhouse-public-stats" aria-label="Collection summary">
                 <span class="customhouse-public-stat">
                   <span class="customhouse-public-stat-icon material-symbols-outlined" aria-hidden="true">shopping_bag</span>
@@ -1476,6 +1645,15 @@ export async function handleStorefrontProxy(
               id: creator.id,
               handle: creator.handle,
               displayName: creator.displayName,
+            },
+            collection: {
+              publicHandle: collection.publicHandle,
+              displayName: collection.displayName,
+              bannerImageUrl: collection.bannerImageUrl,
+              bannerTitle: collection.bannerTitle,
+              bannerSubtitle: collection.bannerSubtitle,
+              bannerUpdatedAt: collection.bannerUpdatedAt,
+              socialLinks: publicSocialLinksRecord(creator),
             },
             products: products.map((product) => ({
               id: product.id,

@@ -50,6 +50,10 @@ export type CreatorCollectionRecord = {
   publicHandle: string;
   displayName: string;
   status: CollectionStatus;
+  bannerImageUrl?: string | null;
+  bannerTitle?: string | null;
+  bannerSubtitle?: string | null;
+  bannerUpdatedAt?: Date | null;
   shopifyCollectionId?: string | null;
   shopifyCollectionHandle?: string | null;
   shopifyCollectionUrl?: string | null;
@@ -586,7 +590,24 @@ export async function getPublicCreatorCollection(
       status: "ACTIVE",
       creator: { status: "APPROVED" },
     },
-    include: {
+    select: {
+      id: true,
+      shop: true,
+      creatorId: true,
+      publicId: true,
+      publicHandle: true,
+      displayName: true,
+      status: true,
+      bannerImageUrl: true,
+      bannerTitle: true,
+      bannerSubtitle: true,
+      bannerUpdatedAt: true,
+      shopifyCollectionId: true,
+      shopifyCollectionHandle: true,
+      shopifyCollectionUrl: true,
+      shopifyPublishedAt: true,
+      createdAt: true,
+      updatedAt: true,
       creator: {
         select: {
           id: true,
@@ -595,6 +616,10 @@ export async function getPublicCreatorCollection(
           status: true,
           profileImageUrl: true,
           bio: true,
+          portfolioUrl: true,
+          socialLinksJson: true,
+          primaryPlatform: true,
+          primaryProfileUrl: true,
         },
       },
     },
@@ -607,6 +632,10 @@ export async function getPublicCreatorCollection(
           status: string;
           profileImageUrl: string | null;
           bio: string | null;
+          portfolioUrl: string | null;
+          socialLinksJson: string | null;
+          primaryPlatform: string | null;
+          primaryProfileUrl: string | null;
         };
       })
     | null;
