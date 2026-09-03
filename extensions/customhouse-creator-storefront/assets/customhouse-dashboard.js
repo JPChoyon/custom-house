@@ -2,6 +2,7 @@
 const DASHBOARD_ENDPOINT = "/apps/customhouse/api/creator-dashboard";
 const PROFILE_IMAGE_ENDPOINT = "/apps/customhouse/api/creator-profile-upload";
 const PROFILE_UPDATE_ENDPOINT = "/apps/customhouse/api/creator-profile";
+const COLLECTION_BANNER_ENDPOINT = "/apps/customhouse/api/creator-collection-banner";
 const CREATOR_PRODUCTS_ENDPOINT = "/apps/customhouse/api/creator-products";
 const CREATOR_BASE_PRODUCTS_ENDPOINT = "/apps/customhouse/api/creator-base-products";
 const PAYOUT_METHODS_ENDPOINT = "/apps/customhouse/api/payout-methods";
@@ -108,6 +109,34 @@ async function uploadProfileImage(form) {
   const body = await response.json();
   if (!response.ok || !body?.ok) throw new Error("Profile upload failed");
   return body.data;
+}
+
+async function saveCollectionBanner(form) {
+  const response = await fetch(COLLECTION_BANNER_ENDPOINT, {
+    method: "POST",
+    credentials: "same-origin",
+    body: new FormData(form),
+    headers: { Accept: "application/json" },
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok || !body?.ok) {
+    throw new Error(body?.error?.message || "Collection banner could not be saved.");
+  }
+  return body.data?.collection;
+}
+
+async function removeCollectionBanner() {
+  const response = await fetch(COLLECTION_BANNER_ENDPOINT, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify({ intent: "remove" }),
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok || !body?.ok) {
+    throw new Error(body?.error?.message || "Collection banner could not be removed.");
+  }
+  return body.data?.collection;
 }
 
 async function saveProfileUpdate(payload) {
@@ -1838,10 +1867,39 @@ function closeDesignActionModal(root) {
   const modal = dashboardModalQuery(root, "[data-dashboard-action-modal]");
   if (modal) modal.hidden = true;
   unlockReviewModalScroll(root);
+  root.__customHouseActionHandler = null;
+  root.__customHouseActionKind = "";
   root.__customHouseActionProduct = null;
   root.__customHouseActionName = "";
   root.__customHouseActionReturnFocus?.focus?.();
   root.__customHouseActionReturnFocus = null;
+}
+
+function openDashboardActionModal(root, config, sourceButton = null) {
+  const modal = dashboardModalQuery(root, "[data-dashboard-action-modal]");
+  if (!modal || typeof config?.onConfirm !== "function") return;
+  root.__customHouseActionHandler = config.onConfirm;
+  root.__customHouseActionKind = config.kind || "generic";
+  root.__customHouseActionToast = config.toast || "";
+  root.__customHouseActionReturnFocus = sourceButton;
+  modal.querySelector("[data-dashboard-action-eyebrow]").textContent = config.eyebrow || "Confirm";
+  modal.querySelector("[data-dashboard-action-title]").textContent = config.title || "Continue?";
+  modal.querySelector("[data-dashboard-action-description]").textContent =
+    config.description || "Please confirm this action.";
+  const confirm = modal.querySelector("[data-dashboard-action-confirm]");
+  if (confirm) {
+    confirm.textContent = config.confirm || "Confirm";
+    confirm.dataset.loadingLabel = config.loading || "Working...";
+    confirm.classList.toggle("ch-design-delete-modal__confirm--safe", !config.destructive);
+  }
+  const error = modal.querySelector("[data-dashboard-action-error]");
+  if (error) {
+    error.hidden = true;
+    error.textContent = "";
+  }
+  modal.hidden = false;
+  lockReviewModalScroll(root);
+  window.setTimeout(() => confirm?.focus(), 0);
 }
 
 function openDesignActionModal(root, product, action, sourceButton = null) {
@@ -2023,6 +2081,33 @@ function bindMyDesignsUx(root) {
     button.addEventListener("click", () => closeDesignActionModal(root));
   });
   dashboardModalQuery(root, "[data-dashboard-action-confirm]")?.addEventListener("click", async (event) => {
+    if (typeof root.__customHouseActionHandler === "function") {
+      const state = dashboardState(root);
+      const key = root.__customHouseActionKind || "generic";
+      if (state.actionLoading.has(key)) return;
+      state.actionLoading.add(key);
+      const restoreButton = setActionLoading(
+        event.currentTarget,
+        event.currentTarget.dataset.loadingLabel || "Working...",
+      );
+      const error = dashboardModalQuery(root, "[data-dashboard-action-error]");
+      try {
+        await root.__customHouseActionHandler();
+        const toast = root.__customHouseActionToast || "Action completed.";
+        closeDesignActionModal(root);
+        showDashboardToast(root, toast, "success");
+      } catch (requestError) {
+        if (error) {
+          error.hidden = false;
+          error.textContent =
+            requestError instanceof Error ? requestError.message : "Action could not be completed.";
+        }
+      } finally {
+        restoreButton();
+        state.actionLoading.delete(key);
+      }
+      return;
+    }
     const product = root.__customHouseActionProduct;
     const action = root.__customHouseActionName;
     if (!product?.id || !action) return;
@@ -2649,6 +2734,177 @@ function bindProfileUpdateModal(root, refreshDashboard, getDashboardData) {
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && modal && !modal.hidden) close();
+  });
+}
+
+function collectionBannerData(data = {}) {
+  const collection = data.collection || {};
+  return {
+    bannerImageUrl: collection.bannerImageUrl || null,
+    bannerTitle: collection.bannerTitle || "",
+    bannerSubtitle: collection.bannerSubtitle || "",
+    bannerUpdatedAt: collection.bannerUpdatedAt || null,
+  };
+}
+
+function formatBannerUpdatedAt(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return `Updated ${date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+}
+
+function setBannerMessage(message, text, tone = "neutral", persist = true) {
+  if (!message) return;
+  message.textContent = text || "";
+  message.dataset.tone = tone;
+  message.dataset.persist = persist ? "true" : "false";
+  message.hidden = !text;
+}
+
+function renderCollectionBannerPreview(root, banner) {
+  const image = root.querySelector("[data-dashboard-banner-preview-image]");
+  const empty = root.querySelector("[data-dashboard-banner-preview-empty]");
+  const title = root.querySelector("[data-dashboard-banner-preview-title]");
+  const subtitle = root.querySelector("[data-dashboard-banner-preview-subtitle]");
+  const uploadLabel = root.querySelector("[data-dashboard-banner-upload-label]");
+  const selected = root.querySelector("[data-dashboard-banner-selected]");
+  const updated = root.querySelector("[data-dashboard-banner-updated]");
+  const hasImage = banner.bannerImageUrl?.startsWith("https://") || banner.bannerImageUrl?.startsWith("blob:");
+  if (image) {
+    image.hidden = !hasImage;
+    if (hasImage) {
+      image.src = banner.bannerImageUrl;
+      image.alt = banner.bannerTitle || "Collection banner preview";
+    }
+  }
+  if (empty) empty.hidden = hasImage;
+  if (title) {
+    title.textContent = banner.bannerTitle || "";
+    title.hidden = !banner.bannerTitle;
+  }
+  if (subtitle) {
+    subtitle.textContent = banner.bannerSubtitle || "";
+    subtitle.hidden = !banner.bannerSubtitle;
+  }
+  if (uploadLabel) uploadLabel.textContent = hasImage ? "Change image" : "Upload banner";
+  if (selected && !selected.textContent) selected.hidden = true;
+  if (updated) {
+    const label = formatBannerUpdatedAt(banner.bannerUpdatedAt);
+    updated.textContent = label;
+    updated.hidden = !label;
+  }
+}
+
+function hydrateCollectionBannerManager(root, data = {}) {
+  const banner = collectionBannerData(data);
+  const form = root.querySelector("[data-dashboard-banner-form]");
+  const title = root.querySelector("[data-dashboard-banner-title]");
+  const subtitle = root.querySelector("[data-dashboard-banner-subtitle]");
+  const remove = root.querySelector("[data-dashboard-banner-remove]");
+  const message = root.querySelector("[data-dashboard-banner-message]");
+  if (title && document.activeElement !== title) title.value = banner.bannerTitle;
+  if (subtitle && document.activeElement !== subtitle) subtitle.value = banner.bannerSubtitle;
+  if (form) form.dataset.hasBanner = String(Boolean(banner.bannerImageUrl));
+  if (remove) {
+    remove.hidden = !banner.bannerImageUrl;
+    remove.disabled = !banner.bannerImageUrl;
+  }
+  if (message && message.dataset.persist !== "true") setBannerMessage(message, "", "neutral", false);
+  renderCollectionBannerPreview(root, banner);
+}
+
+function bindCollectionBannerManager(root, refreshDashboard, getDashboardData) {
+  if (root.__customHouseCollectionBannerBound) return;
+  root.__customHouseCollectionBannerBound = true;
+  const form = root.querySelector("[data-dashboard-banner-form]");
+  const input = root.querySelector("[data-dashboard-banner-input]");
+  const title = root.querySelector("[data-dashboard-banner-title]");
+  const subtitle = root.querySelector("[data-dashboard-banner-subtitle]");
+  const message = root.querySelector("[data-dashboard-banner-message]");
+  const save = root.querySelector("[data-dashboard-banner-save]");
+  const remove = root.querySelector("[data-dashboard-banner-remove]");
+  const selected = root.querySelector("[data-dashboard-banner-selected]");
+  const updatePreviewText = () => {
+    const current = collectionBannerData(getDashboardData?.() || {});
+    renderCollectionBannerPreview(root, {
+      ...current,
+      bannerTitle: title?.value || "",
+      bannerSubtitle: subtitle?.value || "",
+    });
+  };
+  title?.addEventListener("input", updatePreviewText);
+  subtitle?.addEventListener("input", updatePreviewText);
+  input?.addEventListener("change", () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    renderCollectionBannerPreview(root, {
+      bannerImageUrl: URL.createObjectURL(file),
+      bannerTitle: title?.value || "",
+      bannerSubtitle: subtitle?.value || "",
+    });
+    if (selected) {
+      selected.textContent = `Selected: ${file.name}`;
+      selected.hidden = false;
+    }
+    setBannerMessage(message, "Image selected. Save changes to publish it.", "neutral");
+  });
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (form.dataset.saving === "true") return;
+    form.dataset.saving = "true";
+    const restoreButton = setActionLoading(save, "Saving...");
+    setBannerMessage(message, "Saving collection banner...", "neutral");
+    try {
+      const collection = await saveCollectionBanner(form);
+      if (input) input.value = "";
+      if (selected) {
+        selected.textContent = "";
+        selected.hidden = true;
+      }
+      hydrateCollectionBannerManager(root, { collection });
+      if (typeof refreshDashboard === "function") {
+        await refreshDashboard({ quiet: true });
+      }
+      setBannerMessage(message, "Collection banner updated.", "success");
+      showDashboardToast(root, "Collection banner updated.", "success");
+    } catch (error) {
+      const text = error instanceof Error ? error.message : "Collection banner could not be saved.";
+      setBannerMessage(message, text, "error");
+      showDashboardToast(root, text, "error");
+    } finally {
+      form.dataset.saving = "false";
+      restoreButton();
+      if (message) {
+        window.setTimeout(() => {
+          message.dataset.persist = "false";
+        }, 2200);
+      }
+    }
+  });
+  remove?.addEventListener("click", () => {
+    openDashboardActionModal(
+      root,
+      {
+        kind: "collection-banner-remove",
+        eyebrow: "Collection Banner",
+        title: "Remove collection banner?",
+        description: "This clears the banner image, title, and description from your public collection.",
+        confirm: "Remove Banner",
+        loading: "Removing...",
+        destructive: true,
+        toast: "Collection banner removed.",
+        onConfirm: async () => {
+          const collection = await removeCollectionBanner();
+          if (input) input.value = "";
+          hydrateCollectionBannerManager(root, { collection });
+          if (typeof refreshDashboard === "function") {
+            await refreshDashboard({ quiet: true });
+          }
+        },
+      },
+      remove,
+    );
   });
 }
 
@@ -3903,6 +4159,7 @@ function renderDashboard(root, view, refreshDashboard) {
     portfolioUrl,
     storeCopyUrl || view.data.collectionUrl || "",
   );
+  hydrateCollectionBannerManager(root, view.data);
   const newProduct = profile.querySelector("[data-dashboard-new-product]");
   const manageCollection = profile.querySelector("[data-dashboard-manage-collection]");
   const viewSubmissions = profile.querySelector("[data-dashboard-view-submissions]");
@@ -3997,6 +4254,7 @@ if (typeof document !== "undefined") {
         { quiet: Boolean(options.quiet) },
       );
     bindProfileUpdateModal(root, refreshDashboard, () => latestDashboardData);
+    bindCollectionBannerManager(root, refreshDashboard, () => latestDashboardData);
     bindPitchPrintManager(root);
     bindCreatorDesignActions(root);
     bindCreatorProductSubmission(root);

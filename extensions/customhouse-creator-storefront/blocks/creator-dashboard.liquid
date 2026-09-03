@@ -421,6 +421,53 @@
             <strong data-dashboard-account-bio>Not provided</strong>
           </div>
         </section>
+        <section class="customhouse-collection-banner-manager" aria-label="Collection banner">
+          <header class="customhouse-banner-header">
+            <div>
+              <h4>Collection Banner</h4>
+              <p>Customize the header of your public collection.</p>
+            </div>
+            <span data-dashboard-banner-updated hidden></span>
+          </header>
+          <div class="customhouse-banner-preview" data-dashboard-banner-preview>
+            <img data-dashboard-banner-preview-image alt="Collection banner preview" width="1920" height="600" hidden>
+            <div data-dashboard-banner-preview-empty>
+              <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">image</span>
+              <strong>No collection banner yet</strong>
+              <small>Recommended 1920 x 600 px</small>
+            </div>
+            <div class="customhouse-banner-preview-copy">
+              <strong data-dashboard-banner-preview-title></strong>
+              <span data-dashboard-banner-preview-subtitle></span>
+            </div>
+          </div>
+          <form class="customhouse-banner-form" data-dashboard-banner-form>
+            <input type="hidden" name="intent" value="save">
+            <div class="customhouse-banner-field-group customhouse-banner-upload-group">
+              <span>Banner image</span>
+              <label class="customhouse-banner-upload">
+                <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">upload</span>
+                <strong data-dashboard-banner-upload-label>Upload banner</strong>
+                <input data-dashboard-banner-input type="file" name="bannerImage" accept="image/jpeg,image/png,image/webp">
+              </label>
+              <small>JPG, PNG or WebP · Recommended 1920 x 600 px</small>
+              <em data-dashboard-banner-selected hidden></em>
+            </div>
+            <label class="customhouse-banner-field-group">
+              <span>Banner title</span>
+              <input data-dashboard-banner-title name="bannerTitle" maxlength="120" autocomplete="off" placeholder="Featured collection title">
+            </label>
+            <label class="customhouse-banner-field-group">
+              <span>Description</span>
+              <textarea data-dashboard-banner-subtitle name="bannerSubtitle" maxlength="500" rows="2" placeholder="A short subtitle for your collection"></textarea>
+            </label>
+            <p data-dashboard-banner-message role="status" aria-live="polite" hidden></p>
+            <div class="customhouse-banner-actions">
+              <button type="button" class="customhouse-banner-remove" data-dashboard-banner-remove>Remove banner</button>
+              <button type="submit" data-dashboard-banner-save>Save changes</button>
+            </div>
+          </form>
+        </section>
         <div class="customhouse-account-lower-grid">
           <div class="customhouse-commission-panel">
             <span class="customhouse-commission-icon" aria-hidden="true">$</span>
