@@ -3188,39 +3188,88 @@
 
 .customhouse-store-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
-  align-items: center;
-  gap: .9rem;
+  gap: .75rem;
 }
 
-.customhouse-store-card span,
-.customhouse-store-card a {
-  grid-column: 1;
+.customhouse-store-card__heading {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: .65rem;
+  min-width: 0;
+}
+
+.customhouse-store-card__heading > .material-symbols-outlined {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--ch-primary);
+  background: #f0eaff;
+  font-size: 19px;
+}
+
+.customhouse-store-card__heading strong {
+  display: block;
+  color: #111827;
+  font-size: .98rem;
+  font-weight: 900;
+}
+
+.customhouse-store-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .55rem;
+  align-items: center;
 }
 
 .customhouse-store-card a,
 .customhouse-store-card .customhouse-profile-link {
   display: inline-flex;
   min-width: 0;
+  max-width: 100%;
   color: var(--ch-primary);
   font-size: .9rem;
   font-weight: 850;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   text-decoration: none;
 }
 
 .customhouse-store-card button,
+.customhouse-store-card__actions a,
 .customhouse-card .customhouse-store-card button,
 .customhouse-referral-row button,
 .customhouse-card .customhouse-referral-row button {
-  min-height: 48px;
-  padding: .72rem 1.45rem;
+  min-height: 42px;
+  padding: .62rem 1rem;
   border: 1px solid rgba(91, 22, 232, .18);
   border-radius: 8px;
   color: var(--ch-primary);
   background: #fff;
+  font-size: .86rem;
   font-weight: 850;
   box-shadow: none;
+}
+
+.customhouse-store-share-menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem;
+  padding-top: .1rem;
+}
+
+.customhouse-store-share-menu[hidden] {
+  display: none;
+}
+
+.customhouse-store-share-menu a,
+.customhouse-store-share-menu button {
+  min-height: 36px;
+  padding: .48rem .75rem;
+  font-size: .8rem;
 }
 
 .customhouse-copy-feedback {
@@ -3237,8 +3286,11 @@
 }
 
 .customhouse-store-card .customhouse-copy-feedback {
-  grid-column: 1 / -1;
-  justify-self: end;
+  min-height: 0;
+}
+
+.customhouse-store-card .customhouse-copy-feedback:empty {
+  display: none;
 }
 
 .customhouse-dashboard-grid {
@@ -6770,6 +6822,19 @@ body:has([data-customhouse-dashboard]) {
   font-size: 13px !important;
   font-weight: 600 !important;
   line-height: 1.45 !important;
+}
+
+.customhouse-profile-modal .customhouse-profile-photo-remove {
+  margin-top: 10px !important;
+  min-height: 38px !important;
+  padding: .52rem .9rem !important;
+  border: 1px solid #d0d5dd !important;
+  border-radius: 8px !important;
+  color: #344054 !important;
+  background: #fff !important;
+  font-size: 13px !important;
+  font-weight: 850 !important;
+  box-shadow: none !important;
 }
 
 .customhouse-profile-modal .customhouse-profile-editor-layout .customhouse-native-profile-grid {

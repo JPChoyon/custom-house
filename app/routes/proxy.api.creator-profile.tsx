@@ -90,6 +90,7 @@ export async function action({ request }: ActionFunctionArgs) {
         : undefined;
     const termsAcceptedAt = termsAccepted ? new Date() : undefined;
     const resubmitting = creator.status === "REJECTED";
+    const removeProfileImage = accepted(body.removeProfileImage);
 
     const updated = await db.$transaction(async (tx) => {
       const saved = await tx.creator.update({
@@ -108,6 +109,7 @@ export async function action({ request }: ActionFunctionArgs) {
           audienceRange,
           categoriesJson: categories.length ? safeJson(categories) : undefined,
           aboutWork,
+          profileImageUrl: removeProfileImage ? null : undefined,
           ...(resubmitting
             ? {
                 status: "PENDING",
@@ -149,6 +151,7 @@ export async function action({ request }: ActionFunctionArgs) {
             categories: categories.length,
             aboutWork: Boolean(aboutWork),
             termsAccepted,
+            profileImageRemoved: removeProfileImage,
             resubmitted: resubmitting,
           }),
         },
@@ -197,6 +200,7 @@ export async function action({ request }: ActionFunctionArgs) {
         audienceRange: updated.audienceRange,
         categories: parseStringList(updated.categoriesJson),
         aboutWork: updated.aboutWork,
+        profileImageUrl: updated.profileImageUrl,
         socialLinksJson: updated.socialLinksJson,
         termsAccepted: Boolean(updated.termsAcceptedAt),
       },

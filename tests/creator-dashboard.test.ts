@@ -111,6 +111,10 @@ test("storefront dashboard displays total sales and ten percent commission", () 
   assert.match(script, /showProfileImage/);
   assert.doesNotMatch(script, /renderProfileDetails\(root, view\.data\)/);
   assert.match(script, /refreshUploadedProfileImage/);
+  assert.match(script, /removeProfilePhoto/);
+  assert.match(script, /removeProfileImage: true/);
+  assert.match(script, /data-dashboard-remove-image/);
+  assert.match(script, /data-profile-modal-remove-photo/);
   assert.match(script, /bindProfileUpdateModal/);
   assert.match(script, /hydrateProfileUpdateForm/);
   assert.match(script, /profileUpdateValues/);
@@ -171,6 +175,8 @@ test("storefront dashboard displays total sales and ten percent commission", () 
   assert.match(collectionProductsRoute, /countActiveCollectionProducts/);
   assert.match(collectionProductsRoute, /publishedProductsCount/);
   assert.match(profileRoute, /creator\.profile\.updated/);
+  assert.match(profileRoute, /removeProfileImage/);
+  assert.match(profileRoute, /profileImageUrl: removeProfileImage \? null : undefined/);
   assert.match(profileRoute, /portfolioUrl/);
   assert.match(profileRoute, /socialLinksJson/);
   assert.match(profileRoute, /termsAcceptedAt/);
@@ -194,6 +200,12 @@ test("storefront dashboard displays total sales and ten percent commission", () 
   assert.match(script, /aria-controls/);
   assert.match(script, /setDashboardMobileNav\(root, false\)/);
   assert.match(block, /customhouse-dashboard-skeleton/);
+  assert.match(block, /View store/);
+  assert.match(block, /Copy link/);
+  assert.match(block, />Share</);
+  assert.match(block, /data-dashboard-share-store/);
+  assert.match(block, /data-dashboard-share-menu/);
+  assert.match(block, /Remove photo/);
   assert.match(block, /aria-label="Loading creator dashboard"/);
   assert.doesNotMatch(block, />Loading\.\.\.<\/p>/);
   assert.match(block, /class="customhouse-dashboard-tabs-rail" data-dashboard-tabs-rail/);

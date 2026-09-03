@@ -80,9 +80,25 @@
             <p>Here's what's happening with your store today.</p>
           </div>
           <div class="customhouse-store-card">
-            <span>Your Store</span>
-            <a class="customhouse-profile-link" data-dashboard-public-link hidden></a>
-            <button type="button" data-dashboard-copy-store>Copy Link</button>
+            <div class="customhouse-store-card__heading">
+              <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">storefront</span>
+              <div>
+                <strong>Your Store</strong>
+                <a class="customhouse-profile-link" data-dashboard-public-link hidden></a>
+              </div>
+            </div>
+            <div class="customhouse-store-card__actions">
+              <a class="customhouse-secondary-button" data-dashboard-view-store href="{{ routes.root_url }}" target="_blank" rel="noreferrer" hidden>View store</a>
+              <button type="button" data-dashboard-copy-store>Copy link</button>
+              <button type="button" data-dashboard-share-store aria-expanded="false">Share</button>
+            </div>
+            <div class="customhouse-store-share-menu" data-dashboard-share-menu hidden>
+              <a data-dashboard-share-facebook target="_blank" rel="noreferrer">Facebook</a>
+              <a data-dashboard-share-x target="_blank" rel="noreferrer">X</a>
+              <a data-dashboard-share-whatsapp target="_blank" rel="noreferrer">WhatsApp</a>
+              <a data-dashboard-share-linkedin target="_blank" rel="noreferrer">LinkedIn</a>
+              <button type="button" data-dashboard-share-instagram-copy>Copy link for Instagram</button>
+            </div>
             <span class="customhouse-copy-feedback" data-dashboard-copy-store-message role="status" aria-live="polite"></span>
           </div>
         </section>
@@ -501,6 +517,11 @@
               <small>Upload or change profile picture</small>
               <input data-dashboard-image-input type="file" name="profileImage" accept="image/jpeg,image/png,image/webp">
             </label>
+            <button class="customhouse-account-action-card customhouse-secondary-button" data-dashboard-remove-image type="button">
+              <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">delete</span>
+              <strong>Remove photo</strong>
+              <small>Use the standard initials placeholder</small>
+            </button>
             <button class="customhouse-account-upload-submit" type="submit">Upload selected photo</button>
             <span data-dashboard-image-message role="status"></span>
           </form>
@@ -749,6 +770,7 @@
                 <div>
                   <strong>Profile photo</strong>
                   <p>JPG, PNG or WebP. Use a clear square image for best results.</p>
+                  <button type="button" class="customhouse-profile-photo-remove" data-profile-modal-remove-photo>Remove photo</button>
                 </div>
               </section>
               <div class="customhouse-native-profile-grid">

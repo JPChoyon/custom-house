@@ -155,6 +155,33 @@ async function saveProfileUpdate(payload) {
   return body.data;
 }
 
+async function removeProfilePhoto(root, message) {
+  const buttons = root.querySelectorAll(
+    "[data-dashboard-remove-image], [data-profile-modal-remove-photo]",
+  );
+  buttons.forEach((button) => {
+    button.disabled = true;
+    button.setAttribute("aria-busy", "true");
+  });
+  if (message) {
+    message.hidden = false;
+    message.textContent = "Removing photo...";
+  }
+  try {
+    await saveProfileUpdate({ removeProfileImage: true });
+    clearProfilePhoto(root);
+    if (message) {
+      message.hidden = false;
+      message.textContent = "Profile photo removed.";
+    }
+  } finally {
+    buttons.forEach((button) => {
+      button.disabled = false;
+      button.removeAttribute("aria-busy");
+    });
+  }
+}
+
 async function requestCreatorProducts() {
   if (!creatorProductsLoadPromise) {
     creatorProductsLoadPromise = (async () => {
@@ -318,6 +345,25 @@ function showProfileImage(image, imageUrl, alt) {
   image.alt = alt;
   image.hidden = false;
   return true;
+}
+
+function clearProfilePhoto(root) {
+  root
+    .querySelectorAll(
+      "[data-dashboard-image], [data-dashboard-account-image], [data-profile-modal-avatar-image], [data-profile-modal-sidebar-image]",
+    )
+    .forEach((image) => {
+      image.removeAttribute("src");
+      image.alt = "Creator profile picture";
+      image.hidden = true;
+    });
+  root
+    .querySelectorAll(
+      "[data-dashboard-avatar-fallback], [data-profile-modal-avatar-initials], [data-profile-modal-sidebar-initials]",
+    )
+    .forEach((fallback) => {
+      fallback.hidden = false;
+    });
 }
 
 function dashboardState(root) {
@@ -2956,15 +3002,102 @@ function bindStoreCopy(root, url, message) {
     button.onclick = async () => {
       if (!url) return;
       try {
-        await navigator.clipboard.writeText(url);
-        if (message) message.textContent = "Store link copied.";
-        setCopyFeedback(button, "Store link copied.");
+        await copyStoreUrl(button, url);
+        if (message) message.textContent = "";
       } catch {
-        if (message) message.textContent = "Copy the store link manually.";
-        setCopyFeedback(button, "Copy the store link manually.", "error");
+        if (message) message.textContent = "";
+        setCopyFeedback(button, "Copy failed.", "error");
       }
     };
   });
+}
+
+function storeShareTargets(url, title) {
+  const encodedUrl = encodeURIComponent(url);
+  const encodedTitle = encodeURIComponent(title || "Custom House creator collection");
+  return {
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
+    x: `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}`,
+    whatsapp: `https://wa.me/?text=${encodedTitle}%20${encodedUrl}`,
+    linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
+  };
+}
+
+async function copyStoreUrl(button, url) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(url);
+  } else {
+    const textarea = document.createElement("textarea");
+    textarea.value = url;
+    textarea.setAttribute("readonly", "readonly");
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.append(textarea);
+    textarea.select();
+    const copied = document.execCommand("copy");
+    textarea.remove();
+    if (!copied) throw new Error("Copy failed");
+  }
+  setCopyFeedback(button, "");
+}
+
+function bindStoreShare(root, url, title) {
+  const targets = url ? storeShareTargets(url, title) : null;
+  const menu = root.querySelector("[data-dashboard-share-menu]");
+  const button = root.querySelector("[data-dashboard-share-store]");
+  const instagramCopy = root.querySelector("[data-dashboard-share-instagram-copy]");
+  const links = {
+    facebook: root.querySelector("[data-dashboard-share-facebook]"),
+    x: root.querySelector("[data-dashboard-share-x]"),
+    whatsapp: root.querySelector("[data-dashboard-share-whatsapp]"),
+    linkedin: root.querySelector("[data-dashboard-share-linkedin]"),
+  };
+
+  Object.entries(links).forEach(([key, link]) => {
+    if (!link) return;
+    if (targets?.[key]) {
+      link.href = targets[key];
+      link.hidden = false;
+    } else {
+      link.removeAttribute("href");
+      link.hidden = true;
+    }
+  });
+  if (instagramCopy) instagramCopy.disabled = !url;
+  if (button) {
+    button.disabled = !url;
+    button.onclick = async () => {
+      if (!url) return;
+      if (navigator.share) {
+        try {
+          await navigator.share({ title, text: title, url });
+          return;
+        } catch (error) {
+          if (error?.name === "AbortError") return;
+        }
+      }
+      if (!menu) {
+        try {
+          await copyStoreUrl(button, url);
+        } catch {
+          setCopyFeedback(button, "Copy failed.", "error");
+        }
+        return;
+      }
+      menu.hidden = !menu.hidden;
+      button.setAttribute("aria-expanded", menu.hidden ? "false" : "true");
+    };
+  }
+  if (instagramCopy) {
+    instagramCopy.onclick = async () => {
+      if (!url) return;
+      try {
+        await copyStoreUrl(instagramCopy, url);
+      } catch {
+        setCopyFeedback(instagramCopy, "Copy failed.", "error");
+      }
+    };
+  }
 }
 
 function activateDashboardTab(root, tabName = "overview") {
@@ -4126,11 +4259,19 @@ function renderDashboard(root, view, refreshDashboard) {
     ? new URL(view.data.collectionUrl, window.location.origin).href
     : "";
   if (publicLink) {
-    publicLink.textContent = `customhouse.se/${view.data.handle || ""}`;
+    publicLink.textContent = storeCopyUrl
+      ? storeCopyUrl.replace(/^https?:\/\//, "")
+      : `customhouse.se/${view.data.handle || ""}`;
     publicLink.href = view.data.collectionUrl || "/";
     publicLink.hidden = !view.data.handle && !view.data.collectionUrl;
   }
+  const viewStore = profile.querySelector("[data-dashboard-view-store]");
+  if (viewStore) {
+    viewStore.hidden = !view.data.collectionUrl;
+    if (view.data.collectionUrl) viewStore.href = view.data.collectionUrl;
+  }
   bindStoreCopy(root, storeCopyUrl, root.querySelector("[data-dashboard-message]"));
+  bindStoreShare(root, storeCopyUrl, `${displayName}'s Custom House collection`);
   const socialLink = profile.querySelector("[data-dashboard-social-link]");
   const portfolio = profile.querySelector("[data-dashboard-portfolio]");
   const portfolioUrl =
@@ -4299,6 +4440,25 @@ if (typeof document !== "undefined") {
         message.textContent =
           "Profile picture could not be uploaded. Use a JPG, PNG, or WebP under 5 MB.";
       }
+    });
+    root.querySelectorAll("[data-dashboard-remove-image], [data-profile-modal-remove-photo]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const modalMessage = dashboardModalQuery(root, "[data-dashboard-profile-modal-message]");
+        const targetMessage = button.matches("[data-profile-modal-remove-photo]")
+          ? modalMessage
+          : message;
+        try {
+          await removeProfilePhoto(root, targetMessage);
+          if (typeof refreshDashboard === "function") {
+            await refreshDashboard({ quiet: true });
+          }
+        } catch {
+          if (targetMessage) {
+            targetMessage.hidden = false;
+            targetMessage.textContent = "Profile photo could not be removed. Please try again.";
+          }
+        }
+      });
     });
   });
 }
