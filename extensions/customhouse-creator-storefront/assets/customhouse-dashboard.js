@@ -2955,7 +2955,11 @@ function bindCollectionBannerManager(root, refreshDashboard, getDashboardData) {
 }
 
 function setCopyFeedback(button, text, tone = "success") {
-  const originalLabel = button.dataset.copyOriginalLabel || button.textContent || "Copy Link";
+  const labelNode = Array.from(button.children || []).find(
+    (child) => !child.classList?.contains("material-symbols-outlined"),
+  );
+  const currentLabel = labelNode?.textContent || button.textContent || "Copy Link";
+  const originalLabel = button.dataset.copyOriginalLabel || currentLabel;
   button.dataset.copyOriginalLabel = originalLabel;
   const explicitTarget = button.dataset.dashboardCopyMessageTarget
     ? document.querySelector(button.dataset.dashboardCopyMessageTarget)
@@ -2967,14 +2971,27 @@ function setCopyFeedback(button, text, tone = "success") {
     localTarget.textContent = text;
     localTarget.dataset.copyTone = tone;
   }
-  button.textContent = tone === "success" ? "Copied" : "Copy";
+  const nextLabel = tone === "success" ? "Copied" : "Copy";
+  if (labelNode) {
+    labelNode.textContent = nextLabel;
+  } else {
+    button.textContent = nextLabel;
+  }
   window.setTimeout(() => {
     if (localTarget && localTarget.textContent === text) {
       localTarget.textContent = "";
       delete localTarget.dataset.copyTone;
     }
-    if (button.textContent === "Copied" || button.textContent === "Copy") {
-      button.textContent = button.dataset.copyOriginalLabel || "Copy Link";
+    const activeLabelNode = Array.from(button.children || []).find(
+      (child) => !child.classList?.contains("material-symbols-outlined"),
+    );
+    const activeLabel = activeLabelNode?.textContent || button.textContent;
+    if (activeLabel === "Copied" || activeLabel === "Copy") {
+      if (activeLabelNode) {
+        activeLabelNode.textContent = button.dataset.copyOriginalLabel || "Copy Link";
+      } else {
+        button.textContent = button.dataset.copyOriginalLabel || "Copy Link";
+      }
     }
   }, 2600);
 }
@@ -4270,7 +4287,7 @@ function renderDashboard(root, view, refreshDashboard) {
     viewStore.hidden = !view.data.collectionUrl;
     if (view.data.collectionUrl) viewStore.href = view.data.collectionUrl;
   }
-  bindStoreCopy(root, storeCopyUrl, root.querySelector("[data-dashboard-message]"));
+  bindStoreCopy(root, storeCopyUrl, profile.querySelector("[data-dashboard-copy-store-message]"));
   bindStoreShare(root, storeCopyUrl, `${displayName}'s Custom House collection`);
   const socialLink = profile.querySelector("[data-dashboard-social-link]");
   const portfolio = profile.querySelector("[data-dashboard-portfolio]");

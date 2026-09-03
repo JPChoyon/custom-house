@@ -200,11 +200,16 @@ test("storefront dashboard displays total sales and ten percent commission", () 
   assert.match(script, /aria-controls/);
   assert.match(script, /setDashboardMobileNav\(root, false\)/);
   assert.match(block, /customhouse-dashboard-skeleton/);
+  assert.match(block, /<details class="customhouse-dashboard-stat" data-stat-icon="money">[\s\S]*Total Sales/);
   assert.match(block, /View store/);
+  assert.match(block, /open_in_new/);
   assert.match(block, /Copy link/);
-  assert.match(block, />Share</);
+  assert.match(block, /content_copy/);
+  assert.match(block, /ios_share/);
+  assert.match(block, />\s*<span>Share<\/span>/);
   assert.match(block, /data-dashboard-share-store/);
   assert.match(block, /data-dashboard-share-menu/);
+  assert.match(script, /bindStoreCopy\(root, storeCopyUrl, profile\.querySelector\("\[data-dashboard-copy-store-message\]"\)\)/);
   assert.match(block, /Remove photo/);
   assert.match(block, /aria-label="Loading creator dashboard"/);
   assert.doesNotMatch(block, />Loading\.\.\.<\/p>/);

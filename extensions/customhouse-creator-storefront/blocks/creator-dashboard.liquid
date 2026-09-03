@@ -88,9 +88,18 @@
               </div>
             </div>
             <div class="customhouse-store-card__actions">
-              <a class="customhouse-secondary-button" data-dashboard-view-store href="{{ routes.root_url }}" target="_blank" rel="noreferrer" hidden>View store</a>
-              <button type="button" data-dashboard-copy-store>Copy link</button>
-              <button type="button" data-dashboard-share-store aria-expanded="false">Share</button>
+              <a class="customhouse-secondary-button" data-dashboard-view-store href="{{ routes.root_url }}" target="_blank" rel="noreferrer" hidden>
+                <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">open_in_new</span>
+                <span>View store</span>
+              </a>
+              <button type="button" data-dashboard-copy-store>
+                <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">content_copy</span>
+                <span>Copy link</span>
+              </button>
+              <button type="button" data-dashboard-share-store aria-expanded="false">
+                <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">ios_share</span>
+                <span>Share</span>
+              </button>
             </div>
             <div class="customhouse-store-share-menu" data-dashboard-share-menu hidden>
               <a data-dashboard-share-facebook target="_blank" rel="noreferrer">Facebook</a>
@@ -104,7 +113,7 @@
         </section>
 
         <div class="customhouse-dashboard-grid" aria-label="Creator overview">
-          <details class="customhouse-dashboard-stat" data-stat-icon="clock">
+          <details class="customhouse-dashboard-stat" data-stat-icon="money">
             <summary>
               <span>Total Sales</span>
               <strong data-dashboard-total-sales>Not configured</strong>
