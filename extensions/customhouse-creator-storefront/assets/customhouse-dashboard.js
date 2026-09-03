@@ -523,26 +523,6 @@ function renderBaseProducts(root, products) {
     title.className = "ch-design-card__title";
     title.textContent = product.title || "Base product";
     copy.append(title);
-    const colorValues = optionValuesFromVariants(
-      pitchPrintProductVariants(product),
-      /^(color|colour|farg|färg)$/i,
-    );
-    if (colorValues.length) {
-      const colorField = document.createElement("label");
-      colorField.className = "ch-design-card__field";
-      const colorLabel = document.createElement("span");
-      colorLabel.textContent = "Color";
-      const colorSelect = document.createElement("select");
-      colorSelect.dataset.baseProductColor = product.id || "";
-      colorValues.forEach((color) => {
-        const option = document.createElement("option");
-        option.value = color;
-        option.textContent = color;
-        colorSelect.append(option);
-      });
-      colorField.append(colorLabel, colorSelect);
-      copy.append(colorField);
-    }
 
     const actions = document.createElement("div");
     actions.className = "ch-design-card__actions";
@@ -553,7 +533,7 @@ function renderBaseProducts(root, products) {
     button.textContent = product.pitchprintDesignId
       ? "Start Design"
       : "Unavailable";
-    button.disabled = !product.pitchprintDesignId || !colorValues.length;
+    button.disabled = !product.pitchprintDesignId;
     actions.append(button);
 
     card.append(top, copy, actions);
@@ -1066,16 +1046,14 @@ function creatorSetupForProduct(product) {
   return setup?.schema === "creator_design_setup_v1" ? setup : null;
 }
 
-function selectedBaseProductColor(root, baseProduct, startButton) {
-  const card = startButton?.closest?.(".customhouse-base-product-card");
-  const selected =
-    card?.querySelector("[data-base-product-color]")?.value ||
-    optionValuesFromVariants(
-      pitchPrintProductVariants(baseProduct),
-      /^(color|colour|farg|färg)$/i,
-    )[0] ||
-    "";
-  return String(selected || "").trim();
+function creatorPitchPrintLaunchProjectId(product) {
+  return String(product?.pitchprintProjectId || product?.pitchprintDesignId || "").trim();
+}
+
+function creatorPitchPrintLaunchProjectIdSource(product) {
+  if (product?.pitchprintProjectId) return "creator_product_saved_project";
+  if (product?.pitchprintDesignId) return "base_product_pitchprint_design_id";
+  return "missing";
 }
 
 function optionValuesFromVariants(variants, pattern) {
@@ -1426,22 +1404,24 @@ function bindPitchPrintManager(root) {
     cleanupPitchPrintSession();
     manager.isDesignerOpening = true;
     manager.activeCreatorProductId = product.id;
-    manager.activeProjectId = product.pitchprintProjectId || "";
+    const projectId = creatorPitchPrintLaunchProjectId(product);
+    manager.activeProjectId = projectId;
     manager.token += 1;
     const token = manager.token;
     const restoreButton = setActionLoading(sourceButton, "Preparing designer...");
     try {
-      if (!product.pitchprintDesignId && !product.pitchprintProjectId) {
-        throw new Error("Unable to open the designer. Please try again.");
+      if (!projectId) {
+        throw new Error("PitchPrint is not configured for this base product.");
       }
       const apiKey = root.dataset.pitchprintApiKey || "";
       if (!apiKey) throw new Error("PitchPrint public API key is not configured.");
       const mode = product.pitchprintProjectId ? "edit" : "new";
-      const projectId = product.pitchprintProjectId || "";
       pitchPrintDiagnostics(root, "config", {
         clientSrc: root.dataset.pitchprintClientSrc || PITCHPRINT_CLIENT_SRC,
         apiKey: maskPitchPrintKey(apiKey),
         designId: product.pitchprintDesignId || "",
+        projectId,
+        projectIdSource: creatorPitchPrintLaunchProjectIdSource(product),
         mode,
       });
       const [Client, identity] = await Promise.all([
@@ -1528,7 +1508,8 @@ function bindPitchPrintManager(root) {
         showCreatorToast(root, "Unable to open the designer. Please try again.", true);
         pitchPrintDiagnostics(root, "app-validation-timeout", {
           designId: product.pitchprintDesignId || "",
-          hasProjectId: Boolean(product.pitchprintProjectId),
+          projectId,
+          projectIdSource: creatorPitchPrintLaunchProjectIdSource(product),
         });
       }, 12000);
     } catch (error) {
@@ -1586,10 +1567,6 @@ function bindCreatorDesignActions(root) {
       state.actionLoading.add(key);
       const restoreButton = setActionLoading(startButton, "Preparing designer...");
       try {
-        const fixedColor = selectedBaseProductColor(root, baseProduct, startButton);
-        if (!fixedColor) {
-          throw new Error("Choose one color before opening the designer.");
-        }
         const created = await createCreatorProductDraft({
           shopifyProductId: baseProduct.id,
           title: baseProduct.title,
@@ -1606,9 +1583,9 @@ function bindCreatorDesignActions(root) {
           creatorContext: true,
           launchContext: "creator_dashboard",
           isCreatorProduct: true,
-          fixedColor,
-          selectedColor: fixedColor,
-          selectedColors: [fixedColor],
+          fixedColor: "",
+          selectedColor: "",
+          selectedColors: [],
           selectedProductionMethod: null,
           productionMethod: null,
           fixedProductionMethod: null,

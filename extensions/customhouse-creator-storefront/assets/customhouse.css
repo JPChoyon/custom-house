@@ -2028,26 +2028,6 @@
   overflow-wrap: anywhere;
 }
 
-.ch-design-card__field {
-  display: grid;
-  gap: .25rem;
-  min-width: 0;
-  color: #475467;
-  font-size: .74rem;
-  font-weight: 800;
-}
-
-.ch-design-card__field select {
-  width: 100%;
-  min-height: 2.15rem;
-  border: 1px solid #d0d5dd;
-  border-radius: 8px;
-  padding: .4rem .55rem;
-  color: #101828;
-  background: #fff;
-  font: inherit;
-}
-
 .ch-design-card__reason {
   margin: .05rem 0 0;
   border: 1px solid #fedf89;

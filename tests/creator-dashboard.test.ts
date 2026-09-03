@@ -391,6 +391,8 @@ test("creator dashboard starts PitchPrint directly and reviews saved designs wit
   assert.match(script, /copy\.className = "ch-design-card__body customhouse-base-product-card__body"/);
   assert.match(script, /button\.className = "ch-design-card__button ch-design-card__button--primary"/);
   assert.match(script, /Unavailable/);
+  assert.doesNotMatch(script, /dataBaseProductColor|baseProductColor|selectedBaseProductColor/);
+  assert.doesNotMatch(script, /Choose one color before opening the designer/);
   assert.match(script, /existing\?\.readyState === "complete"/);
   assert.match(script, /src === JQUERY_SRC && window\.jQuery/);
   assert.match(script, /root\.__customHouseCreatorDesignActionsBound/);
@@ -646,13 +648,14 @@ test("creator dashboard PitchPrint bridge uses Creator setup contract instead of
   assert.match(script, /flowMode: "CREATOR_DESIGN"/);
   assert.match(script, /creatorContext: true/);
   assert.match(script, /launchContext: "creator_dashboard"/);
+  assert.match(script, /const projectId = creatorPitchPrintLaunchProjectId\(product\)/);
+  assert.match(script, /projectId,/);
+  assert.doesNotMatch(script, /const projectId = product\.pitchprintProjectId \|\| ""/);
   assert.match(script, /productOrigin:\s*baseProductOrigin/);
   assert.match(script, /designMode: "creator_design"/);
   assert.match(script, /isCreatorProduct: true/);
   assert.match(script, /creatorProductId: product\.id/);
   assert.match(script, /creatorPublicHandle/);
-  assert.match(script, /dataset\.baseProductColor/);
-  assert.match(script, /selectedBaseProductColor\(root, baseProduct, startButton\)/);
   assert.match(script, /colorOptionValues/);
   assert.match(script, /colors: colorOptionValues/);
   assert.match(script, /sizeOptionValues/);
@@ -660,6 +663,9 @@ test("creator dashboard PitchPrint bridge uses Creator setup contract instead of
   assert.match(script, /optionGroups/);
   assert.match(script, /productionMethods/);
   assert.match(script, /productionMethodPricing/);
+  assert.match(script, /selectedColor: ""/);
+  assert.match(script, /selectedColors: \[\]/);
+  assert.match(script, /fixedColor: ""/);
   assert.match(script, /selectedProductionMethod: null/);
   assert.match(script, /fixedProductionMethod: null/);
   assert.match(script, /supportsMultipleSelections: false/);

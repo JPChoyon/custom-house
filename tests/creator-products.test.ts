@@ -597,6 +597,41 @@ test("eligible Creator base products exclude app-managed production fee products
   );
 });
 
+test("eligible Creator base products expose the configured PitchPrint launch template ID", async () => {
+  const db = fakeDb();
+  const products = await listEligibleCreatorBaseProducts(
+    shop,
+    "gid://shopify/Customer/1",
+    {
+      async request<T>() {
+        return {
+          products: {
+            nodes: [
+              {
+                ...baseProduct,
+                status: "ACTIVE",
+                tags: ["pitchprint"],
+                productType: { value: "global_customizable" },
+                inkybayEnabled: null,
+                pitchprintEnabled: { value: "true" },
+                creatorPublishingEnabled: { value: "true" },
+                legacyOrigin: null,
+                legacyMode: null,
+                productionMethodPricing: null,
+              },
+            ],
+          },
+        } as T;
+      },
+    },
+    db,
+  );
+
+  assert.equal(products.length, 1);
+  assert.equal(products[0].id, "gid://shopify/Product/1001");
+  assert.equal(products[0].pitchprintDesignId, "pp_design_global_hoodie");
+});
+
 test("Creator B cannot retrieve Creator A's private product by changing the ID", async () => {
   const db = fakeDb();
   const product = await createCreatorProductDraft(
