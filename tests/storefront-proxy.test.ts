@@ -126,6 +126,10 @@ test("public creator collection exposes basic share controls without Instagram d
   assert.match(source, /data-customhouse-share-platform="linkedin"/);
   assert.match(source, /Copy link for Instagram/);
   assert.match(source, /navigator\.share/);
+  assert.match(source, /\.customhouse-public-hero\{position:relative;z-index:2;[^}]*overflow:visible/);
+  assert.match(source, /\.customhouse-public-share\{position:relative;z-index:40;[^}]*isolation:isolate/);
+  assert.match(source, /\.customhouse-public-share-menu\{position:absolute;[^}]*z-index:80/);
+  assert.match(source, /\.customhouse-public-share-menu\{position:static;width:100%;margin-top:-\.2rem\}/);
   assert.match(source, /window\.matchMedia\("\(max-width: 760px\)"\)\.matches/);
   assert.match(source, /new URL\(sharePath, window\.location\.origin\)\.href/);
   assert.match(source, /new URLSearchParams/);
