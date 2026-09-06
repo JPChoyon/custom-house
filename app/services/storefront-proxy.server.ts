@@ -1406,18 +1406,20 @@ function productHtml(input: {
                   })
                 });
                 const prepared = await readPrepareCartResponse(response, "PREPARE_CART", "This item is temporarily unavailable.");
-                const preparedItems = Array.isArray(prepared.items)
-                  ? prepared.items
-                  : Array.isArray(prepared.cart?.items)
-                    ? prepared.cart.items
+                const preparedPayload = prepared?.data || prepared;
+                const preparedCart = preparedPayload?.cart || prepared.cart || {};
+                const preparedItems = Array.isArray(preparedPayload.items)
+                  ? preparedPayload.items
+                  : Array.isArray(preparedCart.items)
+                    ? preparedCart.items
                     : [];
-                const cartId = prepared.variant?.cartId || prepared.cart?.variant?.cartId || prepared.cart?.cartVariantId;
+                const cartId = preparedPayload.variant?.cartId || preparedPayload.cartVariantId || preparedPayload.variantId || preparedCart.variant?.cartId || preparedCart.cartVariantId || preparedCart.variantId;
                 const cartItems = preparedItems.length
                   ? preparedItems
                   : [{
                       id: cartId,
-                      quantity: prepared.quantity || prepared.cart?.quantity,
-                      properties: prepared.properties || prepared.cart?.properties
+                      quantity: preparedPayload.quantity || preparedCart.quantity,
+                      properties: preparedPayload.properties || preparedCart.properties
                     }];
                 if (!cartId) {
                   throw new CustomHouseCartError("MISSING_CART_VARIANT_ID", "This item is temporarily unavailable.", {

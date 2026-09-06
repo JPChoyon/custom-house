@@ -2921,7 +2921,13 @@
 }
 
 .customhouse-sidebar-nav .material-symbols-outlined {
-  font-size: 1.24rem;
+  display: inline-grid;
+  width: 1.45rem;
+  height: 1.45rem;
+  flex: 0 0 1.45rem;
+  place-items: center;
+  font-size: 1.45rem;
+  line-height: 1;
 }
 
 .customhouse-sidebar-nav .material-symbols-outlined.notranslate {
@@ -2930,9 +2936,9 @@
 
 .customhouse-sidebar-nav .customhouse-logout-icon {
   display: inline-grid;
-  width: 1.24rem;
-  height: 1.24rem;
-  min-width: 1.24rem;
+  width: 1.45rem;
+  height: 1.45rem;
+  min-width: 1.45rem;
   place-items: center;
   overflow: hidden;
   color: transparent;
@@ -2943,8 +2949,8 @@
 .customhouse-sidebar-nav .customhouse-logout-icon::before {
   content: "";
   display: block;
-  width: 1.24rem;
-  height: 1.24rem;
+  width: 1.45rem;
+  height: 1.45rem;
   background: currentColor;
   color: #fff;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'/%3E%3Cpath d='M16 17l5-5-5-5'/%3E%3Cpath d='M21 12H9'/%3E%3C/svg%3E") center / contain no-repeat;

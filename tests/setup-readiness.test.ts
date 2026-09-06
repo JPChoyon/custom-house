@@ -166,7 +166,7 @@ test("app managed creator cart uses base variants and signed attribution", () =>
   assert.match(proxy, /data-customhouse-option/);
   assert.match(proxy, /name="variantId"/);
   assert.match(proxy, /Content-Type": "application\/json"/);
-  assert.match(proxy, /prepared\.items/);
+  assert.match(proxy, /preparedPayload\.items/);
   assert.match(products, /items: \[/);
   assert.match(proxy, /class CustomHouseCartError extends Error/);
   assert.match(proxy, /fetchStage\("PREPARE_CART"/);
@@ -308,3 +308,4 @@ test("live theme cart renders creator previews without exposing private properti
     assert.match(source, /property_first_char != '_'/);
   }
 });
+

@@ -401,6 +401,8 @@ export async function syncProductionFeeMerchandise(
             ],
             price: pricing.embroiderySurcharge.toFixed(2),
             taxable: true,
+            inventoryPolicy: "CONTINUE",
+            inventoryItem: { tracked: false },
           },
           {
             optionValues: [
@@ -408,6 +410,8 @@ export async function syncProductionFeeMerchandise(
             ],
             price: pricing.dtfSurcharge.toFixed(2),
             taxable: true,
+            inventoryPolicy: "CONTINUE",
+            inventoryItem: { tracked: false },
           },
           {
             optionValues: [
@@ -415,6 +419,8 @@ export async function syncProductionFeeMerchandise(
             ],
             price: pricing.dtgSurcharge.toFixed(2),
             taxable: true,
+            inventoryPolicy: "CONTINUE",
+            inventoryItem: { tracked: false },
           },
         ],
         metafields: [

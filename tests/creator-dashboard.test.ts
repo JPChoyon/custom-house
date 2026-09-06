@@ -297,6 +297,7 @@ test("storefront dashboard displays total sales and ten percent commission", () 
   assert.match(styles, /width: min\(1040px, calc\(100vw - 40px\)\)/);
   assert.match(styles, /grid-template-columns: minmax\(0, 1fr\) 318px/);
   assert.match(styles, /\.customhouse-native-profile-grid\s*\{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(styles, /\.customhouse-sidebar-nav \.material-symbols-outlined\s*\{[^}]*display: inline-grid;[^}]*width: 1\.45rem;[^}]*height: 1\.45rem;[^}]*place-items: center;[^}]*font-size: 1\.45rem;/s);
   assert.match(styles, /\.customhouse-sidebar-nav \.material-symbols-outlined\.notranslate\s*\{[^}]*translate: no;/s);
   assert.match(styles, /\.customhouse-sidebar-nav \.customhouse-logout-icon\s*\{[^}]*font-size: 0;/s);
   assert.match(styles, /\.customhouse-sidebar-nav \.customhouse-logout-icon::before\s*\{[^}]*mask: url/s);

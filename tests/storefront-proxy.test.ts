@@ -162,7 +162,9 @@ test("public Creator product page is buy-only with fixed color and selectable pr
   assert.match(source, /made to order and cannot be returned/);
   assert.match(source, /optionName\.includes\("color"\)/);
   assert.match(source, /optionName\.includes\("production"\)/);
-  assert.match(source, /const preparedItems = Array\.isArray\(prepared\.items\)/);
+  assert.match(source, /const preparedPayload = prepared\?\.data \|\| prepared/);
+  assert.match(source, /const preparedItems = Array\.isArray\(preparedPayload\.items\)/);
+  assert.match(source, /preparedPayload\.cartVariantId/);
   assert.match(source, /cart\/add\.js/);
   assert.match(source, /customhouseMinorMoney/);
   assert.match(source, /productionMethods/);

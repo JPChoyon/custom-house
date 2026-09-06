@@ -610,6 +610,16 @@ test("production fee sync uses supported productSet variant input and maps price
     ["10.00", "20.00", "30.00"],
   );
   assert.equal(productSetInput.variants.some((variant) => "requiresShipping" in variant), false);
+  assert.deepEqual(productSetInput.variants.map((variant) => variant.inventoryPolicy), [
+    "CONTINUE",
+    "CONTINUE",
+    "CONTINUE",
+  ]);
+  assert.deepEqual(productSetInput.variants.map((variant) => variant.inventoryItem?.tracked), [
+    false,
+    false,
+    false,
+  ]);
   assert.equal(result.pricing.embroideryFeeVariantId, "gid://shopify/ProductVariant/9001");
   assert.equal(result.pricing.dtfFeeVariantId, "gid://shopify/ProductVariant/9002");
   assert.equal(result.pricing.dtgFeeVariantId, "gid://shopify/ProductVariant/9003");
@@ -623,7 +633,7 @@ type ProductionFeeProductSetInput = {
     type: string;
     value: string;
   }>;
-  variants: Array<{ price: string }>;
+  variants: Array<{ price: string; inventoryPolicy?: string; inventoryItem?: { tracked?: boolean } }>;
 };
 
 type PublishablePublishVariables = {
