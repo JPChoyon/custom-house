@@ -224,6 +224,9 @@ test("storefront dashboard displays total sales and ten percent commission", () 
   assert.match(block, /class="customhouse-dashboard-tab-panel customhouse-dashboard-section customhouse-profile-panel" data-dashboard-tab-panel="account"/);
   assert.match(block, /data-dashboard-edit-profile-icon/);
   assert.match(block, /data-dashboard-social-link/);
+  assert.doesNotMatch(block, /data-dashboard-portfolio/);
+  assert.doesNotMatch(block, /Creator portfolio/);
+  assert.doesNotMatch(script, /data-dashboard-portfolio/);
   assert.doesNotMatch(block, /data-dashboard-profile-details/);
   assert.doesNotMatch(block, /data-dashboard-legal-name/);
   assert.doesNotMatch(block, /data-dashboard-display-name/);

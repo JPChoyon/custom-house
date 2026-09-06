@@ -4355,7 +4355,6 @@ function renderDashboard(root, view, refreshDashboard) {
   bindStoreCopy(root, storeCopyUrl, profile.querySelector("[data-dashboard-copy-store-message]"));
   bindStoreShare(root, storeCopyUrl, `${displayName}'s Custom House collection`);
   const socialLink = profile.querySelector("[data-dashboard-social-link]");
-  const portfolio = profile.querySelector("[data-dashboard-portfolio]");
   const portfolioUrl =
     firstProfileLink(view.data.socialLinksJson) ||
     view.data.portfolioUrl ||
@@ -4364,10 +4363,6 @@ function renderDashboard(root, view, refreshDashboard) {
     socialLink.textContent = portfolioUrl;
     socialLink.href = portfolioUrl || "#";
     socialLink.hidden = !portfolioUrl?.startsWith("https://");
-  }
-  if (portfolio) {
-    portfolio.hidden = !portfolioUrl?.startsWith("https://");
-    if (!portfolio.hidden) portfolio.href = portfolioUrl;
   }
   const collection = profile.querySelector("[data-dashboard-collection]");
   if (collection) {
