@@ -414,8 +414,9 @@ function publicCss() {
     .customhouse-option-header{display:flex;justify-content:space-between;gap:1rem;color:#fff;font-size:.78rem}
     .customhouse-option-header strong{color:var(--ch-muted)}
     .customhouse-option-pills{display:flex;flex-wrap:wrap;gap:.65rem}
-    .customhouse-option-pill{min-height:42px;border:1px solid rgba(138,44,255,.8);background:transparent;color:#fff;padding:.65rem 1rem;text-transform:uppercase}
+    .customhouse-option-pill{display:inline-flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:.35rem;min-height:42px;border:1px solid rgba(138,44,255,.8);background:transparent;color:#fff;padding:.65rem 1rem;text-transform:uppercase;font-weight:850}
     .customhouse-option-pill.is-active{background:var(--ch-primary);border-color:var(--ch-primary);box-shadow:0 0 0 1px rgba(138,44,255,.35),0 10px 22px rgba(138,44,255,.24)}
+    .customhouse-option-pill__price{font-size:.78rem;line-height:1;opacity:.82;text-transform:none;white-space:nowrap}
     .customhouse-field--color .customhouse-option-pill{min-height:58px;gap:.65rem;border-color:rgba(255,255,255,.18);background:rgba(255,255,255,.045);padding:.55rem .95rem .55rem .55rem}
     .customhouse-field--color .customhouse-option-pill.is-active{border-color:var(--ch-primary);background:rgba(138,44,255,.28)}
     .customhouse-swatch{width:40px;height:40px;border-radius:999px;border:1px solid rgba(255,255,255,.34);background:var(--ch-swatch,#555)}
@@ -790,6 +791,20 @@ function productHtml(input: {
     const baseMinor = BigInt(Math.round(Number(variant.price.amount || 0) * 100));
     return formatMinorAmount(baseMinor + defaultProductionSurchargeMinor, variant.price.currencyCode);
   };
+  const productionCurrencyCode = firstAvailable?.price.currencyCode || "SEK";
+  const productionMethodSurchargeMinor = (method: { surchargeMinor: string }) => {
+    try {
+      return BigInt(method.surchargeMinor || "0") * BigInt(Math.max(1, placementCount));
+    } catch {
+      return 0n;
+    }
+  };
+  const productionMethodPriceLabel = (method: { surchargeMinor: string }) => {
+    const surchargeMinor = productionMethodSurchargeMinor(method);
+    return surchargeMinor > 0n
+      ? `+${formatMinorAmount(surchargeMinor, productionCurrencyCode)}`
+      : "Included";
+  };
   const optionControls = (input.baseProduct?.options || [])
     .filter((option) => {
       const optionName = option.name.toLowerCase();
@@ -880,8 +895,10 @@ function productHtml(input: {
                 data-customhouse-option-pill
                 data-option-target="selectedProductionMethod"
                 data-option-value="${escapeHtml(method.method)}"
+                data-option-label="${escapeHtml(methodLabel(method.method))}"
+                data-option-price="${escapeHtml(productionMethodPriceLabel(method))}"
                 aria-pressed="${active ? "true" : "false"}"
-              ><span>${escapeHtml(methodLabel(method.method))}</span></button>`;
+              ><span>${escapeHtml(methodLabel(method.method))}</span><span class="customhouse-option-pill__price">${escapeHtml(productionMethodPriceLabel(method))}</span></button>`;
             })
             .join("")}
         </span>
@@ -1199,7 +1216,7 @@ function productHtml(input: {
                     item.setAttribute("aria-pressed", active ? "true" : "false");
                   });
                 const current = form.querySelector('[data-customhouse-option-current="' + button.dataset.optionTarget + '"]');
-                if (current) current.textContent = button.dataset.optionValue || "";
+                if (current) current.textContent = button.dataset.optionLabel || button.dataset.optionValue || "";
                 select.dispatchEvent(new Event("change", { bubbles: true }));
               });
             });

@@ -2365,6 +2365,122 @@ test("creator buy-only detail and cart use shared creator production pricing", a
   assert.equal(cart.production.feeVariantId, "9103");
   assert.equal(cart.properties["Printing method"], "DTG");
 });
+
+test("creator cart prep resyncs stale shared creator fee variants", async () => {
+  const db = fakeDb();
+  let pricing = {
+    id: "creator-pricing-stale",
+    shopKey: shop,
+    shopifyProductId: CREATOR_PRODUCTION_PRICING_PRODUCT_ID,
+    embroiderySurcharge: parseSurchargeInput("10.00"),
+    dtfSurcharge: parseSurchargeInput("30.00"),
+    dtgSurcharge: parseSurchargeInput("20.00"),
+    embroideryFeeVariantId: "gid://shopify/ProductVariant/9101",
+    dtfFeeVariantId: "gid://shopify/ProductVariant/9102",
+    dtgFeeVariantId: "gid://shopify/ProductVariant/9103",
+  };
+  db.publicProductProductionPricing.findUnique = async () => pricing;
+  (
+    db.publicProductProductionPricing as typeof db.publicProductProductionPricing & {
+      update(args: { data: Partial<typeof pricing> }): Promise<typeof pricing>;
+    }
+  ).update = async (args) => {
+    pricing = { ...pricing, ...args.data };
+    return pricing;
+  };
+
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id },
+    fakeClient(),
+    db,
+  );
+  draft.id = "cmcreatorproduct00000023";
+  await attachPitchPrintProjectToCreatorProduct(
+    shop,
+    "gid://shopify/Customer/1",
+    draft.id,
+    pitchPrintPayload({ projectId: "pp_master", previewUrl: "https://cdn.pitchprint.test/master.png" }),
+    db,
+  );
+  await submitCreatorProductForReview(shop, "gid://shopify/Customer/1", draft.id, db);
+  await moderateCreatorProductAsAdmin(
+    shop,
+    "admin",
+    { creatorProductId: draft.id, decision: "PUBLISHED" },
+    db,
+  );
+
+  let feeSyncCount = 0;
+  const baseClient = fakePublicProductClient();
+  const client: ShopifyGraphqlClient = {
+    async request<T>(query: string) {
+      if (query.includes("CustomHouseProductionFeeVariant")) {
+        return {
+          node: {
+            id: "gid://shopify/ProductVariant/9103",
+            availableForSale: false,
+            product: { status: "ACTIVE" },
+          },
+        } as T;
+      }
+      if (query.includes("query CustomHouseProductionFeeProduct")) {
+        return { products: { nodes: [] } } as T;
+      }
+      if (query.includes("productSet")) {
+        feeSyncCount += 1;
+        return {
+          productSet: {
+            product: {
+              id: "gid://shopify/Product/creator-fee",
+              title: "Creator Fee",
+              parentProductId: { value: CREATOR_PRODUCTION_PRICING_PRODUCT_ID },
+              variants: {
+                nodes: [
+                  { id: "gid://shopify/ProductVariant/9201", title: "Embroidery Production Fee" },
+                  { id: "gid://shopify/ProductVariant/9202", title: "DTF Production Fee" },
+                  { id: "gid://shopify/ProductVariant/9203", title: "DTG Production Fee" },
+                ],
+              },
+            },
+            userErrors: [],
+          },
+        } as T;
+      }
+      if (query.includes("CustomHouseOnlineStorePublication")) {
+        return {
+          product: { resourcePublications: { nodes: [] } },
+          publications: {
+            nodes: [{ id: "gid://shopify/Publication/online-store", name: "Online Store" }],
+          },
+        } as T;
+      }
+      if (query.includes("publishablePublish")) {
+        return { publishablePublish: { userErrors: [] } } as T;
+      }
+      return baseClient.request<T>(query);
+    },
+  };
+
+  const cart = await prepareCreatorProductCart(
+    shop,
+    {
+      creatorHandle: "creator-a",
+      creatorProductId: draft.id,
+      selectedVariantId: "gid://shopify/ProductVariant/2001",
+      productionMethod: "DTG",
+    },
+    client,
+    async () => "pp_order_resynced_fee",
+    db,
+  );
+
+  assert.equal(feeSyncCount, 1);
+  assert.equal(cart.production.method, "DTG");
+  assert.equal(cart.production.feeVariantId, "9203");
+  assert.equal(cart.items[1].id, "9203");
+});
 test("cart prep rejects manually submitted variants outside the saved fixed color", async () => {
   const db = fakeDb();
   const draft = await createCreatorProductDraft(

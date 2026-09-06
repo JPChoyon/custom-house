@@ -29,6 +29,7 @@ import {
   getProductionPricing,
   listEnabledProductionMethodCodes,
   pricingForMethod,
+  syncProductionFeeMerchandise,
   type ProductionMethodCode,
 } from "./production-method-pricing.server.ts";
 
@@ -1068,7 +1069,44 @@ function cleanVariantSelection(value: unknown) {
 function numericVariantId(variantGid: string) {
   return variantGid.split("/").pop() || "";
 }
-
+async function productionFeeVariantNeedsSync(
+  feeVariantId: string,
+  client: ShopifyGraphqlClient,
+) {
+  try {
+    const result = await client.request<{
+      node:
+        | {
+            id: string;
+            availableForSale?: boolean | null;
+            product?: { status?: string | null } | null;
+          }
+        | null;
+    }>(
+      `#graphql query CustomHouseProductionFeeVariant($id: ID!) {
+        node(id: $id) {
+          ... on ProductVariant {
+            id
+            availableForSale
+            product { status }
+          }
+        }
+      }`,
+      { id: feeVariantId },
+    );
+    if (!Object.prototype.hasOwnProperty.call(result, "node")) {
+      return false;
+    }
+    return (
+      !result.node ||
+      result.node.availableForSale === false ||
+      result.node.product?.status === "ARCHIVED" ||
+      result.node.product?.status === "DRAFT"
+    );
+  } catch {
+    return false;
+  }
+}
 async function preparePitchPrintOrderProject(
   masterProjectId: string,
   cloner: PitchPrintProjectCloner,
@@ -2328,7 +2366,7 @@ export async function prepareCreatorProductCart(
       422,
     );
   }
-  const pricing = await getCreatorProductionPricing(
+  let pricing = await getCreatorProductionPricing(
     shop,
     database as unknown as Parameters<typeof getCreatorProductionPricing>[1],
   );
@@ -2342,7 +2380,24 @@ export async function prepareCreatorProductCart(
   const surchargeMinor = decimalMoneyToMinorUnits(
     pricingForMethod(pricing, productionMethod),
   );
-  const feeVariantId = feeVariantIdForMethod(pricing, productionMethod);
+  let feeVariantId = feeVariantIdForMethod(pricing, productionMethod);
+  if (
+    surchargeMinor > 0n &&
+    (!feeVariantId || (await productionFeeVariantNeedsSync(feeVariantId, client)))
+  ) {
+    try {
+      const feeSync = await syncProductionFeeMerchandise(
+        shop,
+        pricing,
+        client,
+        database as unknown as Parameters<typeof syncProductionFeeMerchandise>[3],
+      );
+      pricing = feeSync.pricing;
+      feeVariantId = feeVariantIdForMethod(pricing, productionMethod);
+    } catch {
+      feeVariantId = null;
+    }
+  }
   if (surchargeMinor > 0n && !feeVariantId) {
     throw new DomainError(
       "PRODUCTION_FEE_SYNC_REQUIRED",
