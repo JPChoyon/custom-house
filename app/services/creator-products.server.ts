@@ -25,6 +25,7 @@ import {
   PRODUCTION_METHODS,
   cleanProductionMethod,
   feeVariantIdForMethod,
+  getCreatorProductionPricing,
   getProductionPricing,
   listEnabledProductionMethodCodes,
   pricingForMethod,
@@ -2151,10 +2152,9 @@ export async function getPublishedCreatorProductForHandle(
   const creatorSetup = creatorProductSetupFromRecord(product);
   let productionPricing: PublicCreatorProduct["productionPricing"] = null;
   if (creatorSetup && database.publicProductProductionPricing) {
-    const pricing = await getProductionPricing(
+    const pricing = await getCreatorProductionPricing(
       shop,
-      product.shopifyProductId,
-      database as unknown as Parameters<typeof getProductionPricing>[2],
+      database as unknown as Parameters<typeof getCreatorProductionPricing>[1],
     );
     if (pricing) {
       const enabledMethods = database.productionMethodSetting
@@ -2328,10 +2328,9 @@ export async function prepareCreatorProductCart(
       422,
     );
   }
-  const pricing = await getProductionPricing(
+  const pricing = await getCreatorProductionPricing(
     shop,
-    product.shopifyProductId,
-    database as unknown as Parameters<typeof getProductionPricing>[2],
+    database as unknown as Parameters<typeof getCreatorProductionPricing>[1],
   );
   if (!pricing) {
     throw new DomainError(

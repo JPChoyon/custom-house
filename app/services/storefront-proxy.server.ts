@@ -858,7 +858,10 @@ function productHtml(input: {
     : "";
   const productionMethodControls = productionMethods.length
     ? `<label class="customhouse-field">
-        <span>Printing method</span>
+        <span class="customhouse-option-header">
+          <span>Printing method:</span>
+          <strong data-customhouse-option-current="selectedProductionMethod">${escapeHtml(methodLabel(defaultProductionMethod))}</strong>
+        </span>
         <select data-customhouse-production-method name="selectedProductionMethod" required>
           ${productionMethods
             .map(
@@ -867,12 +870,30 @@ function productHtml(input: {
             )
             .join("")}
         </select>
+        <span class="customhouse-option-pills" aria-label="Printing method options">
+          ${productionMethods
+            .map((method) => {
+              const active = method.method === defaultProductionMethod;
+              return `<button
+                class="customhouse-option-pill${active ? " is-active" : ""}"
+                type="button"
+                data-customhouse-option-pill
+                data-option-target="selectedProductionMethod"
+                data-option-value="${escapeHtml(method.method)}"
+                aria-pressed="${active ? "true" : "false"}"
+              ><span>${escapeHtml(methodLabel(method.method))}</span></button>`;
+            })
+            .join("")}
+        </span>
       </label>`
     : `<label class="customhouse-field">
         <span>Printing method</span>
         <select data-customhouse-production-method name="selectedProductionMethod" disabled required>
           <option value="">Unavailable</option>
         </select>
+        <span class="customhouse-option-pills" aria-label="Printing method options">
+          <button class="customhouse-option-pill" type="button" disabled><span>Unavailable</span></button>
+        </span>
       </label>`;
   const productUrl = getCreatorProductStorefrontUrl(input.collection, input) || "";
   const postUrl = `${productUrl}/prepare-cart`;

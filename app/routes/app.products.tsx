@@ -5,8 +5,11 @@ import { authenticate } from "../shopify.server";
 import { AdminGraphqlClient } from "../services/shopify-graphql.server";
 import {
   listProductionPricingRows,
+  saveCreatorProductionPricing,
   saveProductionPricing,
 } from "../services/production-method-pricing.server";
+
+const CREATOR_PRODUCTION_PRICING_PRODUCT_ID = "customhouse:creator-products";
 
 type ProductRow = {
   id: string;
@@ -153,6 +156,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return {
     products: data.products.nodes,
     pricingByProduct,
+    creatorPricing: pricingByProduct[CREATOR_PRODUCTION_PRICING_PRODUCT_ID] ?? null,
   };
 }
 
@@ -161,6 +165,41 @@ export async function action({ request }: ActionFunctionArgs) {
   const client = new AdminGraphqlClient(admin);
   const form = await request.formData();
   const intent = String(form.get("intent") || "");
+  const currency = String(form.get("currency") || "SEK");
+  if (intent === "save-creator-production-pricing") {
+    try {
+      const result = await saveCreatorProductionPricing(
+        session.shop,
+        {
+          currency,
+          embroidery: form.get("embroiderySurcharge"),
+          dtf: form.get("dtfSurcharge"),
+          dtg: form.get("dtgSurcharge"),
+        },
+        client,
+      );
+      return {
+        ok: result.status === "saved",
+        productId: CREATOR_PRODUCTION_PRICING_PRODUCT_ID,
+        message: result.message,
+        details: [
+          result.saved ? "Saved" : null,
+          result.productionFeeSynced ? "Creator production fee synced" : null,
+          ...result.errors,
+        ].filter((item): item is string => Boolean(item)),
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        productId: CREATOR_PRODUCTION_PRICING_PRODUCT_ID,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Creator production pricing could not be saved.",
+        details: [] as string[],
+      };
+    }
+  }
   if (intent !== "save-production-pricing") {
     return {
       ok: false,
@@ -171,7 +210,6 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   const productId = String(form.get("shopifyProductId") || "");
-  const currency = String(form.get("currency") || "SEK");
   try {
     await verifyPublicCustomizableProduct(client, productId);
     const result = await saveProductionPricing(
@@ -210,12 +248,19 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Products() {
-  const { products, pricingByProduct } = useLoaderData<typeof loader>();
+  const { products, pricingByProduct, creatorPricing } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const eligibleProducts = products.filter(isPublicCustomizableProduct);
   const excludedProducts = products.filter(
     (product) => !isPublicCustomizableProduct(product),
   );
+  const creatorPricingDefaults = rowDefaults(creatorPricing ?? undefined);
+  const creatorCurrency =
+    eligibleProducts[0]?.priceRangeV2.minVariantPrice.currencyCode ??
+    products[0]?.priceRangeV2.minVariantPrice.currencyCode ??
+    "SEK";
+  const creatorPricingActive =
+    actionData?.productId === CREATOR_PRODUCTION_PRICING_PRODUCT_ID;
 
   return (
     <s-page heading="Marketplace products"><AdminStyles /><s-section>
@@ -229,6 +274,74 @@ export default function Products() {
               </p>
             </div>
           </header>
+
+          <section className="settings-card settings-card--wide">
+            <div className="settings-card-heading">
+              <span className="settings-icon settings-icon--integration" />
+              <div>
+                <h2>Creator Product Printing Methods</h2>
+                <p>
+                  Configure one shared printing-method surcharge for all
+                  published Creator buy-only products.
+                </p>
+              </div>
+            </div>
+            <h3 className="settings-subheading">Creator Product Pricing</h3>
+            {creatorPricingActive ? (
+              <s-banner tone={actionData.ok ? "success" : "critical"}>
+                <strong>{actionData.message}</strong>
+                {actionData.details.length ? (
+                  <span> {actionData.details.join(" · ")}</span>
+                ) : null}
+              </s-banner>
+            ) : null}
+            <Form method="post" className="settings-field-stack production-pricing-form">
+              <input
+                type="hidden"
+                name="intent"
+                value="save-creator-production-pricing"
+              />
+              <input type="hidden" name="currency" value={creatorCurrency} />
+              <div className="production-pricing-fields">
+                <label>
+                  <span>Embroidery</span>
+                  <input
+                    name="embroiderySurcharge"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    defaultValue={creatorPricingDefaults.embroiderySurcharge}
+                  />
+                  <small>{creatorCurrency}</small>
+                </label>
+                <label>
+                  <span>DTF</span>
+                  <input
+                    name="dtfSurcharge"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    defaultValue={creatorPricingDefaults.dtfSurcharge}
+                  />
+                  <small>{creatorCurrency}</small>
+                </label>
+                <label>
+                  <span>DTG</span>
+                  <input
+                    name="dtgSurcharge"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    defaultValue={creatorPricingDefaults.dtgSurcharge}
+                  />
+                  <small>{creatorCurrency}</small>
+                </label>
+              </div>
+              <button type="submit" className="settings-secondary-button">
+                Save Creator Printing Pricing
+              </button>
+            </Form>
+          </section>
 
           {eligibleProducts.length ? (
             <div className="settings-grid">

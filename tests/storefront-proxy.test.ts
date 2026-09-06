@@ -147,6 +147,9 @@ test("public Creator product page is buy-only with fixed color and selectable pr
   assert.match(source, /<dt>Color<\/dt>/);
   assert.match(source, /<dt>Designed placements<\/dt>/);
   assert.match(source, /name="selectedProductionMethod"/);
+  assert.match(source, /aria-label="Printing method options"/);
+  assert.match(source, /data-option-target="selectedProductionMethod"/);
+  assert.match(source, /data-customhouse-option-current="selectedProductionMethod"/);
   assert.match(source, /data-customhouse-production-method/);
   assert.match(source, /selectedProductionMethod: productionMethodInput\?\.value/);
   assert.match(source, /customhouse-made-to-order-note/);

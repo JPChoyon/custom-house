@@ -6,9 +6,11 @@ import {
   throwUserErrors,
 } from "../app/services/shopify-graphql.server.ts";
 import {
+  CREATOR_PRODUCTION_PRICING_PRODUCT_ID,
   parseSurchargeInput,
   productionPricingBridgePayload,
   pricingConfigToMetafieldValue,
+  saveCreatorProductionPricing,
   saveProductionPricing,
   syncProductionFeeMerchandise,
   type ProductionPricingBridgePayload,
@@ -156,6 +158,10 @@ test("admin products page exposes pricing only for public customizable products"
   const appShell = readFileSync("app/routes/app.tsx", "utf8");
 
   assert.match(source, /save-production-pricing/);
+  assert.match(source, /save-creator-production-pricing/);
+  assert.match(source, /Creator Product Printing Methods/);
+  assert.match(source, /Save Creator Printing Pricing/);
+  assert.match(source, /CREATOR_PRODUCTION_PRICING_PRODUCT_ID/);
   assert.match(source, /product_type/);
   assert.match(source, /product_origin/);
   assert.match(source, /design_mode/);
@@ -301,6 +307,105 @@ test("saving production pricing is isolated per public product", async () => {
   assert.equal(secondRow.embroiderySurcharge.toFixed(2), "5.00");
 });
 
+test("saving creator production pricing uses one shared creator key without product metafield sync", async () => {
+  const rows = new Map<string, PricingRow>();
+  let parentProductValue = "";
+  let metafieldWrites = 0;
+  const database = {
+    productionMethodSetting: {
+      async findMany() {
+        return [];
+      },
+    },
+    publicProductProductionPricing: {
+      async findUnique(args: unknown) {
+        return rows.get(pricingProductKey(pricingArgs(args))) || null;
+      },
+      async findMany() {
+        return [...rows.values()];
+      },
+      async upsert(args: unknown) {
+        const parsedArgs = pricingArgs(args);
+        const key = pricingProductKey(parsedArgs);
+        const row = {
+          ...(rows.get(key) || parsedArgs.create),
+          id: rows.get(key)?.id ?? "creator-pricing",
+          shopifyProductId: key,
+          embroideryFeeVariantId: rows.get(key)?.embroideryFeeVariantId ?? null,
+          dtfFeeVariantId: rows.get(key)?.dtfFeeVariantId ?? null,
+          dtgFeeVariantId: rows.get(key)?.dtgFeeVariantId ?? null,
+          ...parsedArgs.update,
+        } as PricingRow;
+        rows.set(key, row);
+        return row;
+      },
+      async update(args: unknown) {
+        return updatePricingRow(rows, args);
+      },
+    },
+  };
+  const client = {
+    async request<T>(query: string, variables?: Record<string, unknown>) {
+      if (query.includes("metafieldsSet")) {
+        metafieldWrites += 1;
+        return { metafieldsSet: { userErrors: [] } } as T;
+      }
+      if (query.includes("query CustomHouseProductionFeeProduct")) {
+        return { products: { nodes: [] } } as T;
+      }
+      if (query.includes("productSet")) {
+        const input = productSetInputFromVariables(variables);
+        parentProductValue = input.metafields?.[0]?.value || "";
+        return {
+          productSet: {
+            product: {
+              id: "gid://shopify/Product/creator-fee",
+              title: "Creator Fee",
+              parentProductId: { value: parentProductValue },
+              variants: {
+                nodes: [
+                  { id: "gid://shopify/ProductVariant/9001", title: "Embroidery Production Fee" },
+                  { id: "gid://shopify/ProductVariant/9002", title: "DTF Production Fee" },
+                  { id: "gid://shopify/ProductVariant/9003", title: "DTG Production Fee" },
+                ],
+              },
+            },
+            userErrors: [],
+          },
+        } as T;
+      }
+      if (query.includes("query CustomHouseOnlineStorePublication")) {
+        return {
+          product: { resourcePublications: { nodes: [] } },
+          publications: { nodes: [{ id: "gid://shopify/Publication/1", name: "Online Store" }] },
+        } as T;
+      }
+      if (query.includes("publishablePublish")) {
+        return { publishablePublish: { userErrors: [] } } as T;
+      }
+      throw new Error("Unexpected Shopify call");
+    },
+  };
+
+  const result = await saveCreatorProductionPricing(
+    "shop.test",
+    {
+      currency: "SEK",
+      embroidery: "10.00",
+      dtf: "30.00",
+      dtg: "0.00",
+    },
+    client,
+    database,
+  );
+
+  assert.equal(result.status, "saved");
+  assert.equal(parentProductValue, CREATOR_PRODUCTION_PRICING_PRODUCT_ID);
+  assert.ok(rows.has(CREATOR_PRODUCTION_PRICING_PRODUCT_ID));
+  assert.equal(rows.get(CREATOR_PRODUCTION_PRICING_PRODUCT_ID)?.dtfSurcharge.toFixed(2), "30.00");
+  assert.equal(result.pricing.dtfFeeVariantId, "gid://shopify/ProductVariant/9002");
+  assert.equal(metafieldWrites, 0);
+});
 test("admin save writes storefront pricing metafield after fee IDs are persisted", async () => {
   const rows = new Map<string, PricingRow>();
   let metafieldPayload: ProductionPricingBridgePayload | undefined;

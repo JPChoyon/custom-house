@@ -6,6 +6,7 @@ import type { ShopifyGraphqlClient } from "./shopify-graphql.server.ts";
 import { throwUserErrors } from "./shopify-graphql.server.ts";
 
 export const PRODUCTION_METHODS = ["EMBROIDERY", "DTF", "DTG"] as const;
+export const CREATOR_PRODUCTION_PRICING_PRODUCT_ID = "customhouse:creator-products";
 
 export type ProductionMethodCode = (typeof PRODUCTION_METHODS)[number];
 
@@ -49,6 +50,8 @@ export type SaveProductionPricingInput = {
   dtf: unknown;
   dtg: unknown;
 };
+
+export type SaveCreatorProductionPricingInput = Omit<SaveProductionPricingInput, "shopifyProductId">;
 
 export type ProductionPricingSyncState = {
   saved: boolean;
@@ -308,6 +311,17 @@ export async function getProductionPricing(
       },
     },
   });
+}
+
+export async function getCreatorProductionPricing(
+  shop: string,
+  database: ProductionPricingDb = db as unknown as ProductionPricingDb,
+) {
+  return getProductionPricing(
+    shop,
+    CREATOR_PRODUCTION_PRICING_PRODUCT_ID,
+    database,
+  );
 }
 
 export async function syncProductionFeeMerchandise(
@@ -656,6 +670,63 @@ export async function saveProductionPricing(
       shopifySynced && productionFeeSynced
         ? "Saved. Shopify config synced. Production fee synced."
         : "Saved with a partial sync error.",
+    errors,
+    pricing,
+  };
+}
+
+export async function saveCreatorProductionPricing(
+  shop: string,
+  input: SaveCreatorProductionPricingInput,
+  client: ShopifyGraphqlClient,
+  database: ProductionPricingDb = db as unknown as ProductionPricingDb,
+): Promise<ProductionPricingSyncState> {
+  const embroidery = parseSurchargeInput(input.embroidery);
+  const dtf = parseSurchargeInput(input.dtf);
+  const dtg = parseSurchargeInput(input.dtg);
+  let pricing = await database.publicProductProductionPricing.upsert({
+    where: {
+      shopKey_shopifyProductId: {
+        shopKey: shop,
+        shopifyProductId: CREATOR_PRODUCTION_PRICING_PRODUCT_ID,
+      },
+    },
+    create: {
+      shopKey: shop,
+      shopifyProductId: CREATOR_PRODUCTION_PRICING_PRODUCT_ID,
+      embroiderySurcharge: embroidery,
+      dtfSurcharge: dtf,
+      dtgSurcharge: dtg,
+    },
+    update: {
+      embroiderySurcharge: embroidery,
+      dtfSurcharge: dtf,
+      dtgSurcharge: dtg,
+    },
+  });
+
+  const errors: string[] = [];
+  let productionFeeSynced = false;
+  try {
+    const feeSync = await syncProductionFeeMerchandise(shop, pricing, client, database);
+    pricing = feeSync.pricing;
+    productionFeeSynced = feeSync.synced;
+  } catch (error) {
+    errors.push(
+      `Production fee sync failed: ${
+        error instanceof Error ? error.message : "Unknown error."
+      }`,
+    );
+  }
+
+  return {
+    saved: true,
+    shopifySynced: true,
+    productionFeeSynced,
+    status: productionFeeSynced ? "saved" : "partial",
+    message: productionFeeSynced
+      ? "Saved. Creator production fee synced."
+      : "Saved with a partial sync error.",
     errors,
     pricing,
   };

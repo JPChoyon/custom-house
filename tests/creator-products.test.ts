@@ -29,7 +29,10 @@ import {
 } from "../app/services/creator-collections.server.ts";
 import { DomainError } from "../app/services/domain.ts";
 import type { ShopifyGraphqlClient } from "../app/services/shopify-graphql.server.ts";
-import { parseSurchargeInput } from "../app/services/production-method-pricing.server.ts";
+import {
+  CREATOR_PRODUCTION_PRICING_PRODUCT_ID,
+  parseSurchargeInput,
+} from "../app/services/production-method-pricing.server.ts";
 
 const shop = "customhouse.test";
 const baseProduct = {
@@ -447,7 +450,8 @@ function fakeDb() {
       },
     },
     publicProductProductionPricing: {
-      async findUnique() {
+      async findUnique(args?: unknown) {
+        void args;
         return {
           id: "pricing-1",
           shopKey: shop,
@@ -2287,6 +2291,80 @@ test("cart prep validates variant ownership and locks creator artwork", async ()
   assert.equal(await db.creatorSale.count(), 0);
 });
 
+test("creator buy-only detail and cart use shared creator production pricing", async () => {
+  const db = fakeDb();
+  const lookedUpKeys: string[] = [];
+  db.publicProductProductionPricing.findUnique = async (args: unknown) => {
+    const key = (args as {
+      where: { shopKey_shopifyProductId: { shopifyProductId: string } };
+    }).where.shopKey_shopifyProductId.shopifyProductId;
+    lookedUpKeys.push(key);
+    assert.equal(key, CREATOR_PRODUCTION_PRICING_PRODUCT_ID);
+    return {
+      id: "creator-pricing-1",
+      shopKey: shop,
+      shopifyProductId: key,
+      embroiderySurcharge: parseSurchargeInput("10.00"),
+      dtfSurcharge: parseSurchargeInput("30.00"),
+      dtgSurcharge: parseSurchargeInput("20.00"),
+      embroideryFeeVariantId: "gid://shopify/ProductVariant/9101",
+      dtfFeeVariantId: "gid://shopify/ProductVariant/9102",
+      dtgFeeVariantId: "gid://shopify/ProductVariant/9103",
+    };
+  };
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id },
+    fakeClient(),
+    db,
+  );
+  draft.id = "cmcreatorproduct00000022";
+  await attachPitchPrintProjectToCreatorProduct(
+    shop,
+    "gid://shopify/Customer/1",
+    draft.id,
+    pitchPrintPayload({ projectId: "pp_master", previewUrl: "https://cdn.pitchprint.test/master.png" }),
+    db,
+  );
+  await submitCreatorProductForReview(shop, "gid://shopify/Customer/1", draft.id, db);
+  await moderateCreatorProductAsAdmin(
+    shop,
+    "admin",
+    { creatorProductId: draft.id, decision: "PUBLISHED" },
+    db,
+  );
+
+  const product = await publicCreatorProductDetail(
+    shop,
+    "creator-a",
+    draft.id,
+    fakePublicProductClient(),
+    db,
+  );
+  assert.equal(product.productionPricing?.methods.length, 3);
+  assert.equal(product.productionPricing?.methods[1]?.method, "DTF");
+  assert.equal(product.productionPricing?.methods[1]?.surchargeMinor, "3000");
+
+  const cart = await prepareCreatorProductCart(
+    shop,
+    {
+      creatorHandle: "creator-a",
+      creatorProductId: draft.id,
+      selectedVariantId: "gid://shopify/ProductVariant/2001",
+      productionMethod: "DTG",
+    },
+    fakePublicProductClient(),
+    async () => "pp_order_creator_pricing",
+    db,
+  );
+
+  assert.deepEqual([...new Set(lookedUpKeys)], [CREATOR_PRODUCTION_PRICING_PRODUCT_ID]);
+  assert.equal(cart.production.method, "DTG");
+  assert.equal(cart.production.surchargeMinor, "2000");
+  assert.equal(cart.production.feeVariantId, "9103");
+  assert.equal(cart.properties["Printing method"], "DTG");
+});
 test("cart prep rejects manually submitted variants outside the saved fixed color", async () => {
   const db = fakeDb();
   const draft = await createCreatorProductDraft(
