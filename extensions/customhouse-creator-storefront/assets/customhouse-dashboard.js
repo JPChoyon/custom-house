@@ -871,15 +871,36 @@ async function refreshCreatorBaseProducts(root) {
   }
 }
 
-function normalizePitchPrintSaveEvent(value) {
+function cleanPitchPrintRuntimeProjectId(value) {
+  const projectId = String(value || "").trim();
+  if (!projectId) return "";
+  return /^[A-Za-z0-9][A-Za-z0-9_.:-]{2,200}$/.test(projectId)
+    ? projectId
+    : "";
+}
+
+function firstPitchPrintRuntimeProjectId(...values) {
+  for (const value of values) {
+    const projectId = cleanPitchPrintRuntimeProjectId(value);
+    if (projectId) return projectId;
+  }
+  return "";
+}
+
+export function normalizePitchPrintSaveEvent(value) {
   const data = value?.data && typeof value.data === "object" ? value.data : value;
-  const projectId =
-    data?.projectId ||
-    data?.project_id ||
-    data?._id ||
-    data?.id ||
-    data?.tid ||
-    "";
+  const project = data?.project && typeof data.project === "object" ? data.project : {};
+  const projectId = firstPitchPrintRuntimeProjectId(
+    data?.projectId,
+    data?.project_id,
+    project?.projectId,
+    project?.project_id,
+    project?._id,
+    project?.id,
+    data?._id,
+    data?.id,
+    data?.tid,
+  );
   const previews = Array.isArray(data?.previews)
     ? data.previews
     : Array.isArray(data?.previewUrls)
@@ -892,14 +913,14 @@ function normalizePitchPrintSaveEvent(value) {
           ? [data.preview]
         : [];
   return {
-    projectId: String(projectId || ""),
+    projectId,
     previews,
-    previewUrl: previews[0] || data?.preview || "",
+    previewUrl: previews[0] || data?.previewUrl || data?.preview || "",
     designId: data?.designId || data?.design_id || "",
   };
 }
 
-function normalizeCreatorSetupEvent(value) {
+export function normalizeCreatorSetupEvent(value) {
   const message = value?.detail || value?.data || value || {};
   const data =
     message?.payload && typeof message.payload === "object"
@@ -1308,6 +1329,8 @@ function bindPitchPrintManager(root) {
     creatorSetupAbortController: null,
     showAppCalled: false,
     projectSaved: false,
+    pendingCreatorSetup: null,
+    pendingPitchPrintSave: null,
   };
   root.__customHousePitchPrintManager = manager;
 
@@ -1325,6 +1348,8 @@ function bindPitchPrintManager(root) {
     manager.client = null;
     manager.showAppCalled = false;
     manager.projectSaved = false;
+    manager.pendingCreatorSetup = null;
+    manager.pendingPitchPrintSave = null;
     manager.isDesignerOpening = false;
   };
   const hidePitchPrint = () => {
@@ -1346,15 +1371,43 @@ function bindPitchPrintManager(root) {
       handler?.(event);
     });
   };
-  const handlePitchPrintCreatorSetupReady = async (product, event, token) => {
+  const buildCreatorSavePayload = () => {
+    const setupEvent = manager.pendingCreatorSetup;
+    const saveEvent = manager.pendingPitchPrintSave;
+    const projectId = setupEvent?.projectId || saveEvent?.projectId || "";
+    if (!projectId || !setupEvent?.creatorSetup) return null;
+    const previews = setupEvent.previews?.length
+      ? setupEvent.previews
+      : saveEvent?.previews || [];
+    return {
+      ...(saveEvent || {}),
+      ...setupEvent,
+      projectId,
+      previewUrl: setupEvent.previewUrl || saveEvent?.previewUrl || "",
+      previews,
+      designId: setupEvent.designId || saveEvent?.designId || "",
+      creatorSetup: setupEvent.creatorSetup,
+    };
+  };
+  const savePendingCreatorProduct = async (product, token) => {
     if (manager.projectSaved || token !== manager.token) return;
-    const setupEvent = normalizeCreatorSetupEvent(event);
-    if (!setupEvent) return;
+    const savePayload = buildCreatorSavePayload();
+    if (!savePayload) {
+      pitchPrintDiagnostics(root, "creator-save-pending", {
+        creatorProductId: product?.id || "",
+        hasCreatorSetup: Boolean(manager.pendingCreatorSetup?.creatorSetup),
+        hasProjectId: Boolean(
+          manager.pendingCreatorSetup?.projectId ||
+            manager.pendingPitchPrintSave?.projectId,
+        ),
+      });
+      return;
+    }
     manager.projectSaved = true;
     try {
       const updated = await saveCreatorProductPitchPrintProject(
         product.id,
-        setupEvent,
+        savePayload,
       );
       updateCreatorProductInState(root, updated);
       hidePitchPrint();
@@ -1368,6 +1421,28 @@ function bindPitchPrintManager(root) {
         true,
       );
     }
+  };
+  const handlePitchPrintCreatorSetupReady = async (product, event, token) => {
+    if (manager.projectSaved || token !== manager.token) return;
+    const setupEvent = normalizeCreatorSetupEvent(event);
+    if (!setupEvent) return;
+    manager.pendingCreatorSetup = setupEvent;
+    await savePendingCreatorProduct(product, token);
+  };
+  const handlePitchPrintProjectSaved = async (product, event, token) => {
+    if (manager.projectSaved || token !== manager.token) return;
+    const setupEvent = normalizeCreatorSetupEvent(event);
+    if (setupEvent) manager.pendingCreatorSetup = setupEvent;
+    const saveEvent = normalizePitchPrintSaveEvent(event);
+    if (
+      saveEvent.projectId ||
+      saveEvent.previewUrl ||
+      saveEvent.previews?.length ||
+      saveEvent.designId
+    ) {
+      manager.pendingPitchPrintSave = saveEvent;
+    }
+    await savePendingCreatorProduct(product, token);
   };
   const bindCreatorSetupWindowEvents = (product, token) => {
     if (manager.creatorSetupAbortController) {
@@ -1488,7 +1563,7 @@ function bindPitchPrintManager(root) {
         restoreButton();
       });
       bindPitchPrintEvent(client, "project-saved", token, (event) => {
-        void handlePitchPrintCreatorSetupReady(product, event, token);
+        void handlePitchPrintProjectSaved(product, event, token);
       });
       bindPitchPrintEvent(client, "after-close-app", token, () => {
         manager.isDesignerOpening = false;

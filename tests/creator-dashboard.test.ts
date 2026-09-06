@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import {
   creatorPitchPrintLaunchConfig,
   loadDashboardState,
+  normalizeCreatorSetupEvent,
+  normalizePitchPrintSaveEvent,
   resolveDashboardState,
 } from "../extensions/customhouse-creator-storefront/assets/customhouse-dashboard.js";
 import { countActiveCollectionProducts } from "../app/services/creator-collection-products.server.ts";
@@ -687,6 +689,11 @@ test("creator dashboard PitchPrint bridge uses Creator setup contract instead of
   assert.match(script, /CUSTOMHOUSE_PP_ORDER_CONFIG_REQUEST/);
   assert.match(script, /CUSTOMHOUSE_PP_ORDER_CONFIG_DATA/);
   assert.match(script, /ensurePitchPrintBaseProductConfig\(root, product\)/);
+  assert.match(script, /pendingCreatorSetup: null/);
+  assert.match(script, /pendingPitchPrintSave: null/);
+  assert.match(script, /const savePayload = buildCreatorSavePayload\(\)/);
+  assert.match(script, /if \(!savePayload\)/);
+  assert.match(script, /handlePitchPrintProjectSaved\(product, event, token\)/);
   assert.match(script, /creatorSetup: normalizeCreatorSetupPayload\(setup\)/);
   assert.match(script, /Choose one color and confirm copyright\./);
   assert.doesNotMatch(script, /Sizes \/ Amount/);
@@ -727,6 +734,31 @@ test("creator PitchPrint launch config requires a template design ID only", () =
       }),
     /PitchPrint is not configured for this product/,
   );
+});
+test("creator PitchPrint save normalization ignores generic non-PitchPrint IDs", () => {
+  const saveEvent = normalizePitchPrintSaveEvent({
+    data: {
+      id: "gid://shopify/Product/123",
+      previewUrl: "https://cdn.pitchprint.test/preview.png",
+    },
+  });
+  assert.equal(saveEvent.projectId, "");
+  assert.equal(saveEvent.previewUrl, "https://cdn.pitchprint.test/preview.png");
+
+  const setupEvent = normalizeCreatorSetupEvent({
+    type: "CUSTOMHOUSE_PP_CREATOR_SETUP_READY",
+    payload: {
+      creatorContext: true,
+      launchContext: "creator_dashboard",
+      id: "gid://shopify/Product/123",
+      fixedColor: "White",
+      selectedColor: "White",
+      selectedColors: ["White"],
+      copyrightAccepted: true,
+    },
+  });
+  assert.equal(setupEvent?.projectId, "");
+  assert.equal(setupEvent?.creatorSetup.fixedColor, "White");
 });
 
 test("profile picture upload stores Shopify media and returns a display URL", async () => {
