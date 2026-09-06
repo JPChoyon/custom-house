@@ -315,7 +315,7 @@ test("storefront dashboard displays total sales and ten percent commission", () 
   assert.match(styles, /Desktop tab width alignment: every dashboard tab fills the same content rail/);
   assert.match(styles, /@media \(min-width: 981px\)[\s\S]*\.customhouse-dashboard-tab-panel\.is-active\s*\{[^}]*width: 100%;[^}]*max-width: 100%;[^}]*justify-self: stretch;/s);
   assert.match(styles, /@media \(min-width: 981px\)[\s\S]*\.customhouse-profile-panel\.customhouse-dashboard-tab-panel\.is-active\s*\{[^}]*display: grid;/s);
-  assert.match(styles, /@media \(min-width: 981px\)[\s\S]*\.customhouse-creator-products-panel \.ch-design-card\s*\{[^}]*max-width: none;/s);
+  assert.match(styles, /@media \(min-width: 981px\)[\s\S]*\.customhouse-creator-products-panel \.ch-design-card\s*\{[^}]*max-width: 330px;[^}]*justify-self: start;/s);
   assert.match(styles, /Desktop tab full-width enforcement/);
   assert.match(styles, /@media \(min-width: 981px\)[\s\S]*\[data-customhouse-dashboard\] \.customhouse-dashboard-shell\s*\{[^}]*width: 100% !important;/s);
   assert.match(styles, /@media \(min-width: 981px\)[\s\S]*\[data-customhouse-dashboard\] \.customhouse-dashboard-shell\s*\{[^}]*min-width: 1500px !important;/s);
@@ -329,7 +329,9 @@ test("storefront dashboard displays total sales and ten percent commission", () 
   assert.match(styles, /@media \(min-width: 981px\)[\s\S]*\.customhouse-dashboard-main > \.customhouse-add-product-panel\.is-active[\s\S]*width: 100% !important;/s);
   assert.match(styles, /@media \(min-width: 981px\)[\s\S]*\.customhouse-dashboard-main > \.customhouse-sales-tab-panel\.is-active[\s\S]*width: 100% !important;/s);
   assert.match(styles, /@media \(min-width: 981px\)[\s\S]*\.customhouse-dashboard-main > \.customhouse-profile-panel\.is-active[\s\S]*width: 100% !important;/s);
-  assert.match(styles, /@media \(min-width: 981px\)[\s\S]*\.customhouse-creator-products-panel \.ch-design-card,[\s\S]*\.customhouse-base-product-card\s*\{[^}]*width: 100%;[^}]*max-width: none;/s);
+  assert.match(styles, /@media \(min-width: 981px\)[\s\S]*\.customhouse-creator-products-panel \.ch-designs__grid\s*\{[^}]*repeat\(auto-fill, minmax\(min\(100%, 250px\), 330px\)\);[^}]*justify-content: start;[^}]*justify-items: start;/s);
+  assert.match(styles, /@media \(min-width: 981px\)[\s\S]*\.customhouse-creator-products-panel \.ch-design-card\s*\{[^}]*width: 100%;[^}]*max-width: 330px;[^}]*justify-self: start;/s);
+  assert.match(styles, /@media \(min-width: 981px\)[\s\S]*\.customhouse-base-product-card\s*\{[^}]*width: 100%;[^}]*max-width: none;/s);
   assert.match(styles, /@media \(min-width: 981px\)[\s\S]*\[data-customhouse-dashboard\] \.customhouse-dashboard-tabs-rail > \.customhouse-add-product-panel\.is-active,[\s\S]*\[data-customhouse-dashboard\] \.customhouse-dashboard-tabs-rail > \.customhouse-profile-panel\.is-active\s*\{[^}]*min-inline-size: var\(--ch-dashboard-tab-rail-width\) !important;[^}]*max-inline-size: var\(--ch-dashboard-tab-rail-width\) !important;/s);
   assert.match(styles, /@media \(min-width: 981px\)[\s\S]*\[data-customhouse-dashboard\] \.customhouse-dashboard-tabs-rail > \.customhouse-profile-panel\.is-active\s*\{[^}]*grid-template-columns: minmax\(0, 1\.05fr\) minmax\(220px, \.42fr\) minmax\(280px, \.53fr\) !important;/s);
   assert.match(styles, /@media \(min-width: 981px\)[\s\S]*\[data-customhouse-dashboard\] \.customhouse-add-product-panel \.customhouse-base-products\s*\{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/s);
