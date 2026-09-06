@@ -745,12 +745,17 @@ test("creator PitchPrint save normalization ignores generic non-PitchPrint IDs",
   assert.equal(saveEvent.projectId, "");
   assert.equal(saveEvent.previewUrl, "https://cdn.pitchprint.test/preview.png");
 
+  const undefinedProject = normalizePitchPrintSaveEvent({
+    data: { projectId: "undefined" },
+  });
+  assert.equal(undefinedProject.projectId, "");
+
   const setupEvent = normalizeCreatorSetupEvent({
     type: "CUSTOMHOUSE_PP_CREATOR_SETUP_READY",
     payload: {
       creatorContext: true,
       launchContext: "creator_dashboard",
-      id: "gid://shopify/Product/123",
+      id: "mtndb59p00041104rz1d5t4e",
       fixedColor: "White",
       selectedColor: "White",
       selectedColors: ["White"],

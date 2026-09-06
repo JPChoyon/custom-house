@@ -873,7 +873,8 @@ async function refreshCreatorBaseProducts(root) {
 
 function cleanPitchPrintRuntimeProjectId(value) {
   const projectId = String(value || "").trim();
-  if (!projectId) return "";
+  if (!projectId || /^(undefined|null)$/i.test(projectId)) return "";
+  if (/^gid:\/\//i.test(projectId) || /^https?:\/\//i.test(projectId)) return "";
   return /^[A-Za-z0-9][A-Za-z0-9_.:-]{2,200}$/.test(projectId)
     ? projectId
     : "";
@@ -887,9 +888,10 @@ function firstPitchPrintRuntimeProjectId(...values) {
   return "";
 }
 
-export function normalizePitchPrintSaveEvent(value) {
+export function normalizePitchPrintSaveEvent(value, options = {}) {
   const data = value?.data && typeof value.data === "object" ? value.data : value;
   const project = data?.project && typeof data.project === "object" ? data.project : {};
+  const allowGenericIds = options.allowGenericIds !== false;
   const projectId = firstPitchPrintRuntimeProjectId(
     data?.projectId,
     data?.project_id,
@@ -897,9 +899,7 @@ export function normalizePitchPrintSaveEvent(value) {
     project?.project_id,
     project?._id,
     project?.id,
-    data?._id,
-    data?.id,
-    data?.tid,
+    ...(allowGenericIds ? [data?._id, data?.id, data?.tid] : []),
   );
   const previews = Array.isArray(data?.previews)
     ? data.previews
@@ -947,8 +947,12 @@ export function normalizeCreatorSetupEvent(value) {
   ) {
     return null;
   }
-  const setupSaveEvent = normalizePitchPrintSaveEvent(setup);
-  const dataSaveEvent = normalizePitchPrintSaveEvent(data);
+  const setupSaveEvent = normalizePitchPrintSaveEvent(setup, {
+    allowGenericIds: false,
+  });
+  const dataSaveEvent = normalizePitchPrintSaveEvent(data, {
+    allowGenericIds: false,
+  });
   return {
     ...setupSaveEvent,
     projectId:
