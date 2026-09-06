@@ -984,6 +984,70 @@ test("PitchPrint save counts only designed Creator placements", async () => {
   assert.deepEqual(setup.placements, ["Front", "Back"]);
 });
 
+test("PitchPrint save treats saved preview files as artwork placement evidence", async () => {
+  const db = fakeDb();
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id },
+    fakeClient(),
+    db,
+  );
+  const creatorSetup: Record<string, unknown> = {
+    ...pitchPrintPayload({ projectId: "pp_preview_only" }).creatorSetup,
+  };
+  delete creatorSetup.designedPlacementCount;
+  delete creatorSetup.placements;
+
+  const updated = await attachPitchPrintProjectToCreatorProduct(
+    shop,
+    "gid://shopify/Customer/1",
+    draft.id,
+    {
+      projectId: "pp_preview_only",
+      previews: [{ url: "https://cdn.pitchprint.test/front-render.png" }],
+      creatorSetup,
+    },
+    db,
+  );
+
+  const setup = JSON.parse(updated.designVariantSelectionsJson);
+  assert.equal(updated.previewUrl, "https://cdn.pitchprint.test/front-render.png");
+  assert.equal(setup.placementCount, 1);
+  assert.deepEqual(setup.placements, ["Artwork area 1"]);
+});
+
+test("PitchPrint save still rejects without placement or saved preview evidence", async () => {
+  const db = fakeDb();
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id },
+    fakeClient(),
+    db,
+  );
+  const creatorSetup: Record<string, unknown> = {
+    ...pitchPrintPayload({ projectId: "pp_no_artwork_evidence" }).creatorSetup,
+  };
+  delete creatorSetup.designedPlacementCount;
+  delete creatorSetup.placements;
+
+  await assert.rejects(
+    () =>
+      attachPitchPrintProjectToCreatorProduct(
+        shop,
+        "gid://shopify/Customer/1",
+        draft.id,
+        {
+          projectId: "pp_no_artwork_evidence",
+          creatorSetup,
+        },
+        db,
+      ),
+    /Add artwork to at least one printable area/,
+  );
+});
+
 test("PitchPrint save requires Creator copyright confirmation", async () => {
   const db = fakeDb();
   const draft = await createCreatorProductDraft(

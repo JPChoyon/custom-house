@@ -766,6 +766,23 @@ test("creator PitchPrint save normalization ignores generic non-PitchPrint IDs",
   assert.equal(setupEvent?.creatorSetup.fixedColor, "White");
 });
 
+test("creator PitchPrint save normalization keeps uploaded file previews", () => {
+  const saveEvent = normalizePitchPrintSaveEvent({
+    data: {
+      projectId: "pp_project_with_file",
+      files: [{ url: "https://cdn.pitchprint.test/uploaded-front.png" }],
+    },
+  });
+
+  assert.equal(saveEvent.projectId, "pp_project_with_file");
+  assert.deepEqual(saveEvent.previews, [
+    { url: "https://cdn.pitchprint.test/uploaded-front.png" },
+  ]);
+  assert.deepEqual(saveEvent.previewUrl, {
+    url: "https://cdn.pitchprint.test/uploaded-front.png",
+  });
+});
+
 test("profile picture upload stores Shopify media and returns a display URL", async () => {
   const originalFetch = globalThis.fetch;
   const requests: string[] = [];

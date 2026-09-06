@@ -471,10 +471,37 @@ function cleanProjectId(value: unknown) {
   return projectId;
 }
 
+function previewUrlCandidates(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value.flatMap(previewUrlCandidates);
+  if (typeof value === "string") return [value];
+  if (!value || typeof value !== "object") return [];
+  const record = value as Record<string, unknown>;
+  const nestedFile =
+    record.file && typeof record.file === "object"
+      ? (record.file as Record<string, unknown>)
+      : null;
+  return [
+    record.url,
+    record.previewUrl,
+    record.preview,
+    record.src,
+    record.href,
+    record.downloadUrl,
+    record.resourceUrl,
+    record.secureUrl,
+    record.secure_url,
+    record.originalSrc,
+    record.thumbnailUrl,
+    record.thumbnail,
+    record.thumb,
+    nestedFile?.url,
+  ];
+}
+
 function cleanPreviewUrls(input: AttachPitchPrintProjectInput) {
   const values = [
-    ...(Array.isArray(input.previews) ? input.previews : []),
-    input.previewUrl,
+    ...previewUrlCandidates(input.previews),
+    ...previewUrlCandidates(input.previewUrl),
   ];
   return [
     ...new Set(
@@ -492,6 +519,10 @@ function cleanPreviewUrls(input: AttachPitchPrintProjectInput) {
         .slice(0, 10),
     ),
   ];
+}
+
+function pitchPrintPreviewPlacementCount(input: AttachPitchPrintProjectInput) {
+  return cleanPreviewUrls(input).length;
 }
 
 function cleanPitchPrintDesignId(value: unknown) {
@@ -817,14 +848,17 @@ async function cleanCreatorProductSetup(
     );
   }
   const placements = collectPlacementRecords(setup);
+  const explicitPlacementCount = directPositiveInteger(
+    setup.placementCount,
+    setup.designedPlacementCount,
+    (setup.productionSurchargeMetadata as Record<string, unknown> | undefined)
+      ?.placementCount,
+  );
+  const previewPlacementCount = pitchPrintPreviewPlacementCount(input);
   const placementCount =
     placements.length ||
-    directPositiveInteger(
-      setup.placementCount,
-      setup.designedPlacementCount,
-      (setup.productionSurchargeMetadata as Record<string, unknown> | undefined)
-        ?.placementCount,
-    );
+    explicitPlacementCount ||
+    previewPlacementCount;
   if (!placementCount) {
     throw new DomainError(
       "DESIGNED_PLACEMENT_REQUIRED",
@@ -884,7 +918,11 @@ async function cleanCreatorProductSetup(
     placementCount,
     placements: placements.length
       ? placements
-      : Array.from({ length: placementCount }, (_, index) => `Placement ${index + 1}`),
+      : Array.from(
+          { length: placementCount },
+          (_, index) =>
+            `${previewPlacementCount && !explicitPlacementCount ? "Artwork area" : "Placement"} ${index + 1}`,
+        ),
     copyrightAccepted: true,
     nonReturnAcknowledged: booleanTrue(setup.nonReturnAcknowledged),
     savedAt: new Date().toISOString(),
