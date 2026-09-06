@@ -215,9 +215,10 @@ test("storefront dashboard displays total sales and ten percent commission", () 
   assert.match(block, />\s*<span>Share<\/span>/);
   assert.match(block, /data-dashboard-share-store/);
   assert.match(block, /data-dashboard-share-menu/);
-  assert.match(styles, /\.customhouse-store-card__heading\s*\{[^}]*grid-template-columns: 42px minmax\(0, 1fr\);[^}]*align-items: center;/s);
-  assert.match(styles, /\.customhouse-store-card__heading > \.material-symbols-outlined\s*\{[^}]*width: 42px;[^}]*height: 42px;[^}]*font-size: 25px;/s);
-  assert.match(styles, /\.customhouse-store-card__actions \.material-symbols-outlined\s*\{[^}]*display: inline-grid;[^}]*font-size: 20px;/s);
+  assert.match(styles, /\.customhouse-store-card__heading\s*\{[^}]*grid-template-columns: 46px minmax\(0, 1fr\);[^}]*align-items: center;/s);
+  assert.match(styles, /\.customhouse-store-card__heading > \.material-symbols-outlined\s*\{[^}]*width: 46px;[^}]*height: 46px;[^}]*font-size: 27px;/s);
+  assert.match(styles, /\.customhouse-store-card__actions \.material-symbols-outlined\s*\{[^}]*width: 22px;[^}]*height: 22px;[^}]*font-size: 22px;/s);
+  assert.match(styles, /\.customhouse-store-card__actions button,\s*\.customhouse-store-card__actions a\s*\{[^}]*min-height: 46px;[^}]*align-items: center;[^}]*gap: \.48rem;/s);
   assert.match(styles, /\.customhouse-store-card__actions span:not\(\.material-symbols-outlined\)\s*\{[^}]*color: inherit;[^}]*line-height: 1;/s);
   assert.match(script, /bindStoreCopy\(root, storeCopyUrl, profile\.querySelector\("\[data-dashboard-copy-store-message\]"\)\)/);
   assert.match(block, /Remove photo/);
