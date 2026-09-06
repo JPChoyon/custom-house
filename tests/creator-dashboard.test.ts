@@ -215,10 +215,10 @@ test("storefront dashboard displays total sales and ten percent commission", () 
   assert.match(block, />\s*<span>Share<\/span>/);
   assert.match(block, /data-dashboard-share-store/);
   assert.match(block, /data-dashboard-share-menu/);
-  assert.match(styles, /\.customhouse-store-card__heading\s*\{[^}]*grid-template-columns: 52px minmax\(0, 1fr\);[^}]*align-items: center;/s);
-  assert.match(styles, /\.customhouse-store-card__heading > \.material-symbols-outlined\s*\{[^}]*width: 52px;[^}]*height: 52px;[^}]*font-size: 30px;/s);
-  assert.match(styles, /\.customhouse-store-card__actions \.material-symbols-outlined\s*\{[^}]*width: 1\.25rem;[^}]*height: 1\.25rem;[^}]*font-size: 1\.25rem;/s);
-  assert.match(styles, /\.customhouse-store-card__actions button,\s*\.customhouse-store-card__actions a\s*\{[^}]*min-height: 46px;[^}]*align-items: center;[^}]*gap: \.48rem;/s);
+  assert.match(styles, /\.customhouse-store-card__heading\s*\{[^}]*grid-template-columns: 64px minmax\(0, 1fr\);[^}]*align-items: center;/s);
+  assert.match(styles, /\.customhouse-store-card__heading > \.material-symbols-outlined\s*\{[^}]*width: 64px;[^}]*height: 64px;[^}]*font-size: 38px;/s);
+  assert.match(styles, /\.customhouse-store-card__actions \.material-symbols-outlined\s*\{[^}]*width: 1\.35rem;[^}]*height: 1\.35rem;[^}]*font-size: 1\.35rem;/s);
+  assert.match(styles, /\.customhouse-store-card__actions button,\s*\.customhouse-store-card__actions a\s*\{[^}]*min-height: 48px;[^}]*align-items: center;[^}]*gap: \.55rem;/s);
   assert.match(styles, /\.customhouse-store-card__actions span:not\(\.material-symbols-outlined\)\s*\{[^}]*display: inline-flex;[^}]*align-items: center;[^}]*color: inherit;[^}]*line-height: 1\.1;/s);
   assert.match(script, /bindStoreCopy\(root, storeCopyUrl, profile\.querySelector\("\[data-dashboard-copy-store-message\]"\)\)/);
   assert.match(block, /Remove photo/);
@@ -298,8 +298,8 @@ test("storefront dashboard displays total sales and ten percent commission", () 
   assert.match(styles, /grid-template-columns: minmax\(0, 1fr\) 318px/);
   assert.match(styles, /\.customhouse-native-profile-grid\s*\{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(styles, /\.customhouse-sidebar-nav \.material-symbols-outlined\s*\{[^}]*display: inline-grid;[^}]*width: 1\.45rem;[^}]*height: 1\.45rem;[^}]*place-items: center;[^}]*font-size: 1\.45rem;/s);
-  assert.match(styles, /\.customhouse-store-card__heading > \.material-symbols-outlined\s*\{[^}]*width: 52px;[^}]*height: 52px;[^}]*place-items: center;[^}]*font-size: 30px;/s);
-  assert.match(styles, /\.customhouse-store-card__actions \.material-symbols-outlined\s*\{[^}]*width: 1\.25rem;[^}]*height: 1\.25rem;[^}]*place-items: center;[^}]*font-size: 1\.25rem;/s);
+  assert.match(styles, /\.customhouse-store-card__heading > \.material-symbols-outlined\s*\{[^}]*width: 64px;[^}]*height: 64px;[^}]*place-items: center;[^}]*font-size: 38px;/s);
+  assert.match(styles, /\.customhouse-store-card__actions \.material-symbols-outlined\s*\{[^}]*width: 1\.35rem;[^}]*height: 1\.35rem;[^}]*place-items: center;[^}]*font-size: 1\.35rem;/s);
   assert.match(styles, /\.customhouse-sidebar-nav \.material-symbols-outlined\.notranslate\s*\{[^}]*translate: no;/s);
   assert.match(styles, /\.customhouse-sidebar-nav \.customhouse-logout-icon\s*\{[^}]*font-size: 0;/s);
   assert.match(styles, /\.customhouse-sidebar-nav \.customhouse-logout-icon::before\s*\{[^}]*mask: url/s);
