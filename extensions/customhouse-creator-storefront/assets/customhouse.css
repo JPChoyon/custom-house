@@ -3173,21 +3173,29 @@
 
 .customhouse-store-card__heading {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-columns: 42px minmax(0, 1fr);
   align-items: center;
-  gap: .65rem;
+  gap: .72rem;
+  min-width: 0;
+}
+
+.customhouse-store-card__heading > div {
+  display: grid;
+  align-content: center;
+  gap: .12rem;
   min-width: 0;
 }
 
 .customhouse-store-card__heading > .material-symbols-outlined {
   display: grid;
-  width: 34px;
-  height: 34px;
+  width: 42px;
+  height: 42px;
   place-items: center;
-  border-radius: 8px;
+  border-radius: 10px;
   color: var(--ch-primary);
   background: #f0eaff;
-  font-size: 19px;
+  font-size: 25px;
+  line-height: 1;
 }
 
 .customhouse-store-card__heading strong {
@@ -3239,12 +3247,25 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: .42rem;
+  gap: .5rem;
+  line-height: 1;
   white-space: nowrap;
 }
 
 .customhouse-store-card__actions .material-symbols-outlined {
-  font-size: 17px;
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 1.15em;
+  height: 1.15em;
+  place-items: center;
+  color: currentColor;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.customhouse-store-card__actions span:not(.material-symbols-outlined) {
+  color: inherit;
+  font-size: .86rem;
   line-height: 1;
 }
 
