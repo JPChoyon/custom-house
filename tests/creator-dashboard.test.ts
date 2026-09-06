@@ -221,7 +221,7 @@ test("storefront dashboard displays total sales and ten percent commission", () 
   assert.match(styles, /\.customhouse-store-card__heading > \.material-symbols-outlined\s*\{[^}]*width: 64px;[^}]*height: 64px;[^}]*place-items: center;[^}]*font-size: 1\.35rem;/s);
   assert.match(styles, /\.customhouse-store-card__actions \.material-symbols-outlined\s*\{[^}]*width: 1\.35rem;[^}]*height: 1\.35rem;[^}]*font-size: 1\.35rem;/s);
   assert.match(styles, /\.customhouse-store-card__actions button,\s*\.customhouse-store-card__actions a\s*\{[^}]*min-height: 48px;[^}]*align-items: center;[^}]*gap: \.55rem;/s);
-  assert.match(styles, /\.customhouse-store-card__actions span:not\(\.material-symbols-outlined\)\s*\{[^}]*display: inline-flex;[^}]*align-items: center;[^}]*color: inherit;[^}]*line-height: 1\.1;/s);
+  assert.match(styles, /\.customhouse-store-card__actions span:not\(\.material-symbols-outlined\)\s*\{[^}]*display: inline-flex;[^}]*align-items: center;[^}]*color: inherit;[^}]*font-size: \.72rem;[^}]*line-height: 1\.1;/s);
   assert.match(script, /bindStoreCopy\(root, storeCopyUrl, profile\.querySelector\("\[data-dashboard-copy-store-message\]"\)\)/);
   assert.match(block, /Remove photo/);
   assert.match(block, /aria-label="Loading creator dashboard"/);
