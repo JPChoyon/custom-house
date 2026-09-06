@@ -2146,6 +2146,33 @@ test("PitchPrint clone service returns an order-specific project", async () => {
   else process.env.PITCHPRINT_SECRET_KEY = previousSecret;
 });
 
+test("PitchPrint clone service wraps fetch failures without exposing raw network errors", async () => {
+  const previousEndpoint = process.env.PITCHPRINT_CLONE_ENDPOINT;
+  const previousApiKey = process.env.PITCHPRINT_API_KEY;
+  const previousSecret = process.env.PITCHPRINT_SECRET_KEY;
+  process.env.PITCHPRINT_CLONE_ENDPOINT = "https://pitchprint.test/clone";
+  process.env.PITCHPRINT_API_KEY = "domain-api-key";
+  process.env.PITCHPRINT_SECRET_KEY = "server-secret";
+
+  await assert.rejects(
+    () =>
+      clonePitchPrintProject("pp_master", async (_url, init) => {
+        assert.ok(init?.signal instanceof AbortSignal);
+        throw new TypeError("fetch failed");
+      }),
+    (error) =>
+      error instanceof DomainError &&
+      error.code === "PITCHPRINT_CLONE_FAILED" &&
+      error.status === 502,
+  );
+
+  if (previousEndpoint === undefined) delete process.env.PITCHPRINT_CLONE_ENDPOINT;
+  else process.env.PITCHPRINT_CLONE_ENDPOINT = previousEndpoint;
+  if (previousApiKey === undefined) delete process.env.PITCHPRINT_API_KEY;
+  else process.env.PITCHPRINT_API_KEY = previousApiKey;
+  if (previousSecret === undefined) delete process.env.PITCHPRINT_SECRET_KEY;
+  else process.env.PITCHPRINT_SECRET_KEY = previousSecret;
+});
 test("PitchPrint clone service uses the official runtime endpoint by default", async () => {
   const previousEndpoint = process.env.PITCHPRINT_CLONE_ENDPOINT;
   const previousApiKey = process.env.PITCHPRINT_API_KEY;
@@ -2725,6 +2752,43 @@ test("cart prep falls back to master PitchPrint project when clone config is opt
   assert.equal(cart.properties._pitchprint, "pp_master");
 });
 
+test("cart prep falls back to master PitchPrint project when clone service fails", async () => {
+  const db = fakeDb();
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id },
+    fakeClient(),
+    db,
+  );
+  draft.id = "cmcreatorproduct00000018";
+  draft.status = "PUBLISHED";
+  draft.pitchprintProjectId = "pp_master";
+  draft.designVariantSelectionsJson = creatorSetupJson();
+
+  const cart = await prepareCreatorProductCart(
+    shop,
+    {
+      creatorHandle: "creator-a",
+      creatorProductId: draft.id,
+      selectedVariantId: "gid://shopify/ProductVariant/2001",
+      selectedProductionMethod: "DTG",
+    },
+    fakePublicProductClient(),
+    async () => {
+      throw new DomainError(
+        "PITCHPRINT_CLONE_FAILED",
+        "PitchPrint did not return an order-specific design.",
+        502,
+      );
+    },
+    db,
+  );
+
+  assert.equal(cart.properties._pitchprint, "pp_master");
+  assert.equal(cart.creatorProduct.masterPitchPrintProjectId, "pp_master");
+  assert.equal(cart.items[0].properties._pitchprint, "pp_master");
+});
 test("cart prep rejects unpublished products and unavailable variants", async () => {
   const db = fakeDb();
   const draft = await createCreatorProductDraft(

@@ -1116,10 +1116,13 @@ async function preparePitchPrintOrderProject(
   } catch (error) {
     if (
       error instanceof DomainError &&
-      error.code === "PITCHPRINT_NOT_CONFIGURED"
+      ["PITCHPRINT_NOT_CONFIGURED", "PITCHPRINT_CLONE_FAILED"].includes(
+        error.code,
+      )
     ) {
-      console.warn("pitchprint_clone_not_configured_using_master_project", {
+      console.warn("pitchprint_clone_fallback_using_master_project", {
         projectPresent: Boolean(masterProjectId),
+        reason: error.code,
       });
       return masterProjectId;
     }

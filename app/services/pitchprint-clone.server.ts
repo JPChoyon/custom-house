@@ -30,6 +30,12 @@ function cloneSecret() {
   ).trim();
 }
 
+function cloneTimeoutMs() {
+  const configured = Number(process.env.PITCHPRINT_CLONE_TIMEOUT_MS);
+  if (!Number.isFinite(configured) || configured <= 0) return 6500;
+  return Math.min(Math.max(Math.round(configured), 1000), 15000);
+}
+
 export async function clonePitchPrintProject(
   masterProjectId: string,
   fetchImpl: typeof fetch = fetch,
@@ -76,13 +82,31 @@ export async function clonePitchPrintProject(
     .update(`${apiKey}${secret}${timestamp}`)
     .digest("hex");
 
-  const response = await fetchImpl(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ apiKey, timestamp, signature, projectId }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), cloneTimeoutMs());
+  let response: Response;
+  try {
+    response = await fetchImpl(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ apiKey, timestamp, signature, projectId }),
+      signal: controller.signal,
+    });
+  } catch {
+    console.error("pitchprint_clone_failed", {
+      status: "request_failed",
+      projectId,
+    });
+    throw new DomainError(
+      "PITCHPRINT_CLONE_FAILED",
+      "Unable to prepare this design for purchase.",
+      502,
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
   if (!response.ok) {
     console.error("pitchprint_clone_failed", {
       status: response.status,
