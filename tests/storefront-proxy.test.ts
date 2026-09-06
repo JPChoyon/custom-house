@@ -148,6 +148,9 @@ test("public Creator product page is buy-only with fixed color and selectable pr
   assert.match(source, /<dt>Designed placements<\/dt>/);
   assert.match(source, /name="selectedProductionMethod"/);
   assert.match(source, /aria-label="Printing method options"/);
+  assert.match(source, /const sizeControls = optionControls/);
+  assert.match(source, /One size/);
+  assert.match(source, /aria-label="Size options"/);
   assert.match(source, /data-option-target="selectedProductionMethod"/);
   assert.match(source, /data-option-label="\$\{escapeHtml\(methodLabel\(method\.method\)\)\}"/);
   assert.match(source, /customhouse-option-pill__price/);

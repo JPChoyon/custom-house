@@ -859,6 +859,25 @@ function productHtml(input: {
       </label>`;
     })
     .join("");
+  const selectedSizeValue = firstAvailable?.selectedOptions.find((option) =>
+    /^(size|storlek|storrelse|størrelse)$/i.test(option.name.trim()),
+  )?.value;
+  const normalizedSingleSize = String(selectedSizeValue || "").trim();
+  const singleSizeLabel =
+    normalizedSingleSize && !/^default title$/i.test(normalizedSingleSize)
+      ? normalizedSingleSize
+      : "One size";
+  const sizeControls = optionControls || (firstAvailable
+    ? `<label class="customhouse-field customhouse-field--single-option">
+        <span class="customhouse-option-header">
+          <span>Size:</span>
+          <strong>${escapeHtml(singleSizeLabel)}</strong>
+        </span>
+        <span class="customhouse-option-pills" aria-label="Size options">
+          <button class="customhouse-option-pill is-active" type="button" disabled aria-pressed="true"><span>${escapeHtml(singleSizeLabel)}</span></button>
+        </span>
+      </label>`
+    : "");
   const lockedDetails = setup
     ? `<dl class="customhouse-locked-details" aria-label="Creator product details">
         <div>
@@ -1024,7 +1043,7 @@ function productHtml(input: {
               <p class="customhouse-locked-note">Creator artwork is locked for purchase.</p>
               ${lockedDetails}
               <form class="customhouse-product-form" data-customhouse-creator-cart data-prepare-url="${postUrl}" data-variants="${jsonAttr(variants)}" data-production-methods="${jsonAttr(productionMethods)}" data-placement-count="${escapeHtml(String(placementCount))}">
-                ${optionControls}
+                ${sizeControls}
                 <input type="hidden" name="variantId" value="${escapeHtml(firstAvailable?.cartId || "")}">
                 ${productionMethodControls}
                 <label class="customhouse-field customhouse-field--quantity">
