@@ -792,15 +792,15 @@ function productHtml(input: {
     return formatMinorAmount(baseMinor + defaultProductionSurchargeMinor, variant.price.currencyCode);
   };
   const productionCurrencyCode = firstAvailable?.price.currencyCode || "SEK";
-  const productionMethodSurchargeMinor = (method: { surchargeMinor: string }) => {
+  const productionMethodDisplayRateMinor = (method: { surchargeMinor: string }) => {
     try {
-      return BigInt(method.surchargeMinor || "0") * BigInt(Math.max(1, placementCount));
+      return BigInt(method.surchargeMinor || "0");
     } catch {
       return 0n;
     }
   };
   const productionMethodPriceLabel = (method: { surchargeMinor: string }) => {
-    const surchargeMinor = productionMethodSurchargeMinor(method);
+    const surchargeMinor = productionMethodDisplayRateMinor(method);
     return surchargeMinor > 0n
       ? `+${formatMinorAmount(surchargeMinor, productionCurrencyCode)}`
       : "Included";
