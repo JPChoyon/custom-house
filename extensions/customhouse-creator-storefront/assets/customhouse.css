@@ -3179,7 +3179,7 @@
 
 .customhouse-store-card__heading {
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr);
+  grid-template-columns: 52px minmax(0, 1fr);
   align-items: center;
   gap: .72rem;
   min-width: 0;
@@ -3194,14 +3194,17 @@
 
 .customhouse-store-card__heading > .material-symbols-outlined {
   display: grid;
-  width: 46px;
-  height: 46px;
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
   place-items: center;
+  align-self: center;
   border-radius: 10px;
   color: var(--ch-primary);
   background: #f0eaff;
-  font-size: 27px;
+  font-size: 30px;
   line-height: 1;
+  font-variation-settings: "FILL" 0, "wght" 600, "GRAD" 0, "opsz" 24;
 }
 
 .customhouse-store-card__heading strong {
@@ -3261,19 +3264,22 @@
 
 .customhouse-store-card__actions .material-symbols-outlined {
   display: inline-grid;
-  flex: 0 0 auto;
-  width: 22px;
-  height: 22px;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: 0 0 1.25rem;
   place-items: center;
   color: currentColor;
-  font-size: 22px;
+  font-size: 1.25rem;
   line-height: 1;
+  font-variation-settings: "FILL" 0, "wght" 600, "GRAD" 0, "opsz" 20;
 }
 
 .customhouse-store-card__actions span:not(.material-symbols-outlined) {
+  display: inline-flex;
+  align-items: center;
   color: inherit;
   font-size: .86rem;
-  line-height: 1;
+  line-height: 1.1;
 }
 
 .customhouse-store-share-menu {
@@ -8324,3 +8330,4 @@ body:has([data-customhouse-dashboard]) {
     min-height: 230px !important;
   }
 }
+
