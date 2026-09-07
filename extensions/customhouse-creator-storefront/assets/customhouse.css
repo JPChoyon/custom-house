@@ -7950,17 +7950,44 @@ body:has([data-customhouse-dashboard]) {
   }
 
   .customhouse-payout-method-item {
-    grid-template-columns: 40px minmax(0, 1fr) 32px;
+    grid-template-columns: 36px minmax(0, 1fr) 32px !important;
+    gap: 8px 10px;
+    align-items: start;
+    padding: 12px;
   }
 
-  .customhouse-payout-method-badges {
-    grid-column: 2 / -1;
+  .customhouse-payout-method-item > .customhouse-payout-method-icon {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+  }
+
+  .customhouse-payout-method-item > .customhouse-payout-method-copy {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+    align-self: center;
+  }
+
+  .customhouse-payout-method-copy strong {
+    word-break: normal;
+    overflow-wrap: normal;
+  }
+
+  .customhouse-payout-method-item > .customhouse-payout-method-badges {
+    grid-column: 2 / 4;
+    grid-row: 2;
     justify-content: flex-start;
   }
 
-  .customhouse-payout-method-actions {
-    grid-column: 3;
-    grid-row: 1;
+  .customhouse-payout-method-item > .customhouse-payout-method-helper {
+    grid-column: 2 / 4;
+  }
+
+  .customhouse-payout-method-item > .customhouse-payout-method-actions {
+    grid-column: 3 !important;
+    grid-row: 1 / span 2 !important;
+    align-self: center;
   }
 
   .customhouse-payout-amount-label {
@@ -8006,11 +8033,12 @@ body:has([data-customhouse-dashboard]) {
 
   .customhouse-payout-history-table td {
     display: grid;
-    grid-template-columns: 96px minmax(0, 1fr);
+    grid-template-columns: 82px minmax(0, 1fr);
     gap: 10px;
     padding: 10px 12px;
     border-bottom: 1px solid #eef2f7;
     font-size: .84rem;
+    overflow-wrap: anywhere;
   }
 
   .customhouse-payout-history-table td::before {
@@ -8022,6 +8050,15 @@ body:has([data-customhouse-dashboard]) {
 
   .customhouse-payout-history-action-cell {
     text-align: left !important;
+  }
+
+  .customhouse-payout-history-method {
+    width: 100%;
+  }
+
+  .customhouse-payout-history-method > span:last-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .customhouse-payout-method-current,

@@ -267,3 +267,31 @@ test("payout form select styling uses one clean native-safe border", () => {
   assert.match(css, /background-image: linear-gradient/);
   assert.match(css, /padding-right: 34px/);
 });
+
+test("creator payout cards keep readable, deterministic mobile layouts", () => {
+  const css = readFileSync(
+    "extensions/customhouse-creator-storefront/assets/customhouse.css",
+    "utf8",
+  );
+
+  assert.match(
+    css,
+    /\.customhouse-payout-method-item\s*>\s*\.customhouse-payout-method-icon\s*\{[^}]*grid-column:\s*1;[^}]*grid-row:\s*1;/s,
+  );
+  assert.match(
+    css,
+    /\.customhouse-payout-method-item\s*>\s*\.customhouse-payout-method-copy\s*\{[^}]*grid-column:\s*2;[^}]*grid-row:\s*1;/s,
+  );
+  assert.match(
+    css,
+    /\.customhouse-payout-method-item\s*>\s*\.customhouse-payout-method-badges\s*\{[^}]*grid-column:\s*2\s*\/\s*4;[^}]*grid-row:\s*2;/s,
+  );
+  assert.match(
+    css,
+    /\.customhouse-payout-method-item\s*>\s*\.customhouse-payout-method-actions\s*\{[^}]*grid-column:\s*3\s*!important;[^}]*grid-row:\s*1\s*\/\s*span\s*2\s*!important;/s,
+  );
+  assert.match(
+    css,
+    /\.customhouse-payout-history-table td\s*\{[^}]*grid-template-columns:\s*82px minmax\(0, 1fr\);[^}]*overflow-wrap:\s*anywhere;/s,
+  );
+});
