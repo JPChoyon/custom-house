@@ -552,6 +552,35 @@ test("creator dashboard renders professional My Designs management UI", () => {
   assert.doesNotMatch(styles, /\.modal\s*\{/);
 });
 
+test("design review modal matches the responsive mobile submission sheet", () => {
+  const block = readFileSync(
+    "extensions/customhouse-creator-storefront/blocks/creator-dashboard.liquid",
+    "utf8",
+  );
+  const styles = readFileSync(
+    "extensions/customhouse-creator-storefront/assets/customhouse.css",
+    "utf8",
+  );
+
+  assert.match(block, /ch-design-review-modal/);
+  assert.match(block, /data-summary-icon="sell"/);
+  assert.match(block, /data-summary-icon="layers"/);
+  assert.match(block, /data-summary-icon="schedule"/);
+  assert.match(styles, /Responsive creator design submission sheet/);
+  assert.match(
+    styles,
+    /@media \(max-width: 600px\)[\s\S]*\.ch-design-review-modal\s*\{[^}]*align-items: end;[^}]*padding: 0;/s,
+  );
+  assert.match(
+    styles,
+    /\.ch-design-review-modal \.ch-creator-modal__previews\s*\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/s,
+  );
+  assert.match(
+    styles,
+    /\[data-dashboard-review-submit\]\s*\{[^}]*order: 1;/s,
+  );
+});
+
 test("creator dashboard delete modal and action menu stay compact and scoped", () => {
   const block = readFileSync(
     "extensions/customhouse-creator-storefront/blocks/creator-dashboard.liquid",
