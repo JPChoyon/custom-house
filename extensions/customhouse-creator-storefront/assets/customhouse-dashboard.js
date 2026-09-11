@@ -3199,7 +3199,7 @@ function activateDashboardTab(root, tabName = "overview") {
 function dashboardIsMobile() {
   return (
     typeof window !== "undefined" &&
-    window.matchMedia("(max-width: 980px)").matches
+    window.matchMedia("(max-width: 1100px)").matches
   );
 }
 
@@ -3270,7 +3270,7 @@ function bindDashboardMobileNav(root) {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") setDashboardMobileNav(root, false);
   });
-  const mobileQuery = window.matchMedia("(max-width: 980px)");
+  const mobileQuery = window.matchMedia("(max-width: 1100px)");
   if (typeof mobileQuery.addEventListener === "function") {
     mobileQuery.addEventListener("change", () => {
       setDashboardMobileNav(root, false);

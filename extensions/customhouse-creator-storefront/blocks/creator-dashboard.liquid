@@ -64,6 +64,10 @@
     <main class="customhouse-dashboard-main">
       <header class="customhouse-dashboard-topbar">
         <button class="customhouse-dashboard-menu" type="button" aria-label="Dashboard menu"><span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">menu</span></button>
+        <a class="customhouse-dashboard-topbar-brand" href="{{ routes.root_url }}" aria-label="Custom House home">
+          <span aria-hidden="true">X</span>
+          <strong>CUSTOMHOUSE</strong>
+        </a>
         <div class="customhouse-dashboard-topbar-profile">
           <span class="customhouse-notification-dot"><span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">notifications</span></span>
           <strong data-dashboard-top-name></strong>
@@ -690,6 +694,25 @@
         </section>
       </div>
     </main>
+
+    <nav class="customhouse-dashboard-mobile-nav" aria-label="Mobile creator dashboard navigation">
+      <button class="is-active" data-dashboard-tab-target="overview" type="button">
+        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">home</span>
+        <span>Home</span>
+      </button>
+      <button data-dashboard-tab-target="my-products" type="button">
+        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">inventory_2</span>
+        <span>Products</span>
+      </button>
+      <button data-dashboard-tab-target="sales" type="button">
+        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">monitoring</span>
+        <span>Sales</span>
+      </button>
+      <button data-dashboard-tab-target="account" type="button">
+        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">account_circle</span>
+        <span>Account</span>
+      </button>
+    </nav>
   </div>
 
   <div id="customhouse-modal-root" data-customhouse-modal-root></div>

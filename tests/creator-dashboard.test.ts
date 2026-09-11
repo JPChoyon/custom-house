@@ -19,6 +19,42 @@ test("logged-out dashboard state", () => {
   });
 });
 
+test("creator dashboard matches the mobile and iPad responsive shell", () => {
+  const block = readFileSync(
+    "extensions/customhouse-creator-storefront/blocks/creator-dashboard.liquid",
+    "utf8",
+  );
+  const script = readFileSync(
+    "extensions/customhouse-creator-storefront/assets/customhouse-dashboard.js",
+    "utf8",
+  );
+  const styles = readFileSync(
+    "extensions/customhouse-creator-storefront/assets/customhouse.css",
+    "utf8",
+  );
+
+  assert.match(block, /customhouse-dashboard-topbar-brand/);
+  assert.match(block, /customhouse-dashboard-mobile-nav/);
+  assert.match(block, /data-dashboard-tab-target="overview"[^>]*>[\s\S]*Home/);
+  assert.match(block, /data-dashboard-tab-target="my-products"[^>]*>[\s\S]*Products/);
+  assert.match(block, /data-dashboard-tab-target="sales"[^>]*>[\s\S]*Sales/);
+  assert.match(block, /data-dashboard-tab-target="account"[^>]*>[\s\S]*Account/);
+  assert.match(script, /window\.matchMedia\("\(max-width: 1100px\)"\)/);
+  assert.match(styles, /Responsive creator dashboard: tablet and phone reference layout/);
+  assert.match(
+    styles,
+    /@media \(max-width: 1100px\)[\s\S]*\.customhouse-dashboard-tabs-rail\s*\{[^}]*width: 100% !important;[^}]*max-width: none !important;/s,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 600px\)[\s\S]*\.customhouse-dashboard-grid\s*\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\) !important;/s,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 600px\)[\s\S]*\.customhouse-dashboard-mobile-nav\s*\{[^}]*display: grid;[^}]*position: fixed;/s,
+  );
+});
+
 test("missing creator becomes not-applied state", () => {
   assert.deepEqual(resolveDashboardState({ state: "NOT_APPLIED", creatorFound: false }), {
     state: "NOT_APPLIED",
