@@ -4460,17 +4460,22 @@ function enableDashboardStatCards(root) {
 
 function bindAccountMobileSections(root) {
   root.querySelectorAll("[data-dashboard-account-toggle]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const section = button.closest(
-        ".customhouse-account-details, .customhouse-profile-actions",
-      );
-      if (!section) return;
+    const header = button.closest(".customhouse-account-section-heading");
+    const section = button.closest(
+      ".customhouse-account-details, .customhouse-profile-actions",
+    );
+    if (!header || !section) return;
+
+    const toggleSection = () => {
+      if (!window.matchMedia("(max-width: 600px)").matches) return;
       const expanded = !section.classList.contains("is-mobile-open");
       section.classList.toggle("is-mobile-open", expanded);
       button.setAttribute("aria-expanded", String(expanded));
       const icon = button.querySelector(".material-symbols-outlined");
       if (icon) icon.textContent = expanded ? "expand_more" : "chevron_right";
-    });
+    };
+
+    header.addEventListener("click", toggleSection);
   });
 }
 

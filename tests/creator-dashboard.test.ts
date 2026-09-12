@@ -1227,6 +1227,15 @@ test("account tab matches the responsive iPad mini and mobile design", () => {
   assert.match(block, /data-dashboard-account-toggle="actions"/);
   assert.match(script, /function bindAccountMobileSections/);
   assert.match(script, /classList\.toggle\("is-mobile-open", expanded\)/);
+  assert.match(
+    script,
+    /const header = button\.closest\("\.customhouse-account-section-heading"\)/,
+  );
+  assert.match(
+    script,
+    /if \(!window\.matchMedia\("\(max-width: 600px\)"\)\.matches\) return;/,
+  );
+  assert.match(script, /header\.addEventListener\("click", toggleSection\)/);
   assert.match(script, /bindAccountMobileSections\(root\)/);
   assert.match(styles, /Responsive account tablet and phone layout/);
   assert.match(
