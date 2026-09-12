@@ -684,6 +684,45 @@ test("withdraw design uses the responsive mobile confirmation sheet", () => {
   );
 });
 
+test("delete design uses the responsive destructive confirmation sheet", () => {
+  const block = readFileSync(
+    "extensions/customhouse-creator-storefront/blocks/creator-dashboard.liquid",
+    "utf8",
+  );
+  const script = readFileSync(
+    "extensions/customhouse-creator-storefront/assets/customhouse-dashboard.js",
+    "utf8",
+  );
+  const styles = readFileSync(
+    "extensions/customhouse-creator-storefront/assets/customhouse.css",
+    "utf8",
+  );
+
+  assert.match(block, /data-dashboard-delete-notice/);
+  assert.match(block, /Design will be permanently deleted/);
+  assert.match(block, /This action cannot be undone, and the design cannot be recovered\./);
+  assert.match(
+    script,
+    /classList\.toggle\("ch-design-delete-modal--delete", action === "delete"\)/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 600px\)[\s\S]*\.ch-design-delete-modal--delete\s*\{[^}]*align-items: end;[^}]*padding: 0;/s,
+  );
+  assert.match(
+    styles,
+    /\.ch-design-delete-modal--delete \.ch-creator-modal__dialog\s*\{[^}]*width: 100%;[^}]*border-radius: 28px 28px 0 0;/s,
+  );
+  assert.match(
+    styles,
+    /\.ch-design-delete-modal--delete \.ch-design-delete-notice > \.material-symbols-outlined\s*\{[^}]*color: #b42318;[^}]*background: #fee4e2;/s,
+  );
+  assert.match(
+    styles,
+    /\.ch-design-delete-modal--delete \.ch-design-delete-modal__confirm\s*\{[^}]*background: #d92d20;/s,
+  );
+});
+
 test("creator dashboard modals use one viewport-fixed modal root", () => {
   const block = readFileSync(
     "extensions/customhouse-creator-storefront/blocks/creator-dashboard.liquid",
