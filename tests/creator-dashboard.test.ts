@@ -723,6 +723,42 @@ test("delete design uses the responsive destructive confirmation sheet", () => {
   );
 });
 
+test("design details editor uses the responsive mobile bottom sheet", () => {
+  const block = readFileSync(
+    "extensions/customhouse-creator-storefront/blocks/creator-dashboard.liquid",
+    "utf8",
+  );
+  const styles = readFileSync(
+    "extensions/customhouse-creator-storefront/assets/customhouse.css",
+    "utf8",
+  );
+
+  assert.match(block, /ch-design-edit-modal/);
+  assert.match(block, /data-summary-icon="deployed_code"/);
+  assert.match(block, /data-summary-icon="circle"/);
+  assert.match(styles, /Responsive design details editor sheet/);
+  assert.match(
+    styles,
+    /@media \(max-width: 600px\)[\s\S]*\.ch-design-edit-modal\s*\{[^}]*align-items: end;[^}]*padding: 0;/s,
+  );
+  assert.match(
+    styles,
+    /\.ch-design-edit-modal \.ch-creator-modal__dialog\s*\{[^}]*width: 100%;[^}]*border-radius: 28px 28px 0 0;/s,
+  );
+  assert.match(
+    styles,
+    /\.ch-design-edit-modal \.ch-creator-modal__summary\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\);/s,
+  );
+  assert.match(
+    styles,
+    /\.ch-design-edit-modal \[data-dashboard-details-save\]\s*\{[^}]*order: 1;/s,
+  );
+  assert.match(
+    styles,
+    /\.ch-design-edit-modal \[data-dashboard-details-save\]\s*\{[^}]*color: #fff;/s,
+  );
+});
+
 test("creator dashboard modals use one viewport-fixed modal root", () => {
   const block = readFileSync(
     "extensions/customhouse-creator-storefront/blocks/creator-dashboard.liquid",
