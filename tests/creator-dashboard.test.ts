@@ -581,6 +581,35 @@ test("design review modal matches the responsive mobile submission sheet", () =>
   );
 });
 
+test("My Products matches the responsive iPad and mobile design", () => {
+  const styles = readFileSync(
+    "extensions/customhouse-creator-storefront/assets/customhouse.css",
+    "utf8",
+  );
+
+  assert.match(styles, /Responsive My Products tablet and phone layout/);
+  assert.match(
+    styles,
+    /@media \(max-width: 1100px\)[\s\S]*\.customhouse-creator-products-panel \.ch-designs__grid\s*\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\) !important;/s,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 600px\)[\s\S]*\.customhouse-creator-products-panel \.ch-designs__grid\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\) !important;/s,
+  );
+  assert.match(
+    styles,
+    /\.customhouse-creator-products-panel \.ch-design-card\s*\{[^}]*grid-template-columns: 108px minmax\(0, 1fr\) !important;/s,
+  );
+  assert.match(
+    styles,
+    /:has\(\[data-dashboard-tab-panel="my-products"\]\.is-active\) \.customhouse-dashboard-topbar/s,
+  );
+  assert.match(
+    styles,
+    /\.ch-design-card__body > small\.ch-design-card__meta:first-of-type\s*\{[^}]*display: none;/s,
+  );
+});
+
 test("creator dashboard delete modal and action menu stay compact and scoped", () => {
   const block = readFileSync(
     "extensions/customhouse-creator-storefront/blocks/creator-dashboard.liquid",
