@@ -10361,8 +10361,8 @@ body:has([data-customhouse-dashboard]) {
 }
 
 /* Responsive account tablet and phone layout. */
-[data-customhouse-dashboard] .customhouse-profile-panel.is-active {
-  grid-template-columns: minmax(0, 1.62fr) minmax(290px, .88fr);
+[data-customhouse-dashboard] .customhouse-dashboard-tabs-rail > .customhouse-profile-panel.customhouse-dashboard-tab-panel.is-active {
+  grid-template-columns: minmax(0, 1.62fr) minmax(300px, .88fr) !important;
 }
 
 [data-customhouse-dashboard] .customhouse-account-hero {
@@ -10509,8 +10509,8 @@ body:has([data-customhouse-dashboard]) {
 }
 
 @media (max-width: 1100px) {
-  [data-customhouse-dashboard] .customhouse-profile-panel.is-active {
-    grid-template-columns: minmax(0, 1.55fr) minmax(250px, .8fr);
+  [data-customhouse-dashboard] .customhouse-dashboard-tabs-rail > .customhouse-profile-panel.customhouse-dashboard-tab-panel.is-active {
+    grid-template-columns: minmax(0, 1.45fr) minmax(260px, .75fr) !important;
   }
 
   [data-customhouse-dashboard] .customhouse-profile-panel.is-active > .customhouse-account-hero,
@@ -10544,8 +10544,8 @@ body:has([data-customhouse-dashboard]) {
 }
 
 @media (max-width: 760px) and (min-width: 601px) {
-  [data-customhouse-dashboard] .customhouse-profile-panel.is-active {
-    grid-template-columns: minmax(0, 1fr);
+  [data-customhouse-dashboard] .customhouse-dashboard-tabs-rail > .customhouse-profile-panel.customhouse-dashboard-tab-panel.is-active {
+    grid-template-columns: minmax(0, 1fr) !important;
   }
 
   [data-customhouse-dashboard] .customhouse-account-hero,
