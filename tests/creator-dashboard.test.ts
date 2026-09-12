@@ -1174,3 +1174,36 @@ test("creator dashboard surfaces Phase 7 referral financials without browser cre
   assert.doesNotMatch(block, /10% referral|2% of eligible referred creator sales/);
 });
 
+test("referrals tab matches the responsive iPad and mobile design", () => {
+  const styles = readFileSync(
+    "extensions/customhouse-creator-storefront/assets/customhouse.css",
+    "utf8",
+  );
+
+  assert.match(styles, /Responsive referrals tablet and phone layout/);
+  assert.match(
+    styles,
+    /@media \(max-width: 1100px\)[\s\S]*\.customhouse-referrals-tab-panel > \.customhouse-dashboard-grid\s*\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\) !important;/s,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 600px\)[\s\S]*\.customhouse-referrals-tab-panel \.customhouse-referral-panel\s*\{[^}]*text-align: center;/s,
+  );
+  assert.match(
+    styles,
+    /\.customhouse-referrals-tab-panel \.customhouse-dashboard-referral-statuses\s*\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/s,
+  );
+  assert.match(
+    styles,
+    /\.customhouse-referrals-tab-panel > \.customhouse-dashboard-bottom\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\);/s,
+  );
+  assert.match(
+    styles,
+    /\.customhouse-referrals-tab-panel \.customhouse-referral-row\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\);/s,
+  );
+  assert.match(
+    styles,
+    /\.customhouse-referrals-tab-panel \.customhouse-referral-list-item > b\s*\{[^}]*grid-column: 2;[^}]*grid-row: 1 \/ 3;/s,
+  );
+});
+

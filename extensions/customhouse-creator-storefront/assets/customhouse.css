@@ -10078,3 +10078,285 @@ body:has([data-customhouse-dashboard]) {
   }
 }
 
+/* Responsive referrals tablet and phone layout. */
+.customhouse-referrals-tab-panel .customhouse-referral-list-item > strong {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.customhouse-referrals-tab-panel .customhouse-referral-list-item > span {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.customhouse-referrals-tab-panel .customhouse-referral-list-item > b {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: center;
+  justify-self: end;
+}
+
+@media (max-width: 1100px) {
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel {
+    width: 100% !important;
+    min-width: 0;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel > .customhouse-dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+    margin-bottom: 18px !important;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-panel {
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 8px 16px;
+    margin-bottom: 18px;
+    padding: 18px;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-row,
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-code {
+    grid-column: 1 / -1;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-dashboard-referral-statuses {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-dashboard-referral-statuses span {
+    min-width: 0;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel > .customhouse-dashboard-bottom {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 0;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-creators-panel,
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-history-panel {
+    min-width: 0;
+    padding: 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel {
+    padding: 12px !important;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel > .customhouse-section-heading {
+    margin-bottom: 10px;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel > .customhouse-section-heading h3 {
+    font-size: 1.18rem;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel > .customhouse-section-heading p {
+    margin-top: 3px;
+    font-size: .72rem;
+    line-height: 1.3;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-panel {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 9px;
+    margin-bottom: 10px;
+    padding: 12px !important;
+    text-align: center;
+    box-shadow: none;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-icon {
+    width: 52px;
+    height: 52px;
+    margin: 0;
+    border-radius: 12px;
+    font-size: 24px;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-panel > div:not(.customhouse-referral-row) {
+    min-width: 0;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-panel h3 {
+    margin: 0 auto 5px;
+    font-size: .88rem;
+    line-height: 1.2;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-panel > div > p {
+    font-size: .7rem;
+    line-height: 1.35;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+    width: 100%;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-row input {
+    min-width: 0;
+    min-height: 38px;
+    padding: 7px 9px;
+    font-size: .66rem;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-row button,
+  [data-customhouse-dashboard] .customhouse-card .customhouse-referrals-tab-panel .customhouse-referral-row button {
+    width: 100% !important;
+    min-height: 38px !important;
+    padding: 7px 10px !important;
+    font-size: .74rem;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-row .customhouse-copy-feedback {
+    justify-self: center;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-code {
+    margin-top: 0;
+    font-size: .66rem;
+    line-height: 1.3;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel > .customhouse-dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin-bottom: 10px !important;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-dashboard-stat summary {
+    min-height: 72px !important;
+    grid-template-columns: 38px minmax(0, 1fr) !important;
+    column-gap: 7px !important;
+    padding: 8px !important;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-dashboard-stat summary::before {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 9px;
+    background-size: 18px 18px, auto;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-dashboard-stat span,
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-dashboard-stat small {
+    font-size: .56rem;
+    line-height: 1.12;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-dashboard-stat strong {
+    margin: 2px 0;
+    font-size: .9rem;
+    line-height: 1.05;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-dashboard-referral-statuses {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    margin-bottom: 10px;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-dashboard-referral-statuses span {
+    min-height: 38px;
+    padding: 7px 10px;
+    font-size: .66rem;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-dashboard-referral-statuses span:nth-child(2) {
+    border-color: #6a35ed;
+    color: #fff;
+    background: linear-gradient(135deg, #6d28ff, #5618e8);
+    box-shadow: 0 7px 15px rgba(91, 34, 232, .16);
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-dashboard-referral-statuses span:nth-child(2) strong {
+    color: #fff;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel > .customhouse-dashboard-bottom {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 9px;
+    margin-bottom: 0;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-creators-panel,
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-history-panel {
+    min-height: 0;
+    padding: 10px !important;
+    box-shadow: none;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-creators-panel .customhouse-section-heading,
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-history-panel .customhouse-section-heading {
+    margin-bottom: 7px;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-creators-panel h3,
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-history-panel h3 {
+    font-size: .82rem;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-list {
+    gap: 6px;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-list-item {
+    grid-template-columns: minmax(0, 1fr) max-content;
+    gap: 2px 8px;
+    padding: 8px;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-list-item strong,
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-list-item b {
+    font-size: .72rem;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-list-item span,
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-list-item small {
+    font-size: .62rem;
+    line-height: 1.2;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-referral-list-item b {
+    grid-row: 1 / 3;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-dashboard-empty {
+    padding: 12px 8px;
+    font-size: .7rem;
+  }
+}
+
+@media (max-width: 360px) {
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel {
+    padding-right: 8px !important;
+    padding-left: 8px !important;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-dashboard-stat summary {
+    grid-template-columns: 34px minmax(0, 1fr) !important;
+    column-gap: 6px !important;
+    padding: 7px !important;
+  }
+
+  [data-customhouse-dashboard] .customhouse-referrals-tab-panel .customhouse-dashboard-stat summary::before {
+    width: 34px !important;
+    height: 34px !important;
+    background-size: 16px 16px, auto;
+  }
+}
+
