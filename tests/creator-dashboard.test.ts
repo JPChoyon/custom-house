@@ -759,6 +759,35 @@ test("design details editor uses the responsive mobile bottom sheet", () => {
   );
 });
 
+test("creator dashboard popups share the professional mobile sheet contract", () => {
+  const script = readFileSync(
+    "extensions/customhouse-creator-storefront/assets/customhouse-dashboard.js",
+    "utf8",
+  );
+  const styles = readFileSync(
+    "extensions/customhouse-creator-storefront/assets/customhouse.css",
+    "utf8",
+  );
+
+  assert.match(
+    styles,
+    /@media \(max-width: 600px\)[\s\S]*\.customhouse-payout-method-modal,[\s\S]*\.customhouse-profile-modal,[\s\S]*\.ch-design-review-modal,[\s\S]*\.ch-design-edit-modal,[\s\S]*\.ch-design-delete-modal\s*\{[^}]*align-items: end;[^}]*padding: 0;/s,
+  );
+  assert.match(
+    styles,
+    /\.customhouse-payout-method-modal \.ch-creator-modal__dialog,[\s\S]*\.customhouse-profile-modal-panel,[\s\S]*\.ch-design-delete-modal \.ch-creator-modal__dialog\s*\{[^}]*width: 100%;[^}]*max-height: calc\(100dvh - 54px\);[^}]*border-radius: 28px 28px 0 0;/s,
+  );
+  assert.match(styles, /min-height: 40px !important;/);
+  assert.match(styles, /min-height: 48px !important;/);
+  assert.match(styles, /env\(safe-area-inset-bottom\)/);
+  assert.match(
+    styles,
+    /\.ch-design-delete-modal:not\(\.ch-design-delete-modal--withdraw\):not\(\.ch-design-delete-modal--delete\) footer\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\);/s,
+  );
+  assert.match(script, /kind: "collection-banner-remove"/);
+  assert.match(script, /destructive: true/);
+});
+
 test("creator dashboard modals use one viewport-fixed modal root", () => {
   const block = readFileSync(
     "extensions/customhouse-creator-storefront/blocks/creator-dashboard.liquid",
