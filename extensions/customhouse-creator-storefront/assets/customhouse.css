@@ -10562,6 +10562,10 @@ body:has([data-customhouse-dashboard]) {
 }
 
 @media (max-width: 600px) {
+  [data-customhouse-dashboard] .customhouse-dashboard-tabs-rail > .customhouse-profile-panel.customhouse-dashboard-tab-panel.is-active {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
   [data-customhouse-dashboard] .customhouse-profile-panel.customhouse-dashboard-tab-panel {
     grid-template-columns: minmax(0, 1fr);
     gap: 9px !important;

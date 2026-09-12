@@ -1247,6 +1247,10 @@ test("account tab matches the responsive iPad mini and mobile design", () => {
   );
   assert.match(
     styles,
+    /Responsive account tablet and phone layout[\s\S]*@media \(max-width: 600px\)\s*\{\s*\[data-customhouse-dashboard\] \.customhouse-dashboard-tabs-rail > \.customhouse-profile-panel\.customhouse-dashboard-tab-panel\.is-active\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\) !important;/s,
+  );
+  assert.match(
+    styles,
     /@media \(max-width: 1100px\)[\s\S]*\.customhouse-profile-panel\.is-active > \.customhouse-account-hero,[\s\S]*\.customhouse-profile-panel\.is-active > \.customhouse-account-details\s*\{[^}]*grid-column: 1 \/ -1 !important;/s,
   );
   assert.match(
