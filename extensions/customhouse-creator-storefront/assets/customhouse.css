@@ -10360,6 +10360,41 @@ body:has([data-customhouse-dashboard]) {
   }
 }
 
+/* Prevent the desktop dashboard rail from clipping on narrower laptop widths. */
+@media (min-width: 1101px) and (max-width: 1510px) {
+  [data-customhouse-dashboard] .customhouse-dashboard-shell {
+    inline-size: 100% !important;
+    width: 100% !important;
+    min-inline-size: 0 !important;
+    min-width: 0 !important;
+  }
+
+  [data-customhouse-dashboard] .customhouse-dashboard-main {
+    inline-size: 100% !important;
+    width: 100% !important;
+    min-inline-size: 0 !important;
+    min-width: 0 !important;
+  }
+
+  [data-customhouse-dashboard] .customhouse-dashboard-tabs-rail {
+    inline-size: 100% !important;
+    width: 100% !important;
+    min-inline-size: 0 !important;
+    min-width: 0 !important;
+    max-inline-size: none !important;
+    max-width: none !important;
+  }
+
+  [data-customhouse-dashboard] .customhouse-dashboard-tabs-rail > [data-dashboard-tab-panel].is-active {
+    inline-size: 100% !important;
+    width: 100% !important;
+    min-inline-size: 0 !important;
+    min-width: 0 !important;
+    max-inline-size: none !important;
+    max-width: none !important;
+  }
+}
+
 /* Responsive account tablet and phone layout. */
 [data-customhouse-dashboard] .customhouse-dashboard-tabs-rail > .customhouse-profile-panel.customhouse-dashboard-tab-panel.is-active {
   grid-template-columns: minmax(0, 1.62fr) minmax(300px, .88fr) !important;

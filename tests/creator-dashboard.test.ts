@@ -1280,3 +1280,23 @@ test("account tab matches the responsive iPad mini and mobile design", () => {
   );
 });
 
+test("dashboard sections do not clip between 1101px and 1510px", () => {
+  const styles = readFileSync(
+    "extensions/customhouse-creator-storefront/assets/customhouse.css",
+    "utf8",
+  );
+
+  assert.match(
+    styles,
+    /@media \(min-width: 1101px\) and \(max-width: 1510px\)[\s\S]*\.customhouse-dashboard-shell\s*\{[^}]*min-inline-size: 0 !important;[^}]*min-width: 0 !important;/s,
+  );
+  assert.match(
+    styles,
+    /@media \(min-width: 1101px\) and \(max-width: 1510px\)[\s\S]*\.customhouse-dashboard-tabs-rail\s*\{[^}]*inline-size: 100% !important;[^}]*min-inline-size: 0 !important;[^}]*max-inline-size: none !important;/s,
+  );
+  assert.match(
+    styles,
+    /@media \(min-width: 1101px\) and \(max-width: 1510px\)[\s\S]*\.customhouse-dashboard-tabs-rail > \[data-dashboard-tab-panel\]\.is-active\s*\{[^}]*width: 100% !important;[^}]*min-width: 0 !important;[^}]*max-width: none !important;/s,
+  );
+});
+
