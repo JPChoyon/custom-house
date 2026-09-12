@@ -10914,3 +10914,178 @@ body:has([data-customhouse-dashboard]) {
   }
 }
 
+/* Shared professional mobile popup contract. */
+@media (max-width: 600px) {
+  .customhouse-payout-method-modal,
+  .customhouse-profile-modal,
+  .ch-design-review-modal,
+  .ch-design-edit-modal,
+  .ch-design-delete-modal {
+    align-items: end;
+    padding: 0;
+  }
+
+  [data-customhouse-dashboard] .customhouse-profile-modal {
+    align-items: end !important;
+    padding: 0 !important;
+  }
+
+  .customhouse-payout-method-modal .ch-creator-modal__backdrop,
+  .customhouse-profile-modal-backdrop,
+  .ch-design-review-modal .ch-creator-modal__backdrop,
+  .ch-design-edit-modal .ch-creator-modal__backdrop,
+  .ch-design-delete-modal .ch-creator-modal__backdrop {
+    background: rgba(10, 20, 36, .68);
+    backdrop-filter: blur(3px);
+  }
+
+  .customhouse-payout-method-modal .ch-creator-modal__dialog,
+  .customhouse-profile-modal-panel,
+  .ch-design-review-modal .ch-creator-modal__dialog,
+  .ch-design-edit-modal .ch-creator-modal__dialog,
+  .ch-design-delete-modal .ch-creator-modal__dialog {
+    width: 100%;
+    max-width: 600px;
+    max-height: calc(100dvh - 54px);
+    border-width: 1px 0 0;
+    border-radius: 28px 28px 0 0;
+    overflow-x: hidden;
+    background: #fff;
+    box-shadow: 0 -20px 54px rgba(6, 14, 28, .26);
+  }
+
+  .customhouse-profile-modal .customhouse-profile-modal-panel,
+  [data-customhouse-dashboard] .customhouse-profile-modal-panel {
+    width: 100% !important;
+    max-width: 600px !important;
+    max-height: calc(100dvh - 54px) !important;
+    border-width: 1px 0 0 !important;
+    border-radius: 28px 28px 0 0 !important;
+  }
+
+  .customhouse-payout-method-modal .ch-creator-modal__dialog::before,
+  .customhouse-profile-modal-panel::before,
+  .ch-design-review-modal .ch-creator-modal__dialog::before,
+  .ch-design-edit-modal .ch-creator-modal__dialog::before,
+  .ch-design-delete-modal .ch-creator-modal__dialog::before {
+    content: "";
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    width: 42px;
+    height: 5px;
+    border-radius: 999px;
+    background: #c6cbd5;
+    transform: translateX(-50%);
+  }
+
+  .customhouse-payout-method-modal .ch-creator-modal__dialog header,
+  .customhouse-profile-modal-panel header,
+  .ch-design-review-modal .ch-creator-modal__dialog header,
+  .ch-design-edit-modal .ch-creator-modal__dialog header,
+  .ch-design-delete-modal .ch-creator-modal__dialog header {
+    gap: 12px;
+    padding: 30px 20px 14px;
+    border-bottom: 0;
+  }
+
+  .customhouse-payout-method-modal .ch-creator-modal__dialog header > div,
+  .customhouse-profile-modal-panel header > div,
+  .ch-design-review-modal .ch-creator-modal__dialog header > div,
+  .ch-design-edit-modal .ch-creator-modal__dialog header > div,
+  .ch-design-delete-modal .ch-creator-modal__dialog header > div {
+    min-width: 0;
+  }
+
+  .customhouse-payout-method-modal .ch-creator-modal__dialog header button,
+  .customhouse-profile-modal-panel header button,
+  .ch-design-review-modal .ch-creator-modal__dialog header button,
+  .ch-design-edit-modal .ch-creator-modal__dialog header button,
+  .ch-design-delete-modal .ch-creator-modal__dialog header button {
+    width: 40px !important;
+    height: 40px;
+    min-height: 40px !important;
+    padding: 0 !important;
+  }
+
+  .customhouse-payout-method-modal-form,
+  .customhouse-profile-form-wrap {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .customhouse-payout-method-modal button:focus-visible,
+  .customhouse-profile-modal button:focus-visible,
+  .ch-design-review-modal button:focus-visible,
+  .ch-design-edit-modal button:focus-visible,
+  .ch-design-delete-modal button:focus-visible {
+    outline: 2px solid #6938ef;
+    outline-offset: 2px;
+  }
+
+  .customhouse-payout-method-modal-form footer,
+  .customhouse-profile-editor-main > footer,
+  .ch-design-review-modal .ch-creator-modal__dialog footer,
+  .ch-design-edit-modal .ch-creator-modal__dialog footer,
+  .ch-design-delete-modal footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding-right: 20px;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+    padding-left: 20px;
+    border-top: 0;
+  }
+
+  .customhouse-payout-method-modal-form footer button,
+  .customhouse-profile-editor-main > footer button,
+  .ch-design-review-modal .ch-creator-modal__dialog footer button,
+  .ch-design-edit-modal .ch-creator-modal__dialog footer button,
+  .ch-design-delete-modal footer button {
+    width: 100% !important;
+    min-width: 0;
+    min-height: 50px !important;
+    flex: none;
+    padding: 10px 14px !important;
+  }
+
+  .ch-design-delete-modal:not(.ch-design-delete-modal--withdraw):not(.ch-design-delete-modal--delete) footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding: 0 20px calc(20px + env(safe-area-inset-bottom));
+    border-top: 0;
+  }
+
+  .ch-design-delete-modal:not(.ch-design-delete-modal--withdraw):not(.ch-design-delete-modal--delete) footer button {
+    width: 100% !important;
+    min-width: 0;
+    min-height: 50px !important;
+    flex: none;
+    padding: 10px 14px !important;
+  }
+
+  .ch-design-delete-modal:not(.ch-design-delete-modal--withdraw):not(.ch-design-delete-modal--delete) [data-dashboard-action-confirm] {
+    order: 1;
+  }
+
+  .ch-design-delete-modal:not(.ch-design-delete-modal--withdraw):not(.ch-design-delete-modal--delete) [data-dashboard-action-close] {
+    order: 2;
+  }
+}
+
+@media (max-width: 360px) {
+  .customhouse-payout-method-modal .ch-creator-modal__dialog header,
+  .customhouse-profile-modal-panel header,
+  .ch-design-review-modal .ch-creator-modal__dialog header,
+  .ch-design-edit-modal .ch-creator-modal__dialog header,
+  .ch-design-delete-modal .ch-creator-modal__dialog header,
+  .customhouse-payout-method-modal-form,
+  .customhouse-profile-form-wrap,
+  .ch-design-delete-modal footer {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+}
+
