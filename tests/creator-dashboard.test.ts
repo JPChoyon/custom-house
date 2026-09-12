@@ -12,6 +12,55 @@ import { countActiveCollectionProducts } from "../app/services/creator-collectio
 import { uploadProfileImage } from "../app/services/profile-image.server.ts";
 import type { ShopifyGraphqlClient } from "../app/services/shopify-graphql.server.ts";
 
+const block = readFileSync(
+  "extensions/customhouse-creator-storefront/blocks/creator-dashboard.liquid",
+  "utf8",
+);
+const script = readFileSync(
+  "extensions/customhouse-creator-storefront/assets/customhouse-dashboard.js",
+  "utf8",
+);
+const styles = readFileSync(
+  "extensions/customhouse-creator-storefront/assets/customhouse.css",
+  "utf8",
+);
+
+function cssMediaBlockAfterComment(
+  source: string,
+  comment: string,
+  condition: string,
+) {
+  const markerIndex = source.indexOf(comment);
+  assert.notEqual(markerIndex, -1, `Missing CSS contract marker: ${comment}`);
+  assert.equal(
+    source.indexOf(comment, markerIndex + comment.length),
+    -1,
+    `CSS contract marker must be unique: ${comment}`,
+  );
+
+  const header = `@media (${condition})`;
+  let headerIndex = markerIndex + comment.length;
+  while (/\s/.test(source[headerIndex] || "")) headerIndex += 1;
+  assert.equal(
+    source.slice(headerIndex, headerIndex + header.length),
+    header,
+    `Expected ${header} immediately after ${comment}`,
+  );
+
+  const openingBrace = source.indexOf("{", headerIndex + header.length);
+  assert.notEqual(openingBrace, -1, `Missing opening brace for ${header}`);
+  assert.match(source.slice(headerIndex + header.length, openingBrace), /^\s*$/);
+
+  let depth = 0;
+  for (let index = openingBrace; index < source.length; index += 1) {
+    if (source[index] === "{") depth += 1;
+    if (source[index] === "}") depth -= 1;
+    if (depth === 0) return source.slice(headerIndex, index + 1);
+  }
+
+  assert.fail(`Missing closing brace for ${header}`);
+}
+
 test("logged-out dashboard state", () => {
   assert.deepEqual(resolveDashboardState({ state: "LOGGED_OUT" }), {
     state: "LOGGED_OUT",
@@ -20,19 +69,6 @@ test("logged-out dashboard state", () => {
 });
 
 test("creator dashboard matches the mobile and iPad responsive shell", () => {
-  const block = readFileSync(
-    "extensions/customhouse-creator-storefront/blocks/creator-dashboard.liquid",
-    "utf8",
-  );
-  const script = readFileSync(
-    "extensions/customhouse-creator-storefront/assets/customhouse-dashboard.js",
-    "utf8",
-  );
-  const styles = readFileSync(
-    "extensions/customhouse-creator-storefront/assets/customhouse.css",
-    "utf8",
-  );
-
   assert.match(block, /customhouse-dashboard-topbar-brand/);
   assert.match(block, /customhouse-dashboard-mobile-nav/);
   assert.match(block, /data-dashboard-tab-target="overview"[^>]*>[\s\S]*Home/);
@@ -760,32 +796,44 @@ test("design details editor uses the responsive mobile bottom sheet", () => {
 });
 
 test("creator dashboard popups share the professional mobile sheet contract", () => {
-  const script = readFileSync(
-    "extensions/customhouse-creator-storefront/assets/customhouse-dashboard.js",
-    "utf8",
-  );
-  const styles = readFileSync(
-    "extensions/customhouse-creator-storefront/assets/customhouse.css",
-    "utf8",
+  const phoneContract = cssMediaBlockAfterComment(
+    styles,
+    "/* Shared professional mobile popup contract. */",
+    "max-width: 600px",
   );
 
   assert.match(
-    styles,
-    /@media \(max-width: 600px\)[\s\S]*\.customhouse-payout-method-modal,[\s\S]*\.customhouse-profile-modal,[\s\S]*\.ch-design-review-modal,[\s\S]*\.ch-design-edit-modal,[\s\S]*\.ch-design-delete-modal\s*\{[^}]*align-items: end;[^}]*padding: 0;/s,
+    phoneContract,
+    /\.customhouse-payout-method-modal,\s*\.customhouse-profile-modal,\s*\.ch-design-review-modal,\s*\.ch-design-edit-modal,\s*\.ch-design-delete-modal\s*\{[^}]*align-items: end;[^}]*padding: 0;/s,
+  );
+  assert.match(
+    phoneContract,
+    /\.customhouse-payout-method-modal \.ch-creator-modal__dialog,\s*\.customhouse-profile-modal-panel,\s*\.ch-design-review-modal \.ch-creator-modal__dialog,\s*\.ch-design-edit-modal \.ch-creator-modal__dialog,\s*\.ch-design-delete-modal \.ch-creator-modal__dialog\s*\{[^}]*width: 100%;[^}]*max-height: calc\(100dvh - 54px\);[^}]*border-radius: 28px 28px 0 0;/s,
+  );
+  assert.match(
+    phoneContract,
+    /\.customhouse-payout-method-modal \.ch-creator-modal__dialog header button,\s*\.customhouse-profile-modal-panel header button,\s*\.ch-design-review-modal \.ch-creator-modal__dialog header button,\s*\.ch-design-edit-modal \.ch-creator-modal__dialog header button,\s*\.ch-design-delete-modal \.ch-creator-modal__dialog header button\s*\{[^}]*width: 40px !important;[^}]*height: 40px;[^}]*min-height: 40px !important;/s,
+  );
+  assert.match(
+    phoneContract,
+    /\.ch-design-delete-modal:not\(\.ch-design-delete-modal--withdraw\):not\(\.ch-design-delete-modal--delete\) footer\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\);[^}]*padding: 0 20px calc\(20px \+ env\(safe-area-inset-bottom\)\);/s,
+  );
+  assert.match(
+    phoneContract,
+    /\.ch-design-delete-modal:not\(\.ch-design-delete-modal--withdraw\):not\(\.ch-design-delete-modal--delete\) footer button\s*\{[^}]*width: 100% !important;[^}]*min-width: 0;[^}]*min-height: 50px !important;/s,
+  );
+  assert.match(
+    script,
+    /openDashboardActionModal\(\s*root,\s*\{\s*kind: "collection-banner-remove",[^{}]*destructive: true,/s,
   );
   assert.match(
     styles,
-    /\.customhouse-payout-method-modal \.ch-creator-modal__dialog,[\s\S]*\.customhouse-profile-modal-panel,[\s\S]*\.ch-design-delete-modal \.ch-creator-modal__dialog\s*\{[^}]*width: 100%;[^}]*max-height: calc\(100dvh - 54px\);[^}]*border-radius: 28px 28px 0 0;/s,
+    /\.ch-design-delete-modal__confirm\s*\{[^}]*background: #d92d20;/s,
   );
-  assert.match(styles, /min-height: 40px !important;/);
-  assert.match(styles, /min-height: 48px !important;/);
-  assert.match(styles, /env\(safe-area-inset-bottom\)/);
   assert.match(
     styles,
-    /\.ch-design-delete-modal:not\(\.ch-design-delete-modal--withdraw\):not\(\.ch-design-delete-modal--delete\) footer\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\);/s,
+    /\.ch-design-delete-modal__confirm--safe\s*\{[^}]*background: #4f46e5;/s,
   );
-  assert.match(script, /kind: "collection-banner-remove"/);
-  assert.match(script, /destructive: true/);
 });
 
 test("creator dashboard modals use one viewport-fixed modal root", () => {
