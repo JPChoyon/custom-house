@@ -1976,7 +1976,12 @@ function actionModalConfig(product, action) {
 
 function closeDesignActionModal(root) {
   const modal = dashboardModalQuery(root, "[data-dashboard-action-modal]");
-  if (modal) modal.hidden = true;
+  if (modal) {
+    modal.hidden = true;
+    modal.classList.remove("ch-design-delete-modal--withdraw");
+    const notice = modal.querySelector("[data-dashboard-withdraw-notice]");
+    if (notice) notice.hidden = true;
+  }
   unlockReviewModalScroll(root);
   root.__customHouseActionHandler = null;
   root.__customHouseActionKind = "";
@@ -1989,6 +1994,9 @@ function closeDesignActionModal(root) {
 function openDashboardActionModal(root, config, sourceButton = null) {
   const modal = dashboardModalQuery(root, "[data-dashboard-action-modal]");
   if (!modal || typeof config?.onConfirm !== "function") return;
+  modal.classList.remove("ch-design-delete-modal--withdraw");
+  const withdrawNotice = modal.querySelector("[data-dashboard-withdraw-notice]");
+  if (withdrawNotice) withdrawNotice.hidden = true;
   root.__customHouseActionHandler = config.onConfirm;
   root.__customHouseActionKind = config.kind || "generic";
   root.__customHouseActionToast = config.toast || "";
@@ -2017,6 +2025,9 @@ function openDesignActionModal(root, product, action, sourceButton = null) {
   const modal = dashboardModalQuery(root, "[data-dashboard-action-modal]");
   if (!modal || !product || !action) return;
   const config = actionModalConfig(product, action);
+  modal.classList.toggle("ch-design-delete-modal--withdraw", action === "withdraw");
+  const withdrawNotice = modal.querySelector("[data-dashboard-withdraw-notice]");
+  if (withdrawNotice) withdrawNotice.hidden = action !== "withdraw";
   root.__customHouseActionProduct = product;
   root.__customHouseActionName = action;
   root.__customHouseActionToast = config.toast;

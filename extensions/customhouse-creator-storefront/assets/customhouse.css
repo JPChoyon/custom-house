@@ -9463,3 +9463,188 @@ body:has([data-customhouse-dashboard]) {
   }
 }
 
+/* Withdraw confirmation treatment for My Products. */
+.ch-design-withdraw-notice[hidden] {
+  display: none !important;
+}
+
+.ch-design-withdraw-notice {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  margin: 0 20px 4px;
+  padding: 14px;
+  border-radius: 8px;
+  color: #111a31;
+  background: #f3f0ff;
+}
+
+.ch-design-withdraw-notice > .material-symbols-outlined {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 50%;
+  color: #6338ed;
+  background: #ddd4ff;
+  font-size: 25px;
+  font-weight: 700;
+}
+
+.ch-design-withdraw-notice strong {
+  display: block;
+  font-size: .9rem;
+  line-height: 1.25;
+}
+
+.ch-design-withdraw-notice p {
+  margin: 3px 0 0;
+  color: #5c677d;
+  font-size: .82rem;
+  line-height: 1.4;
+}
+
+.ch-design-delete-modal--withdraw .ch-design-delete-modal__confirm--safe {
+  border-color: #5b35f4;
+  background: linear-gradient(135deg, #513cff, #6d35ed);
+  box-shadow: 0 10px 22px rgba(91, 53, 244, .2);
+}
+
+@media (max-width: 600px) {
+  .ch-design-delete-modal--withdraw {
+    align-items: end;
+    padding: 0;
+  }
+
+  .ch-design-delete-modal--withdraw .ch-creator-modal__backdrop {
+    background: rgba(10, 20, 36, .68);
+    backdrop-filter: blur(3px);
+  }
+
+  .ch-design-delete-modal--withdraw .ch-creator-modal__dialog {
+    width: 100%;
+    max-width: 600px;
+    max-height: calc(100dvh - 54px);
+    border-width: 1px 0 0;
+    border-radius: 28px 28px 0 0;
+    padding-top: 18px;
+    background: #fff;
+    box-shadow: 0 -20px 54px rgba(6, 14, 28, .26);
+  }
+
+  .ch-design-delete-modal--withdraw .ch-creator-modal__dialog::before {
+    content: "";
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    width: 42px;
+    height: 5px;
+    border-radius: 999px;
+    background: #c6cbd5;
+    transform: translateX(-50%);
+  }
+
+  .ch-design-delete-modal--withdraw .ch-creator-modal__dialog header {
+    gap: 12px;
+    padding: 30px 20px 14px;
+    border-bottom: 0;
+  }
+
+  .ch-design-delete-modal--withdraw .ch-creator-modal__dialog header > div {
+    min-width: 0;
+  }
+
+  .ch-design-delete-modal--withdraw .ch-creator-modal__dialog header span:first-child {
+    color: #47546b;
+    font-size: .72rem;
+    letter-spacing: 0;
+  }
+
+  .ch-design-delete-modal--withdraw .ch-creator-modal__dialog h3 {
+    margin-top: 10px;
+    font-size: clamp(1.55rem, 7vw, 1.9rem);
+    line-height: 1.08;
+    overflow-wrap: anywhere;
+  }
+
+  .ch-design-delete-modal--withdraw .ch-creator-modal__dialog header p {
+    margin-top: 10px;
+    color: #4f5b72;
+    font-size: .96rem;
+    line-height: 1.45;
+  }
+
+  .ch-design-delete-modal--withdraw .ch-creator-modal__dialog header button {
+    width: 40px !important;
+    height: 40px;
+    min-height: 40px !important;
+    margin-top: -5px;
+    padding: 0 !important;
+    border: 0;
+    border-radius: 50%;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .ch-design-delete-modal--withdraw .ch-design-withdraw-notice {
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 12px;
+    margin: 0 20px 18px;
+    padding: 14px;
+  }
+
+  .ch-design-delete-modal--withdraw .ch-design-withdraw-notice > .material-symbols-outlined {
+    width: 48px;
+    height: 48px;
+  }
+
+  .ch-design-delete-modal--withdraw footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding: 0 20px calc(20px + env(safe-area-inset-bottom));
+    border-top: 0;
+  }
+
+  .ch-design-delete-modal--withdraw footer button {
+    width: 100% !important;
+    min-width: 0;
+    min-height: 50px !important;
+    padding: 10px 14px !important;
+    border-radius: 10px;
+    font-size: .98rem;
+  }
+
+  .ch-design-delete-modal--withdraw [data-dashboard-action-confirm] {
+    order: 1;
+  }
+
+  .ch-design-delete-modal--withdraw footer [data-dashboard-action-close] {
+    order: 2;
+    border-color: #a8b1c2 !important;
+    color: #111a2d !important;
+    background: #fff !important;
+    box-shadow: none !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .ch-design-delete-modal--withdraw .ch-creator-modal__dialog header,
+  .ch-design-delete-modal--withdraw footer {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .ch-design-delete-modal--withdraw .ch-design-withdraw-notice {
+    grid-template-columns: 42px minmax(0, 1fr);
+    margin-right: 14px;
+    margin-left: 14px;
+  }
+
+  .ch-design-delete-modal--withdraw .ch-design-withdraw-notice > .material-symbols-outlined {
+    width: 42px;
+    height: 42px;
+  }
+}
+

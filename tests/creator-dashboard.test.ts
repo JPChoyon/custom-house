@@ -649,6 +649,41 @@ test("creator dashboard delete modal and action menu stay compact and scoped", (
   assert.doesNotMatch(styles, /\.modal\s*\{|\.button\s*\{|\.dropdown\s*\{/);
 });
 
+test("withdraw design uses the responsive mobile confirmation sheet", () => {
+  const block = readFileSync(
+    "extensions/customhouse-creator-storefront/blocks/creator-dashboard.liquid",
+    "utf8",
+  );
+  const script = readFileSync(
+    "extensions/customhouse-creator-storefront/assets/customhouse-dashboard.js",
+    "utf8",
+  );
+  const styles = readFileSync(
+    "extensions/customhouse-creator-storefront/assets/customhouse.css",
+    "utf8",
+  );
+
+  assert.match(block, /data-dashboard-withdraw-notice/);
+  assert.match(block, /Pending review will be canceled/);
+  assert.match(block, /The design will be moved back to Draft, and you can edit it anytime\./);
+  assert.match(
+    script,
+    /classList\.toggle\("ch-design-delete-modal--withdraw", action === "withdraw"\)/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 600px\)[\s\S]*\.ch-design-delete-modal--withdraw\s*\{[^}]*align-items: end;[^}]*padding: 0;/s,
+  );
+  assert.match(
+    styles,
+    /\.ch-design-delete-modal--withdraw \.ch-creator-modal__dialog\s*\{[^}]*width: 100%;[^}]*border-radius: 28px 28px 0 0;/s,
+  );
+  assert.match(
+    styles,
+    /\.ch-design-delete-modal--withdraw footer\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\);/s,
+  );
+});
+
 test("creator dashboard modals use one viewport-fixed modal root", () => {
   const block = readFileSync(
     "extensions/customhouse-creator-storefront/blocks/creator-dashboard.liquid",
