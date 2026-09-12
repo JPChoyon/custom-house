@@ -4458,12 +4458,29 @@ function enableDashboardStatCards(root) {
   });
 }
 
+function bindAccountMobileSections(root) {
+  root.querySelectorAll("[data-dashboard-account-toggle]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const section = button.closest(
+        ".customhouse-account-details, .customhouse-profile-actions",
+      );
+      if (!section) return;
+      const expanded = !section.classList.contains("is-mobile-open");
+      section.classList.toggle("is-mobile-open", expanded);
+      button.setAttribute("aria-expanded", String(expanded));
+      const icon = button.querySelector(".material-symbols-outlined");
+      if (icon) icon.textContent = expanded ? "expand_more" : "chevron_right";
+    });
+  });
+}
+
 if (typeof document !== "undefined") {
   document.querySelectorAll("[data-customhouse-dashboard]").forEach((root) => {
     if (root.dataset.customhouseInitialized === "true") return;
     root.dataset.customhouseInitialized = "true";
     portalDashboardModals(root);
     enableDashboardStatCards(root);
+    bindAccountMobileSections(root);
     bindDashboardMobileNav(root);
     bindDashboardTabs(root);
     let latestDashboardData = {};

@@ -372,8 +372,7 @@
                 <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">edit</span>
               </button>
             </div>
-            <p data-dashboard-bio></p>
-            <a class="customhouse-profile-social-link" data-dashboard-social-link target="_blank" rel="noreferrer" hidden></a>
+            <p class="customhouse-account-intro">Manage your creator profile and collection settings.</p>
           </div>
           <aside class="customhouse-account-summary-card" aria-label="Creator account summary">
             <div class="customhouse-account-summary-avatar">
@@ -385,12 +384,27 @@
               <a data-dashboard-account-summary-collection href="{{ routes.root_url }}" hidden>Creator collection</a>
             </div>
             <span class="customhouse-account-status-pill" data-dashboard-account-summary-status>Approved</span>
+            <p class="customhouse-account-summary-bio" data-dashboard-bio></p>
+          </aside>
+          <aside class="customhouse-account-public-card" aria-label="Public creator profile">
+            <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">podcasts</span>
+            <div>
+              <strong>Your public profile</strong>
+              <small>Share your collection with the world.</small>
+            </div>
+            <a class="customhouse-profile-social-link" data-dashboard-social-link target="_blank" rel="noreferrer" hidden></a>
           </aside>
         </div>
-        <section class="customhouse-account-details" data-dashboard-account-details aria-label="Account details">
+        <section class="customhouse-account-details" id="customhouse-account-details" data-dashboard-account-details aria-label="Account details">
           <header class="customhouse-account-section-heading">
             <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">account_circle</span>
-            <h4>Account details</h4>
+            <div>
+              <h4>Account details</h4>
+              <p>View and manage your information</p>
+            </div>
+            <button class="customhouse-account-mobile-toggle" data-dashboard-account-toggle="details" type="button" aria-controls="customhouse-account-details" aria-expanded="false" aria-label="Toggle account details">
+              <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">chevron_right</span>
+            </button>
           </header>
           <div>
             <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">person</span>
@@ -504,10 +518,16 @@
             <strong data-dashboard-commission-rate>10%</strong>
             <small>on all eligible sales</small>
           </div>
-          <form class="customhouse-profile-actions" data-dashboard-image-form>
+          <form class="customhouse-profile-actions" id="customhouse-account-actions" data-dashboard-image-form>
             <header class="customhouse-account-section-heading">
               <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">bolt</span>
-              <h4>Account actions</h4>
+              <div>
+                <h4>Account actions</h4>
+                <p>Manage your profile and collection</p>
+              </div>
+              <button class="customhouse-account-mobile-toggle" data-dashboard-account-toggle="actions" type="button" aria-controls="customhouse-account-actions" aria-expanded="false" aria-label="Toggle account actions">
+                <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">chevron_right</span>
+              </button>
             </header>
             <button class="customhouse-account-action-card" data-dashboard-edit-profile type="button">
               <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">edit</span>

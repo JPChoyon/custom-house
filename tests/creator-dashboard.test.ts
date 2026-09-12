@@ -1207,3 +1207,51 @@ test("referrals tab matches the responsive iPad and mobile design", () => {
   );
 });
 
+test("account tab matches the responsive iPad mini and mobile design", () => {
+  const block = readFileSync(
+    "extensions/customhouse-creator-storefront/blocks/creator-dashboard.liquid",
+    "utf8",
+  );
+  const script = readFileSync(
+    "extensions/customhouse-creator-storefront/assets/customhouse-dashboard.js",
+    "utf8",
+  );
+  const styles = readFileSync(
+    "extensions/customhouse-creator-storefront/assets/customhouse.css",
+    "utf8",
+  );
+
+  assert.match(block, /customhouse-account-intro/);
+  assert.match(block, /customhouse-account-public-card/);
+  assert.match(block, /data-dashboard-account-toggle="details"/);
+  assert.match(block, /data-dashboard-account-toggle="actions"/);
+  assert.match(script, /function bindAccountMobileSections/);
+  assert.match(script, /classList\.toggle\("is-mobile-open", expanded\)/);
+  assert.match(script, /bindAccountMobileSections\(root\)/);
+  assert.match(styles, /Responsive account tablet and phone layout/);
+  assert.match(
+    styles,
+    /@media \(max-width: 1100px\)[\s\S]*\.customhouse-account-hero\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(240px, 34%\);/s,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 1100px\)[\s\S]*\.customhouse-profile-panel\.is-active > \.customhouse-account-hero,[\s\S]*\.customhouse-profile-panel\.is-active > \.customhouse-account-details\s*\{[^}]*grid-column: 1 \/ -1 !important;/s,
+  );
+  assert.match(
+    styles,
+    /\.customhouse-account-section-heading > div\s*\{[^}]*border: 0 !important;/s,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 600px\)[\s\S]*\.customhouse-account-details:not\(\.is-mobile-open\) > div\s*\{[^}]*display: none;/s,
+  );
+  assert.match(
+    styles,
+    /\.customhouse-profile-actions:not\(\.is-mobile-open\) > :not\(header\)\s*\{[^}]*display: none;/s,
+  );
+  assert.match(
+    styles,
+    /\.customhouse-banner-actions\s*\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/s,
+  );
+});
+
