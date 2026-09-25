@@ -14,6 +14,7 @@ import {
   listCreatorProductsForCustomer,
   moderateCreatorProductAsAdmin,
   prepareCreatorProductCart as prepareCreatorProductCartService,
+  prepareNativeCreatorProductCart,
   publicCreatorProductDetail,
   archiveCreatorProductForCustomer,
   deleteCreatorProductForCustomer,
@@ -22,6 +23,7 @@ import {
   updateCreatorProductDetailsForCustomer,
   withdrawCreatorProductForCustomer,
 } from "../app/services/creator-products.server.ts";
+import { nonFixedColorVariantIds } from "../app/services/creator-product-publishing.server.ts";
 import { clonePitchPrintProject } from "../app/services/pitchprint-clone.server.ts";
 import {
   ensureCreatorCollectionRecord,
@@ -151,6 +153,7 @@ type FakeCreatorProductWhereArgs = {
     shop: string;
     creatorId?: string;
     status?: string;
+    publishedShopifyProductId?: string;
   };
 };
 
@@ -373,10 +376,12 @@ function fakeDb() {
       async findFirst(args: FakeCreatorProductWhereArgs) {
         return products.find(
           (product) =>
-            product.id === args.where.id &&
+            (!args.where.id || product.id === args.where.id) &&
             product.shop === args.where.shop &&
             (!args.where.creatorId || product.creatorId === args.where.creatorId) &&
-            (!("status" in args.where) || product.status === args.where.status),
+            (!("status" in args.where) || product.status === args.where.status) &&
+            (!args.where.publishedShopifyProductId ||
+              product.publishedShopifyProductId === args.where.publishedShopifyProductId),
         ) || null;
       },
       async update(args: { where: { id: string }; data: Partial<CreatorProductRecord> }) {
@@ -2300,6 +2305,123 @@ test("published CreatorProduct public detail includes Shopify variants", async (
   assert.equal(product.baseProduct?.variants[0]?.graphqlId, "gid://shopify/ProductVariant/2001");
   assert.equal(product.baseProduct?.variants[0]?.cartId, "2001");
   assert.equal(product.baseProduct?.variants[0]?.numericId, "2001");
+});
+
+test("native Creator publishing removes every variant outside the saved fixed color", () => {
+  const variants = [
+    {
+      id: "gid://shopify/ProductVariant/black-s",
+      selectedOptions: [
+        { name: "Size", value: "S" },
+        { name: "Color", value: "Black" },
+      ],
+    },
+    {
+      id: "gid://shopify/ProductVariant/black-m",
+      selectedOptions: [
+        { name: "Size", value: "M" },
+        { name: "Colour", value: "BLACK" },
+      ],
+    },
+    {
+      id: "gid://shopify/ProductVariant/white-s",
+      selectedOptions: [
+        { name: "Size", value: "S" },
+        { name: "Color", value: "White" },
+      ],
+    },
+  ];
+
+  assert.deepEqual(nonFixedColorVariantIds(variants, "black"), [
+    "gid://shopify/ProductVariant/white-s",
+  ]);
+  assert.throws(
+    () => nonFixedColorVariantIds(variants, "Navy"),
+    (error) =>
+      error instanceof DomainError &&
+      error.code === "CREATOR_FIXED_COLOR_VARIANTS_MISSING",
+  );
+});
+
+test("native Creator purchase delegates to authoritative cart pricing and saved method", async () => {
+  const database = fakeDb();
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id, selectedProductionMethod: "DTF" },
+    fakeClient(),
+    database,
+  );
+  draft.id = "cmcreatorproduct00000030";
+  draft.status = "PUBLISHED";
+  draft.pitchprintProjectId = "pp_native_master";
+  draft.designVariantSelectionsJson = creatorSetupJson("White", "DTF", 2);
+  draft.publishedShopifyProductId = "gid://shopify/Product/5001";
+  draft.baseVariantMappingJson = JSON.stringify({
+    "gid://shopify/ProductVariant/6001": "gid://shopify/ProductVariant/2001",
+  });
+
+  const publicClient = fakePublicProductClient();
+  const client: ShopifyGraphqlClient = {
+    async request<T>(query: string) {
+      if (query.includes("NativeCreatorCartVariant")) {
+        return {
+          productVariant: {
+            id: "gid://shopify/ProductVariant/6001",
+            availableForSale: true,
+            product: { id: "gid://shopify/Product/5001" },
+          },
+        } as T;
+      }
+      return publicClient.request<T>(query);
+    },
+  };
+
+  const cart = await prepareNativeCreatorProductCart(
+    shop,
+    {
+      shopifyProductId: "gid://shopify/Product/5001",
+      selectedVariantId: "gid://shopify/ProductVariant/6001",
+      quantity: 3,
+      nonReturnAcknowledged: true,
+      termsAccepted: true,
+      selectedProductionMethod: "EMBROIDERY",
+    } as unknown as Parameters<typeof prepareNativeCreatorProductCart>[1],
+    client,
+    async (projectId) => {
+      assert.equal(projectId, "pp_native_master");
+      return "pp_native_order";
+    },
+    database,
+  );
+
+  assert.equal(cart.items[0].id, "2001");
+  assert.equal(cart.items[0].quantity, 3);
+  assert.equal(cart.items[1].id, "9002");
+  assert.equal(cart.items[1].quantity, 6);
+  assert.equal(cart.production.method, "DTF");
+  assert.equal(cart.production.placementCount, 2);
+  assert.equal(cart.production.feeQuantity, 6);
+  assert.equal(cart.properties["Printing method"], "DTF");
+  assert.equal(cart.nativeProduct.selectedVariantId, "gid://shopify/ProductVariant/6001");
+});
+
+test("native Creator product form prepares authoritative lines before Shopify cart add", () => {
+  const block = readFileSync(
+    "extensions/customhouse-creator-storefront/blocks/buy-only-product-form.liquid",
+    "utf8",
+  );
+  const script = readFileSync(
+    "extensions/customhouse-creator-storefront/assets/customhouse-native-creator-cart.js",
+    "utf8",
+  );
+
+  assert.match(block, /action="\/apps\/customhouse\/api\/native-creator-product-cart"/);
+  assert.match(block, /data-customhouse-native-creator-cart/);
+  assert.doesNotMatch(block, /action="\{\{ routes\.cart_add_url \}\}"/);
+  assert.match(script, /PREPARE_ENDPOINT = "\/apps\/customhouse\/api\/native-creator-product-cart"/);
+  assert.match(script, /JSON\.stringify\(\{ items: cart\.items \}\)/);
+  assert.doesNotMatch(script, /surchargeMinor\s*[*+\-/]/);
 });
 
 test("cart prep validates variant ownership and locks creator artwork", async () => {

@@ -15,6 +15,7 @@ import { authenticate } from "../shopify.server";
 import { parseJsonList } from "../services/domain";
 import {
   cleanWelcomeEmailContent,
+  creatorWelcomeEmailTransportConfigured,
   DEFAULT_CREATOR_WELCOME_BODY,
   DEFAULT_CREATOR_WELCOME_SUBJECT,
 } from "../services/creator-welcome-email.server";
@@ -26,7 +27,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
     update: {},
     create: { shop: session.shop },
   });
-  return { config };
+  return {
+    config,
+    welcomeEmailTransportConfigured: creatorWelcomeEmailTransportConfigured(),
+  };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -114,7 +118,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Settings() {
-  const { config } = useLoaderData<typeof loader>();
+  const { config, welcomeEmailTransportConfigured } = useLoaderData<typeof loader>();
 
   return (
     <s-page heading="Creator Marketplace Settings">
@@ -186,8 +190,21 @@ export default function Settings() {
                   <h2>Creator Welcome Email</h2>
                   <p>Edit the message used for future Creator approval transitions. Supported placeholders: {"{{creator_name}}"} and {"{{dashboard_url}}"}.</p>
                 </div>
+                <span
+                  className={`settings-map-status${welcomeEmailTransportConfigured ? " settings-map-status--ok" : ""}`}
+                >
+                  {welcomeEmailTransportConfigured ? "Configured" : "Not configured"}
+                </span>
               </div>
               <div className="settings-field-stack">
+                <div>
+                  <strong>Welcome Email Delivery</strong>
+                  <p>
+                    {welcomeEmailTransportConfigured
+                      ? "An email transport is connected. Welcome emails can be delivered after Creator approval."
+                      : "Welcome emails are configured in CustomHouse, but email delivery is not available until an email transport is connected."}
+                  </p>
+                </div>
                 <label>
                   <span>Subject</span>
                   <input name="creatorWelcomeEmailSubject" maxLength={200} defaultValue={config.creatorWelcomeEmailSubject} required />

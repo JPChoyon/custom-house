@@ -19,6 +19,7 @@ import {
   rejectCreatorApplication,
 } from "../services/creator-application.server";
 import { changeCreatorStatus, reactivateCreator } from "../services/creator.server";
+import { sendCreatorWelcomeEmail } from "../services/creator-welcome-email.server";
 import {
   referralEarningsGeneratedByCreator,
   referralFinancialsForCreatorAdmin,
@@ -558,6 +559,19 @@ export async function action({ request }: ActionFunctionArgs) {
   if (intent === "REACTIVATE") {
     await reactivateCreator(session.shop, creatorId, client);
     return { ok: true, message: "Creator reactivated." };
+  }
+  if (intent === "SEND_WELCOME_EMAIL") {
+    const result = await sendCreatorWelcomeEmail(session.shop, creatorId);
+    if (result.sent) {
+      return { ok: true, message: "Creator welcome email sent." };
+    }
+    const message = {
+      "transport-unconfigured": "Welcome email delivery is not configured. Connect an email transport in the app environment before retrying.",
+      "email-unavailable": "This Creator does not have a deliverable email address.",
+      "delivery-failed": "Welcome email delivery failed. The Creator remains eligible for retry.",
+      "not-eligible": "This Creator is no longer eligible for a welcome email.",
+    }[result.reason];
+    return { ok: false, message };
   }
   throw new Response("Invalid action", { status: 400 });
 }
@@ -1135,6 +1149,22 @@ export default function Creators() {
                             ) : creator.status === "APPROVED" ? (
                               <details className="creator-more-menu">
                                 <summary aria-label={`More actions for ${displayName}`} />
+                                {!creator.welcomeEmailSentAt ? (
+                                  <Form method="post" className="creator-table-action">
+                                    <input type="hidden" name="creatorId" value={creator.id} />
+                                    <SubmitButton
+                                      name="intent"
+                                      value="SEND_WELCOME_EMAIL"
+                                      confirmMessage={`Send the Creator welcome email to ${creator.emailSnapshot || "this Creator"}?`}
+                                    >
+                                      Send Welcome Email
+                                    </SubmitButton>
+                                  </Form>
+                                ) : (
+                                  <span className="creator-table-subtext">
+                                    Welcome email sent {formatDateTime(creator.welcomeEmailSentAt)}
+                                  </span>
+                                )}
                                 <Form method="post" className="creator-table-action">
                                   <input type="hidden" name="creatorId" value={creator.id} />
                                   <input name="reason" placeholder="Optional deactivation reason" />
