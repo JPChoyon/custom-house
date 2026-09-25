@@ -6,6 +6,7 @@ import {
   canSendCreatorWelcomeEmail,
   cleanWelcomeEmailContent,
   creatorWelcomeEmailTransportConfigured,
+  creatorWelcomeEmailTransportStatus,
   DEFAULT_CREATOR_WELCOME_BODY,
   DEFAULT_CREATOR_WELCOME_SUBJECT,
   sendCreatorWelcomeEmail,
@@ -84,8 +85,26 @@ test("welcome email retry is eligible only for approved unsent Creators", () => 
     }),
     false,
   );
-  assert.equal(creatorWelcomeEmailTransportConfigured("https://mailer.example/send"), true);
-  assert.equal(creatorWelcomeEmailTransportConfigured(""), false);
+  const completeEnvironment = {
+    RESEND_API_KEY: "re_test",
+    CREATOR_EMAIL_FROM: "CustomHouse Creators <creators@example.com>",
+    CREATOR_WELCOME_EMAIL_WEBHOOK_URL: "https://mailer.example/send",
+    CREATOR_WELCOME_EMAIL_WEBHOOK_SECRET: "test-secret",
+  };
+  assert.equal(creatorWelcomeEmailTransportConfigured(completeEnvironment), true);
+  assert.deepEqual(creatorWelcomeEmailTransportStatus(completeEnvironment), {
+    configured: true,
+    missing: [],
+  });
+  assert.deepEqual(creatorWelcomeEmailTransportStatus({}), {
+    configured: false,
+    missing: [
+      "RESEND_API_KEY",
+      "CREATOR_EMAIL_FROM",
+      "CREATOR_WELCOME_EMAIL_WEBHOOK_URL",
+      "CREATOR_WELCOME_EMAIL_WEBHOOK_SECRET",
+    ],
+  });
 });
 
 test("successful welcome email delivery records sent state and prevents a duplicate", async () => {
@@ -127,8 +146,18 @@ test("successful welcome email delivery records sent state and prevents a duplic
       return operations;
     },
   };
-  const fetcher: typeof fetch = async () => {
+  const fetcher: typeof fetch = async (_url, init) => {
     deliveryCount += 1;
+    assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer test-secret");
+    assert.deepEqual(JSON.parse(String(init?.body)), {
+      to: "creator@example.com",
+      subject: "Welcome to CustomHouse Creator",
+      text: DEFAULT_CREATOR_WELCOME_BODY
+        .replace("{{creator_name}}", "Welcome Creator")
+        .replace("{{dashboard_url}}", "https://customhouse.test/pages/creator-dashboard"),
+      template: "creator-welcome",
+      creatorId: creator.id,
+    });
     return new Response(null, { status: 204 });
   };
 
@@ -136,11 +165,13 @@ test("successful welcome email delivery records sent state and prevents a duplic
     database,
     fetcher,
     endpoint: "https://mailer.example/send",
+    secret: "test-secret",
   });
   const second = await sendCreatorWelcomeEmail("customhouse.test", creator.id, {
     database,
     fetcher,
     endpoint: "https://mailer.example/send",
+    secret: "test-secret",
   });
 
   assert.equal(first.sent, true);
@@ -193,6 +224,7 @@ test("failed welcome email delivery remains retryable and is audited", async () 
     database,
     fetcher: async () => new Response(null, { status: 503 }),
     endpoint: "https://mailer.example/send",
+    secret: "test-secret",
   });
 
   assert.equal(result.sent, false);
