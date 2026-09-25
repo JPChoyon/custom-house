@@ -3,9 +3,12 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { validateCreatorApplication, validateProfileImage } from "../app/services/creator-application.ts";
 import {
+  canSendCreatorWelcomeEmail,
   cleanWelcomeEmailContent,
+  creatorWelcomeEmailTransportConfigured,
   DEFAULT_CREATOR_WELCOME_BODY,
   DEFAULT_CREATOR_WELCOME_SUBJECT,
+  sendCreatorWelcomeEmail,
 } from "../app/services/creator-welcome-email.server.ts";
 
 const valid = { legalName: "Ada Lovelace", displayName: "Ada Creates", country: "Sweden", city: "Stockholm", bio: "A sufficiently long creator biography.", primaryPlatform: "Instagram", primaryProfileUrl: "https://instagram.com/adacreates", audienceRange: "1K-10K", categories: ["Art", "Lifestyle"], portfolioUrl: "https://example.org/portfolio", socialLinks: ["https://example.org/social"], termsAccepted: true, accuracyConfirmed: true };
@@ -63,6 +66,139 @@ test("Creator approval invokes the welcome email only on the pending-to-approved
   assert.match(settings, /creatorWelcomeEmailSubject/);
   assert.match(settings, /creatorWelcomeEmailBody/);
   assert.match(settings, /reset-welcome-email/);
+});
+
+test("welcome email retry is eligible only for approved unsent Creators", () => {
+  assert.equal(
+    canSendCreatorWelcomeEmail({ status: "APPROVED", welcomeEmailSentAt: null }),
+    true,
+  );
+  assert.equal(
+    canSendCreatorWelcomeEmail({ status: "PENDING", welcomeEmailSentAt: null }),
+    false,
+  );
+  assert.equal(
+    canSendCreatorWelcomeEmail({
+      status: "APPROVED",
+      welcomeEmailSentAt: new Date("2026-09-24T00:00:00.000Z"),
+    }),
+    false,
+  );
+  assert.equal(creatorWelcomeEmailTransportConfigured("https://mailer.example/send"), true);
+  assert.equal(creatorWelcomeEmailTransportConfigured(""), false);
+});
+
+test("successful welcome email delivery records sent state and prevents a duplicate", async () => {
+  const creator = {
+    id: "creator-welcome",
+    status: "APPROVED",
+    displayName: "Welcome Creator",
+    emailSnapshot: "creator@example.com",
+    welcomeEmailSentAt: null as Date | null,
+  };
+  const auditActions: string[] = [];
+  let deliveryCount = 0;
+  const database = {
+    creator: {
+      async findFirst() {
+        return { ...creator };
+      },
+      async update(args: { data: { welcomeEmailSentAt: Date } }) {
+        creator.welcomeEmailSentAt = args.data.welcomeEmailSentAt;
+        return { ...creator };
+      },
+    },
+    shopConfig: {
+      async upsert() {
+        return {
+          creatorWelcomeEmailSubject: DEFAULT_CREATOR_WELCOME_SUBJECT,
+          creatorWelcomeEmailBody: DEFAULT_CREATOR_WELCOME_BODY,
+        };
+      },
+    },
+    auditLog: {
+      async create(args: { data: { action: string } }) {
+        auditActions.push(args.data.action);
+        return {};
+      },
+    },
+    async $transaction(operations: unknown[]) {
+      await Promise.all(operations);
+      return operations;
+    },
+  };
+  const fetcher: typeof fetch = async () => {
+    deliveryCount += 1;
+    return new Response(null, { status: 204 });
+  };
+
+  const first = await sendCreatorWelcomeEmail("customhouse.test", creator.id, {
+    database,
+    fetcher,
+    endpoint: "https://mailer.example/send",
+  });
+  const second = await sendCreatorWelcomeEmail("customhouse.test", creator.id, {
+    database,
+    fetcher,
+    endpoint: "https://mailer.example/send",
+  });
+
+  assert.equal(first.sent, true);
+  assert.equal(second.sent, false);
+  assert.equal(second.reason, "not-eligible");
+  assert.equal(deliveryCount, 1);
+  assert.ok(creator.welcomeEmailSentAt instanceof Date);
+  assert.deepEqual(auditActions, ["creator.welcome_email.sent"]);
+});
+
+test("failed welcome email delivery remains retryable and is audited", async () => {
+  const creator = {
+    id: "creator-retry",
+    status: "APPROVED",
+    displayName: "Retry Creator",
+    emailSnapshot: "retry@example.com",
+    welcomeEmailSentAt: null as Date | null,
+  };
+  const auditActions: string[] = [];
+  const database = {
+    creator: {
+      async findFirst() {
+        return { ...creator };
+      },
+      async update() {
+        throw new Error("Successful update should not run after failed delivery.");
+      },
+    },
+    shopConfig: {
+      async upsert() {
+        return {
+          creatorWelcomeEmailSubject: DEFAULT_CREATOR_WELCOME_SUBJECT,
+          creatorWelcomeEmailBody: DEFAULT_CREATOR_WELCOME_BODY,
+        };
+      },
+    },
+    auditLog: {
+      async create(args: { data: { action: string } }) {
+        auditActions.push(args.data.action);
+        return {};
+      },
+    },
+    async $transaction(operations: unknown[]) {
+      await Promise.all(operations);
+      return operations;
+    },
+  };
+
+  const result = await sendCreatorWelcomeEmail("customhouse.test", creator.id, {
+    database,
+    fetcher: async () => new Response(null, { status: 503 }),
+    endpoint: "https://mailer.example/send",
+  });
+
+  assert.equal(result.sent, false);
+  assert.equal(result.reason, "delivery-failed");
+  assert.equal(creator.welcomeEmailSentAt, null);
+  assert.deepEqual(auditActions, ["creator.welcome_email.delivery_failed"]);
 });
 
 test("storefront creator form submits through the Shopify app proxy", () => {

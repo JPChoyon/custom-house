@@ -10,12 +10,18 @@
   endif
 %}
 {% if is_creator_locked_product %}
+  <script src="{{ 'customhouse-native-creator-cart.js' | asset_url }}" defer></script>
   <div class="customhouse-card customhouse-buy-only-form">
     <dl class="customhouse-buy-only-fixed" aria-label="Creator product details">
       {% if fixed_color != blank %}<div><dt>Color</dt><dd>{{ fixed_color | escape }}</dd></div>{% endif %}
       {% if production_method != blank %}<div><dt>Printing method</dt><dd>{{ production_method | replace: 'EMBROIDERY', 'Embroidery' | replace: 'DTF', 'DTF printing' | replace: 'DTG', 'DTG printing' | escape }}</dd></div>{% endif %}
     </dl>
-    <form method="post" action="{{ routes.cart_add_url }}">
+    <form
+      method="post"
+      action="/apps/customhouse/api/native-creator-product-cart"
+      data-customhouse-native-creator-cart
+      data-product-id="{{ product.id }}"
+    >
       <label class="customhouse-field">Size
         <select name="id">
           {% for variant in product.variants %}
@@ -42,13 +48,14 @@
       <label class="customhouse-field">Quantity<input type="number" name="quantity" min="1" value="1"></label>
       <p class="customhouse-made-to-order-note">This customized Creator product is made to order and cannot be returned.</p>
       <label class="customhouse-field customhouse-acknowledgement">
-        <input type="checkbox" name="properties[Customized product acknowledgement]" value="Accepted" required>
+        <input type="checkbox" name="nonReturnAcknowledged" value="true" required>
         <span>I understand that this is a customized / made-to-order product and cannot be returned.</span>
       </label>
       <label class="customhouse-field customhouse-acknowledgement">
-        <input type="checkbox" name="properties[Terms & Conditions]" value="Accepted" required>
+        <input type="checkbox" name="termsAccepted" value="true" required>
         <span>I accept the <a href="{{ shop.terms_of_service.url | default: '/policies/terms-of-service' }}" target="_blank" rel="noopener">Terms &amp; Conditions</a>.</span>
       </label>
+      <p data-customhouse-native-cart-message role="status" aria-live="polite" hidden></p>
       <button type="submit">{{ block.settings.button }}</button>
     </form>
   </div>

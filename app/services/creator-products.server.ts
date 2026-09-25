@@ -23,14 +23,18 @@ import {
   FEE_PRODUCT_TITLE_PREFIX,
   FEE_PRODUCT_TYPE,
   PRODUCTION_METHODS,
+  cleanEmbroiderySubtype,
   cleanProductionMethod,
+  feeVariantIdForEmbroiderySubtype,
   feeVariantIdForMethod,
   getCreatorProductionPricing,
   getProductionPricing,
   listEnabledProductionMethodCodes,
+  pricingForEmbroiderySubtype,
   pricingForMethod,
   syncProductionFeeMerchandise,
   type ProductionMethodCode,
+  type EmbroiderySubtype,
 } from "./production-method-pricing.server.ts";
 
 export type CreatorProductRecord = {
@@ -189,6 +193,7 @@ export type CreatorProductSetup = {
   fixedColor: string;
   selectedColors: string[];
   productionMethod: ProductionMethodCode;
+  embroiderySubtype?: EmbroiderySubtype;
   placementCount: number;
   placements: string[];
   copyrightAccepted: boolean;
@@ -272,6 +277,8 @@ export type PrepareNativeCreatorProductCartInput = {
   shopifyProductId: unknown;
   selectedVariantId: unknown;
   quantity?: unknown;
+  nonReturnAcknowledged?: unknown;
+  termsAccepted?: unknown;
 };
 
 function cleanOptionalText(value: unknown, maxLength: number) {
@@ -2595,10 +2602,18 @@ export async function prepareCreatorProductCart(
       409,
     );
   }
+  const embroiderySubtype =
+    productionMethod === "EMBROIDERY" && setup.embroiderySubtype
+      ? cleanEmbroiderySubtype(setup.embroiderySubtype)
+      : null;
   const surchargeMinor = decimalMoneyToMinorUnits(
-    pricingForMethod(pricing, productionMethod),
+    embroiderySubtype
+      ? pricingForEmbroiderySubtype(pricing, embroiderySubtype)
+      : pricingForMethod(pricing, productionMethod),
   );
-  let feeVariantId = feeVariantIdForMethod(pricing, productionMethod);
+  let feeVariantId = embroiderySubtype
+    ? feeVariantIdForEmbroiderySubtype(pricing, embroiderySubtype)
+    : feeVariantIdForMethod(pricing, productionMethod);
   if (
     surchargeMinor > 0n &&
     (!feeVariantId || (await productionFeeVariantNeedsSync(feeVariantId, client)))
@@ -2611,7 +2626,9 @@ export async function prepareCreatorProductCart(
         database as unknown as Parameters<typeof syncProductionFeeMerchandise>[3],
       );
       pricing = feeSync.pricing;
-      feeVariantId = feeVariantIdForMethod(pricing, productionMethod);
+      feeVariantId = embroiderySubtype
+        ? feeVariantIdForEmbroiderySubtype(pricing, embroiderySubtype)
+        : feeVariantIdForMethod(pricing, productionMethod);
     } catch {
       feeVariantId = null;
     }
@@ -2661,6 +2678,7 @@ export async function prepareCreatorProductCart(
     _creator_public_handle: product.collection.publicHandle,
     _customhouse_creator_handle: product.collection.publicHandle,
     _production_method: productionMethod,
+    ...(embroiderySubtype ? { _embroidery_subtype: embroiderySubtype } : {}),
     _customhouse_fee_key: feeKey,
     ...(previewUrl ? { _creator_preview_url: previewUrl } : {}),
     _customhouse_attribution: attribution,
@@ -2668,6 +2686,7 @@ export async function prepareCreatorProductCart(
     "Creator": product.creator.displayName,
     "Color": setup.fixedColor,
     "Printing method": productionMethod,
+    ...(embroiderySubtype ? { "Embroidery artwork": embroiderySubtype } : {}),
     "Customized product acknowledgement": "Accepted",
     "Terms & Conditions": "Accepted",
   };
@@ -2684,6 +2703,7 @@ export async function prepareCreatorProductCart(
             _customhouse_fee_key: feeKey,
             _pitchprint: orderProjectId,
             _production_method: productionMethod,
+            ...(embroiderySubtype ? { _embroidery_subtype: embroiderySubtype } : {}),
             _customhouse_creator_product_fee: "true",
             "Printing method": productionMethod,
             "Designed placements": String(setup.placementCount),
@@ -2702,6 +2722,7 @@ export async function prepareCreatorProductCart(
     properties,
     production: {
       method: productionMethod,
+      embroiderySubtype,
       fixedColor: setup.fixedColor,
       placementCount: setup.placementCount,
       surchargeMinor: surchargeMinor.toString(),
@@ -2770,27 +2791,33 @@ export async function prepareNativeCreatorProductCart(
       404,
     );
   }
-  const orderProjectId = await cloner(product.pitchprintProjectId);
   const baseVariantId = baseVariantForPublishedVariant(product, selectedVariantId);
-  return {
-    variantId: numericVariantId(selectedVariantId),
-    shopifyVariantId: selectedVariantId,
-    quantity,
-    properties: {
-      _pitchprint: orderProjectId,
-      _creator_product_id: product.id,
-      _creator_id: product.creatorId,
-      _creator_collection_id: collection.id,
-      _customhouse_creator_handle: collection.publicHandle,
-      _base_product_id: product.shopifyProductId,
-      ...(baseVariantId ? { _base_variant_id: baseVariantId } : {}),
+  if (!baseVariantId) {
+    throw new DomainError(
+      "BASE_VARIANT_MAPPING_REQUIRED",
+      "This Creator Product variant is not mapped to its base product.",
+      409,
+    );
+  }
+  const prepared = await prepareCreatorProductCart(
+    shop,
+    {
+      creatorHandle: collection.publicHandle,
+      creatorProductId: product.id,
+      selectedVariantId: baseVariantId,
+      quantity,
+      nonReturnAcknowledged: input.nonReturnAcknowledged,
+      termsAccepted: input.termsAccepted,
     },
-    creatorProduct: {
-      id: product.id,
-      title: product.title,
-      creatorId: product.creatorId,
-      masterPitchPrintProjectId: product.pitchprintProjectId,
-      nativeShopifyProductId: shopifyProductId,
+    client,
+    cloner,
+    database,
+  );
+  return {
+    ...prepared,
+    nativeProduct: {
+      shopifyProductId,
+      selectedVariantId,
     },
   };
 }

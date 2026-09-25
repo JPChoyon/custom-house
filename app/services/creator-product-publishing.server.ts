@@ -10,6 +10,11 @@ import { creatorProductSetupFromRecord } from "./creator-products.server.ts";
 
 type Errors = Array<{ message: string }>;
 
+type ShopifyProductVariant = {
+  id: string;
+  selectedOptions: Array<{ name: string; value: string }>;
+};
+
 type PublishDb = {
   creator?: {
     findFirst(args: unknown): Promise<unknown>;
@@ -187,7 +192,8 @@ async function duplicateProduct(
         productId: $productId,
         newTitle: $title,
         newStatus: DRAFT,
-        includeImages: false
+        includeImages: false,
+        synchronous: true
       ) {
         newProduct { id handle }
         userErrors { message }
@@ -204,6 +210,105 @@ async function duplicateProduct(
     );
   }
   return result.productDuplicate.newProduct;
+}
+
+function normalizedOptionValue(value: string) {
+  return value.trim().toLocaleLowerCase("en");
+}
+
+function variantColor(variant: ShopifyProductVariant) {
+  return variant.selectedOptions.find((option) =>
+    /^(color|colour|farg|färg)$/i.test(option.name.trim()),
+  )?.value;
+}
+
+export function nonFixedColorVariantIds(
+  variants: ShopifyProductVariant[],
+  fixedColor: string,
+) {
+  const normalizedFixedColor = normalizedOptionValue(fixedColor);
+  const matching = variants.filter((variant) => {
+    const color = variantColor(variant);
+    return color && normalizedOptionValue(color) === normalizedFixedColor;
+  });
+  if (!matching.length) {
+    throw new DomainError(
+      "CREATOR_FIXED_COLOR_VARIANTS_MISSING",
+      "The Creator Product does not contain variants for its fixed color.",
+      409,
+    );
+  }
+  return variants
+    .filter((variant) => !matching.some((item) => item.id === variant.id))
+    .map((variant) => variant.id);
+}
+
+async function creatorProductVariants(
+  client: ShopifyGraphqlClient,
+  productId: string,
+) {
+  const variants: ShopifyProductVariant[] = [];
+  let cursor: string | null = null;
+  do {
+    const result: {
+      product: {
+        variants: {
+          nodes: ShopifyProductVariant[];
+          pageInfo: { hasNextPage: boolean; endCursor: string | null };
+        };
+      } | null;
+    } = await client.request(
+      `#graphql query NativeCreatorProductVariants($id: ID!, $after: String) {
+        product(id: $id) {
+          variants(first: 250, after: $after) {
+            nodes { id selectedOptions { name value } }
+            pageInfo { hasNextPage endCursor }
+          }
+        }
+      }`,
+      { id: productId, after: cursor },
+    );
+    if (!result.product) {
+      throw new DomainError(
+        "SHOPIFY_PRODUCT_NOT_FOUND",
+        "Creator Shopify product could not be loaded.",
+        404,
+      );
+    }
+    variants.push(...result.product.variants.nodes);
+    cursor = result.product.variants.pageInfo.hasNextPage
+      ? result.product.variants.pageInfo.endCursor
+      : null;
+  } while (cursor);
+  return variants;
+}
+
+async function restrictCreatorProductToFixedColor(
+  client: ShopifyGraphqlClient,
+  productId: string,
+  fixedColor: string,
+) {
+  const variants = await creatorProductVariants(client, productId);
+  const variantsIds = nonFixedColorVariantIds(variants, fixedColor);
+  if (!variantsIds.length) return;
+  const result = await client.request<{
+    productVariantsBulkDelete: { userErrors: Errors };
+  }>(
+    `#graphql mutation TrimNativeCreatorProductVariants(
+      $productId: ID!,
+      $variantsIds: [ID!]!
+    ) {
+      productVariantsBulkDelete(
+        productId: $productId,
+        variantsIds: $variantsIds
+      ) { userErrors { message } }
+    }`,
+    { productId, variantsIds },
+  );
+  throwUserErrors(
+    result.productVariantsBulkDelete.userErrors,
+    "Native Creator Product fixed color",
+  );
 }
 
 async function configureProduct(
@@ -496,6 +601,21 @@ export async function publishCreatorProductToShopify(
     collection,
     previewUrl: image,
   });
+  const setup = creatorProductSetupFromRecord(
+    product as unknown as Parameters<typeof creatorProductSetupFromRecord>[0],
+  );
+  if (!setup?.fixedColor) {
+    throw new DomainError(
+      "CREATOR_FIXED_COLOR_REQUIRED",
+      "Creator Product fixed color is required before publishing.",
+      409,
+    );
+  }
+  await restrictCreatorProductToFixedColor(
+    client,
+    shopifyProduct.id,
+    setup.fixedColor,
+  );
   await addToCollection(client, collection.shopifyCollectionId, shopifyProduct.id);
   await publishResource(client, shopifyProduct.id, publicationId);
   await publishResource(client, collection.shopifyCollectionId, publicationId);

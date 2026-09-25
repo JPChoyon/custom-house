@@ -1,6 +1,38 @@
 import db from "../db.server.ts";
 import { safeJson } from "./domain.ts";
 
+type WelcomeEmailCreator = {
+  id: string;
+  status: string;
+  displayName: string;
+  emailSnapshot: string | null;
+  welcomeEmailSentAt: Date | null;
+};
+
+type WelcomeEmailDatabase = {
+  creator: {
+    findFirst(args: unknown): Promise<WelcomeEmailCreator | null>;
+    update(args: unknown): unknown;
+  };
+  shopConfig: {
+    upsert(args: unknown): Promise<{
+      creatorWelcomeEmailSubject: string;
+      creatorWelcomeEmailBody: string;
+    }>;
+  };
+  auditLog: {
+    create(args: unknown): unknown;
+  };
+  $transaction(operations: unknown[]): Promise<unknown>;
+};
+
+type WelcomeEmailOptions = {
+  database?: WelcomeEmailDatabase;
+  fetcher?: typeof fetch;
+  endpoint?: string;
+  token?: string;
+};
+
 export const DEFAULT_CREATOR_WELCOME_SUBJECT = "Welcome to CustomHouse Creator";
 export const DEFAULT_CREATOR_WELCOME_BODY = `Welcome to CustomHouse Creator, {{creator_name}}!
 
@@ -31,15 +63,39 @@ function renderTemplate(template: string, values: Record<string, string>) {
   return template.replace(/\{\{(creator_name|dashboard_url)\}\}/g, (_match, key: string) => values[key] || "");
 }
 
-export async function sendCreatorWelcomeEmail(shop: string, creatorId: string) {
-  const creator = await db.creator.findFirst({ where: { id: creatorId, shop } });
-  if (!creator || creator.status !== "APPROVED" || creator.welcomeEmailSentAt) return { sent: false, reason: "not-eligible" };
-  const config = await db.shopConfig.upsert({ where: { shop }, update: {}, create: { shop } });
+export function creatorWelcomeEmailTransportConfigured(
+  endpoint = process.env.CREATOR_WELCOME_EMAIL_WEBHOOK_URL,
+) {
+  return String(endpoint || "").trim().startsWith("https://");
+}
+
+export function canSendCreatorWelcomeEmail(
+  creator: Pick<WelcomeEmailCreator, "status" | "welcomeEmailSentAt">,
+) {
+  return creator.status === "APPROVED" && !creator.welcomeEmailSentAt;
+}
+
+export async function sendCreatorWelcomeEmail(
+  shop: string,
+  creatorId: string,
+  options: WelcomeEmailOptions = {},
+) {
+  const database = options.database || (db as unknown as WelcomeEmailDatabase);
+  const fetcher = options.fetcher || fetch;
+  const creator = await database.creator.findFirst({ where: { id: creatorId, shop } });
+  if (!creator || !canSendCreatorWelcomeEmail(creator)) {
+    return { sent: false as const, reason: "not-eligible" as const };
+  }
+  const config = await database.shopConfig.upsert({ where: { shop }, update: {}, create: { shop } });
   const recipient = String(creator.emailSnapshot || "").trim();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) return { sent: false, reason: "email-unavailable" };
-  const endpoint = String(process.env.CREATOR_WELCOME_EMAIL_WEBHOOK_URL || "").trim();
-  if (!endpoint.startsWith("https://")) {
-    await db.auditLog.create({
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
+    return { sent: false as const, reason: "email-unavailable" as const };
+  }
+  const endpoint = String(
+    options.endpoint ?? process.env.CREATOR_WELCOME_EMAIL_WEBHOOK_URL ?? "",
+  ).trim();
+  if (!creatorWelcomeEmailTransportConfigured(endpoint)) {
+    await database.auditLog.create({
       data: {
         shop,
         actorType: "SYSTEM",
@@ -49,30 +105,43 @@ export async function sendCreatorWelcomeEmail(shop: string, creatorId: string) {
         afterJson: safeJson({ recipientAvailable: true }),
       },
     });
-    return { sent: false, reason: "transport-unconfigured" };
+    return { sent: false as const, reason: "transport-unconfigured" as const };
   }
   const values = { creator_name: creator.displayName, dashboard_url: `https://${shop}/pages/creator-dashboard` };
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(process.env.CREATOR_WELCOME_EMAIL_WEBHOOK_TOKEN
-        ? { Authorization: `Bearer ${process.env.CREATOR_WELCOME_EMAIL_WEBHOOK_TOKEN}` }
-        : {}),
-    },
-    body: JSON.stringify({
-      to: recipient,
-      subject: renderTemplate(config.creatorWelcomeEmailSubject, values),
-      text: renderTemplate(config.creatorWelcomeEmailBody, values),
-      template: "creator-welcome",
-      creatorId: creator.id,
-    }),
-  });
-  if (!response.ok) throw new Error("Creator welcome email delivery failed.");
+  const token = options.token ?? process.env.CREATOR_WELCOME_EMAIL_WEBHOOK_TOKEN;
+  try {
+    const response = await fetcher(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        to: recipient,
+        subject: renderTemplate(config.creatorWelcomeEmailSubject, values),
+        text: renderTemplate(config.creatorWelcomeEmailBody, values),
+        template: "creator-welcome",
+        creatorId: creator.id,
+      }),
+    });
+    if (!response.ok) throw new Error("Creator welcome email delivery failed.");
+  } catch {
+    await database.auditLog.create({
+      data: {
+        shop,
+        actorType: "SYSTEM",
+        action: "creator.welcome_email.delivery_failed",
+        entityType: "Creator",
+        entityId: creator.id,
+        afterJson: safeJson({ retryable: true }),
+      },
+    });
+    return { sent: false as const, reason: "delivery-failed" as const };
+  }
   const sentAt = new Date();
-  await db.$transaction([
-    db.creator.update({ where: { id: creator.id }, data: { welcomeEmailSentAt: sentAt } }),
-    db.auditLog.create({
+  await database.$transaction([
+    database.creator.update({ where: { id: creator.id }, data: { welcomeEmailSentAt: sentAt } }),
+    database.auditLog.create({
       data: {
         shop,
         actorType: "SYSTEM",
@@ -83,5 +152,5 @@ export async function sendCreatorWelcomeEmail(shop: string, creatorId: string) {
       },
     }),
   ]);
-  return { sent: true, sentAt };
+  return { sent: true as const, sentAt };
 }
