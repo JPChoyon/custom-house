@@ -30,8 +30,17 @@ type WelcomeEmailOptions = {
   database?: WelcomeEmailDatabase;
   fetcher?: typeof fetch;
   endpoint?: string;
-  token?: string;
+  secret?: string;
 };
+
+type WelcomeEmailEnvironment = Record<string, string | undefined>;
+
+export const CREATOR_WELCOME_EMAIL_ENVIRONMENT_KEYS = [
+  "RESEND_API_KEY",
+  "CREATOR_EMAIL_FROM",
+  "CREATOR_WELCOME_EMAIL_WEBHOOK_URL",
+  "CREATOR_WELCOME_EMAIL_WEBHOOK_SECRET",
+] as const;
 
 export const DEFAULT_CREATOR_WELCOME_SUBJECT = "Welcome to CustomHouse Creator";
 export const DEFAULT_CREATOR_WELCOME_BODY = `Welcome to CustomHouse Creator, {{creator_name}}!
@@ -63,10 +72,29 @@ function renderTemplate(template: string, values: Record<string, string>) {
   return template.replace(/\{\{(creator_name|dashboard_url)\}\}/g, (_match, key: string) => values[key] || "");
 }
 
-export function creatorWelcomeEmailTransportConfigured(
-  endpoint = process.env.CREATOR_WELCOME_EMAIL_WEBHOOK_URL,
+function isHttpsEndpoint(value: unknown) {
+  try {
+    return new URL(String(value || "").trim()).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+export function creatorWelcomeEmailTransportStatus(
+  environment: WelcomeEmailEnvironment = process.env,
 ) {
-  return String(endpoint || "").trim().startsWith("https://");
+  const missing = CREATOR_WELCOME_EMAIL_ENVIRONMENT_KEYS.filter((key) => {
+    const value = String(environment[key] || "").trim();
+    if (key === "CREATOR_WELCOME_EMAIL_WEBHOOK_URL") return !isHttpsEndpoint(value);
+    return !value;
+  });
+  return { configured: missing.length === 0, missing };
+}
+
+export function creatorWelcomeEmailTransportConfigured(
+  environment: WelcomeEmailEnvironment = process.env,
+) {
+  return creatorWelcomeEmailTransportStatus(environment).configured;
 }
 
 export function canSendCreatorWelcomeEmail(
@@ -94,7 +122,10 @@ export async function sendCreatorWelcomeEmail(
   const endpoint = String(
     options.endpoint ?? process.env.CREATOR_WELCOME_EMAIL_WEBHOOK_URL ?? "",
   ).trim();
-  if (!creatorWelcomeEmailTransportConfigured(endpoint)) {
+  const secret = String(
+    options.secret ?? process.env.CREATOR_WELCOME_EMAIL_WEBHOOK_SECRET ?? "",
+  ).trim();
+  if (!isHttpsEndpoint(endpoint) || !secret) {
     await database.auditLog.create({
       data: {
         shop,
@@ -108,13 +139,12 @@ export async function sendCreatorWelcomeEmail(
     return { sent: false as const, reason: "transport-unconfigured" as const };
   }
   const values = { creator_name: creator.displayName, dashboard_url: `https://${shop}/pages/creator-dashboard` };
-  const token = options.token ?? process.env.CREATOR_WELCOME_EMAIL_WEBHOOK_TOKEN;
   try {
     const response = await fetcher(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        Authorization: `Bearer ${secret}`,
       },
       body: JSON.stringify({
         to: recipient,

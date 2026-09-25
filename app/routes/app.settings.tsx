@@ -15,7 +15,7 @@ import { authenticate } from "../shopify.server";
 import { parseJsonList } from "../services/domain";
 import {
   cleanWelcomeEmailContent,
-  creatorWelcomeEmailTransportConfigured,
+  creatorWelcomeEmailTransportStatus,
   DEFAULT_CREATOR_WELCOME_BODY,
   DEFAULT_CREATOR_WELCOME_SUBJECT,
 } from "../services/creator-welcome-email.server";
@@ -27,9 +27,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
     update: {},
     create: { shop: session.shop },
   });
+  const welcomeEmailTransport = creatorWelcomeEmailTransportStatus();
   return {
     config,
-    welcomeEmailTransportConfigured: creatorWelcomeEmailTransportConfigured(),
+    welcomeEmailTransportConfigured: welcomeEmailTransport.configured,
+    welcomeEmailTransportMissing: welcomeEmailTransport.missing,
   };
 }
 
@@ -118,7 +120,11 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Settings() {
-  const { config, welcomeEmailTransportConfigured } = useLoaderData<typeof loader>();
+  const {
+    config,
+    welcomeEmailTransportConfigured,
+    welcomeEmailTransportMissing,
+  } = useLoaderData<typeof loader>();
 
   return (
     <s-page heading="Creator Marketplace Settings">
@@ -201,8 +207,8 @@ export default function Settings() {
                   <strong>Welcome Email Delivery</strong>
                   <p>
                     {welcomeEmailTransportConfigured
-                      ? "An email transport is connected. Welcome emails can be delivered after Creator approval."
-                      : "Welcome emails are configured in CustomHouse, but email delivery is not available until an email transport is connected."}
+                      ? "Resend is connected. Welcome emails can be delivered after Creator approval."
+                      : `Welcome emails are saved, but delivery requires these server variables: ${welcomeEmailTransportMissing.join(", ")}.`}
                   </p>
                 </div>
                 <label>
