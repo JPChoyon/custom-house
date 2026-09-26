@@ -30,15 +30,73 @@ test("creator application accepts no social presence or bio", () => {
   assert.deepEqual(value.socialLinks, []);
   assert.deepEqual(value.categories, ["Art", "Lifestyle"]);
 });
-test("core creator application fields remain required", () => {
-  assert.throws(() => validateCreatorApplication({ ...valid, displayName: "" }), /Display name/);
-  assert.throws(() => validateCreatorApplication({ ...valid, termsAccepted: false }), /creator terms/i);
+test("creator application accepts only a display name and legal confirmations", () => {
+  const value = validateCreatorApplication({
+    displayName: "Minimal Creator",
+    termsAccepted: true,
+    accuracyConfirmed: true,
+  });
+  assert.equal(value.displayName, "Minimal Creator");
+  assert.equal(value.primaryPlatform, undefined);
+  assert.equal(value.primaryProfileUrl, undefined);
+  assert.equal(value.audienceRange, undefined);
+  assert.deepEqual(value.categories, []);
+  assert.equal(value.bio, undefined);
+  assert.equal(value.aboutWork, undefined);
+  assert.equal(value.portfolioUrl, undefined);
+  assert.deepEqual(value.socialLinks, []);
 });
-test("creator terms are required", () => assert.throws(() => validateCreatorApplication({ ...valid, termsAccepted: false }), /accept the creator terms/i));
+test("primary platform may be empty", () => assert.doesNotThrow(() => validateCreatorApplication({ ...valid, primaryPlatform: "" })));
+test("primary profile URL may be empty", () => assert.doesNotThrow(() => validateCreatorApplication({ ...valid, primaryProfileUrl: "" })));
+test("audience range may be empty", () => assert.equal(validateCreatorApplication({ ...valid, audienceRange: "" }).audienceRange, undefined));
+test("categories may be empty", () => assert.deepEqual(validateCreatorApplication({ ...valid, categories: ["", " "] }).categories, []));
+test("social bio may be empty", () => assert.equal(validateCreatorApplication({ ...valid, bio: "" }).bio, undefined));
+test("about your work may be empty", () => assert.equal(validateCreatorApplication({ ...valid, aboutWork: "" }).aboutWork, undefined));
+test("empty optional URLs are ignored", () => {
+  const value = validateCreatorApplication({ ...valid, primaryProfileUrl: " ", portfolioUrl: "", socialLinks: ["", " "] });
+  assert.equal(value.primaryProfileUrl, undefined);
+  assert.equal(value.portfolioUrl, undefined);
+  assert.deepEqual(value.socialLinks, []);
+});
+test("a populated invalid optional URL is rejected", () => assert.throws(() => validateCreatorApplication({ ...valid, primaryProfileUrl: "not-a-url" }), /HTTPS/));
+test("a populated invalid additional social URL is rejected", () => assert.throws(() => validateCreatorApplication({ ...valid, socialLinks: ["not-a-url"] }), /HTTPS/));
+test("creator display name is required", () => assert.throws(() => validateCreatorApplication({ ...valid, displayName: "" }), /Display name/));
+test("accuracy confirmation is required", () => assert.throws(() => validateCreatorApplication({ displayName: "Ada Creates", termsAccepted: true }), /details are accurate/i));
+test("creator terms are required", () => assert.throws(() => validateCreatorApplication({ displayName: "Ada Creates", accuracyConfirmed: true } as Parameters<typeof validateCreatorApplication>[0]), /accept the creator terms/i));
 test("invalid creator application input is rejected", () => assert.throws(() => validateCreatorApplication({ ...valid, legalName: "A" }), /Legal name/));
 test("invalid creator platform is rejected", () => assert.throws(() => validateCreatorApplication({ ...valid, primaryPlatform: "MySpace" }), /Primary platform/));
 test("invalid creator category is rejected", () => assert.throws(() => validateCreatorApplication({ ...valid, categories: ["Bad category"] }), /Creator category/));
 test("non-HTTPS portfolio is rejected", () => assert.throws(() => validateCreatorApplication({ ...valid, portfolioUrl: "http://example.org" }), /HTTPS/));
+test("storefront Creator Application marks social and category fields optional", () => {
+  const script = readFileSync("extensions/customhouse-creator-storefront/assets/creator-application.js", "utf8");
+  assert.match(script, /field\("Primary Platform \(Optional\)"/);
+  assert.match(script, /field\("Primary Profile URL \(Optional\)"/);
+  assert.match(script, /field\("Audience Size \(Optional\)"/);
+  assert.match(script, /field\("Portfolio \/ Website \(Optional\)"/);
+  assert.match(script, /<legend>Categories <small>\(optional\)<\/small><\/legend>/);
+  assert.match(script, /About Your Work <small>\(optional\)<\/small>/);
+  assert.doesNotMatch(script, /name="primaryPlatform"[^>]*required/);
+  assert.doesNotMatch(script, /name="primaryProfileUrl"[^>]*required/);
+  assert.doesNotMatch(script, /Creator \/ Design Categories \*/);
+  assert.doesNotMatch(script, /!value\.categories\.length/);
+  assert.doesNotMatch(script, /nextErrors\.categories/);
+});
+test("native Creator Application server does not require categories", () => {
+  const service = readFileSync("app/services/creator-application.server.ts", "utf8");
+  assert.doesNotMatch(service, /CATEGORIES_REQUIRED|Choose at least one creator category/);
+});
+test("Creator schema and profile UI tolerate empty optional application fields", () => {
+  const schema = readFileSync("prisma/schema.prisma", "utf8");
+  const dashboard = readFileSync("extensions/customhouse-creator-storefront/assets/customhouse-dashboard.js", "utf8");
+  assert.match(schema, /primaryPlatform\s+String\?/);
+  assert.match(schema, /primaryProfileUrl\s+String\?/);
+  assert.match(schema, /audienceRange\s+String\?/);
+  assert.match(schema, /aboutWork\s+String\?/);
+  assert.match(schema, /categoriesJson\s+String\s+@default\("\[\]"\)/);
+  assert.match(dashboard, /primaryPlatform:\s*data\.primaryPlatform \|\| ""/);
+  assert.match(dashboard, /primaryProfileUrl:\s*data\.primaryProfileUrl \|\| ""/);
+  assert.match(dashboard, /JSON\.parse\(data\.socialLinksJson \|\| "\[\]"\)/);
+});
 test("valid PNG signature is accepted", () => assert.doesNotThrow(() => validateProfileImage(Uint8Array.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]), "image/png", 8)));
 test("invalid profile image signature is rejected", () => assert.throws(() => validateProfileImage(Uint8Array.from([1,2,3]), "image/png", 3), /valid JPG/));
 test("oversized profile image is rejected", () => assert.throws(() => validateProfileImage(Uint8Array.from([0xff,0xd8,0xff]), "image/jpeg", 5 * 1024 * 1024 + 1), /5 MB/));
