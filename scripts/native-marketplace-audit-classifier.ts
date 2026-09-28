@@ -14,6 +14,7 @@ export type PublishedCreatorProductAuditInput = {
   shopifyProductId: string | null;
   fixedColor: string | null;
   fixedProductionMethod: string | null;
+  placementCount: number | null;
   shopifyProduct: {
     variants: AuditedVariant[];
     productOrigin: string | null;
@@ -21,6 +22,9 @@ export type PublishedCreatorProductAuditInput = {
     designStatus: string | null;
     productType: string | null;
     creatorProductId: string | null;
+    fixedColor: string | null;
+    productionMethod: string | null;
+    designedPlacementCount: string | null;
     creatorCartValidation: unknown | null;
   } | null;
 };
@@ -117,7 +121,11 @@ function parsedContract(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function validValidationContract(value: unknown, creatorProductId: string) {
+function validValidationContract(
+  value: unknown,
+  creatorProductId: string,
+  placementCount: number | null,
+) {
   const contract = parsedContract(value);
   if (
     !contract ||
@@ -129,6 +137,7 @@ function validValidationContract(value: unknown, creatorProductId: string) {
   ) {
     return false;
   }
+  if (placementCount && contract.placementCount !== placementCount) return false;
   return contract.feeRequired
     ? typeof contract.feeVariantId === "string" &&
         contract.feeVariantId.length > 0
@@ -270,6 +279,28 @@ export function classifyPublishedCreatorProduct(
   if (!input.fixedProductionMethod?.trim()) {
     repairIssues.push("saved fixed production method is missing");
   }
+  if (!Number.isInteger(input.placementCount) || Number(input.placementCount) < 1) {
+    repairIssues.push("saved placement count is missing or invalid");
+  }
+  if (
+    input.fixedColor?.trim() &&
+    normalizedText(product.fixedColor || "") !== normalizedText(input.fixedColor)
+  ) {
+    repairIssues.push("Shopify fixed color metadata does not match the saved setup");
+  }
+  if (
+    input.fixedProductionMethod?.trim() &&
+    normalizedText(product.productionMethod || "") !==
+      normalizedText(input.fixedProductionMethod)
+  ) {
+    repairIssues.push("Shopify production method metadata does not match the saved setup");
+  }
+  if (
+    input.placementCount &&
+    Number(product.designedPlacementCount) !== input.placementCount
+  ) {
+    repairIssues.push("Shopify placement count metadata does not match the saved setup");
+  }
 
   const normalizedFixedColor = input.fixedColor
     ? normalizedText(input.fixedColor)
@@ -288,6 +319,7 @@ export function classifyPublishedCreatorProduct(
   const validationContractPresent = validValidationContract(
     product.creatorCartValidation,
     input.creatorProductId,
+    input.placementCount,
   );
   if (!validationContractPresent) {
     republishIssues.push(

@@ -583,6 +583,7 @@ async function main() {
         shopifyProductId: product.publishedShopifyProductId,
         fixedColor: setup.fixedColor,
         fixedProductionMethod: setup.fixedProductionMethod,
+        placementCount: setup.placementCount,
         shopifyProduct: state
           ? {
               variants: state.variants,
@@ -591,6 +592,10 @@ async function main() {
               designStatus: state.designStatus?.value || null,
               productType: state.productType?.value || null,
               creatorProductId: state.creatorProductId?.value || null,
+              fixedColor: state.fixedColor?.value || null,
+              productionMethod: state.productionMethod?.value || null,
+              designedPlacementCount:
+                state.designedPlacementCount?.value || null,
               creatorCartValidation:
                 state.creatorCartValidation?.jsonValue ?? null,
             }

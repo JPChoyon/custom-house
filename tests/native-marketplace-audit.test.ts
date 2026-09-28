@@ -29,6 +29,7 @@ function compatibleInput(
     shopifyProductId: "gid://shopify/Product/100",
     fixedColor: "Navy Blue",
     fixedProductionMethod: "DTF",
+    placementCount: 1,
     shopifyProduct: {
       variants: [
         {
@@ -44,12 +45,15 @@ function compatibleInput(
       designStatus: "published",
       productType: "creator_fixed",
       creatorProductId,
+      fixedColor: "Navy Blue",
+      productionMethod: "DTF",
+      designedPlacementCount: "1",
       creatorCartValidation: {
         version: 1,
         creatorProductId,
         feeRequired: true,
         feeVariantId,
-        placementCount: 2,
+        placementCount: 1,
       },
     },
     ...overrides,
@@ -170,6 +174,24 @@ test("classifies missing saved setup fields as NEEDS_REPAIR", () => {
 
   assert.equal(result.category, "NEEDS_REPAIR");
   assert.match(result.issues.join(" "), /production method/i);
+});
+
+test("classifies mismatched Shopify fixed setup metadata as NEEDS_REPAIR", () => {
+  const result = classifyPublishedCreatorProduct(
+    compatibleInput({
+      shopifyProduct: {
+        ...compatibleInput().shopifyProduct!,
+        fixedColor: null,
+        productionMethod: null,
+        designedPlacementCount: null,
+      },
+    }),
+  );
+
+  assert.equal(result.category, "NEEDS_REPAIR");
+  assert.match(result.issues.join(" "), /fixed color metadata/i);
+  assert.match(result.issues.join(" "), /production method metadata/i);
+  assert.match(result.issues.join(" "), /placement count metadata/i);
 });
 
 test("the executable audit remains read-only", () => {

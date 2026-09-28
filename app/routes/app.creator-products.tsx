@@ -97,6 +97,12 @@ export default function CreatorProductsAdmin() {
               the app-managed Custom House creator marketplace.
             </p>
           </div>
+          <Link
+            to="/app/creator-products/compatibility"
+            className="creator-action-link"
+          >
+            Compatibility / Legacy Repair
+          </Link>
         </header>
         {actionData?.message && (
           <div className="creator-admin-message">{actionData.message}</div>
