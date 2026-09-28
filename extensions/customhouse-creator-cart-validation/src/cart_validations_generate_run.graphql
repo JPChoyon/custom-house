@@ -1,0 +1,46 @@
+query CartValidationsGenerateRunInput {
+  cart {
+    lines {
+      id
+      quantity
+      creatorProductIdAttribute: attribute(key: "_creator_product_id") {
+        value
+      }
+      feeKeyAttribute: attribute(key: "_customhouse_fee_key") {
+        value
+      }
+      productionFeeAttribute: attribute(key: "_customhouse_production_fee") {
+        value
+      }
+      nonReturnAcknowledgement: attribute(key: "Customized product acknowledgement") {
+        value
+      }
+      termsAcknowledgement: attribute(key: "Terms & Conditions") {
+        value
+      }
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          id
+          product {
+            productOrigin: metafield(namespace: "customhouse", key: "product_origin") {
+              value
+            }
+            designMode: metafield(namespace: "customhouse", key: "design_mode") {
+              value
+            }
+            productType: metafield(namespace: "customhouse", key: "product_type") {
+              value
+            }
+            creatorProductId: metafield(namespace: "customhouse", key: "creator_product_id") {
+              value
+            }
+            creatorCartValidation: metafield(namespace: "customhouse", key: "creator_cart_validation") {
+              jsonValue
+            }
+          }
+        }
+      }
+    }
+  }
+}
