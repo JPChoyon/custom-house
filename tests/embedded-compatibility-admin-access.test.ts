@@ -11,7 +11,12 @@ const creatorProductsRoute = readFileSync(
   "utf8",
 );
 const compatibilityRoute = readFileSync(
-  new URL("../app/routes/app.creator-products.compatibility.tsx", import.meta.url),
+  new URL("../app/routes/app.creator-products_.compatibility.tsx", import.meta.url),
+  "utf8",
+);
+
+const routesConfig = readFileSync(
+  new URL("../app/routes.ts", import.meta.url),
   "utf8",
 );
 
@@ -21,6 +26,18 @@ test("embedded Admin navigation exposes Compatibility / Legacy Repair", () => {
   assert.match(
     appRoute,
     /<s-link href="\/app\/creator-products\/compatibility">\s*Compatibility \/ Legacy Repair\s*<\/s-link>/,
+  );
+});
+
+test("compatibility route opts out of the non-layout Creator Products parent", () => {
+  assert.match(routesConfig, /flatRoutes\(\)/);
+  assert.match(
+    compatibilityRoute,
+    /export default function CreatorProductCompatibilityAdmin/,
+  );
+  assert.doesNotMatch(
+    creatorProductsRoute,
+    /<Outlet\s*\/?\s*>/,
   );
 });
 
