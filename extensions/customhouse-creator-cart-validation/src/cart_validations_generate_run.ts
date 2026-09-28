@@ -16,12 +16,6 @@ type Product = {
   creatorCartValidation?: Metafield;
 };
 
-type Merchandise = {
-  __typename?: string;
-  id?: string;
-  product?: Product;
-};
-
 type CartLine = CartValidationsGenerateRunInput["cart"]["lines"][number];
 
 type CreatorCartValidationContract = {
@@ -226,7 +220,10 @@ export function cartValidationsGenerateRun(
 
     const key = creatorFeeKey(feeCreatorProductId, feeKey);
     const existing = feeGroups.get(key);
-    const variantId = line.merchandise.id ?? "";
+    const variantId =
+      line.merchandise.__typename === "ProductVariant"
+        ? line.merchandise.id
+        : "";
     if (existing) {
       existing.quantity += line.quantity;
       existing.variantIds.push(variantId);
