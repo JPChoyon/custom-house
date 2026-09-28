@@ -2,6 +2,10 @@ import db from "../app/db.server";
 import { readFileSync } from "node:fs";
 import { unauthenticated } from "../app/shopify.server";
 import { AdminGraphqlClient } from "../app/services/shopify-graphql.server";
+import {
+  classifyPublishedCreatorProduct,
+  type PublishedCreatorProductAuditCategory,
+} from "./native-marketplace-audit-classifier.ts";
 
 type CandidateCollection = {
   id: string;
@@ -21,12 +25,24 @@ type ProductCustomizationState = {
   productType: { value: string } | null;
   creatorId: { value: string } | null;
   creatorProductId: { value: string } | null;
+  creatorCartValidation: { jsonValue: unknown } | null;
   pitchprintDesignId: { value: string } | null;
   pitchprintEnabled: { value: string } | null;
   inkybayEnabled: { value: string } | null;
   legacyPitchprintDesignId: { value: string } | null;
   legacyPitchprintEnabled: { value: string } | null;
   legacyInkybayEnabled: { value: string } | null;
+  variants: Array<{
+    id: string;
+    selectedOptions: Array<{ name: string; value: string }>;
+  }>;
+};
+
+type ProductCustomizationStatePage = Omit<ProductCustomizationState, "variants"> & {
+  variants: {
+    nodes: ProductCustomizationState["variants"];
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
 };
 
 function loadEnvFile() {
@@ -156,8 +172,13 @@ async function productCustomizationState(
   client: AdminGraphqlClient,
   productId: string,
 ) {
-  const result = await client.request<{ product: ProductCustomizationState | null }>(
-    `#graphql query NativeMarketplaceProductCustomizationState($id: ID!) {
+  const variants: ProductCustomizationState["variants"] = [];
+  let cursor: string | null = null;
+  let productState: Omit<ProductCustomizationState, "variants"> | null = null;
+  do {
+    const result: { product: ProductCustomizationStatePage | null } =
+      await client.request(
+    `#graphql query NativeMarketplaceProductCustomizationState($id: ID!, $cursor: String) {
       product(id: $id) {
         id
         handle
@@ -167,17 +188,52 @@ async function productCustomizationState(
         productType: metafield(namespace: "customhouse", key: "product_type") { value }
         creatorId: metafield(namespace: "customhouse", key: "creator_id") { value }
         creatorProductId: metafield(namespace: "customhouse", key: "creator_product_id") { value }
+        creatorCartValidation: metafield(namespace: "customhouse", key: "creator_cart_validation") { jsonValue }
         pitchprintDesignId: metafield(namespace: "customhouse", key: "pitchprint_design_id") { value }
         pitchprintEnabled: metafield(namespace: "customhouse", key: "pitchprint_enabled") { value }
         inkybayEnabled: metafield(namespace: "customhouse", key: "inkybay_enabled") { value }
         legacyPitchprintDesignId: metafield(namespace: "pitchprint", key: "design_id") { value }
         legacyPitchprintEnabled: metafield(namespace: "pitchprint", key: "enabled") { value }
         legacyInkybayEnabled: metafield(namespace: "inkybay", key: "enabled") { value }
+        variants(first: 250, after: $cursor) {
+          nodes { id selectedOptions { name value } }
+          pageInfo { hasNextPage endCursor }
+        }
       }
     }`,
-    { id: productId },
-  );
-  return result.product;
+    { id: productId, cursor },
+      );
+    if (!result.product) return null;
+    const { variants: variantPage, ...state } = result.product;
+    productState = state;
+    variants.push(...variantPage.nodes);
+    cursor = variantPage.pageInfo.hasNextPage
+      ? variantPage.pageInfo.endCursor
+      : null;
+  } while (cursor);
+  return productState ? { ...productState, variants } : null;
+}
+
+function creatorSetup(value: string) {
+  try {
+    const parsed = JSON.parse(value || "{}");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return { fixedColor: null, fixedProductionMethod: null };
+    }
+    const setup = parsed as Record<string, unknown>;
+    return {
+      fixedColor:
+        typeof setup.fixedColor === "string" ? setup.fixedColor : null,
+      fixedProductionMethod:
+        typeof setup.productionMethod === "string"
+          ? setup.productionMethod
+          : typeof setup.fixedProductionMethod === "string"
+            ? setup.fixedProductionMethod
+            : null,
+    };
+  } catch {
+    return { fixedColor: null, fixedProductionMethod: null };
+  }
 }
 
 async function main() {
@@ -228,6 +284,7 @@ async function main() {
           publishedShopifyProductId: true,
           publishedShopifyProductHandle: true,
           publishedShopifyProductUrl: true,
+          designVariantSelectionsJson: true,
         },
       },
     },
@@ -236,6 +293,12 @@ async function main() {
   let inconsistent = 0;
   const creatorReports = [];
   const creatorProductReports = [];
+  const productCategoryCounts: Record<PublishedCreatorProductAuditCategory, number> = {
+    OK: 0,
+    NEEDS_REPUBLISH: 0,
+    NEEDS_REPAIR: 0,
+    MISSING_MAPPING: 0,
+  };
   for (const creator of creators) {
     const collection = creator.marketplaceCollection;
     const productIds = creator.creatorProducts
@@ -275,9 +338,29 @@ async function main() {
     ].filter(Boolean);
     if (issues.length) inconsistent += 1;
     for (const product of creator.creatorProducts) {
+      const setup = creatorSetup(product.designVariantSelectionsJson);
       const state = product.publishedShopifyProductId
         ? await productCustomizationState(client, product.publishedShopifyProductId)
         : null;
+      const classification = classifyPublishedCreatorProduct({
+        creatorProductId: product.id,
+        shopifyProductId: product.publishedShopifyProductId,
+        fixedColor: setup.fixedColor,
+        fixedProductionMethod: setup.fixedProductionMethod,
+        shopifyProduct: state
+          ? {
+              variants: state.variants,
+              productOrigin: state.productOrigin?.value || null,
+              designMode: state.designMode?.value || null,
+              designStatus: state.designStatus?.value || null,
+              productType: state.productType?.value || null,
+              creatorProductId: state.creatorProductId?.value || null,
+              creatorCartValidation:
+                state.creatorCartValidation?.jsonValue ?? null,
+            }
+          : null,
+      });
+      productCategoryCounts[classification.category] += 1;
       const triggerValues = state
         ? [
             state.pitchprintDesignId?.value,
@@ -292,6 +375,17 @@ async function main() {
         creatorProductId: product.id,
         creatorId: creator.id,
         shopifyProductId: product.publishedShopifyProductId,
+        fixedColor: setup.fixedColor,
+        fixedProductionMethod: setup.fixedProductionMethod,
+        shopifyVariantCount: classification.variantCount,
+        allVariantsMatchFixedColor:
+          classification.allVariantsMatchFixedColor,
+        canonicalMetafieldsPresent:
+          classification.canonicalMetafieldsPresent,
+        validationContractPresent:
+          classification.validationContractPresent,
+        category: classification.category,
+        issues: classification.issues,
         productHandle: state?.handle || product.publishedShopifyProductHandle || null,
         product_origin: state?.productOrigin?.value || null,
         design_mode: state?.designMode?.value || null,
@@ -338,12 +432,20 @@ async function main() {
     creatorsChecked: creatorReports.length,
     consistentCreators: creatorReports.length - inconsistent,
     inconsistentCreators: inconsistent,
+    creatorProductCategoryCounts: productCategoryCounts,
     creators: creatorReports,
     creatorProducts: creatorProductReports,
     titleCandidates: titleCandidateReport,
   };
   console.log(JSON.stringify(report, null, 2));
-  if (inconsistent > 0) process.exitCode = 1;
+  if (
+    inconsistent > 0 ||
+    productCategoryCounts.NEEDS_REPUBLISH > 0 ||
+    productCategoryCounts.NEEDS_REPAIR > 0 ||
+    productCategoryCounts.MISSING_MAPPING > 0
+  ) {
+    process.exitCode = 1;
+  }
 }
 
 main()
