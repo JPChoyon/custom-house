@@ -85,6 +85,17 @@ test("native Creator Application server does not require categories", () => {
   const service = readFileSync("app/services/creator-application.server.ts", "utf8");
   assert.doesNotMatch(service, /CATEGORIES_REQUIRED|Choose at least one creator category/);
 });
+
+test("Admin Creator directory exposes guarded permanent deletion with explicit confirmation", () => {
+  const route = readFileSync("app/routes/app.creators.tsx", "utf8");
+  assert.match(route, /deleteCreatorPermanently/);
+  assert.match(route, /intent === "DELETE_PERMANENTLY"/);
+  assert.match(route, /name="confirmation"/);
+  assert.match(route, /pattern="DELETE"/);
+  assert.match(route, /Type DELETE/);
+  assert.match(route, /historical or financial records/);
+  assert.match(route, /Deactivate/);
+});
 test("Creator schema and profile UI tolerate empty optional application fields", () => {
   const schema = readFileSync("prisma/schema.prisma", "utf8");
   const dashboard = readFileSync("extensions/customhouse-creator-storefront/assets/customhouse-dashboard.js", "utf8");

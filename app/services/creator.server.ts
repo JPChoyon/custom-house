@@ -21,6 +21,35 @@ import {
   unpublishShopifyCreatorCollection,
 } from "./creator-collections.server";
 import { referralFieldsForCode } from "./creator-referral.server";
+import {
+  deleteCreatorPermanently as deleteCreatorPermanentlyWithDatabase,
+  getCreatorDeletionEligibility as getCreatorDeletionEligibilityWithDatabase,
+  type CreatorDeletionDb,
+} from "./creator-deletion";
+
+export type { CreatorDeletionEligibility } from "./creator-deletion";
+
+export function getCreatorDeletionEligibility(
+  shop: string,
+  creatorId: string,
+  database: CreatorDeletionDb = db as unknown as CreatorDeletionDb,
+) {
+  return getCreatorDeletionEligibilityWithDatabase(shop, creatorId, database);
+}
+
+export function deleteCreatorPermanently(
+  shop: string,
+  creatorId: string,
+  confirmation: unknown,
+  database: CreatorDeletionDb = db as unknown as CreatorDeletionDb,
+) {
+  return deleteCreatorPermanentlyWithDatabase(
+    shop,
+    creatorId,
+    confirmation,
+    database,
+  );
+}
 
 async function syncCustomerCreatorStatusMetafield(
   customerId: string,
