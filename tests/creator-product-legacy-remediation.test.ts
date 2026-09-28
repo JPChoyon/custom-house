@@ -302,7 +302,7 @@ test("global audit readiness requires both incompatible counts to be zero", () =
 });
 
 test("the remediation route exposes review, export, cleanup, and canonical publish wiring", () => {
-  const source = readFileSync(new URL("../app/routes/app.creator-products.compatibility.tsx", import.meta.url), "utf8");
+  const source = readFileSync(new URL("../app/routes/app.creator-products_.compatibility.tsx", import.meta.url), "utf8");
   assert.match(source, /Run compatibility audit/);
   assert.match(source, /Export compatibility report/);
   assert.match(source, /cleanupCreatorProductAsAdmin/);

@@ -148,7 +148,10 @@ test("final marketplace approval and links are app managed", () => {
   assert.doesNotMatch(moderationBlock, /publishCreatorProductToShopify/);
   assert.match(moderationBlock, /status: "PUBLISHED"/);
   assert.match(adminRoute, /Custom House marketplace/);
-  assert.doesNotMatch(adminRoute, /new AdminGraphqlClient/);
+  assert.match(adminRoute, /new AdminGraphqlClient/);
+  assert.match(adminRoute, /cleanupCreatorProductAsAdmin/);
+  assert.match(creatorProducts, /GLOBAL_PRODUCT_CLEANUP_FORBIDDEN/);
+  assert.match(creatorProducts, /CREATOR_PRODUCT_CLEANUP_IDENTITY_MISMATCH/);
   assert.match(creatorProducts, /getCreatorProductStorefrontUrl/);
   assert.doesNotMatch(creatorProducts, /publicProductUrl: product\.publishedShopifyProductUrl/);
   assert.match(dashboardJs, /View Product/);

@@ -7,6 +7,7 @@ import {
   SubmitButton,
 } from "../components/admin-ui";
 import { authenticate } from "../shopify.server";
+import { AdminGraphqlClient } from "../services/shopify-graphql.server";
 import {
   listCreatorProductsForAdmin,
   cleanupCreatorProductAsAdmin,
@@ -44,7 +45,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const form = await request.formData();
   const decision = String(form.get("decision") || "");
   const creatorProductId = String(form.get("creatorProductId") || "");
@@ -54,6 +55,7 @@ export async function action({ request }: ActionFunctionArgs) {
       session.id || null,
       creatorProductId,
       decision,
+      new AdminGraphqlClient(admin),
     );
     return {
       ok: true,

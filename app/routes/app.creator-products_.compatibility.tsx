@@ -113,6 +113,7 @@ export async function action({ request }: ActionFunctionArgs) {
         session.id || null,
         creatorProductId,
         intent === "archive" ? "ARCHIVE" : "DELETE",
+        client,
       );
       return {
         ok: true,

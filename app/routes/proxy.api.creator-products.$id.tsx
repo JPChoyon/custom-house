@@ -70,6 +70,7 @@ export async function action({ params, request }: ActionFunctionArgs) {
           context.shop,
           context.customerId!,
           String(params.id || ""),
+          context.client,
         ),
       });
     }

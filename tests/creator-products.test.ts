@@ -1812,6 +1812,108 @@ test("admin cleanup archives safely and blocks hard deletion when history exists
   );
 });
 
+test("admin cleanup archives and deletes only the exact canonical Creator Shopify product", async () => {
+  const db = fakeDb();
+  const product = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id, title: "Canonical cleanup" },
+    fakeClient(),
+    db,
+  );
+  product.status = "PUBLISHED";
+  product.publishedShopifyProductId = "gid://shopify/Product/909";
+  const mutations: string[] = [];
+  const client = {
+    async request(query: string) {
+      if (query.includes("CreatorProductCleanupTarget")) {
+        return {
+          product: {
+            id: product.publishedShopifyProductId,
+            status: "ACTIVE",
+            productOrigin: { value: "creator" },
+            productType: { value: "creator_fixed" },
+            creatorProductId: { value: product.id },
+          },
+        };
+      }
+      if (query.includes("ArchiveCreatorProductCleanup")) {
+        mutations.push("archive");
+        return {
+          productUpdate: {
+            product: { id: product.publishedShopifyProductId, status: "ARCHIVED" },
+            userErrors: [],
+          },
+        };
+      }
+      if (query.includes("DeleteCreatorProductCleanup")) {
+        mutations.push("delete");
+        return {
+          productDelete: {
+            deletedProductId: product.publishedShopifyProductId,
+            userErrors: [],
+          },
+        };
+      }
+      throw new Error("Unexpected cleanup operation");
+    },
+  };
+
+  const archived = await cleanupCreatorProductAsAdmin(
+    shop,
+    "admin-1",
+    product.id,
+    "ARCHIVE",
+    client as never,
+    db,
+  );
+  assert.equal(archived.product.status, "ARCHIVED");
+  const deleted = await cleanupCreatorProductAsAdmin(
+    shop,
+    "admin-1",
+    product.id,
+    "DELETE",
+    client as never,
+    db,
+  );
+  assert.equal(deleted.hardDeleted, true);
+  assert.deepEqual(mutations, ["archive", "delete"]);
+  assert.equal(db.products.includes(product), false);
+});
+
+test("admin cleanup never mutates a global base Shopify product", async () => {
+  const db = fakeDb();
+  const product = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id, title: "Global protection" },
+    fakeClient(),
+    db,
+  );
+  product.status = "PUBLISHED";
+  product.publishedShopifyProductId = product.shopifyProductId;
+  let requests = 0;
+  const client = {
+    async request() {
+      requests += 1;
+      return {};
+    },
+  };
+  await assert.rejects(
+    cleanupCreatorProductAsAdmin(
+      shop,
+      "admin-1",
+      product.id,
+      "ARCHIVE",
+      client as never,
+      db,
+    ),
+    /global\/base product/i,
+  );
+  assert.equal(requests, 0);
+  assert.equal(product.status, "PUBLISHED");
+});
+
 test("archive removes published product from public collection detail and cart while preserving rows", async () => {
   const db = fakeDb();
   const product = await createCreatorProductDraft(

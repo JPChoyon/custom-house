@@ -1929,8 +1929,17 @@ export async function cleanupCreatorProductAsAdmin(
   adminId: string | null,
   creatorProductId: string,
   action: "ARCHIVE" | "DELETE",
-  database: CreatorProductDb = db,
+  clientOrDatabase: ShopifyGraphqlClient | CreatorProductDb = db,
+  databaseOverride?: CreatorProductDb,
 ) {
+  const hasShopifyClient =
+    typeof (clientOrDatabase as ShopifyGraphqlClient).request === "function";
+  const client = hasShopifyClient
+    ? (clientOrDatabase as ShopifyGraphqlClient)
+    : null;
+  const database = hasShopifyClient
+    ? databaseOverride || (db as unknown as CreatorProductDb)
+    : (clientOrDatabase as CreatorProductDb);
   const existing = await database.creatorProduct.findFirst({
     where: { id: cleanCreatorProductId(creatorProductId), shop },
   });
@@ -1941,6 +1950,9 @@ export async function cleanupCreatorProductAsAdmin(
   ]);
   const hasHistory = Number(orderItems) > 0 || Number(sales) > 0;
   if (action === "ARCHIVE") {
+    if (client) {
+      await cleanUpPublishedCreatorShopifyProduct(existing, "ARCHIVE", client);
+    }
     const archived = await database.creatorProduct.update({
       where: { id: existing.id },
       data: { status: "ARCHIVED" },
@@ -1976,6 +1988,9 @@ export async function cleanupCreatorProductAsAdmin(
   if (typeof database.creatorProduct.delete !== "function") {
     throw new DomainError("DELETE_UNAVAILABLE", "Product delete is temporarily unavailable.", 503);
   }
+  if (client) {
+    await cleanUpPublishedCreatorShopifyProduct(existing, "DELETE", client);
+  }
   await database.creatorProduct.delete({ where: { id: existing.id } });
   await database.auditLog?.create({
     data: {
@@ -1991,12 +2006,120 @@ export async function cleanupCreatorProductAsAdmin(
   return { product: existing, hardDeleted: true, hasHistory: false };
 }
 
+type CleanupShopifyProduct = {
+  id: string;
+  status: string;
+  productOrigin: { value: string } | null;
+  productType: { value: string } | null;
+  creatorProductId: { value: string } | null;
+};
+
+async function cleanUpPublishedCreatorShopifyProduct(
+  product: CreatorProductRecord,
+  action: "ARCHIVE" | "DELETE",
+  client: ShopifyGraphqlClient,
+) {
+  const publishedId = product.publishedShopifyProductId;
+  if (!publishedId) return { changed: false, reason: "NO_MAPPING" as const };
+  if (publishedId === product.shopifyProductId) {
+    throw new DomainError(
+      "GLOBAL_PRODUCT_CLEANUP_FORBIDDEN",
+      "The mapped Shopify product is the global/base product and cannot be cleaned up.",
+      409,
+    );
+  }
+  const lookup = await client.request<{ product: CleanupShopifyProduct | null }>(
+    `#graphql query CreatorProductCleanupTarget($id: ID!) {
+      product(id: $id) {
+        id
+        status
+        productOrigin: metafield(namespace: "customhouse", key: "product_origin") { value }
+        productType: metafield(namespace: "customhouse", key: "product_type") { value }
+        creatorProductId: metafield(namespace: "customhouse", key: "creator_product_id") { value }
+      }
+    }`,
+    { id: publishedId },
+  );
+  if (!lookup.product) {
+    return { changed: false, reason: "ALREADY_MISSING" as const };
+  }
+  if (
+    lookup.product.productOrigin?.value !== "creator" ||
+    lookup.product.productType?.value !== "creator_fixed" ||
+    lookup.product.creatorProductId?.value !== product.id
+  ) {
+    throw new DomainError(
+      "CREATOR_PRODUCT_CLEANUP_IDENTITY_MISMATCH",
+      "The mapped Shopify product does not have the exact canonical Creator identity. It was not changed.",
+      409,
+    );
+  }
+  if (action === "ARCHIVE") {
+    const result = await client.request<{
+      productUpdate: {
+        product: { id: string; status: string } | null;
+        userErrors: Array<{ code?: string | null }>;
+      };
+    }>(
+      `#graphql mutation ArchiveCreatorProductCleanup($product: ProductUpdateInput!) {
+        productUpdate(product: $product) {
+          product { id status }
+          userErrors { code }
+        }
+      }`,
+      { product: { id: publishedId, status: "ARCHIVED" } },
+    );
+    if (result.productUpdate.userErrors.length || !result.productUpdate.product) {
+      throw new DomainError(
+        "CREATOR_SHOPIFY_ARCHIVE_FAILED",
+        "The Creator Shopify product could not be archived safely.",
+        502,
+      );
+    }
+    return { changed: true, reason: "ARCHIVED" as const };
+  }
+  const result = await client.request<{
+    productDelete: {
+      deletedProductId: string | null;
+      userErrors: Array<{ code?: string | null }>;
+    };
+  }>(
+    `#graphql mutation DeleteCreatorProductCleanup($input: ProductDeleteInput!) {
+      productDelete(input: $input) {
+        deletedProductId
+        userErrors { code }
+      }
+    }`,
+    { input: { id: publishedId } },
+  );
+  if (
+    result.productDelete.userErrors.length ||
+    result.productDelete.deletedProductId !== publishedId
+  ) {
+    throw new DomainError(
+      "CREATOR_SHOPIFY_DELETE_FAILED",
+      "The dependency-free Creator Shopify product could not be deleted safely.",
+      502,
+    );
+  }
+  return { changed: true, reason: "DELETED" as const };
+}
+
 export async function archiveCreatorProductForCustomer(
   shop: string,
   customerId: string,
   creatorProductId: string,
-  database: CreatorProductDb = db,
+  clientOrDatabase: ShopifyGraphqlClient | CreatorProductDb = db,
+  databaseOverride?: CreatorProductDb,
 ) {
+  const hasShopifyClient =
+    typeof (clientOrDatabase as ShopifyGraphqlClient).request === "function";
+  const client = hasShopifyClient
+    ? (clientOrDatabase as ShopifyGraphqlClient)
+    : null;
+  const database = hasShopifyClient
+    ? databaseOverride || (db as unknown as CreatorProductDb)
+    : (clientOrDatabase as CreatorProductDb);
   const creator = await approvedCreatorForCustomer(shop, customerId, database);
   const existing = await database.creatorProduct.findFirst({
     where: {
@@ -2018,6 +2141,9 @@ export async function archiveCreatorProductForCustomer(
       "Only published designs can be archived.",
       409,
     );
+  }
+  if (client) {
+    await cleanUpPublishedCreatorShopifyProduct(existing, "ARCHIVE", client);
   }
   const updated = await database.creatorProduct.update({
     where: { id: existing.id },
