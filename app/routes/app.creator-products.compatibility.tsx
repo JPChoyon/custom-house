@@ -1,6 +1,11 @@
 import { useState } from "react";
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
+import type {
+  ActionFunctionArgs,
+  HeadersFunction,
+  LoaderFunctionArgs,
+} from "react-router";
 import { Form, Link, useActionData, useLoaderData } from "react-router";
+import { boundary } from "@shopify/shopify-app-react-router/server";
 import {
   AdminStyles,
   SafeAdminError,
@@ -314,7 +319,9 @@ export default function CreatorProductCompatibilityAdmin() {
       <div className="creator-admin-page legacy-remediation-page">
         <header className="creator-admin-header">
           <div>
-            <span className="creator-admin-eyebrow">Legacy safety workflow</span>
+            <span className="creator-admin-eyebrow">
+              Creator Products → Compatibility / Legacy Repair
+            </span>
             <h1>Creator Product Compatibility</h1>
             <p>Review and repair legacy CreatorProducts individually before checkout validation is enabled.</p>
           </div>
@@ -374,3 +381,7 @@ export default function CreatorProductCompatibilityAdmin() {
 export function ErrorBoundary() {
   return <SafeAdminError heading="Creator Product Compatibility" />;
 }
+
+export const headers: HeadersFunction = (headersArgs) => {
+  return boundary.headers(headersArgs);
+};
