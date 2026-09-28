@@ -34,6 +34,50 @@ export type PublishedCreatorProductAuditResult = {
   validationContractPresent: boolean;
 };
 
+export type NativeProductCandidate = {
+  id: string;
+  title: string;
+  handle: string;
+  productOrigin: string | null;
+  designMode: string | null;
+  designStatus: string | null;
+  productType: string | null;
+  creatorId: string | null;
+  creatorProductId: string | null;
+};
+
+export type MissingMappingReconciliationCategory =
+  | "EXISTING_NATIVE_PRODUCT_FOUND"
+  | "PUBLISHED_BUT_NATIVE_PRODUCT_MISSING"
+  | "STALE_OR_TEST_RECORD"
+  | "MANUAL_REVIEW_REQUIRED";
+
+export type MissingMappingReconciliationInput = {
+  creatorProductId: string;
+  status: string;
+  creatorId: string;
+  creatorStatus: string;
+  baseShopifyProductId: string | null;
+  fixedColor: string | null;
+  fixedProductionMethod: string | null;
+  placementCount: number | null;
+  pitchprintProjectId: string | null;
+  pitchprintDesignId: string | null;
+  previewPresent: boolean;
+  candidates: NativeProductCandidate[];
+};
+
+export type MissingMappingReconciliationResult = {
+  category: MissingMappingReconciliationCategory;
+  proposedShopifyProductId: string | null;
+  reason: string;
+};
+
+export function auditProductIdFromArgs(args: string[]) {
+  const value = args.find((arg) => arg.startsWith("--product="))?.slice(10).trim();
+  return value || null;
+}
+
 const COLOR_OPTION_NAMES = new Set([
   "color",
   "colour",
@@ -89,6 +133,86 @@ function validValidationContract(value: unknown, creatorProductId: string) {
     ? typeof contract.feeVariantId === "string" &&
         contract.feeVariantId.length > 0
     : contract.feeVariantId === null;
+}
+
+function exactCanonicalCandidate(
+  input: MissingMappingReconciliationInput,
+  candidate: NativeProductCandidate,
+) {
+  return (
+    candidate.creatorProductId === input.creatorProductId &&
+    candidate.creatorId === input.creatorId &&
+    candidate.productOrigin === "creator" &&
+    candidate.designMode === "buy_only" &&
+    candidate.designStatus === "published" &&
+    candidate.productType === "creator_fixed"
+  );
+}
+
+export function classifyMissingMappingRecord(
+  input: MissingMappingReconciliationInput,
+): MissingMappingReconciliationResult {
+  if (input.status !== "PUBLISHED" || input.creatorStatus !== "APPROVED") {
+    return {
+      category: "STALE_OR_TEST_RECORD",
+      proposedShopifyProductId: null,
+      reason: `explicit non-live lifecycle: product=${input.status}, creator=${input.creatorStatus}`,
+    };
+  }
+
+  const exactCandidates = input.candidates.filter((candidate) =>
+    exactCanonicalCandidate(input, candidate),
+  );
+  if (exactCandidates.length === 1) {
+    return {
+      category: "EXISTING_NATIVE_PRODUCT_FOUND",
+      proposedShopifyProductId: exactCandidates[0]!.id,
+      reason:
+        "one Shopify product matches the CreatorProduct, Creator, and all canonical native-product identity metafields",
+    };
+  }
+  if (exactCandidates.length > 1) {
+    return {
+      category: "MANUAL_REVIEW_REQUIRED",
+      proposedShopifyProductId: null,
+      reason: "multiple Shopify products carry the same canonical CreatorProduct identity",
+    };
+  }
+  if (input.candidates.length > 0) {
+    return {
+      category: "MANUAL_REVIEW_REQUIRED",
+      proposedShopifyProductId: null,
+      reason:
+        "Shopify product candidates exist, but none proves the complete canonical identity; title or handle evidence is insufficient",
+    };
+  }
+
+  const missing = [
+    !input.baseShopifyProductId ? "baseShopifyProductId" : null,
+    !input.fixedColor?.trim() ? "fixedColor" : null,
+    !input.fixedProductionMethod?.trim() ? "fixedProductionMethod" : null,
+    !Number.isInteger(input.placementCount) || Number(input.placementCount) < 1
+      ? "placementCount"
+      : null,
+    !input.pitchprintProjectId && !input.pitchprintDesignId
+      ? "savedDesignIdentity"
+      : null,
+    !input.previewPresent ? "preview" : null,
+  ].filter((value): value is string => Boolean(value));
+  if (missing.length > 0) {
+    return {
+      category: "MANUAL_REVIEW_REQUIRED",
+      proposedShopifyProductId: null,
+      reason: `required canonical republish data is missing: ${missing.join(", ")}`,
+    };
+  }
+
+  return {
+    category: "PUBLISHED_BUT_NATIVE_PRODUCT_MISSING",
+    proposedShopifyProductId: null,
+    reason:
+      "record is published, Creator is approved, canonical setup is complete, and no Shopify product candidate exists",
+  };
 }
 
 export function classifyPublishedCreatorProduct(

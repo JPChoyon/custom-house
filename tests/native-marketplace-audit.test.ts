@@ -2,12 +2,24 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  auditProductIdFromArgs,
+  classifyMissingMappingRecord,
   classifyPublishedCreatorProduct,
+  type MissingMappingReconciliationInput,
   type PublishedCreatorProductAuditInput,
 } from "../scripts/native-marketplace-audit-classifier.ts";
 
 const creatorProductId = "creator-product-1";
 const feeVariantId = "gid://shopify/ProductVariant/fee-1";
+
+test("parses one exact CreatorProduct audit filter", () => {
+  assert.equal(
+    auditProductIdFromArgs(["node", "audit.ts", "--product=creator-product-1"]),
+    "creator-product-1",
+  );
+  assert.equal(auditProductIdFromArgs(["node", "audit.ts"]), null);
+  assert.equal(auditProductIdFromArgs(["node", "audit.ts", "--product="]), null);
+});
 
 function compatibleInput(
   overrides: Partial<PublishedCreatorProductAuditInput> = {},
@@ -171,4 +183,133 @@ test("the executable audit remains read-only", () => {
     source,
     /\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(/,
   );
+});
+
+test("the production audit emits the complete reconciliation evidence contract", () => {
+  const source = readFileSync(
+    new URL("../scripts/native-marketplace-audit.ts", import.meta.url),
+    "utf8",
+  );
+
+  for (const field of [
+    "creatorStatus",
+    "baseShopifyProductId",
+    "creatorPublicHandle",
+    "placementCount",
+    "pitchprintProjectId",
+    "nativeShopifyProductCandidates",
+    "creatorCartValidation",
+    "variantCount",
+    "allVariantsMatchFixedColor",
+    "missingMappingClassification",
+  ]) {
+    assert.match(source, new RegExp(`\\b${field}\\b`), field);
+  }
+  assert.match(source, /classifyMissingMappingRecord\s*\(/);
+  assert.match(source, /metafields\.customhouse\.creator_product_id/);
+});
+
+function missingMappingInput(
+  overrides: Partial<MissingMappingReconciliationInput> = {},
+): MissingMappingReconciliationInput {
+  return {
+    creatorProductId,
+    status: "PUBLISHED",
+    creatorId: "creator-1",
+    creatorStatus: "APPROVED",
+    baseShopifyProductId: "gid://shopify/Product/base-1",
+    fixedColor: "Black",
+    fixedProductionMethod: "DTF",
+    placementCount: 1,
+    pitchprintProjectId: "project-1",
+    pitchprintDesignId: null,
+    previewPresent: true,
+    candidates: [],
+    ...overrides,
+  };
+}
+
+function exactNativeCandidate(id = "gid://shopify/Product/native-1") {
+  return {
+    id,
+    title: "Creator shirt",
+    handle: "creator-shirt",
+    productOrigin: "creator",
+    designMode: "buy_only",
+    designStatus: "published",
+    productType: "creator_fixed",
+    creatorId: "creator-1",
+    creatorProductId,
+  };
+}
+
+test("classifies one exact canonical native product as mapping repairable", () => {
+  const result = classifyMissingMappingRecord(
+    missingMappingInput({ candidates: [exactNativeCandidate()] }),
+  );
+
+  assert.equal(result.category, "EXISTING_NATIVE_PRODUCT_FOUND");
+  assert.equal(result.proposedShopifyProductId, "gid://shopify/Product/native-1");
+  assert.match(result.reason, /canonical/i);
+});
+
+test("classifies a complete published record with no candidate as republishable", () => {
+  const result = classifyMissingMappingRecord(missingMappingInput());
+
+  assert.equal(result.category, "PUBLISHED_BUT_NATIVE_PRODUCT_MISSING");
+  assert.equal(result.proposedShopifyProductId, null);
+});
+
+test("classifies multiple exact canonical candidates as manual review", () => {
+  const result = classifyMissingMappingRecord(
+    missingMappingInput({
+      candidates: [
+        exactNativeCandidate("gid://shopify/Product/native-1"),
+        exactNativeCandidate("gid://shopify/Product/native-2"),
+      ],
+    }),
+  );
+
+  assert.equal(result.category, "MANUAL_REVIEW_REQUIRED");
+  assert.match(result.reason, /multiple/i);
+});
+
+test("never treats a title or handle match as deterministic identity", () => {
+  const result = classifyMissingMappingRecord(
+    missingMappingInput({
+      candidates: [
+        {
+          ...exactNativeCandidate(),
+          productOrigin: null,
+          designMode: null,
+          designStatus: null,
+          productType: null,
+          creatorId: null,
+          creatorProductId: null,
+        },
+      ],
+    }),
+  );
+
+  assert.equal(result.category, "MANUAL_REVIEW_REQUIRED");
+  assert.match(result.reason, /canonical identity/i);
+});
+
+test("classifies incomplete published records as manual review instead of guessing", () => {
+  const result = classifyMissingMappingRecord(
+    missingMappingInput({ fixedColor: null, placementCount: null }),
+  );
+
+  assert.equal(result.category, "MANUAL_REVIEW_REQUIRED");
+  assert.match(result.reason, /fixedColor/);
+  assert.match(result.reason, /placementCount/);
+});
+
+test("classifies only explicit non-live lifecycle records as stale or test", () => {
+  const result = classifyMissingMappingRecord(
+    missingMappingInput({ status: "ARCHIVED", creatorStatus: "SUSPENDED" }),
+  );
+
+  assert.equal(result.category, "STALE_OR_TEST_RECORD");
+  assert.match(result.reason, /ARCHIVED/);
 });

@@ -3,7 +3,10 @@ import { readFileSync } from "node:fs";
 import { unauthenticated } from "../app/shopify.server";
 import { AdminGraphqlClient } from "../app/services/shopify-graphql.server";
 import {
+  auditProductIdFromArgs,
+  classifyMissingMappingRecord,
   classifyPublishedCreatorProduct,
+  type NativeProductCandidate,
   type PublishedCreatorProductAuditCategory,
 } from "./native-marketplace-audit-classifier.ts";
 
@@ -18,13 +21,20 @@ type CandidateCollection = {
 
 type ProductCustomizationState = {
   id: string;
+  title: string;
   handle: string;
+  status: string;
   productOrigin: { value: string } | null;
   designMode: { value: string } | null;
   designStatus: { value: string } | null;
   productType: { value: string } | null;
   creatorId: { value: string } | null;
   creatorProductId: { value: string } | null;
+  creatorHandle: { value: string } | null;
+  fixedColor: { value: string } | null;
+  productionMethod: { value: string } | null;
+  designedPlacementCount: { value: string } | null;
+  baseProductId: { value: string } | null;
   creatorCartValidation: { jsonValue: unknown } | null;
   pitchprintDesignId: { value: string } | null;
   pitchprintEnabled: { value: string } | null;
@@ -38,11 +48,34 @@ type ProductCustomizationState = {
   }>;
 };
 
+type NativeShopifyProductCandidateState = Omit<
+  ProductCustomizationState,
+  | "variants"
+  | "pitchprintDesignId"
+  | "pitchprintEnabled"
+  | "inkybayEnabled"
+  | "legacyPitchprintDesignId"
+  | "legacyPitchprintEnabled"
+  | "legacyInkybayEnabled"
+> & {
+  publishedOnPublication: boolean;
+};
+
 type ProductCustomizationStatePage = Omit<ProductCustomizationState, "variants"> & {
   variants: {
     nodes: ProductCustomizationState["variants"];
     pageInfo: { hasNextPage: boolean; endCursor: string | null };
   };
+};
+
+type CreatorProductAuditReport = {
+  creatorProductId: string;
+  shopifyProductId: string | null;
+  category: PublishedCreatorProductAuditCategory;
+  missingMappingClassification: ReturnType<
+    typeof classifyMissingMappingRecord
+  > | null;
+  [key: string]: unknown;
 };
 
 function loadEnvFile() {
@@ -71,7 +104,10 @@ async function collectionDetails(
   const result = await client.request<{
     collection: (CandidateCollection & {
       publishedOnPublication: boolean;
-      products: { nodes: Array<{ id: string }> };
+      products: {
+        nodes: NativeShopifyProductCandidateState[];
+        pageInfo: { hasNextPage: boolean };
+      };
     }) | null;
   }>(
     `#graphql query NativeMarketplaceCollectionDetails(
@@ -86,7 +122,25 @@ async function collectionDetails(
         creatorCollectionId: metafield(namespace: "customhouse", key: "creator_collection_id") { value }
         productsCount { count }
         publishedOnPublication(publicationId: $publicationId)
-        products(first: 100) { nodes { id } }
+        products(first: 250) {
+          nodes {
+            id title handle status
+            publishedOnPublication(publicationId: $publicationId)
+            productOrigin: metafield(namespace: "customhouse", key: "product_origin") { value }
+            designMode: metafield(namespace: "customhouse", key: "design_mode") { value }
+            designStatus: metafield(namespace: "customhouse", key: "design_status") { value }
+            productType: metafield(namespace: "customhouse", key: "product_type") { value }
+            creatorId: metafield(namespace: "customhouse", key: "creator_id") { value }
+            creatorProductId: metafield(namespace: "customhouse", key: "creator_product_id") { value }
+            creatorHandle: metafield(namespace: "customhouse", key: "creator_handle") { value }
+            fixedColor: metafield(namespace: "customhouse", key: "fixed_color") { value }
+            productionMethod: metafield(namespace: "customhouse", key: "production_method") { value }
+            designedPlacementCount: metafield(namespace: "customhouse", key: "designed_placement_count") { value }
+            baseProductId: metafield(namespace: "customhouse", key: "base_product_id") { value }
+            creatorCartValidation: metafield(namespace: "customhouse", key: "creator_cart_validation") { jsonValue }
+          }
+          pageInfo { hasNextPage }
+        }
       }
     }`,
     {
@@ -98,10 +152,91 @@ async function collectionDetails(
   return result.collection
     ? {
         ...result.collection,
+        candidateDiscoveryComplete: !result.collection.products.pageInfo.hasNextPage,
         expectedProductsPresent: productIds.filter((id) => productSet.has(id)),
         expectedProductsMissing: productIds.filter((id) => !productSet.has(id)),
       }
     : null;
+}
+
+async function searchedProductCandidates(
+  client: AdminGraphqlClient,
+  creatorProductId: string,
+  storedHandle: string | null,
+) {
+  const searches = [
+    `metafields.customhouse.creator_product_id:${creatorProductId}`,
+    storedHandle ? `handle:${storedHandle}` : null,
+  ].filter((value): value is string => Boolean(value));
+  const candidates = new Map<string, NativeShopifyProductCandidateState>();
+  const warnings: string[] = [];
+  for (const query of searches) {
+    try {
+      const result = await client.request<{
+        products: { nodes: NativeShopifyProductCandidateState[] };
+      }>(
+        `#graphql query NativeMarketplaceProductCandidates(
+          $query: String!,
+          $publicationId: ID!
+        ) {
+          products(first: 50, query: $query) {
+            nodes {
+              id title handle status
+              publishedOnPublication(publicationId: $publicationId)
+              productOrigin: metafield(namespace: "customhouse", key: "product_origin") { value }
+              designMode: metafield(namespace: "customhouse", key: "design_mode") { value }
+              designStatus: metafield(namespace: "customhouse", key: "design_status") { value }
+              productType: metafield(namespace: "customhouse", key: "product_type") { value }
+              creatorId: metafield(namespace: "customhouse", key: "creator_id") { value }
+              creatorProductId: metafield(namespace: "customhouse", key: "creator_product_id") { value }
+              creatorHandle: metafield(namespace: "customhouse", key: "creator_handle") { value }
+              fixedColor: metafield(namespace: "customhouse", key: "fixed_color") { value }
+              productionMethod: metafield(namespace: "customhouse", key: "production_method") { value }
+              designedPlacementCount: metafield(namespace: "customhouse", key: "designed_placement_count") { value }
+              baseProductId: metafield(namespace: "customhouse", key: "base_product_id") { value }
+              creatorCartValidation: metafield(namespace: "customhouse", key: "creator_cart_validation") { jsonValue }
+            }
+          }
+        }`,
+        {
+          query,
+          publicationId: process.env.ONLINE_STORE_PUBLICATION_ID || "",
+        },
+      );
+      for (const item of result.products.nodes) candidates.set(item.id, item);
+    } catch {
+      warnings.push(
+        query.startsWith("handle:")
+          ? "stored-handle candidate search was unavailable"
+          : "canonical creator_product_id candidate search was unavailable",
+      );
+    }
+  }
+  return { candidates: [...candidates.values()], warnings };
+}
+
+function normalizedCandidate(
+  candidate: NativeShopifyProductCandidateState,
+): NativeProductCandidate & Record<string, unknown> {
+  return {
+    id: candidate.id,
+    title: candidate.title,
+    handle: candidate.handle,
+    status: candidate.status,
+    publishedOnPublication: candidate.publishedOnPublication,
+    productOrigin: candidate.productOrigin?.value || null,
+    designMode: candidate.designMode?.value || null,
+    designStatus: candidate.designStatus?.value || null,
+    productType: candidate.productType?.value || null,
+    creatorId: candidate.creatorId?.value || null,
+    creatorProductId: candidate.creatorProductId?.value || null,
+    creatorHandle: candidate.creatorHandle?.value || null,
+    fixedColor: candidate.fixedColor?.value || null,
+    productionMethod: candidate.productionMethod?.value || null,
+    designedPlacementCount: candidate.designedPlacementCount?.value || null,
+    baseProductId: candidate.baseProductId?.value || null,
+    creatorCartValidation: candidate.creatorCartValidation?.jsonValue ?? null,
+  };
 }
 
 async function canonicalCandidates(
@@ -181,13 +316,20 @@ async function productCustomizationState(
     `#graphql query NativeMarketplaceProductCustomizationState($id: ID!, $cursor: String) {
       product(id: $id) {
         id
+        title
         handle
+        status
         productOrigin: metafield(namespace: "customhouse", key: "product_origin") { value }
         designMode: metafield(namespace: "customhouse", key: "design_mode") { value }
         designStatus: metafield(namespace: "customhouse", key: "design_status") { value }
         productType: metafield(namespace: "customhouse", key: "product_type") { value }
         creatorId: metafield(namespace: "customhouse", key: "creator_id") { value }
         creatorProductId: metafield(namespace: "customhouse", key: "creator_product_id") { value }
+        creatorHandle: metafield(namespace: "customhouse", key: "creator_handle") { value }
+        fixedColor: metafield(namespace: "customhouse", key: "fixed_color") { value }
+        productionMethod: metafield(namespace: "customhouse", key: "production_method") { value }
+        designedPlacementCount: metafield(namespace: "customhouse", key: "designed_placement_count") { value }
+        baseProductId: metafield(namespace: "customhouse", key: "base_product_id") { value }
         creatorCartValidation: metafield(namespace: "customhouse", key: "creator_cart_validation") { jsonValue }
         pitchprintDesignId: metafield(namespace: "customhouse", key: "pitchprint_design_id") { value }
         pitchprintEnabled: metafield(namespace: "customhouse", key: "pitchprint_enabled") { value }
@@ -218,7 +360,11 @@ function creatorSetup(value: string) {
   try {
     const parsed = JSON.parse(value || "{}");
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return { fixedColor: null, fixedProductionMethod: null };
+      return {
+        fixedColor: null,
+        fixedProductionMethod: null,
+        placementCount: null,
+      };
     }
     const setup = parsed as Record<string, unknown>;
     return {
@@ -230,9 +376,35 @@ function creatorSetup(value: string) {
           : typeof setup.fixedProductionMethod === "string"
             ? setup.fixedProductionMethod
             : null,
+      placementCount:
+        Number.isInteger(setup.placementCount) && Number(setup.placementCount) > 0
+          ? Number(setup.placementCount)
+          : Number.isInteger(setup.designedPlacementCount) &&
+              Number(setup.designedPlacementCount) > 0
+            ? Number(setup.designedPlacementCount)
+            : null,
     };
   } catch {
-    return { fixedColor: null, fixedProductionMethod: null };
+    return {
+      fixedColor: null,
+      fixedProductionMethod: null,
+      placementCount: null,
+    };
+  }
+}
+
+function previewPresent(previewUrl: string | null, previewUrls: string) {
+  if (previewUrl?.startsWith("https://")) return true;
+  try {
+    const parsed = JSON.parse(previewUrls || "[]");
+    return (
+      Array.isArray(parsed) &&
+      parsed.some(
+        (value) => typeof value === "string" && value.startsWith("https://"),
+      )
+    );
+  } catch {
+    return false;
   }
 }
 
@@ -246,6 +418,7 @@ async function main() {
     process.env.SHOP;
   if (!shop) throw new Error("Pass --shop=<myshopify-domain>.");
   const onlyCreator = process.argv.find((arg) => arg.startsWith("--creator="))?.slice(10);
+  const onlyProduct = auditProductIdFromArgs(process.argv);
   const titleSearch = process.argv.find((arg) => arg.startsWith("--title-search="))?.slice(15);
   const config = await db.shopConfig.findUnique({
     where: { shop },
@@ -269,30 +442,67 @@ async function main() {
             ],
           }
         : {}),
+      ...(onlyProduct
+        ? { creatorProducts: { some: { id: onlyProduct, status: "PUBLISHED" } } }
+        : {}),
     },
     select: {
       id: true,
       displayName: true,
       handle: true,
+      status: true,
       collectionId: true,
       marketplaceCollection: true,
       creatorProducts: {
-        where: { status: "PUBLISHED" },
+        where: {
+          status: "PUBLISHED",
+          ...(onlyProduct ? { id: onlyProduct } : {}),
+        },
         select: {
           id: true,
           title: true,
+          status: true,
+          shopifyProductId: true,
           publishedShopifyProductId: true,
           publishedShopifyProductHandle: true,
           publishedShopifyProductUrl: true,
+          pitchprintProjectId: true,
+          pitchprintDesignId: true,
+          previewUrl: true,
+          previewUrls: true,
           designVariantSelectionsJson: true,
+          createdAt: true,
+          updatedAt: true,
+          publishedAt: true,
+          _count: { select: { orderItems: true } },
         },
       },
     },
     orderBy: { displayName: "asc" },
   });
+  const auditedProductIds = creators.flatMap((creator) =>
+    creator.creatorProducts.map((product) => product.id),
+  );
+  const saleRows = auditedProductIds.length
+    ? await db.creatorSale.findMany({
+        where: {
+          shop,
+          creatorProductId: { in: auditedProductIds },
+        },
+        select: { creatorProductId: true },
+      })
+    : [];
+  const saleCounts = new Map<string, number>();
+  for (const sale of saleRows) {
+    if (!sale.creatorProductId) continue;
+    saleCounts.set(
+      sale.creatorProductId,
+      (saleCounts.get(sale.creatorProductId) || 0) + 1,
+    );
+  }
   let inconsistent = 0;
   const creatorReports = [];
-  const creatorProductReports = [];
+  const creatorProductReports: CreatorProductAuditReport[] = [];
   const productCategoryCounts: Record<PublishedCreatorProductAuditCategory, number> = {
     OK: 0,
     NEEDS_REPUBLISH: 0,
@@ -342,6 +552,32 @@ async function main() {
       const state = product.publishedShopifyProductId
         ? await productCustomizationState(client, product.publishedShopifyProductId)
         : null;
+      const searchedCandidates = product.publishedShopifyProductId
+        ? { candidates: [], warnings: [] }
+        : await searchedProductCandidates(
+            client,
+            product.id,
+            product.publishedShopifyProductHandle,
+          );
+      const candidateById = new Map<string, NativeShopifyProductCandidateState>();
+      for (const candidate of [
+        ...(details?.products.nodes || []),
+        ...searchedCandidates.candidates,
+      ]) {
+        candidateById.set(candidate.id, candidate);
+      }
+      const productTitle = product.title.trim().toLocaleLowerCase("en");
+      const relevantCandidates = [...candidateById.values()].filter(
+        (candidate) =>
+          candidate.creatorProductId?.value === product.id ||
+          (Boolean(product.publishedShopifyProductHandle) &&
+            candidate.handle === product.publishedShopifyProductHandle) ||
+          (candidate.creatorId?.value === creator.id &&
+            candidate.title.trim().toLocaleLowerCase("en") === productTitle),
+      );
+      const nativeShopifyProductCandidates = relevantCandidates.map(
+        normalizedCandidate,
+      );
       const classification = classifyPublishedCreatorProduct({
         creatorProductId: product.id,
         shopifyProductId: product.publishedShopifyProductId,
@@ -361,6 +597,26 @@ async function main() {
           : null,
       });
       productCategoryCounts[classification.category] += 1;
+      const missingMappingClassification =
+        classification.category === "MISSING_MAPPING"
+          ? classifyMissingMappingRecord({
+              creatorProductId: product.id,
+              status: product.status,
+              creatorId: creator.id,
+              creatorStatus: creator.status,
+              baseShopifyProductId: product.shopifyProductId,
+              fixedColor: setup.fixedColor,
+              fixedProductionMethod: setup.fixedProductionMethod,
+              placementCount: setup.placementCount,
+              pitchprintProjectId: product.pitchprintProjectId,
+              pitchprintDesignId: product.pitchprintDesignId,
+              previewPresent: previewPresent(
+                product.previewUrl,
+                product.previewUrls,
+              ),
+              candidates: nativeShopifyProductCandidates,
+            })
+          : null;
       const triggerValues = state
         ? [
             state.pitchprintDesignId?.value,
@@ -373,11 +629,26 @@ async function main() {
         : [];
       creatorProductReports.push({
         creatorProductId: product.id,
+        status: product.status,
         creatorId: creator.id,
+        creatorStatus: creator.status,
+        creatorPublicHandle:
+          creator.marketplaceCollection?.publicHandle || creator.handle,
+        baseShopifyProductId: product.shopifyProductId,
         shopifyProductId: product.publishedShopifyProductId,
         fixedColor: setup.fixedColor,
         fixedProductionMethod: setup.fixedProductionMethod,
+        placementCount: setup.placementCount,
+        pitchprintProjectId: product.pitchprintProjectId,
+        pitchprintDesignId: product.pitchprintDesignId,
+        previewPresent: previewPresent(product.previewUrl, product.previewUrls),
+        createdAt: product.createdAt,
+        updatedAt: product.updatedAt,
+        publishedAt: product.publishedAt,
+        orderItemCount: product._count.orderItems,
+        saleCount: saleCounts.get(product.id) || 0,
         shopifyVariantCount: classification.variantCount,
+        variantCount: classification.variantCount,
         allVariantsMatchFixedColor:
           classification.allVariantsMatchFixedColor,
         canonicalMetafieldsPresent:
@@ -386,7 +657,34 @@ async function main() {
           classification.validationContractPresent,
         category: classification.category,
         issues: classification.issues,
+        exactClassificationReason: classification.issues.join("; "),
+        missingMappingClassification,
+        nativeShopifyProductCandidates,
+        candidateDiscoveryWarnings: [
+          ...(details && !details.candidateDiscoveryComplete
+            ? ["canonical collection contains more than 250 products"]
+            : []),
+          ...searchedCandidates.warnings,
+        ],
         productHandle: state?.handle || product.publishedShopifyProductHandle || null,
+        canonicalMetafields: state
+          ? {
+              product_origin: state.productOrigin?.value || null,
+              design_mode: state.designMode?.value || null,
+              design_status: state.designStatus?.value || null,
+              product_type: state.productType?.value || null,
+              creator_id: state.creatorId?.value || null,
+              creator_product_id: state.creatorProductId?.value || null,
+              creator_handle: state.creatorHandle?.value || null,
+              fixed_color: state.fixedColor?.value || null,
+              production_method: state.productionMethod?.value || null,
+              designed_placement_count:
+                state.designedPlacementCount?.value || null,
+              base_product_id: state.baseProductId?.value || null,
+            }
+          : null,
+        creatorCartValidation:
+          state?.creatorCartValidation?.jsonValue ?? null,
         product_origin: state?.productOrigin?.value || null,
         design_mode: state?.designMode?.value || null,
         design_status: state?.designStatus?.value || null,
@@ -427,6 +725,44 @@ async function main() {
   const titleCandidateReport = titleSearch
     ? await titleCandidates(client, titleSearch)
     : [];
+  const idsByMissingMappingCategory = (category: string) =>
+    creatorProductReports
+      .filter(
+        (item) => item.missingMappingClassification?.category === category,
+      )
+      .map((item) => item.creatorProductId);
+  const autoMappingRepairable = idsByMissingMappingCategory(
+    "EXISTING_NATIVE_PRODUCT_FOUND",
+  );
+  const autoRepublishable = idsByMissingMappingCategory(
+    "PUBLISHED_BUT_NATIVE_PRODUCT_MISSING",
+  );
+  const staleOrTest = idsByMissingMappingCategory("STALE_OR_TEST_RECORD");
+  const manualReviewRequired = idsByMissingMappingCategory(
+    "MANUAL_REVIEW_REQUIRED",
+  );
+  const needsNativeProductRepair = creatorProductReports
+    .filter((item) => item.category === "NEEDS_REPAIR")
+    .map((item) => item.creatorProductId);
+  const automaticActions = creatorProductReports
+    .filter((item) =>
+      [
+        "EXISTING_NATIVE_PRODUCT_FOUND",
+        "PUBLISHED_BUT_NATIVE_PRODUCT_MISSING",
+      ].includes(item.missingMappingClassification?.category || ""),
+    )
+    .map((item) => ({
+      creatorProductId: item.creatorProductId,
+      action:
+        item.missingMappingClassification?.category ===
+        "EXISTING_NATIVE_PRODUCT_FOUND"
+          ? "RESTORE_MAPPING"
+          : "REPUBLISH_CANONICALLY",
+      oldDbMapping: item.shopifyProductId,
+      proposedShopifyProduct:
+        item.missingMappingClassification?.proposedShopifyProductId || null,
+      reason: item.missingMappingClassification?.reason || "",
+    }));
   const report = {
     shop,
     creatorsChecked: creatorReports.length,
@@ -435,6 +771,21 @@ async function main() {
     creatorProductCategoryCounts: productCategoryCounts,
     creators: creatorReports,
     creatorProducts: creatorProductReports,
+    dryRunRepairPlan: {
+      AUTO_MAPPING_REPAIRABLE: autoMappingRepairable.length,
+      AUTO_REPUBLISHABLE: autoRepublishable.length,
+      NEEDS_NATIVE_PRODUCT_REPAIR: needsNativeProductRepair.length,
+      STALE_OR_TEST: staleOrTest.length,
+      MANUAL_REVIEW_REQUIRED: manualReviewRequired.length,
+      ids: {
+        AUTO_MAPPING_REPAIRABLE: autoMappingRepairable,
+        AUTO_REPUBLISHABLE: autoRepublishable,
+        NEEDS_NATIVE_PRODUCT_REPAIR: needsNativeProductRepair,
+        STALE_OR_TEST: staleOrTest,
+        MANUAL_REVIEW_REQUIRED: manualReviewRequired,
+      },
+      automaticActions,
+    },
     titleCandidates: titleCandidateReport,
   };
   console.log(JSON.stringify(report, null, 2));

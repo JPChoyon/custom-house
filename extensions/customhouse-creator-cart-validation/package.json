@@ -26,9 +26,12 @@
     }
   },
   "dependencies": {
-    "@shopify/shopify_function": "^2.0.1"
+    "@shopify/shopify_function": "~2.0.0"
   },
   "devDependencies": {
+    "@graphql-codegen/cli": "5.0.5",
+    "@graphql-codegen/typescript": "4.1.6",
+    "@graphql-codegen/typescript-operations": "4.6.0",
     "@shopify/shopify-function-test-helpers": "^1.0.0",
     "vitest": "^3.2.4"
   }
