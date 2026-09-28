@@ -58,25 +58,31 @@ function cleanText(value: string, name: string, min: number, max: number): strin
 
 export function validateCreatorApplication(input: CreatorApplicationInput) {
   if (!input.termsAccepted) throw new DomainError("TERMS_REQUIRED", "You must accept the creator terms.");
-  if (input.accuracyConfirmed === false) throw new DomainError("ACCURACY_REQUIRED", "Confirm the application details are accurate.");
-  const primaryPlatform = input.primaryPlatform
-    ? cleanChoice(input.primaryPlatform, CREATOR_PLATFORMS, "Primary platform")
+  if (!input.accuracyConfirmed) throw new DomainError("ACCURACY_REQUIRED", "Confirm the application details are accurate.");
+  const primaryPlatformValue = input.primaryPlatform?.trim();
+  const primaryProfileUrlValue = input.primaryProfileUrl?.trim();
+  const audienceRangeValue = input.audienceRange?.trim();
+  const portfolioUrlValue = input.portfolioUrl?.trim();
+  const primaryPlatform = primaryPlatformValue
+    ? cleanChoice(primaryPlatformValue, CREATOR_PLATFORMS, "Primary platform")
     : undefined;
-  const primaryProfileUrl = input.primaryProfileUrl
-    ? normalizeHttpsUrl(input.primaryProfileUrl)
+  const primaryProfileUrl = primaryProfileUrlValue
+    ? normalizeHttpsUrl(primaryProfileUrlValue)
     : undefined;
-  const audienceRange = input.audienceRange
-    ? cleanChoice(input.audienceRange, CREATOR_AUDIENCE_RANGES, "Audience size")
+  const audienceRange = audienceRangeValue
+    ? cleanChoice(audienceRangeValue, CREATOR_AUDIENCE_RANGES, "Audience size")
     : undefined;
   const categories = Array.from(new Set(input.categories || []))
+    .map((category) => String(category || "").trim())
+    .filter(Boolean)
     .map((category) => cleanChoice(category, CREATOR_CATEGORIES, "Creator category"))
     .slice(0, 8);
   const profileImageUrl = input.profileImageUrl ? (input.profileImageUrl.startsWith("gid://shopify/MediaImage/") ? input.profileImageUrl : normalizeHttpsUrl(input.profileImageUrl)) : undefined;
   const socialLinks = [
     ...(primaryProfileUrl ? [primaryProfileUrl] : []),
     ...(input.socialLinks || []),
-  ];
-  return { legalName: input.legalName?.trim() ? cleanText(input.legalName, "Legal name", 2, 120) : undefined, displayName: cleanText(input.displayName, "Display name", 2, 80), emailSnapshot: input.emailSnapshot?.trim() ? cleanText(input.emailSnapshot, "Email", 3, 254) : undefined, country: input.country?.trim() ? cleanText(input.country, "Country", 2, 80) : undefined, city: input.city?.trim() ? cleanText(input.city, "City", 1, 100) : undefined, bio: input.bio?.trim() ? cleanText(input.bio, "Biography", 10, 500) : undefined, primaryPlatform, primaryProfileUrl, audienceRange, categories, portfolioUrl: input.portfolioUrl ? normalizeHttpsUrl(input.portfolioUrl) : undefined, aboutWork: input.aboutWork?.trim() ? cleanText(input.aboutWork, "About your work", 1, 1000) : undefined, socialLinks: socialLinks.filter(Boolean).slice(0, 5).map((url) => normalizeHttpsUrl(url)), profileImageUrl, message: input.message?.trim() ? cleanText(input.message, "Message", 1, 1000) : undefined, termsAcceptedAt: new Date() };
+  ].map((url) => String(url || "").trim()).filter(Boolean);
+  return { legalName: input.legalName?.trim() ? cleanText(input.legalName, "Legal name", 2, 120) : undefined, displayName: cleanText(input.displayName, "Display name", 2, 80), emailSnapshot: input.emailSnapshot?.trim() ? cleanText(input.emailSnapshot, "Email", 3, 254) : undefined, country: input.country?.trim() ? cleanText(input.country, "Country", 2, 80) : undefined, city: input.city?.trim() ? cleanText(input.city, "City", 1, 100) : undefined, bio: input.bio?.trim() ? cleanText(input.bio, "Biography", 10, 500) : undefined, primaryPlatform, primaryProfileUrl, audienceRange, categories, portfolioUrl: portfolioUrlValue ? normalizeHttpsUrl(portfolioUrlValue) : undefined, aboutWork: input.aboutWork?.trim() ? cleanText(input.aboutWork, "About your work", 1, 1000) : undefined, socialLinks: socialLinks.slice(0, 5).map((url) => normalizeHttpsUrl(url)), profileImageUrl, message: input.message?.trim() ? cleanText(input.message, "Message", 1, 1000) : undefined, termsAcceptedAt: new Date() };
 }
 
 function cleanChoice<T extends readonly string[]>(value: string | undefined, choices: T, name: string): T[number] {

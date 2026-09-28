@@ -333,9 +333,6 @@ export async function getCreatorApplicationState(
 }
 
 function requireNativeFields(input: CreatorApplicationInput) {
-  if (!input.categories?.length) {
-    throw new DomainError("CATEGORIES_REQUIRED", "Choose at least one creator category.");
-  }
   if (!input.accuracyConfirmed) {
     throw new DomainError("ACCURACY_REQUIRED", "Confirm the application details are accurate.");
   }

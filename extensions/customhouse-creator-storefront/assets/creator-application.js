@@ -187,7 +187,6 @@ function validateClient(value) {
   if (value.bio.trim() && value.bio.trim().length < 10) errors.bio = "Write at least 10 characters or leave this optional field blank.";
   if (value.bio.trim().length > 500) errors.bio = "Keep your bio under 500 characters.";
   if (value.primaryProfileUrl && !/^https:\/\/[^ ]+\.[^ ]+/i.test(value.primaryProfileUrl.trim())) errors.primaryProfileUrl = "Enter a valid HTTPS profile URL.";
-  if (!value.categories.length) errors.categories = "Choose at least one category.";
   if (value.portfolioUrl && !/^https:\/\/[^ ]+\.[^ ]+/i.test(value.portfolioUrl.trim())) errors.portfolioUrl = "Portfolio URL must use HTTPS.";
   if (value.aboutWork.length > 1000) errors.aboutWork = "Keep this under 1000 characters.";
   if (!value.accuracyConfirmed) errors.accuracyConfirmed = "Confirm the details are accurate.";
@@ -317,17 +316,17 @@ function renderForm(root, state, step = 0, errors = {}) {
       </label>
     </div>`,
     `<div class="ch-application__step">
-      ${field("Primary Platform", `<select name="primaryPlatform">${selectOptions(options.platforms, values.primaryPlatform)}</select>`, "Optional. You can add or change this later in Creator Dashboard → Account.", false, fieldError("primaryPlatform", errors))}
-      ${field("Primary Profile URL", `<input name="primaryProfileUrl" type="url" inputmode="url" value="${escapeHtml(values.primaryProfileUrl)}">`, "Optional. A social presence is not required to apply.", false, fieldError("primaryProfileUrl", errors))}
-      ${field("Audience Size", `<select name="audienceRange">${selectOptions(options.audienceRanges, values.audienceRange)}</select>`, "", false)}
-      ${field("Portfolio / Website", `<input name="portfolioUrl" type="url" inputmode="url" value="${escapeHtml(values.portfolioUrl)}">`, "Optional, but helpful for review.", false, fieldError("portfolioUrl", errors))}
+      ${field("Primary Platform (Optional)", `<select name="primaryPlatform">${selectOptions(options.platforms, values.primaryPlatform)}</select>`, "You can add or change this later in Creator Dashboard → Account.", false, fieldError("primaryPlatform", errors))}
+      ${field("Primary Profile URL (Optional)", `<input name="primaryProfileUrl" type="url" inputmode="url" value="${escapeHtml(values.primaryProfileUrl)}">`, "A social presence is not required to apply.", false, fieldError("primaryProfileUrl", errors))}
+      ${field("Audience Size (Optional)", `<select name="audienceRange">${selectOptions(options.audienceRanges, values.audienceRange)}</select>`, "", false)}
+      ${field("Portfolio / Website (Optional)", `<input name="portfolioUrl" type="url" inputmode="url" value="${escapeHtml(values.portfolioUrl)}">`, "Helpful for review when available.", false, fieldError("portfolioUrl", errors))}
       <fieldset class="ch-application__full">
-        <legend>Creator / Design Categories *</legend>
+        <legend>Categories <small>(optional)</small></legend>
         <div class="ch-application__chips">${optionTags(options.categories, values.categories)}</div>
         ${fieldError("categories", errors)}
       </fieldset>
       <label class="ch-application__full">
-        <span>About Your Work</span>
+        <span>About Your Work <small>(optional)</small></span>
         <textarea name="aboutWork" maxlength="1000">${escapeHtml(values.aboutWork)}</textarea>
         <small class="ch-application__helptext">Share collection ideas, design style, or products you want to create.</small>
         ${fieldError("aboutWork", errors)}
@@ -377,7 +376,7 @@ function renderForm(root, state, step = 0, errors = {}) {
   const goNext = () => {
     const value = { ...applicationValues(application, customer, state.referral), ...formValues(form) };
     const nextErrors = validateClient(value);
-    const stepHasError = step === 0 ? nextErrors.displayName || nextErrors.legalName || nextErrors.bio : nextErrors.primaryPlatform || nextErrors.primaryProfileUrl || nextErrors.categories || nextErrors.portfolioUrl || nextErrors.aboutWork;
+    const stepHasError = step === 0 ? nextErrors.displayName || nextErrors.legalName || nextErrors.bio : nextErrors.primaryProfileUrl || nextErrors.portfolioUrl || nextErrors.aboutWork;
     if (stepHasError) {
       renderForm(root, { ...state, application: { ...application, ...value } }, step, nextErrors);
       const invalid = screen.querySelector(".ch-application__error");
