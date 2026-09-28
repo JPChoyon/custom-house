@@ -6,7 +6,21 @@ import {
 } from "./creator-collections.server.ts";
 import type { ShopifyGraphqlClient } from "./shopify-graphql.server.ts";
 import { throwUserErrors } from "./shopify-graphql.server.ts";
-import { creatorProductSetupFromRecord } from "./creator-products.server.ts";
+import {
+  creatorProductSetupFromRecord,
+  type CreatorProductSetup,
+} from "./creator-products.server.ts";
+import { decimalMoneyToMinorUnits } from "./money.ts";
+import {
+  cleanEmbroiderySubtype,
+  cleanProductionMethod,
+  feeVariantIdForEmbroiderySubtype,
+  feeVariantIdForMethod,
+  getCreatorProductionPricing,
+  pricingForEmbroiderySubtype,
+  pricingForMethod,
+  type PublicProductProductionPricingRecord,
+} from "./production-method-pricing.server.ts";
 
 type Errors = Array<{ message: string }>;
 
@@ -39,6 +53,9 @@ type PublishDb = {
   };
   auditLog?: {
     create(args: unknown): Promise<unknown>;
+  };
+  publicProductProductionPricing?: {
+    findUnique(args: unknown): Promise<PublicProductProductionPricingRecord | null>;
   };
 };
 
@@ -92,6 +109,120 @@ function optionKey(options: Array<{ name: string; value: string }>) {
     .map((option) => `${option.name.trim().toLowerCase()}:${option.value.trim().toLowerCase()}`)
     .sort()
     .join("|");
+}
+
+export type CreatorCartValidationContract = {
+  version: 1;
+  creatorProductId: string;
+  feeRequired: boolean;
+  feeVariantId: string | null;
+  placementCount: number;
+};
+
+type CreatorPricingForContract = Pick<
+  PublicProductProductionPricingRecord,
+  | "embroiderySurcharge"
+  | "embroideryTextSurcharge"
+  | "embroideryImageSurcharge"
+  | "dtfSurcharge"
+  | "dtgSurcharge"
+  | "embroideryFeeVariantId"
+  | "embroideryTextFeeVariantId"
+  | "embroideryImageFeeVariantId"
+  | "dtfFeeVariantId"
+  | "dtgFeeVariantId"
+>;
+
+export function creatorCartValidationContract(
+  creatorProductId: string,
+  setup: CreatorProductSetup,
+  pricing: CreatorPricingForContract,
+): CreatorCartValidationContract {
+  if (!Number.isInteger(setup.placementCount) || setup.placementCount < 1) {
+    throw new DomainError(
+      "CREATOR_PLACEMENT_COUNT_INVALID",
+      "Creator Product placement count must be configured before publishing.",
+      409,
+    );
+  }
+  const method = cleanProductionMethod(setup.productionMethod);
+  const embroiderySubtype =
+    method === "EMBROIDERY" && setup.embroiderySubtype
+      ? cleanEmbroiderySubtype(setup.embroiderySubtype)
+      : null;
+  const surchargeMinor = decimalMoneyToMinorUnits(
+    embroiderySubtype
+      ? pricingForEmbroiderySubtype(pricing, embroiderySubtype)
+      : pricingForMethod(pricing, method),
+  );
+  const configuredFeeVariantId = embroiderySubtype
+    ? feeVariantIdForEmbroiderySubtype(pricing, embroiderySubtype)
+    : feeVariantIdForMethod(pricing, method);
+  const feeRequired = surchargeMinor > 0n;
+  if (feeRequired && !configuredFeeVariantId) {
+    throw new DomainError(
+      "PRODUCTION_FEE_SYNC_REQUIRED",
+      "Production fee merchandise is not synced for this Creator Product.",
+      409,
+    );
+  }
+  return {
+    version: 1,
+    creatorProductId,
+    feeRequired,
+    feeVariantId: feeRequired ? configuredFeeVariantId || null : null,
+    placementCount: setup.placementCount,
+  };
+}
+
+export function nativeCreatorProductMetafields(input: {
+  product: Pick<
+    CreatorProductForPublish,
+    "id" | "creatorId" | "shopifyProductId" | "pitchprintProjectId" | "creator"
+  >;
+  productId: string;
+  collection: Pick<
+    CreatorCollectionRecord,
+    "id" | "publicHandle" | "displayName" | "shopifyCollectionId"
+  >;
+  setup: CreatorProductSetup;
+  cartValidationContract: CreatorCartValidationContract;
+}) {
+  const metafields = [
+    ["creator_id", input.product.creatorId],
+    ["creator_display_name", input.product.creator?.displayName || input.collection.displayName],
+    ["creator_handle", input.collection.publicHandle],
+    ["creator_product_id", input.product.id],
+    ["creator_collection_id", input.collection.id],
+    ["creator_shopify_collection_id", input.collection.shopifyCollectionId || ""],
+    ["base_product_id", input.product.shopifyProductId],
+    ["pitchprint_master_project_id", input.product.pitchprintProjectId || ""],
+    ["product_origin", "creator"],
+    ["design_mode", "buy_only"],
+    ["design_status", "published"],
+    ["creator_publishing_enabled", "true"],
+    ["product_type", "creator_fixed"],
+    ["design_locked", "true"],
+    ["fixed_color", input.setup.fixedColor],
+    ["production_method", input.setup.productionMethod],
+    ["designed_placement_count", String(input.setup.placementCount)],
+  ].map(([key, value]) => ({
+    ownerId: input.productId,
+    namespace: "customhouse",
+    key,
+    type: key === "design_locked" || key === "creator_publishing_enabled"
+      ? "boolean"
+      : "single_line_text_field",
+    value,
+  }));
+  metafields.push({
+    ownerId: input.productId,
+    namespace: "customhouse",
+    key: "creator_cart_validation",
+    type: "json",
+    value: safeJson(input.cartValidationContract),
+  });
+  return metafields;
 }
 
 async function shopPublication(shop: string, database: PublishDb) {
@@ -318,12 +449,11 @@ async function configureProduct(
     productId: string;
     collection: CreatorCollectionRecord;
     previewUrl: string;
+    setup: CreatorProductSetup;
+    cartValidationContract: CreatorCartValidationContract;
   },
 ) {
   const tags = ["creator-fixed", "customhouse-creator-product"];
-  const setup = creatorProductSetupFromRecord(
-    input.product as unknown as Parameters<typeof creatorProductSetupFromRecord>[0],
-  );
   const updated = await client.request<{
     productUpdate: {
       product: { id: string; handle: string } | null;
@@ -386,33 +516,7 @@ async function configureProduct(
   );
   throwUserErrors(removed.metafieldsDelete.userErrors, "Native creator customization cleanup");
 
-  const metafields = [
-    ["creator_id", input.product.creatorId],
-    ["creator_display_name", input.product.creator?.displayName || input.collection.displayName],
-    ["creator_handle", input.collection.publicHandle],
-    ["creator_product_id", input.product.id],
-    ["creator_collection_id", input.collection.id],
-    ["creator_shopify_collection_id", input.collection.shopifyCollectionId || ""],
-    ["base_product_id", input.product.shopifyProductId],
-    ["pitchprint_master_project_id", input.product.pitchprintProjectId || ""],
-    ["product_origin", "creator"],
-    ["design_mode", "buy_only"],
-    ["design_status", "published"],
-    ["creator_publishing_enabled", "true"],
-    ["product_type", "creator_fixed"],
-    ["design_locked", "true"],
-    ["fixed_color", setup?.fixedColor || ""],
-    ["production_method", setup?.productionMethod || ""],
-    ["designed_placement_count", String(setup?.placementCount || 1)],
-  ].map(([key, value]) => ({
-    ownerId: input.productId,
-    namespace: "customhouse",
-    key,
-    type: key === "design_locked" || key === "creator_publishing_enabled"
-      ? "boolean"
-      : "single_line_text_field",
-    value,
-  }));
+  const metafields = nativeCreatorProductMetafields(input);
   const metafieldResult = await client.request<{
     metafieldsSet: { userErrors: Errors };
   }>(
@@ -587,6 +691,40 @@ export async function publishCreatorProductToShopify(
     );
   }
 
+  const setup = creatorProductSetupFromRecord(
+    product as unknown as Parameters<typeof creatorProductSetupFromRecord>[0],
+  );
+  if (!setup?.fixedColor) {
+    throw new DomainError(
+      "CREATOR_FIXED_COLOR_REQUIRED",
+      "Creator Product fixed color is required before publishing.",
+      409,
+    );
+  }
+  if (!database.publicProductProductionPricing) {
+    throw new DomainError(
+      "PRODUCTION_PRICING_REQUIRED",
+      "Production pricing is not configured for Creator Products.",
+      409,
+    );
+  }
+  const pricing = await getCreatorProductionPricing(
+    shop,
+    database as unknown as Parameters<typeof getCreatorProductionPricing>[1],
+  );
+  if (!pricing) {
+    throw new DomainError(
+      "PRODUCTION_PRICING_REQUIRED",
+      "Production pricing is not configured for Creator Products.",
+      409,
+    );
+  }
+  const cartValidationContract = creatorCartValidationContract(
+    product.id,
+    setup,
+    pricing,
+  );
+
   const existing =
     (await activeProduct(client, product.publishedShopifyProductId)) ||
     (await productByCreatorProductMetafield(client, product.id));
@@ -600,17 +738,9 @@ export async function publishCreatorProductToShopify(
     productId: shopifyProduct.id,
     collection,
     previewUrl: image,
+    setup,
+    cartValidationContract,
   });
-  const setup = creatorProductSetupFromRecord(
-    product as unknown as Parameters<typeof creatorProductSetupFromRecord>[0],
-  );
-  if (!setup?.fixedColor) {
-    throw new DomainError(
-      "CREATOR_FIXED_COLOR_REQUIRED",
-      "Creator Product fixed color is required before publishing.",
-      409,
-    );
-  }
   await restrictCreatorProductToFixedColor(
     client,
     shopifyProduct.id,
