@@ -18,7 +18,12 @@ import {
   approveCreatorApplication,
   rejectCreatorApplication,
 } from "../services/creator-application.server";
-import { changeCreatorStatus, reactivateCreator } from "../services/creator.server";
+import {
+  changeCreatorStatus,
+  deleteCreatorPermanently,
+  reactivateCreator,
+} from "../services/creator.server";
+import { DomainError } from "../services/domain";
 import { sendCreatorWelcomeEmail } from "../services/creator-welcome-email.server";
 import {
   referralEarningsGeneratedByCreator,
@@ -559,6 +564,27 @@ export async function action({ request }: ActionFunctionArgs) {
   if (intent === "REACTIVATE") {
     await reactivateCreator(session.shop, creatorId, client);
     return { ok: true, message: "Creator reactivated." };
+  }
+  if (intent === "DELETE_PERMANENTLY") {
+    try {
+      await deleteCreatorPermanently(
+        session.shop,
+        creatorId,
+        form.get("confirmation"),
+      );
+      return {
+        ok: true,
+        message: "Creator profile permanently deleted. The Shopify customer account was preserved.",
+      };
+    } catch (error) {
+      if (
+        error instanceof DomainError &&
+        ["CREATOR_DELETE_BLOCKED", "CREATOR_DELETE_CONFIRMATION"].includes(error.code)
+      ) {
+        return { ok: false, message: error.message };
+      }
+      throw error;
+    }
   }
   if (intent === "SEND_WELCOME_EMAIL") {
     const result = await sendCreatorWelcomeEmail(session.shop, creatorId);
@@ -1194,6 +1220,35 @@ export default function Creators() {
                                 <span className="creator-table-subtext">Waiting for creator resubmission</span>
                               </details>
                             ) : null}
+                            <details className="creator-more-menu creator-delete-menu">
+                              <summary aria-label={`Permanent delete options for ${displayName}`} />
+                              <Form method="post" className="creator-table-action creator-table-action--delete">
+                                <input type="hidden" name="creatorId" value={creator.id} />
+                                <p className="creator-table-subtext">
+                                  Permanent deletion is limited to dependency-free test profiles.
+                                  This Creator has historical or financial records and cannot be
+                                  permanently deleted when protected data exists. Deactivate the
+                                  Creator instead.
+                                </p>
+                                <label>
+                                  Type DELETE
+                                  <input
+                                    name="confirmation"
+                                    pattern="DELETE"
+                                    title="Type DELETE exactly"
+                                    autoComplete="off"
+                                    required
+                                  />
+                                </label>
+                                <SubmitButton
+                                  name="intent"
+                                  value="DELETE_PERMANENTLY"
+                                  confirmMessage="Permanently delete this dependency-free CustomHouse Creator profile? The Shopify customer account will not be deleted."
+                                >
+                                  Delete permanently
+                                </SubmitButton>
+                              </Form>
+                            </details>
                           </div>
                         </td>
                       </tr>

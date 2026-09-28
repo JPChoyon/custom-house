@@ -23,7 +23,7 @@ import {
   updateCreatorProductDetailsForCustomer,
   withdrawCreatorProductForCustomer,
 } from "../app/services/creator-products.server.ts";
-import { nonFixedColorVariantIds } from "../app/services/creator-product-publishing.server.ts";
+import * as creatorPublishing from "../app/services/creator-product-publishing.server.ts";
 import { clonePitchPrintProject } from "../app/services/pitchprint-clone.server.ts";
 import {
   ensureCreatorCollectionRecord,
@@ -38,6 +38,32 @@ import {
 } from "../app/services/production-method-pricing.server.ts";
 
 const shop = "customhouse.test";
+const { nonFixedColorVariantIds } = creatorPublishing;
+
+function creatorCartContractApi() {
+  const value = creatorPublishing as unknown as {
+    creatorCartValidationContract?: (
+      creatorProductId: string,
+      setup: ReturnType<typeof JSON.parse>,
+      pricing: Record<string, unknown>,
+    ) => {
+      version: number;
+      creatorProductId: string;
+      feeRequired: boolean;
+      feeVariantId: string | null;
+      placementCount: number;
+    };
+    nativeCreatorProductMetafields?: (input: Record<string, unknown>) => Array<{
+      namespace: string;
+      key: string;
+      type: string;
+      value: string;
+    }>;
+  };
+  assert.equal(typeof value.creatorCartValidationContract, "function");
+  assert.equal(typeof value.nativeCreatorProductMetafields, "function");
+  return value as Required<typeof value>;
+}
 
 function createCreatorProductDraft(
   ...args: Parameters<typeof createCreatorProductDraftService>
@@ -2343,6 +2369,107 @@ test("native Creator publishing removes every variant outside the saved fixed co
   );
 });
 
+test("native Creator publishing emits a versioned immutable cart validation contract", () => {
+  const api = creatorCartContractApi();
+  const setup = JSON.parse(creatorSetupJson("White", "DTF", 2));
+  const pricing = {
+    embroiderySurcharge: parseSurchargeInput("10.00"),
+    embroideryTextSurcharge: parseSurchargeInput("11.00"),
+    embroideryImageSurcharge: parseSurchargeInput("12.00"),
+    dtfSurcharge: parseSurchargeInput("30.00"),
+    dtgSurcharge: parseSurchargeInput("20.00"),
+    embroideryFeeVariantId: "gid://shopify/ProductVariant/9001",
+    embroideryTextFeeVariantId: "gid://shopify/ProductVariant/9004",
+    embroideryImageFeeVariantId: "gid://shopify/ProductVariant/9005",
+    dtfFeeVariantId: "gid://shopify/ProductVariant/9002",
+    dtgFeeVariantId: "gid://shopify/ProductVariant/9003",
+  };
+
+  const contract = api.creatorCartValidationContract(
+    "creator-product-1",
+    setup,
+    pricing,
+  );
+  assert.deepEqual(contract, {
+    version: 1,
+    creatorProductId: "creator-product-1",
+    feeRequired: true,
+    feeVariantId: "gid://shopify/ProductVariant/9002",
+    placementCount: 2,
+  });
+
+  const metafields = api.nativeCreatorProductMetafields({
+    productId: "gid://shopify/Product/500",
+    product: {
+      id: "creator-product-1",
+      creatorId: "creator-1",
+      shopifyProductId: "gid://shopify/Product/100",
+      pitchprintProjectId: "existing-project",
+      creator: { displayName: "Demo Creator" },
+    },
+    collection: {
+      id: "collection-1",
+      publicHandle: "demo-creator",
+      displayName: "Demo Creator Designs",
+      shopifyCollectionId: "gid://shopify/Collection/10",
+    },
+    setup,
+    cartValidationContract: contract,
+  });
+  const metafield = metafields.find((item) => item.key === "creator_cart_validation");
+  assert.equal(metafield?.namespace, "customhouse");
+  assert.equal(metafield?.type, "json");
+  assert.deepEqual(JSON.parse(metafield?.value || "null"), contract);
+});
+
+test("zero-surcharge Creator cart contract does not require fee merchandise", () => {
+  const api = creatorCartContractApi();
+  const setup = JSON.parse(creatorSetupJson("White", "DTG", 1));
+  const pricing = {
+    embroiderySurcharge: parseSurchargeInput("0"),
+    embroideryTextSurcharge: parseSurchargeInput("0"),
+    embroideryImageSurcharge: parseSurchargeInput("0"),
+    dtfSurcharge: parseSurchargeInput("0"),
+    dtgSurcharge: parseSurchargeInput("0"),
+    embroideryFeeVariantId: null,
+    embroideryTextFeeVariantId: null,
+    embroideryImageFeeVariantId: null,
+    dtfFeeVariantId: null,
+    dtgFeeVariantId: null,
+  };
+  assert.deepEqual(
+    api.creatorCartValidationContract("creator-zero", setup, pricing),
+    {
+      version: 1,
+      creatorProductId: "creator-zero",
+      feeRequired: false,
+      feeVariantId: null,
+      placementCount: 1,
+    },
+  );
+});
+
+test("positive Creator surcharge requires synced fee merchandise at publish time", () => {
+  const api = creatorCartContractApi();
+  const setup = JSON.parse(creatorSetupJson("White", "EMBROIDERY", 1));
+  const pricing = {
+    embroiderySurcharge: parseSurchargeInput("10"),
+    embroideryTextSurcharge: parseSurchargeInput("11"),
+    embroideryImageSurcharge: parseSurchargeInput("12"),
+    dtfSurcharge: parseSurchargeInput("20"),
+    dtgSurcharge: parseSurchargeInput("30"),
+    embroideryFeeVariantId: null,
+    embroideryTextFeeVariantId: null,
+    embroideryImageFeeVariantId: null,
+    dtfFeeVariantId: null,
+    dtgFeeVariantId: null,
+  };
+  assert.throws(
+    () => api.creatorCartValidationContract("creator-missing-fee", setup, pricing),
+    /fee merchandise is not synced/i,
+  );
+});
+
 test("native Creator purchase delegates to authoritative cart pricing and saved method", async () => {
   const database = fakeDb();
   const draft = await createCreatorProductDraft(
@@ -2500,7 +2627,7 @@ test("cart prep validates variant ownership and locks creator artwork", async ()
   assert.equal(feeProperties._customhouse_production_fee, "true");
   assert.equal(feeProperties._pitchprint, "pp_order_clone");
   assert.equal(feeProperties._customhouse_fee_key, cart.properties._customhouse_fee_key);
-  assert.equal("_creator_product_id" in feeProperties, false);
+  assert.equal(feeProperties._creator_product_id, draft.id);
   assert.equal(typeof cart.properties._customhouse_attribution, "string");
   assert.equal(cart.properties["Creator Design"], draft.title);
   assert.equal(db.products.find((product) => product.id === draft.id)?.pitchprintProjectId, "pp_master");

@@ -2698,6 +2698,7 @@ export async function prepareCreatorProductCart(
           quantity: feeQuantity,
           properties: {
             _customhouse_production_fee: "true",
+            _creator_product_id: product.id,
             _customhouse_parent_product_id: product.shopifyProductId,
             _customhouse_parent_project_id: orderProjectId,
             _customhouse_fee_key: feeKey,
