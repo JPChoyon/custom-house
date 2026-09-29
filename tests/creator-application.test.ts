@@ -552,7 +552,7 @@ test("admin creators directory matches final table ux", () => {
   assert.doesNotMatch(creatorsRoute, /creator-invite-button/);
   assert.match(creatorsRoute, /creator-admin-toolbar/);
   assert.match(creatorsRoute, /creator-activity-metrics/);
-  assert.match(creatorsRoute, /creator-table-action--approve/);
+  assert.match(creatorsRoute, /creator-pending-approve-form/);
   assert.match(creatorsRoute, /Approve/);
   assert.match(creatorsRoute, /creator-table-footer/);
   assert.match(creatorsRoute, /DEFAULT_CREATOR_PAGE_SIZE = 10/);

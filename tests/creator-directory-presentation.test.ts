@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { creatorRowPresentation } from "../app/components/creator-directory-presentation.ts";
 
-test("pending creator rows use a review-first layout with one overflow menu", () => {
+test("pending creator rows use a dedicated decision panel instead of inline actions", () => {
   assert.deepEqual(creatorRowPresentation("PENDING"), {
     rowClassName: "creator-row--pending",
-    actionGroupClassName: "creator-action-group creator-action-group--pending",
-    primaryActionLabel: "Review",
-    consolidatePendingMenus: true,
+    actionGroupClassName: "creator-action-group creator-action-group--pending-summary",
+    primaryActionLabel: "Review application",
+    showPendingReviewPanel: true,
+    showInlineActions: false,
   });
 });
 
@@ -16,6 +17,7 @@ test("non-pending creator rows retain the standard directory layout", () => {
     rowClassName: undefined,
     actionGroupClassName: "creator-action-group",
     primaryActionLabel: "View",
-    consolidatePendingMenus: false,
+    showPendingReviewPanel: false,
+    showInlineActions: true,
   });
 });

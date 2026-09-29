@@ -6,9 +6,10 @@ export function creatorRowPresentation(status: CreatorDirectoryStatus) {
   return {
     rowClassName: isPending ? "creator-row--pending" : undefined,
     actionGroupClassName: isPending
-      ? "creator-action-group creator-action-group--pending"
+      ? "creator-action-group creator-action-group--pending-summary"
       : "creator-action-group",
-    primaryActionLabel: isPending ? "Review" : "View",
-    consolidatePendingMenus: isPending,
+    primaryActionLabel: isPending ? "Review application" : "View",
+    showPendingReviewPanel: isPending,
+    showInlineActions: !isPending,
   } as const;
 }
