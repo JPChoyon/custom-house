@@ -81,6 +81,11 @@ test("storefront Creator Application marks social and category fields optional",
   assert.doesNotMatch(script, /!value\.categories\.length/);
   assert.doesNotMatch(script, /nextErrors\.categories/);
 });
+test("storefront Creator Application escapes narrow theme containers", () => {
+  const styles = readFileSync("extensions/customhouse-creator-storefront/assets/creator-application.css", "utf8");
+  assert.match(styles, /\.ch-application\s*\{[^}]*position:\s*relative;[^}]*left:\s*50%;[^}]*width:\s*min\(1520px, calc\(100vw - 2rem\)\);[^}]*max-width:\s*none;[^}]*transform:\s*translateX\(-50%\);/s);
+  assert.match(styles, /@media \(max-width:\s*640px\)[\s\S]*\.ch-application\s*\{[^}]*left:\s*auto;[^}]*width:\s*100%;[^}]*transform:\s*none;/s);
+});
 test("native Creator Application server does not require categories", () => {
   const service = readFileSync("app/services/creator-application.server.ts", "utf8");
   assert.doesNotMatch(service, /CATEGORIES_REQUIRED|Choose at least one creator category/);
