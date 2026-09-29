@@ -8,6 +8,7 @@ import {
   StatusBadge,
   SubmitButton,
 } from "../components/admin-ui";
+import { creatorRowPresentation } from "../components/creator-directory-presentation";
 import db from "../db.server";
 import { authenticate } from "../shopify.server";
 import {
@@ -158,6 +159,36 @@ function socialPlatformKey(value: string | null | undefined) {
   if (platform.includes("youtube")) return "youtube";
   if (platform.includes("instagram")) return "instagram";
   return "social";
+}
+
+function CreatorPermanentDeleteForm({ creatorId }: { creatorId: string }) {
+  return (
+    <Form method="post" className="creator-table-action creator-table-action--delete">
+      <input type="hidden" name="creatorId" value={creatorId} />
+      <p className="creator-table-subtext">
+        Permanent deletion is limited to dependency-free test profiles. This Creator
+        has historical or financial records and cannot be permanently deleted when
+        protected data exists. Deactivate the Creator instead.
+      </p>
+      <label>
+        Type DELETE
+        <input
+          name="confirmation"
+          pattern="DELETE"
+          title="Type DELETE exactly"
+          autoComplete="off"
+          required
+        />
+      </label>
+      <SubmitButton
+        name="intent"
+        value="DELETE_PERMANENTLY"
+        confirmMessage="Permanently delete this dependency-free CustomHouse Creator profile? The Shopify customer account will not be deleted."
+      >
+        Delete permanently
+      </SubmitButton>
+    </Form>
+  );
 }
 
 function referralAttributionForCustomer(
@@ -1039,7 +1070,7 @@ export default function Creators() {
         <section className="creator-admin-panel">
           {creators.length ? (
             <div className="creator-table-wrap">
-              <table className="creator-table">
+              <table className="creator-table creator-directory-table">
                 <thead>
                   <tr>
                     <th scope="col">Creator</th>
@@ -1061,8 +1092,9 @@ export default function Creators() {
                     const hasCollectionBanner = Boolean(
                       creator.marketplaceCollection?.bannerImageUrl,
                     );
+                    const rowPresentation = creatorRowPresentation(creator.status);
                     return (
-                      <tr key={creator.id}>
+                      <tr key={creator.id} className={rowPresentation.rowClassName}>
                         <td data-label="Creator">
                           <div className="creator-table-profile">
                             <span className="creator-avatar-fallback" aria-hidden="true">
@@ -1149,9 +1181,9 @@ export default function Creators() {
                           </div>
                         </td>
                         <td data-label="Actions">
-                          <div className="creator-action-group">
+                          <div className={rowPresentation.actionGroupClassName}>
                             <Link className="creator-view-button" to={`/app/creators?creator=${creator.id}`}>
-                              View
+                              {rowPresentation.primaryActionLabel}
                             </Link>
                             {creator.status === "PENDING" ? (
                               <>
@@ -1161,15 +1193,22 @@ export default function Creators() {
                                     Approve
                                   </SubmitButton>
                                 </Form>
-                                <details className="creator-more-menu">
-                                  <summary aria-label={`More actions for ${displayName}`} />
-                                  <Form method="post" className="creator-table-action">
-                                    <input type="hidden" name="creatorId" value={creator.id} />
-                                    <input name="reason" placeholder="Reason" required minLength={3} />
-                                    <SubmitButton name="intent" value="REJECT">
-                                      Reject
-                                    </SubmitButton>
-                                  </Form>
+                                <details className="creator-more-menu creator-review-menu">
+                                  <summary aria-label={`Review options for ${displayName}`} />
+                                  <div className="creator-review-menu-panel">
+                                    <Form method="post" className="creator-table-action creator-table-action--reject">
+                                      <input type="hidden" name="creatorId" value={creator.id} />
+                                      <label>
+                                        Rejection reason
+                                        <input name="reason" placeholder="Enter a reason" required minLength={3} />
+                                      </label>
+                                      <SubmitButton name="intent" value="REJECT">
+                                        Reject application
+                                      </SubmitButton>
+                                    </Form>
+                                    <div className="creator-review-menu-divider" aria-hidden="true" />
+                                    <CreatorPermanentDeleteForm creatorId={creator.id} />
+                                  </div>
                                 </details>
                               </>
                             ) : creator.status === "APPROVED" ? (
@@ -1220,35 +1259,12 @@ export default function Creators() {
                                 <span className="creator-table-subtext">Waiting for creator resubmission</span>
                               </details>
                             ) : null}
-                            <details className="creator-more-menu creator-delete-menu">
-                              <summary aria-label={`Permanent delete options for ${displayName}`} />
-                              <Form method="post" className="creator-table-action creator-table-action--delete">
-                                <input type="hidden" name="creatorId" value={creator.id} />
-                                <p className="creator-table-subtext">
-                                  Permanent deletion is limited to dependency-free test profiles.
-                                  This Creator has historical or financial records and cannot be
-                                  permanently deleted when protected data exists. Deactivate the
-                                  Creator instead.
-                                </p>
-                                <label>
-                                  Type DELETE
-                                  <input
-                                    name="confirmation"
-                                    pattern="DELETE"
-                                    title="Type DELETE exactly"
-                                    autoComplete="off"
-                                    required
-                                  />
-                                </label>
-                                <SubmitButton
-                                  name="intent"
-                                  value="DELETE_PERMANENTLY"
-                                  confirmMessage="Permanently delete this dependency-free CustomHouse Creator profile? The Shopify customer account will not be deleted."
-                                >
-                                  Delete permanently
-                                </SubmitButton>
-                              </Form>
-                            </details>
+                            {!rowPresentation.consolidatePendingMenus ? (
+                              <details className="creator-more-menu creator-delete-menu">
+                                <summary aria-label={`Permanent delete options for ${displayName}`} />
+                                <CreatorPermanentDeleteForm creatorId={creator.id} />
+                              </details>
+                            ) : null}
                           </div>
                         </td>
                       </tr>

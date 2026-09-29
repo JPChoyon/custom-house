@@ -10420,3 +10420,128 @@ s-page > s-banner {
     padding: 16px !important;
   }
 }
+
+/* Pending creator review layout: keep priority actions visible without table overflow. */
+.creator-admin-page .creator-directory-table {
+  min-width: 1280px !important;
+}
+
+.creator-admin-page .creator-directory-table th:nth-child(1) { width: 18% !important; }
+.creator-admin-page .creator-directory-table th:nth-child(2) { width: 10% !important; }
+.creator-admin-page .creator-directory-table th:nth-child(3) { width: 15% !important; }
+.creator-admin-page .creator-directory-table th:nth-child(4) { width: 13% !important; }
+.creator-admin-page .creator-directory-table th:nth-child(5) { width: 15% !important; }
+.creator-admin-page .creator-directory-table th:nth-child(6) { width: 11% !important; }
+.creator-admin-page .creator-directory-table th:nth-child(7) { width: 18% !important; }
+
+.creator-admin-page .creator-directory-table td[data-label="Actions"] {
+  padding-right: 12px !important;
+  padding-left: 12px !important;
+}
+
+.creator-row--pending td {
+  background: #fffcf5 !important;
+}
+
+.creator-row--pending td:first-child {
+  box-shadow: inset 3px 0 0 #f5b942;
+}
+
+.creator-action-group--pending {
+  flex-wrap: nowrap !important;
+  gap: 6px !important;
+}
+
+.creator-action-group--pending .creator-view-button {
+  min-width: 68px !important;
+  padding: 0 12px !important;
+}
+
+.creator-action-group--pending .creator-table-action--approve button {
+  min-width: 82px !important;
+  padding: 0 12px !important;
+}
+
+.creator-review-menu-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 140;
+  display: grid;
+  width: min(320px, calc(100vw - 48px));
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #d9e0eb;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, .18);
+  color: #344054;
+  text-align: left;
+}
+
+.creator-review-menu-panel .creator-table-action {
+  display: grid;
+  gap: 8px;
+}
+
+.creator-review-menu-panel label {
+  display: grid;
+  gap: 6px;
+  color: #344054;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.creator-review-menu-panel input:not([type="hidden"]) {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid #d0d5dd;
+  border-radius: 7px;
+  box-sizing: border-box;
+}
+
+.creator-review-menu-panel .creator-table-action button {
+  width: 100% !important;
+}
+
+.creator-review-menu-panel .creator-table-action--reject button {
+  border-color: #f04438 !important;
+  background: #fff !important;
+  color: #b42318 !important;
+  box-shadow: none !important;
+}
+
+.creator-review-menu-divider {
+  height: 1px;
+  background: #eaecf0;
+}
+
+@media (max-width: 680px) {
+  .creator-admin-page .creator-directory-table {
+    min-width: 0 !important;
+  }
+
+  .creator-row--pending td:first-child {
+    box-shadow: inset 0 3px 0 #f5b942;
+  }
+
+  .creator-action-group--pending {
+    flex-wrap: wrap !important;
+  }
+
+  .creator-action-group--pending .creator-view-button,
+  .creator-action-group--pending .creator-table-action--approve {
+    flex: 1 1 110px !important;
+  }
+
+  .creator-action-group--pending .creator-table-action--approve button {
+    width: 100% !important;
+  }
+
+  .creator-review-menu-panel {
+    right: auto;
+    left: 0;
+    width: min(300px, calc(100vw - 44px));
+  }
+}
