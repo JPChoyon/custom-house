@@ -1191,6 +1191,45 @@ function creatorSetupForProduct(product) {
   return setup?.schema === "creator_design_setup_v1" ? setup : null;
 }
 
+export function creatorReviewPresentation(product, selectedIndex = 0) {
+  const setup = creatorSetupForProduct(product);
+  const savedSurfaces = Array.isArray(setup?.previewSurfaces)
+    ? setup.previewSurfaces
+        .map((surface, index) => ({
+          side: String(surface?.side || `Saved view ${index + 1}`).trim(),
+          url: typeof surface?.url === "string" ? surface.url.trim() : "",
+          hasArtwork: surface?.hasArtwork === true,
+        }))
+        .filter((surface) => surface.url.startsWith("https://"))
+    : [];
+  const placements = Array.isArray(setup?.placements) ? setup.placements : [];
+  const previews = savedSurfaces.length
+    ? savedSurfaces
+    : projectPreviewUrls(product)
+        .filter((url) => typeof url === "string" && url.startsWith("https://"))
+        .slice(0, 3)
+        .map((url, index) => ({
+          side: String(placements[index] || `Saved view ${index + 1}`),
+          url,
+          hasArtwork: true,
+        }));
+  const normalizedIndex = Number.isSafeInteger(selectedIndex) && selectedIndex >= 0
+    ? Math.min(selectedIndex, Math.max(previews.length - 1, 0))
+    : 0;
+  const embroideryArtworkType = setup?.productionMethod === "EMBROIDERY"
+    ? {
+        TEXT_ONLY: "Text only",
+        IMAGE_OR_LOGO: "Image / Logo",
+      }[setup.embroiderySubtype] || null
+    : null;
+
+  return {
+    previews,
+    selectedPreview: previews[normalizedIndex] || null,
+    embroideryArtworkType,
+  };
+}
+
 function normalizePitchPrintLaunchId(value) {
   return String(value || "").trim();
 }
@@ -1863,20 +1902,17 @@ function renderReviewPreviews(root, product) {
   const previews = dashboardModalQuery(root, "[data-dashboard-review-previews]");
   if (!previews) return;
   previews.replaceChildren();
-  const urls = projectPreviewUrls(product).filter((url) => url.startsWith("https://"));
-  if (!urls.length && product.previewUrl?.startsWith("https://")) urls.push(product.previewUrl);
-  if (!urls.length) {
+  const presentation = creatorReviewPresentation(product);
+  if (!presentation.previews.length) {
     const empty = document.createElement("span");
     empty.className = "ch-creator-modal__preview-empty";
     empty.textContent = "Preview unavailable";
     previews.append(empty);
     return;
   }
-  const setup = creatorSetupForProduct(product);
-  const placements = Array.isArray(setup?.placements) ? setup.placements : [];
-  const entries = urls.slice(0, 3).map((url, index) => ({
-    url,
-    label: String(placements[index] || `Saved view ${index + 1}`),
+  const entries = presentation.previews.map((surface) => ({
+    url: surface.url,
+    label: surface.side,
   }));
   const main = document.createElement("figure");
   main.className = "ch-creator-modal__preview ch-creator-modal__preview--main";
@@ -1926,11 +1962,14 @@ function renderReviewVariantSelections(root, product) {
   const title = document.createElement("strong");
   title.textContent = "Creator setup";
   const list = document.createElement("ul");
-  [
+  const rows = [
     `Printing Method: ${setup.productionMethod}`,
     `Color: ${setup.fixedColor}`,
     `Designed placements: ${setup.placementCount}`,
-  ].forEach((text) => {
+  ];
+  const artworkType = creatorReviewPresentation(product).embroideryArtworkType;
+  if (artworkType) rows.splice(1, 0, `Artwork type: ${artworkType}`);
+  rows.forEach((text) => {
     const item = document.createElement("li");
     item.textContent = text;
     list.append(item);

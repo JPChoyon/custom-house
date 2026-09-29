@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   creatorPitchPrintLaunchConfig,
+  creatorReviewPresentation,
   loadDashboardState,
   normalizeCreatorSetupEvent,
   normalizePitchPrintSaveEvent,
@@ -1155,11 +1156,78 @@ test("Creator save waits for rendered project previews and labels only confirmed
   assert.match(script, /numPages: saveEvent\?\.numPages/);
   assert.match(script, /meta: saveEvent\?\.meta/);
   assert.match(script, /CREATOR_DESIGN_PREVIEW_REQUIRED|couldn't load your saved design/i);
-  assert.match(script, /const placements = Array\.isArray\(setup\?\.placements\)/);
-  assert.match(script, /label: String\(placements\[index\] \|\| `Saved view/);
+  assert.match(script, /const savedSurfaces = Array\.isArray\(setup\?\.previewSurfaces\)/);
+  assert.match(script, /label: surface\.side/);
   assert.match(script, /ch-creator-modal__preview--main/);
   assert.match(script, /ch-creator-modal__preview-controls/);
   assert.doesNotMatch(script, /Front Preview|Back Preview/);
+});
+
+test("creator review uses persisted PitchPrint surfaces and changes the selected render", () => {
+  const product = {
+    previewUrl: "https://cdn.pitchprint.test/editor-screenshot.png",
+    previewUrls: JSON.stringify([
+      "https://cdn.pitchprint.test/front-render.png",
+      "https://cdn.pitchprint.test/back-render.png",
+    ]),
+    designVariantSelectionsJson: JSON.stringify({
+      schema: "creator_design_setup_v1",
+      productionMethod: "EMBROIDERY",
+      embroiderySubtype: "TEXT_ONLY",
+      previewSurfaces: [
+        {
+          side: "Front",
+          url: "https://cdn.pitchprint.test/front-render.png",
+          hasArtwork: true,
+        },
+        {
+          side: "Back",
+          url: "https://cdn.pitchprint.test/back-render.png",
+          hasArtwork: true,
+        },
+      ],
+    }),
+  };
+
+  const initial = creatorReviewPresentation(product);
+  const selectedBack = creatorReviewPresentation(product, 1);
+
+  assert.deepEqual(initial.previews, [
+    {
+      side: "Front",
+      url: "https://cdn.pitchprint.test/front-render.png",
+      hasArtwork: true,
+    },
+    {
+      side: "Back",
+      url: "https://cdn.pitchprint.test/back-render.png",
+      hasArtwork: true,
+    },
+  ]);
+  assert.equal(initial.selectedPreview.url, "https://cdn.pitchprint.test/front-render.png");
+  assert.equal(selectedBack.selectedPreview.url, "https://cdn.pitchprint.test/back-render.png");
+  assert.equal(initial.embroideryArtworkType, "Text only");
+  assert.doesNotMatch(JSON.stringify(initial), /editor-screenshot/);
+});
+
+test("creator review labels image embroidery and omits artwork type for DTF or DTG", () => {
+  const presentation = (productionMethod, embroiderySubtype) =>
+    creatorReviewPresentation({
+      previewUrls: ["https://cdn.pitchprint.test/front-render.png"],
+      designVariantSelectionsJson: JSON.stringify({
+        schema: "creator_design_setup_v1",
+        productionMethod,
+        embroiderySubtype,
+        placements: ["Front"],
+      }),
+    });
+
+  assert.equal(
+    presentation("EMBROIDERY", "IMAGE_OR_LOGO").embroideryArtworkType,
+    "Image / Logo",
+  );
+  assert.equal(presentation("DTF", "TEXT_ONLY").embroideryArtworkType, null);
+  assert.equal(presentation("DTG", "IMAGE_OR_LOGO").embroideryArtworkType, null);
 });
 
 test("profile picture upload stores Shopify media and returns a display URL", async () => {
