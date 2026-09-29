@@ -863,6 +863,27 @@ test("new Creator Product can exist before PitchPrint saves a project", async ()
   assert.equal(product.pitchprintDesignId, "pp_design_global_hoodie");
 });
 
+test("Creator draft persists each selected printing method before PitchPrint launch", async () => {
+  for (const productionMethod of ["EMBROIDERY", "DTF", "DTG"]) {
+    const db = fakeDb();
+    const product = await createCreatorProductDraft(
+      shop,
+      "gid://shopify/Customer/1",
+      {
+        shopifyProductId: baseProduct.id,
+        selectedProductionMethod: productionMethod,
+      },
+      fakeClient(),
+      db,
+    );
+
+    const setup = JSON.parse(product.designVariantSelectionsJson);
+    assert.equal(setup.productionMethod, productionMethod);
+    assert.equal(setup.fixedProductionMethod, productionMethod);
+    assert.equal(product.pitchprintProjectId, null);
+  }
+});
+
 test("base product without PitchPrint design ID cannot create a broken Creator Product", async () => {
   const db = fakeDb();
   await assert.rejects(
@@ -995,6 +1016,41 @@ test("PitchPrint Creator save preserves the fixed color and production method", 
   assert.deepEqual(setup.selectedColors, ["White"]);
   assert.equal(setup.productionMethod, "DTF");
   assert.equal(setup.placementCount, 1);
+});
+
+test("a legacy draft without a persisted method cannot accept one from the PitchPrint handoff", async () => {
+  const db = fakeDb();
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id, selectedProductionMethod: "DTF" },
+    fakeClient(),
+    db,
+  );
+  draft.designVariantSelectionsJson = JSON.stringify({
+    schema: "creator_design_setup_v1",
+    fixedColor: "",
+  });
+
+  await assert.rejects(
+    () =>
+      attachPitchPrintProjectToCreatorProduct(
+        shop,
+        "gid://shopify/Customer/1",
+        draft.id,
+        {
+          ...pitchPrintPayload({ projectId: "pp_legacy_missing_method" }),
+          creatorSetup: {
+            ...pitchPrintPayload({ projectId: "pp_legacy_missing_method" })
+              .creatorSetup,
+            productionMethod: "DTF",
+            fixedProductionMethod: "DTF",
+          },
+        },
+        db,
+      ),
+    /Printing method is missing\. Please return to Add Product and start a new design\./,
+  );
 });
 
 test("editing a Creator design persists the customizer's updated valid color while keeping its method fixed", async () => {

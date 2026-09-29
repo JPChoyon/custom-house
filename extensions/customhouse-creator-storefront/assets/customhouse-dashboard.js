@@ -1186,13 +1186,39 @@ function parseJsonObject(value) {
 }
 
 function creatorSetupForProduct(product) {
-  if (product?._customHouseCreatorSetup) return product._customHouseCreatorSetup;
   const setup = parseJsonObject(product?.designVariantSelectionsJson);
-  return setup?.schema === "creator_design_setup_v1" ? setup : null;
+  if (setup?.schema === "creator_design_setup_v1") return setup;
+  return product?._customHouseCreatorSetup || null;
+}
+
+function normalizedCreatorProductionMethod(value) {
+  const method = String(value || "").trim().toUpperCase();
+  return ["EMBROIDERY", "DTF", "DTG"].includes(method) ? method : "";
+}
+
+export function creatorProductProductionMethod(product) {
+  const setup = creatorSetupForProduct(product);
+  return normalizedCreatorProductionMethod(
+    setup?.productionMethod ||
+      setup?.fixedProductionMethod ||
+      setup?.selectedProductionMethod,
+  );
+}
+
+export function creatorSaveSetup(product, handoffSetup) {
+  const productionMethod = creatorProductProductionMethod(product);
+  if (!productionMethod) return null;
+  return normalizeCreatorSetupPayload({
+    ...(handoffSetup && typeof handoffSetup === "object" ? handoffSetup : {}),
+    selectedProductionMethod: productionMethod,
+    productionMethod,
+    fixedProductionMethod: productionMethod,
+  });
 }
 
 export function creatorReviewPresentation(product, selectedIndex = 0) {
   const setup = creatorSetupForProduct(product);
+  const productionMethod = creatorProductProductionMethod(product);
   const savedSurfaces = Array.isArray(setup?.previewSurfaces)
     ? setup.previewSurfaces
         .map((surface, index) => ({
@@ -1216,7 +1242,7 @@ export function creatorReviewPresentation(product, selectedIndex = 0) {
   const normalizedIndex = Number.isSafeInteger(selectedIndex) && selectedIndex >= 0
     ? Math.min(selectedIndex, Math.max(previews.length - 1, 0))
     : 0;
-  const embroideryArtworkType = setup?.productionMethod === "EMBROIDERY"
+  const embroideryArtworkType = productionMethod === "EMBROIDERY"
     ? {
         TEXT_ONLY: "Text only",
         IMAGE_OR_LOGO: "Image / Logo",
@@ -1226,6 +1252,8 @@ export function creatorReviewPresentation(product, selectedIndex = 0) {
   return {
     previews,
     selectedPreview: previews[normalizedIndex] || null,
+    productionMethod,
+    fixedColor: String(setup?.fixedColor || "").trim(),
     embroideryArtworkType,
   };
 }
@@ -1285,6 +1313,7 @@ function creatorPitchPrintConfig(root, product, identity) {
   const baseProduct = baseProductForPitchPrint(root, hydratedProduct);
   const variants = pitchPrintProductVariants(hydratedProduct);
   const setup = creatorSetupForProduct(product);
+  const productionMethod = creatorProductProductionMethod(product);
   const pricing = productionPricingForProduct(root, hydratedProduct);
   const productionMethods = Array.isArray(pricing?.productionMethods)
     ? pricing.productionMethods
@@ -1333,9 +1362,9 @@ function creatorPitchPrintConfig(root, product, identity) {
     selectedColor: setup?.fixedColor || "",
     selectedColors: setup?.fixedColor ? [setup.fixedColor] : [],
     fixedColor: setup?.fixedColor || "",
-    selectedProductionMethod: setup?.productionMethod || "",
-    productionMethod: setup?.productionMethod || "",
-    fixedProductionMethod: setup?.productionMethod || "",
+    selectedProductionMethod: productionMethod,
+    productionMethod,
+    fixedProductionMethod: productionMethod,
     productionMethods,
     productionMethodPricing: pricing?.productionMethodPricing || {},
     supportsMultipleSelections: false,
@@ -1536,12 +1565,13 @@ function bindPitchPrintManager(root) {
       handler?.(event);
     });
   };
-  const buildCreatorSavePayload = () => {
+  const buildCreatorSavePayload = (product) => {
     const setupEvent = manager.pendingCreatorSetup;
     const saveEvent = manager.pendingPitchPrintSave;
     const projectId = saveEvent?.projectId || "";
     const previews = saveEvent?.previews || [];
-    if (!projectId || !previews.length || !setupEvent?.creatorSetup) return null;
+    const creatorSetup = creatorSaveSetup(product, setupEvent?.creatorSetup);
+    if (!projectId || !previews.length || !creatorSetup) return null;
     return {
       ...(saveEvent || {}),
       ...setupEvent,
@@ -1552,12 +1582,12 @@ function bindPitchPrintManager(root) {
       source: saveEvent?.source,
       numPages: saveEvent?.numPages,
       meta: saveEvent?.meta,
-      creatorSetup: setupEvent.creatorSetup,
+      creatorSetup,
     };
   };
   const savePendingCreatorProduct = async (product, token) => {
     if (manager.projectSaved || token !== manager.token) return;
-    const savePayload = buildCreatorSavePayload();
+    const savePayload = buildCreatorSavePayload(product);
     if (!savePayload) {
       pitchPrintDiagnostics(root, "creator-save-pending", {
         creatorProductId: product?.id || "",
@@ -1567,7 +1597,19 @@ function bindPitchPrintManager(root) {
             manager.pendingPitchPrintSave?.projectId,
         ),
         previewCount: manager.pendingPitchPrintSave?.previews?.length || 0,
+        hasPersistedProductionMethod: Boolean(
+          creatorProductProductionMethod(product),
+        ),
       });
+      if (!creatorProductProductionMethod(product)) {
+        manager.saveFailureNotified = true;
+        showCreatorToast(
+          root,
+          "Printing method is missing. Please return to Add Product and start a new design.",
+          true,
+        );
+        return;
+      }
       if (
         manager.pendingPitchPrintSave &&
         manager.pendingCreatorSetup?.creatorSetup &&
@@ -1671,6 +1713,11 @@ function bindPitchPrintManager(root) {
     const token = manager.token;
     const restoreButton = setActionLoading(sourceButton, "Preparing designer...");
     try {
+      if (!creatorProductProductionMethod(product)) {
+        throw new Error(
+          "Printing method is missing. Please return to Add Product and start a new design.",
+        );
+      }
       const { designId, projectId, mode } = creatorPitchPrintLaunchConfig(product);
       manager.activeProjectId = projectId;
       const apiKey = root.dataset.pitchprintApiKey || "";
@@ -1962,12 +2009,20 @@ function renderReviewVariantSelections(root, product) {
   const title = document.createElement("strong");
   title.textContent = "Creator setup";
   const list = document.createElement("ul");
+  const presentation = creatorReviewPresentation(product);
+  const methodLabels = {
+    EMBROIDERY: "Embroidery",
+    DTF: "DTF",
+    DTG: "DTG",
+  };
   const rows = [
-    `Printing Method: ${setup.productionMethod}`,
-    `Color: ${setup.fixedColor}`,
+    presentation.productionMethod
+      ? `Printing Method: ${methodLabels[presentation.productionMethod]}`
+      : "Printing method is missing. Please return to Add Product and start a new design.",
+    `Color: ${presentation.fixedColor}`,
     `Designed placements: ${setup.placementCount}`,
   ];
-  const artworkType = creatorReviewPresentation(product).embroideryArtworkType;
+  const artworkType = presentation.embroideryArtworkType;
   if (artworkType) rows.splice(1, 0, `Artwork type: ${artworkType}`);
   rows.forEach((text) => {
     const item = document.createElement("li");

@@ -1606,21 +1606,34 @@ export async function attachPitchPrintProjectToCreatorProduct(
       ? [lockedColor]
       : [];
   const effectiveColor = effectiveColors.length === 1 ? effectiveColors[0] : null;
-  const lockedMethod = cleanOptionalText(lockedSetup.productionMethod, 40);
+  const lockedMethod = cleanOptionalText(
+    lockedSetup.productionMethod ||
+      lockedSetup.fixedProductionMethod ||
+      lockedSetup.selectedProductionMethod,
+    40,
+  );
+  if (!lockedMethod) {
+    throw new DomainError(
+      "PRODUCTION_METHOD_REQUIRED",
+      "Printing method is missing. Please return to Add Product and start a new design.",
+      422,
+    );
+  }
+  const persistedProductionMethod = cleanProductionMethod(lockedMethod);
   const requestedMethod = cleanOptionalText(
     requestedSetup.fixedProductionMethod || requestedSetup.productionMethod || requestedSetup.selectedProductionMethod,
     40,
   );
-  if (lockedMethod && requestedMethod && cleanProductionMethod(requestedMethod) !== cleanProductionMethod(lockedMethod)) {
+  if (requestedMethod && cleanProductionMethod(requestedMethod) !== persistedProductionMethod) {
     throw new DomainError("PRODUCTION_METHOD_LOCKED", "The printing method is fixed for this Creator Product.", 422);
   }
   const lockedInput = {
     ...input,
     fixedColor: effectiveColor || input.fixedColor,
     selectedColors: effectiveColors,
-    fixedProductionMethod: lockedMethod || input.fixedProductionMethod,
-    productionMethod: lockedMethod || input.productionMethod,
-    selectedProductionMethod: lockedMethod || input.selectedProductionMethod,
+    fixedProductionMethod: persistedProductionMethod,
+    productionMethod: persistedProductionMethod,
+    selectedProductionMethod: persistedProductionMethod,
     creatorSetup: {
       ...(input.creatorSetup && typeof input.creatorSetup === "object"
         ? (input.creatorSetup as Record<string, unknown>)
@@ -1628,11 +1641,9 @@ export async function attachPitchPrintProjectToCreatorProduct(
       fixedColor: effectiveColor || requestedSetup.fixedColor,
       selectedColor: effectiveColor || requestedSetup.selectedColor,
       selectedColors: effectiveColors,
-      fixedProductionMethod:
-        lockedMethod || requestedSetup.fixedProductionMethod,
-      productionMethod: lockedMethod || requestedSetup.productionMethod,
-      selectedProductionMethod:
-        lockedMethod || requestedSetup.selectedProductionMethod,
+      fixedProductionMethod: persistedProductionMethod,
+      productionMethod: persistedProductionMethod,
+      selectedProductionMethod: persistedProductionMethod,
     },
   };
   const setup = await cleanCreatorProductSetup(
