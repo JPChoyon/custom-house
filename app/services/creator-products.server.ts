@@ -2058,13 +2058,13 @@ async function cleanUpPublishedCreatorShopifyProduct(
     const result = await client.request<{
       productUpdate: {
         product: { id: string; status: string } | null;
-        userErrors: Array<{ code?: string | null }>;
+        userErrors: Array<{ field?: string[] | null; message: string }>;
       };
     }>(
       `#graphql mutation ArchiveCreatorProductCleanup($product: ProductUpdateInput!) {
         productUpdate(product: $product) {
           product { id status }
-          userErrors { code }
+          userErrors { field message }
         }
       }`,
       { product: { id: publishedId, status: "ARCHIVED" } },
@@ -2081,13 +2081,13 @@ async function cleanUpPublishedCreatorShopifyProduct(
   const result = await client.request<{
     productDelete: {
       deletedProductId: string | null;
-      userErrors: Array<{ code?: string | null }>;
+      userErrors: Array<{ field?: string[] | null; message: string }>;
     };
   }>(
     `#graphql mutation DeleteCreatorProductCleanup($input: ProductDeleteInput!) {
       productDelete(input: $input) {
         deletedProductId
-        userErrors { code }
+        userErrors { field message }
       }
     }`,
     { input: { id: publishedId } },

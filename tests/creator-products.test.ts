@@ -1838,6 +1838,8 @@ test("admin cleanup archives and deletes only the exact canonical Creator Shopif
         };
       }
       if (query.includes("ArchiveCreatorProductCleanup")) {
+        assert.doesNotMatch(query, /userErrors\s*\{\s*code/);
+        assert.match(query, /userErrors\s*\{\s*field\s+message\s*\}/);
         mutations.push("archive");
         return {
           productUpdate: {
@@ -1847,6 +1849,8 @@ test("admin cleanup archives and deletes only the exact canonical Creator Shopif
         };
       }
       if (query.includes("DeleteCreatorProductCleanup")) {
+        assert.doesNotMatch(query, /userErrors\s*\{\s*code/);
+        assert.match(query, /userErrors\s*\{\s*field\s+message\s*\}/);
         mutations.push("delete");
         return {
           productDelete: {
