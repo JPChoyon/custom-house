@@ -1,6 +1,5 @@
-export type CreatorProductionMetadataSnapshot = {
+export type CreatorProductionMetadata = {
   version: 1;
-  creatorProductId: string;
   pitchprintProjectId: string | null;
   pitchprintMasterProjectId: string | null;
   pitchprintDesignId: string | null;
@@ -8,19 +7,12 @@ export type CreatorProductionMetadataSnapshot = {
   productionMethod: "EMBROIDERY" | "DTF" | "DTG" | null;
   embroiderySubtype: "TEXT_ONLY" | "IMAGE_OR_LOGO" | null;
   placementCount: number;
-  placements: string[];
-  previewSurfaces: Array<{
-    side: string;
-    url: string;
-    hasArtwork: boolean;
-  }>;
 };
 
-type CreatorProductMetadataSource = {
-  id: string;
-  pitchprintProjectId: string | null;
-  pitchprintDesignId: string | null;
-  designVariantSelectionsJson: string;
+type ShopifyLineAttribute = {
+  key?: string;
+  name?: string;
+  value?: string;
 };
 
 function cleanOptionalText(value: unknown, maxLength: number) {
@@ -28,83 +20,47 @@ function cleanOptionalText(value: unknown, maxLength: number) {
   return text ? text.slice(0, maxLength) : null;
 }
 
-function setupFromJson(value: string) {
-  try {
-    const parsed = JSON.parse(value || "{}");
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : {};
-  } catch {
-    return {};
-  }
+function attributeValue(attributes: ShopifyLineAttribute[], key: string) {
+  return cleanOptionalText(
+    attributes.find((attribute) => (attribute.key || attribute.name) === key)?.value,
+    3000,
+  );
 }
 
-export function creatorProductionMetadataSnapshot(
-  product: CreatorProductMetadataSource,
-  orderProjectId: string | null,
-): CreatorProductionMetadataSnapshot {
-  const setup = setupFromJson(product.designVariantSelectionsJson);
+export function creatorProductionMetadataFromAttributes(
+  value: ShopifyLineAttribute[] | null | undefined,
+): CreatorProductionMetadata {
+  const attributes = Array.isArray(value) ? value : [];
+  const method = attributeValue(attributes, "_production_method");
   const productionMethod = ["EMBROIDERY", "DTF", "DTG"].includes(
-    String(setup.productionMethod || ""),
+    method || "",
   )
-    ? (setup.productionMethod as CreatorProductionMetadataSnapshot["productionMethod"])
+    ? (method as CreatorProductionMetadata["productionMethod"])
     : null;
+  const subtype = attributeValue(attributes, "_embroidery_subtype");
   const embroiderySubtype =
     productionMethod === "EMBROIDERY" &&
-    ["TEXT_ONLY", "IMAGE_OR_LOGO"].includes(String(setup.embroiderySubtype || ""))
-      ? (setup.embroiderySubtype as CreatorProductionMetadataSnapshot["embroiderySubtype"])
+    ["TEXT_ONLY", "IMAGE_OR_LOGO"].includes(subtype || "")
+      ? (subtype as CreatorProductionMetadata["embroiderySubtype"])
       : null;
-  const placementCount = Number(setup.placementCount);
-  const placements = (Array.isArray(setup.placements) ? setup.placements : [])
-    .map((placement) => cleanOptionalText(placement, 80))
-    .filter((placement): placement is string => Boolean(placement))
-    .slice(0, 20);
-  const previewSurfaces = (
-    Array.isArray(setup.previewSurfaces) ? setup.previewSurfaces : []
-  )
-    .map((surface) => {
-      const record =
-        surface && typeof surface === "object" && !Array.isArray(surface)
-          ? (surface as Record<string, unknown>)
-          : {};
-      const side = cleanOptionalText(record.side, 80);
-      const url = cleanOptionalText(record.url, 2048);
-      return side && url?.startsWith("https://")
-        ? { side, url, hasArtwork: record.hasArtwork === true }
-        : null;
-    })
-    .filter(
-      (surface): surface is CreatorProductionMetadataSnapshot["previewSurfaces"][number] =>
-        Boolean(surface),
-    )
-    .slice(0, 10);
+  const placementCount = Number(
+    attributeValue(attributes, "_designed_placement_count"),
+  );
 
   return {
     version: 1,
-    creatorProductId: product.id,
-    pitchprintProjectId: cleanOptionalText(orderProjectId, 200),
-    pitchprintMasterProjectId: cleanOptionalText(product.pitchprintProjectId, 200),
-    pitchprintDesignId: cleanOptionalText(product.pitchprintDesignId, 200),
-    fixedColor: cleanOptionalText(setup.fixedColor, 120) || "",
+    pitchprintProjectId: attributeValue(attributes, "_pitchprint"),
+    pitchprintMasterProjectId: attributeValue(
+      attributes,
+      "_creator_master_project_id",
+    ),
+    pitchprintDesignId: attributeValue(attributes, "_pitchprint_design_id"),
+    fixedColor: attributeValue(attributes, "_fixed_color") || "",
     productionMethod,
     embroiderySubtype,
     placementCount:
       Number.isSafeInteger(placementCount) && placementCount > 0 && placementCount <= 20
         ? placementCount
         : 0,
-    placements,
-    previewSurfaces,
   };
-}
-
-export function parseCreatorProductionMetadata(value: unknown) {
-  if (typeof value !== "string") return null;
-  try {
-    const parsed = JSON.parse(value);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? (parsed as CreatorProductionMetadataSnapshot)
-      : null;
-  } catch {
-    return null;
-  }
 }

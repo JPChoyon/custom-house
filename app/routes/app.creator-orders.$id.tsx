@@ -17,7 +17,7 @@ import {
   updateCreatorOrderProduction,
 } from "../services/creator-orders.server";
 import { creatorEarning } from "../services/creator-sales";
-import { parseCreatorProductionMetadata } from "../services/creator-production-metadata";
+import { creatorProductionMetadataFromAttributes } from "../services/creator-production-metadata";
 
 function statusLabel(status: string) {
   return status
@@ -222,8 +222,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const commission = sale
     ? creatorEarning(netSale!, sale.commissionRateBps)
     : null;
-  const productionMetadata = parseCreatorProductionMetadata(
-    result.item.productionMetadataJson,
+  const productionMetadata = creatorProductionMetadataFromAttributes(
+    shopify.lineItem?.customAttributes,
   );
   return {
     shop: session.shop,
