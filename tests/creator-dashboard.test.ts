@@ -1211,7 +1211,7 @@ test("creator review uses persisted PitchPrint surfaces and changes the selected
 });
 
 test("creator review labels image embroidery and omits artwork type for DTF or DTG", () => {
-  const presentation = (productionMethod, embroiderySubtype) =>
+  const presentation = (productionMethod: string, embroiderySubtype: string) =>
     creatorReviewPresentation({
       previewUrls: ["https://cdn.pitchprint.test/front-render.png"],
       designVariantSelectionsJson: JSON.stringify({

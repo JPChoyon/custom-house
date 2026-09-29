@@ -11,6 +11,7 @@ import {
   signCreatorAttribution,
   verifyCreatorAttribution,
 } from "../app/services/creator-attribution.server.ts";
+import { creatorProductionMetadataSnapshot } from "../app/services/creator-production-metadata.ts";
 import { shouldRedirectToCreatorDashboard } from "../extensions/customhouse-creator-storefront/assets/creator-application-guard.js";
 
 test("paid creator sales use the product line total from the order", () => {
@@ -293,9 +294,51 @@ test("creator order item schema separates operations from CreatorSale finance", 
   assert.match(orderBlock, /creatorSaleId\s+String\?\s+@unique/);
   assert.match(orderBlock, /pitchprintProjectId\s+String\?/);
   assert.match(orderBlock, /creatorPreviewUrl\s+String\?/);
+  assert.match(orderBlock, /productionMetadataJson\s+String\s+@default\("\{\}"\)/);
   assert.match(orderBlock, /productionNotes\s+String\?/);
   assert.match(orderBlock, /@@unique\(\[shop, shopifyOrderId, shopifyLineItemId, creatorProductId\]\)/);
   assert.doesNotMatch(saleBlock, /productionStatus|productionNotes|readyAt|fulfilledAt/);
+});
+
+test("creator order snapshot preserves the authoritative production configuration", () => {
+  assert.deepEqual(
+    creatorProductionMetadataSnapshot(
+      {
+        id: "cmcreatorproduct00000001",
+        pitchprintProjectId: "pp_master",
+        pitchprintDesignId: "pp_design",
+        designVariantSelectionsJson: JSON.stringify({
+          schema: "creator_design_setup_v1",
+          fixedColor: "Green",
+          productionMethod: "EMBROIDERY",
+          embroiderySubtype: "IMAGE_OR_LOGO",
+          placementCount: 2,
+          placements: ["Front", "Back"],
+          previewSurfaces: [
+            { side: "Front", url: "https://cdn.pitchprint.test/front.png", hasArtwork: true },
+            { side: "Back", url: "https://cdn.pitchprint.test/back.png", hasArtwork: true },
+          ],
+        }),
+      },
+      "pp_order_clone",
+    ),
+    {
+      version: 1,
+      creatorProductId: "cmcreatorproduct00000001",
+      pitchprintProjectId: "pp_order_clone",
+      pitchprintMasterProjectId: "pp_master",
+      pitchprintDesignId: "pp_design",
+      fixedColor: "Green",
+      productionMethod: "EMBROIDERY",
+      embroiderySubtype: "IMAGE_OR_LOGO",
+      placementCount: 2,
+      placements: ["Front", "Back"],
+      previewSurfaces: [
+        { side: "Front", url: "https://cdn.pitchprint.test/front.png", hasArtwork: true },
+        { side: "Back", url: "https://cdn.pitchprint.test/back.png", hasArtwork: true },
+      ],
+    },
+  );
 });
 
 test("creator order admin routes are admin-only and public routes do not expose operations", () => {

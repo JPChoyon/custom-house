@@ -8,6 +8,7 @@ import {
 } from "./creator-storefront-urls";
 import { DomainError } from "./domain";
 import { correlationId, safeDiagnostic } from "./observability.server";
+import { creatorProductionMetadataSnapshot } from "./creator-production-metadata";
 
 type CreatorOrderOwner = {
   creatorId: string;
@@ -185,6 +186,9 @@ export async function ensureCreatorOrderItemForPaidLine(input: {
       previewUrls: true,
       shopifyProductId: true,
       baseProductTitle: true,
+      pitchprintProjectId: true,
+      pitchprintDesignId: true,
+      designVariantSelectionsJson: true,
       creator: {
         select: {
           id: true,
@@ -200,6 +204,9 @@ export async function ensureCreatorOrderItemForPaidLine(input: {
     input.line.productTitle ||
     "Creator product";
   const creatorName = input.line.creatorName || product.creator.displayName;
+  const productionMetadataJson = safeJson(
+    creatorProductionMetadataSnapshot(product, input.line.pitchprintProjectId),
+  );
   return db.creatorOrderItem.upsert({
     where: {
       shop_shopifyOrderId_shopifyLineItemId_creatorProductId: {
@@ -231,6 +238,7 @@ export async function ensureCreatorOrderItemForPaidLine(input: {
       lineSubtotal: input.line.grossSalesAmount,
       currencyCode: input.line.currencyCode,
       creatorPreviewUrl: creatorPreviewForLine(input.line, product),
+      productionMetadataJson,
     },
     update: {
       shopifyOrderName: input.line.shopifyOrderName,

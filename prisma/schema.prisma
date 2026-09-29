@@ -711,6 +711,7 @@ model CreatorOrderItem {
   lineSubtotal                Decimal                      @db.Decimal(20, 4)
   currencyCode                String
   creatorPreviewUrl           String?
+  productionMetadataJson      String                       @default("{}")
   productionStatus            CreatorOrderProductionStatus @default(NEW)
   productionNotes             String?
   readyAt                     DateTime?

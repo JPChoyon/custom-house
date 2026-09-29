@@ -2724,10 +2724,16 @@ export async function prepareCreatorProductCart(
       409,
     );
   }
-  const embroiderySubtype =
-    productionMethod === "EMBROIDERY" && setup.embroiderySubtype
-      ? cleanEmbroiderySubtype(setup.embroiderySubtype)
-      : null;
+  if (productionMethod === "EMBROIDERY" && !setup.embroiderySubtype) {
+    throw new DomainError(
+      "EMBROIDERY_SUBTYPE_REQUIRED",
+      "Embroidery artwork type must be resolved before purchase.",
+      409,
+    );
+  }
+  const embroiderySubtype = productionMethod === "EMBROIDERY"
+    ? cleanEmbroiderySubtype(setup.embroiderySubtype)
+    : null;
   const surchargeMinor = decimalMoneyToMinorUnits(
     embroiderySubtype
       ? pricingForEmbroiderySubtype(pricing, embroiderySubtype)
@@ -2792,6 +2798,8 @@ export async function prepareCreatorProductCart(
   ].join("-");
   const properties = {
     _pitchprint: orderProjectId,
+    _pitchprint_design_id: product.pitchprintDesignId || "",
+    _creator_master_project_id: product.pitchprintProjectId,
     _creator_product_id: product.id,
     _creator_id: product.creatorId,
     _creator_collection_id: product.collection.id,
@@ -2800,6 +2808,8 @@ export async function prepareCreatorProductCart(
     _creator_public_handle: product.collection.publicHandle,
     _customhouse_creator_handle: product.collection.publicHandle,
     _production_method: productionMethod,
+    _fixed_color: setup.fixedColor,
+    _designed_placement_count: String(setup.placementCount),
     ...(embroiderySubtype ? { _embroidery_subtype: embroiderySubtype } : {}),
     _customhouse_fee_key: feeKey,
     ...(previewUrl ? { _creator_preview_url: previewUrl } : {}),
@@ -2808,7 +2818,13 @@ export async function prepareCreatorProductCart(
     "Creator": product.creator.displayName,
     "Color": setup.fixedColor,
     "Printing method": productionMethod,
-    ...(embroiderySubtype ? { "Embroidery artwork": embroiderySubtype } : {}),
+    ...(embroiderySubtype
+      ? {
+          "Embroidery artwork":
+            embroiderySubtype === "TEXT_ONLY" ? "Text only" : "Image / Logo",
+        }
+      : {}),
+    "Designed placements": String(setup.placementCount),
     "Customized product acknowledgement": "Accepted",
     "Terms & Conditions": "Accepted",
   };
@@ -2826,6 +2842,8 @@ export async function prepareCreatorProductCart(
             _customhouse_fee_key: feeKey,
             _pitchprint: orderProjectId,
             _production_method: productionMethod,
+            _fixed_color: setup.fixedColor,
+            _designed_placement_count: String(setup.placementCount),
             ...(embroiderySubtype ? { _embroidery_subtype: embroiderySubtype } : {}),
             _customhouse_creator_product_fee: "true",
             "Printing method": productionMethod,

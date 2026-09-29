@@ -66,6 +66,7 @@ export type CreatorProductForPublish = {
   shopifyProductId: string;
   baseProductTitle: string;
   pitchprintProjectId: string | null;
+  pitchprintDesignId: string | null;
   title: string;
   description: string | null;
   previewUrl: string | null;
@@ -146,10 +147,16 @@ export function creatorCartValidationContract(
     );
   }
   const method = cleanProductionMethod(setup.productionMethod);
-  const embroiderySubtype =
-    method === "EMBROIDERY" && setup.embroiderySubtype
-      ? cleanEmbroiderySubtype(setup.embroiderySubtype)
-      : null;
+  if (method === "EMBROIDERY" && !setup.embroiderySubtype) {
+    throw new DomainError(
+      "EMBROIDERY_SUBTYPE_REQUIRED",
+      "Embroidery artwork type must be resolved before publishing.",
+      409,
+    );
+  }
+  const embroiderySubtype = method === "EMBROIDERY"
+    ? cleanEmbroiderySubtype(setup.embroiderySubtype)
+    : null;
   const surchargeMinor = decimalMoneyToMinorUnits(
     embroiderySubtype
       ? pricingForEmbroiderySubtype(pricing, embroiderySubtype)
@@ -178,7 +185,12 @@ export function creatorCartValidationContract(
 export function nativeCreatorProductMetafields(input: {
   product: Pick<
     CreatorProductForPublish,
-    "id" | "creatorId" | "shopifyProductId" | "pitchprintProjectId" | "creator"
+    | "id"
+    | "creatorId"
+    | "shopifyProductId"
+    | "pitchprintProjectId"
+    | "pitchprintDesignId"
+    | "creator"
   >;
   productId: string;
   collection: Pick<
@@ -197,6 +209,7 @@ export function nativeCreatorProductMetafields(input: {
     ["creator_shopify_collection_id", input.collection.shopifyCollectionId || ""],
     ["base_product_id", input.product.shopifyProductId],
     ["pitchprint_master_project_id", input.product.pitchprintProjectId || ""],
+    ["pitchprint_design_id", input.product.pitchprintDesignId || ""],
     ["product_origin", "creator"],
     ["design_mode", "buy_only"],
     ["design_status", "published"],
@@ -206,6 +219,9 @@ export function nativeCreatorProductMetafields(input: {
     ["fixed_color", input.setup.fixedColor],
     ["production_method", input.setup.productionMethod],
     ["designed_placement_count", String(input.setup.placementCount)],
+    ...(input.setup.embroiderySubtype
+      ? [["embroidery_artwork_type", input.setup.embroiderySubtype]]
+      : []),
   ].map(([key, value]) => ({
     ownerId: input.productId,
     namespace: "customhouse",
@@ -221,6 +237,23 @@ export function nativeCreatorProductMetafields(input: {
     key: "creator_cart_validation",
     type: "json",
     value: safeJson(input.cartValidationContract),
+  });
+  metafields.push({
+    ownerId: input.productId,
+    namespace: "customhouse",
+    key: "creator_design_metadata",
+    type: "json",
+    value: safeJson({
+      version: 1,
+      pitchprintProjectId: input.product.pitchprintProjectId || null,
+      pitchprintDesignId: input.product.pitchprintDesignId || null,
+      fixedColor: input.setup.fixedColor,
+      productionMethod: input.setup.productionMethod,
+      embroiderySubtype: input.setup.embroiderySubtype || null,
+      placementCount: input.setup.placementCount,
+      placements: input.setup.placements,
+      previewSurfaces: input.setup.previewSurfaces || [],
+    }),
   });
   return metafields;
 }

@@ -235,7 +235,12 @@ function pitchPrintPayload(input: {
   };
 }
 
-function creatorSetupJson(color = "White", method = "EMBROIDERY", placementCount = 1) {
+function creatorSetupJson(
+  color = "White",
+  method = "EMBROIDERY",
+  placementCount = 1,
+  embroiderySubtype = method === "EMBROIDERY" ? "TEXT_ONLY" : undefined,
+) {
   return JSON.stringify({
     schema: "creator_design_setup_v1",
     flowMode: "CREATOR_DESIGN",
@@ -248,6 +253,7 @@ function creatorSetupJson(color = "White", method = "EMBROIDERY", placementCount
     fixedColor: color,
     selectedColors: [color],
     productionMethod: method,
+    ...(embroiderySubtype ? { embroiderySubtype } : {}),
     placementCount,
     placements: Array.from(
       { length: placementCount },
@@ -536,9 +542,13 @@ function fakeDb() {
           shopKey: shop,
           shopifyProductId: baseProduct.id,
           embroiderySurcharge: parseSurchargeInput("50.00"),
+          embroideryTextSurcharge: parseSurchargeInput("50.00"),
+          embroideryImageSurcharge: parseSurchargeInput("70.00"),
           dtfSurcharge: parseSurchargeInput("30.00"),
           dtgSurcharge: parseSurchargeInput("20.00"),
           embroideryFeeVariantId: "gid://shopify/ProductVariant/9001",
+          embroideryTextFeeVariantId: "gid://shopify/ProductVariant/9004",
+          embroideryImageFeeVariantId: "gid://shopify/ProductVariant/9005",
           dtfFeeVariantId: "gid://shopify/ProductVariant/9002",
           dtgFeeVariantId: "gid://shopify/ProductVariant/9003",
         };
@@ -2906,6 +2916,117 @@ test("positive Creator surcharge requires synced fee merchandise at publish time
   );
 });
 
+test("Creator publishing selects configured Embroidery subtype pricing and rejects unresolved subtype", () => {
+  const api = creatorCartContractApi();
+  const pricing = {
+    embroiderySurcharge: parseSurchargeInput("50"),
+    embroideryTextSurcharge: parseSurchargeInput("11"),
+    embroideryImageSurcharge: parseSurchargeInput("29"),
+    dtfSurcharge: parseSurchargeInput("30"),
+    dtgSurcharge: parseSurchargeInput("20"),
+    embroideryFeeVariantId: "gid://shopify/ProductVariant/9001",
+    embroideryTextFeeVariantId: "gid://shopify/ProductVariant/9004",
+    embroideryImageFeeVariantId: "gid://shopify/ProductVariant/9005",
+    dtfFeeVariantId: "gid://shopify/ProductVariant/9002",
+    dtgFeeVariantId: "gid://shopify/ProductVariant/9003",
+  };
+  const textSetup = JSON.parse(
+    creatorSetupJson("Green", "EMBROIDERY", 2, "TEXT_ONLY"),
+  );
+  const imageSetup = JSON.parse(
+    creatorSetupJson("Green", "EMBROIDERY", 2, "IMAGE_OR_LOGO"),
+  );
+
+  assert.equal(
+    api.creatorCartValidationContract("creator-text", textSetup, pricing)
+      .feeVariantId,
+    "gid://shopify/ProductVariant/9004",
+  );
+  assert.equal(
+    api.creatorCartValidationContract("creator-image", imageSetup, pricing)
+      .feeVariantId,
+    "gid://shopify/ProductVariant/9005",
+  );
+  assert.equal(
+    api.creatorCartValidationContract(
+      "creator-dtf",
+      JSON.parse(creatorSetupJson("Green", "DTF", 2)),
+      pricing,
+    ).feeVariantId,
+    "gid://shopify/ProductVariant/9002",
+  );
+  const unresolved = { ...textSetup };
+  delete unresolved.embroiderySubtype;
+  assert.throws(
+    () => api.creatorCartValidationContract("creator-unresolved", unresolved, pricing),
+    (error) =>
+      error instanceof DomainError &&
+      error.code === "EMBROIDERY_SUBTYPE_REQUIRED",
+  );
+});
+
+test("published Creator metadata fixes project design color method subtype placements and surfaces", () => {
+  const api = creatorCartContractApi();
+  const setup = {
+    ...JSON.parse(creatorSetupJson("Green", "EMBROIDERY", 2, "IMAGE_OR_LOGO")),
+    placements: ["Front", "Back"],
+    previewSurfaces: [
+      { side: "Front", url: "https://cdn.pitchprint.test/front.png", hasArtwork: true },
+      { side: "Back", url: "https://cdn.pitchprint.test/back.png", hasArtwork: true },
+    ],
+  };
+  const pricing = {
+    embroiderySurcharge: parseSurchargeInput("50"),
+    embroideryTextSurcharge: parseSurchargeInput("11"),
+    embroideryImageSurcharge: parseSurchargeInput("29"),
+    dtfSurcharge: parseSurchargeInput("30"),
+    dtgSurcharge: parseSurchargeInput("20"),
+    embroideryFeeVariantId: "gid://shopify/ProductVariant/9001",
+    embroideryTextFeeVariantId: "gid://shopify/ProductVariant/9004",
+    embroideryImageFeeVariantId: "gid://shopify/ProductVariant/9005",
+    dtfFeeVariantId: "gid://shopify/ProductVariant/9002",
+    dtgFeeVariantId: "gid://shopify/ProductVariant/9003",
+  };
+  const contract = api.creatorCartValidationContract("creator-product-2", setup, pricing);
+  const metafields = api.nativeCreatorProductMetafields({
+    productId: "gid://shopify/Product/500",
+    product: {
+      id: "creator-product-2",
+      creatorId: "creator-1",
+      shopifyProductId: "gid://shopify/Product/100",
+      pitchprintProjectId: "pp_master",
+      pitchprintDesignId: "pp_design",
+      creator: { displayName: "Demo Creator" },
+    },
+    collection: {
+      id: "collection-1",
+      publicHandle: "demo-creator",
+      displayName: "Demo Creator Designs",
+      shopifyCollectionId: "gid://shopify/Collection/10",
+    },
+    setup,
+    cartValidationContract: contract,
+  });
+  const byKey = new Map(metafields.map((item) => [item.key, item]));
+
+  assert.equal(byKey.get("pitchprint_design_id")?.value, "pp_design");
+  assert.equal(byKey.get("embroidery_artwork_type")?.value, "IMAGE_OR_LOGO");
+  assert.deepEqual(
+    JSON.parse(byKey.get("creator_design_metadata")?.value || "null"),
+    {
+      version: 1,
+      pitchprintProjectId: "pp_master",
+      pitchprintDesignId: "pp_design",
+      fixedColor: "Green",
+      productionMethod: "EMBROIDERY",
+      embroiderySubtype: "IMAGE_OR_LOGO",
+      placementCount: 2,
+      placements: ["Front", "Back"],
+      previewSurfaces: setup.previewSurfaces,
+    },
+  );
+});
+
 test("native Creator purchase delegates to authoritative cart pricing and saved method", async () => {
   const database = fakeDb();
   const draft = await createCreatorProductDraft(
@@ -3083,9 +3204,13 @@ test("creator buy-only detail and cart use shared creator production pricing", a
       shopKey: shop,
       shopifyProductId: key,
       embroiderySurcharge: parseSurchargeInput("10.00"),
+      embroideryTextSurcharge: parseSurchargeInput("11.00"),
+      embroideryImageSurcharge: parseSurchargeInput("12.00"),
       dtfSurcharge: parseSurchargeInput("30.00"),
       dtgSurcharge: parseSurchargeInput("20.00"),
       embroideryFeeVariantId: "gid://shopify/ProductVariant/9101",
+      embroideryTextFeeVariantId: "gid://shopify/ProductVariant/9104",
+      embroideryImageFeeVariantId: "gid://shopify/ProductVariant/9105",
       dtfFeeVariantId: "gid://shopify/ProductVariant/9102",
       dtgFeeVariantId: "gid://shopify/ProductVariant/9103",
     };
@@ -3154,9 +3279,13 @@ test("creator cart prep resyncs stale shared creator fee variants", async () => 
     shopKey: shop,
     shopifyProductId: CREATOR_PRODUCTION_PRICING_PRODUCT_ID,
     embroiderySurcharge: parseSurchargeInput("10.00"),
+    embroideryTextSurcharge: parseSurchargeInput("11.00"),
+    embroideryImageSurcharge: parseSurchargeInput("12.00"),
     dtfSurcharge: parseSurchargeInput("30.00"),
     dtgSurcharge: parseSurchargeInput("20.00"),
     embroideryFeeVariantId: "gid://shopify/ProductVariant/9101",
+    embroideryTextFeeVariantId: "gid://shopify/ProductVariant/9104",
+    embroideryImageFeeVariantId: "gid://shopify/ProductVariant/9105",
     dtfFeeVariantId: "gid://shopify/ProductVariant/9102",
     dtgFeeVariantId: "gid://shopify/ProductVariant/9103",
   };
@@ -3418,6 +3547,66 @@ test("creator buy-only production fee quantity uses saved designed placement cou
   assert.equal(cart.items[1].id, "9002");
   assert.equal(cart.items[1].quantity, 12);
   assert.equal(feeProperties["Designed placements"], "3");
+});
+
+test("Embroidery cart uses the saved subtype price and retains canonical production metadata", async () => {
+  for (const [subtype, feeVariantId, surchargeMinor] of [
+    ["TEXT_ONLY", "9004", "5000"],
+    ["IMAGE_OR_LOGO", "9005", "7000"],
+  ] as const) {
+    const db = fakeDb();
+    const draft = await createCreatorProductDraft(
+      shop,
+      "gid://shopify/Customer/1",
+      { shopifyProductId: baseProduct.id, selectedProductionMethod: "EMBROIDERY" },
+      fakeClient(),
+      db,
+    );
+    draft.id = `cmcreatorproduct${subtype === "TEXT_ONLY" ? "00000041" : "00000042"}`;
+    draft.status = "PUBLISHED";
+    draft.pitchprintProjectId = `pp_master_${subtype.toLowerCase()}`;
+    draft.pitchprintDesignId = "pp_design_green_shirt";
+    draft.previewUrl = "https://cdn.pitchprint.test/front.png";
+    draft.previewUrls = JSON.stringify([
+      "https://cdn.pitchprint.test/front.png",
+      "https://cdn.pitchprint.test/back.png",
+    ]);
+    draft.designVariantSelectionsJson = JSON.stringify({
+      ...JSON.parse(creatorSetupJson("White", "EMBROIDERY", 2, subtype)),
+      placements: ["Front", "Back"],
+      previewSurfaces: [
+        { side: "Front", url: "https://cdn.pitchprint.test/front.png", hasArtwork: true },
+        { side: "Back", url: "https://cdn.pitchprint.test/back.png", hasArtwork: true },
+      ],
+    });
+
+    const cart = await prepareCreatorProductCart(
+      shop,
+      {
+        creatorHandle: "creator-a",
+        creatorProductId: draft.id,
+        selectedVariantId: "gid://shopify/ProductVariant/2001",
+        quantity: 2,
+        embroiderySubtype: subtype === "TEXT_ONLY" ? "IMAGE_OR_LOGO" : "TEXT_ONLY",
+      } as unknown as Parameters<typeof prepareCreatorProductCart>[1],
+      fakePublicProductClient(),
+      async () => `pp_order_${subtype.toLowerCase()}`,
+      db,
+    );
+
+    assert.equal(cart.production.embroiderySubtype, subtype);
+    assert.equal(cart.production.surchargeMinor, surchargeMinor);
+    assert.equal(cart.production.feeVariantId, feeVariantId);
+    assert.equal(cart.production.feeQuantity, 4);
+    assert.equal(cart.items[1].id, feeVariantId);
+    assert.equal(cart.items[1].quantity, 4);
+    assert.equal(cart.properties._pitchprint_design_id, "pp_design_green_shirt");
+    assert.equal(cart.properties._creator_master_project_id, draft.pitchprintProjectId);
+    assert.equal(cart.properties._fixed_color, "White");
+    assert.equal(cart.properties._production_method, "EMBROIDERY");
+    assert.equal(cart.properties._embroidery_subtype, subtype);
+    assert.equal(cart.properties._designed_placement_count, "2");
+  }
 });
 
 test("cart prep uses stored preview URL list and omits invalid preview without blocking", async () => {

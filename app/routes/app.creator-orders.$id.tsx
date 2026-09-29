@@ -17,6 +17,7 @@ import {
   updateCreatorOrderProduction,
 } from "../services/creator-orders.server";
 import { creatorEarning } from "../services/creator-sales";
+import { parseCreatorProductionMetadata } from "../services/creator-production-metadata";
 
 function statusLabel(status: string) {
   return status
@@ -221,6 +222,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const commission = sale
     ? creatorEarning(netSale!, sale.commissionRateBps)
     : null;
+  const productionMetadata = parseCreatorProductionMetadata(
+    result.item.productionMetadataJson,
+  );
   return {
     shop: session.shop,
     shopifyOrderUrl: shopifyAdminOrderUrl(session.shop, result.item.shopifyOrderId),
@@ -254,6 +258,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         result.item.creatorProduct.previewUrl ||
         null,
       pitchprintProjectId: result.item.pitchprintProjectId,
+      productionMetadata,
       productionFiles: result.item.pitchprintProjectId
         ? {
             status: "Ready",
@@ -465,6 +470,21 @@ export default function CreatorOrderDetail() {
                 <span><strong>Variant</strong>{order.variantTitle}</span>
                 <span><strong>Quantity</strong>{order.quantity}</span>
                 <span><strong>Order Line</strong>{shopifyLineItem?.name || order.lineSubtotal}</span>
+                {order.productionMetadata ? (
+                  <>
+                    <span><strong>Color</strong>{order.productionMetadata.fixedColor || "-"}</span>
+                    <span><strong>Printing Method</strong>{order.productionMetadata.productionMethod || "-"}</span>
+                    <span>
+                      <strong>Embroidery Artwork</strong>
+                      {order.productionMetadata.embroiderySubtype === "TEXT_ONLY"
+                        ? "Text only"
+                        : order.productionMetadata.embroiderySubtype === "IMAGE_OR_LOGO"
+                          ? "Image / Logo"
+                          : "-"}
+                    </span>
+                    <span><strong>Designed Placements</strong>{order.productionMetadata.placementCount || "-"}</span>
+                  </>
+                ) : null}
               </div>
               <div className="creator-order-files">
                 <div>
@@ -654,6 +674,10 @@ export default function CreatorOrderDetail() {
             <dd>{order.shopifyLineItemId}</dd>
             <dt>PitchPrint project ID</dt>
             <dd>{order.pitchprintProjectId || "-"}</dd>
+            <dt>PitchPrint design ID</dt>
+            <dd>{order.productionMetadata?.pitchprintDesignId || "-"}</dd>
+            <dt>PitchPrint master project ID</dt>
+            <dd>{order.productionMetadata?.pitchprintMasterProjectId || "-"}</dd>
             <dt>Customer access</dt>
             <dd>
               Name: {shopifyDiagnostics.customerAvailable ? "Available" : "Not Available"}; Email:{" "}
