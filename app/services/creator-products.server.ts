@@ -30,8 +30,10 @@ import {
   getCreatorProductionPricing,
   getProductionPricing,
   listEnabledProductionMethodCodes,
+  listEnabledProductionMethods,
   pricingForEmbroiderySubtype,
   pricingForMethod,
+  type EnabledProductionMethod,
   syncProductionFeeMerchandise,
   type ProductionMethodCode,
   type EmbroiderySubtype,
@@ -98,7 +100,14 @@ type CreatorProductDb = {
     update(args: unknown): Promise<CreatorProductRecord>;
   };
   productionMethodSetting?: {
-    findMany(args: unknown): Promise<Array<{ method: string; enabled: boolean }>>;
+    findMany(args: unknown): Promise<
+      Array<{
+        method: string;
+        label?: string;
+        description?: string;
+        enabled: boolean;
+      }>
+    >;
   };
   publicProductProductionPricing?: {
     findUnique(args: unknown): Promise<unknown>;
@@ -160,6 +169,7 @@ export type EligibleCreatorBaseProduct = {
   imageUrl: string | null;
   pitchprintDesignId: string | null;
   productionMethodPricing: string | null;
+  productionMethods: EnabledProductionMethod[];
   classification: "configured" | "legacy" | "compatible_fallback";
   variants: CreatorProductBaseVariant[];
 };
@@ -408,6 +418,7 @@ async function validateBaseProduct(
       featuredImage: { url: string } | null;
       pitchprintDesignId: { value: string } | null;
       legacyPitchprintDesignId: { value: string } | null;
+      productionMethodPricing: { value: string } | null;
       variants: {
         nodes: Array<{
           id: string;
@@ -428,6 +439,7 @@ async function validateBaseProduct(
         mode: metafield(namespace: "customhouse", key: "design_mode") { value }
         pitchprintDesignId: metafield(namespace: "customhouse", key: "pitchprint_design_id") { value }
         legacyPitchprintDesignId: metafield(namespace: "pitchprint", key: "design_id") { value }
+        productionMethodPricing: metafield(namespace: "customhouse", key: "production_method_pricing") { value }
         featuredImage { url }
         variants(first: 100) {
           nodes {
@@ -465,6 +477,41 @@ async function validateBaseProduct(
     );
   }
   return product;
+}
+
+function configuredProductionMethodCodes(value: string | null | undefined) {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value) as { productionMethods?: unknown };
+    if (!Array.isArray(parsed.productionMethods)) return [];
+    return [
+      ...new Set(
+        parsed.productionMethods
+          .map((item) => {
+            if (!item || typeof item !== "object") return "";
+            const method = item as { id?: unknown; method?: unknown };
+            return String(method.id ?? method.method ?? "").trim().toUpperCase();
+          })
+          .filter((method): method is ProductionMethodCode =>
+            PRODUCTION_METHODS.includes(method as ProductionMethodCode),
+          ),
+      ),
+    ];
+  } catch {
+    return [];
+  }
+}
+
+export function productionMethodsForCreatorProduct(
+  enabledMethods: EnabledProductionMethod[],
+  productionMethodPricing: string | null | undefined,
+) {
+  const configuredMethods = configuredProductionMethodCodes(
+    productionMethodPricing,
+  );
+  if (!configuredMethods.length) return enabledMethods;
+  const configured = new Set(configuredMethods);
+  return enabledMethods.filter((method) => configured.has(method.id));
 }
 
 function cleanProjectId(value: unknown) {
@@ -851,21 +898,23 @@ async function cleanCreatorProductSetup(
     );
   }
   const productionMethod = cleanProductionMethod(rawProductionMethod);
-  const enabledMethods =
-    database.productionMethodSetting &&
-    database.publicProductProductionPricing
-      ? await listEnabledProductionMethodCodes(
-          shop,
-          database as unknown as Parameters<typeof listEnabledProductionMethodCodes>[1],
-        )
-      : [];
-  if (enabledMethods.length && !enabledMethods.includes(productionMethod)) {
+  const enabledMethods = database.productionMethodSetting
+    ? await listEnabledProductionMethodCodes(
+        shop,
+        database as unknown as Parameters<typeof listEnabledProductionMethodCodes>[1],
+      )
+    : [...PRODUCTION_METHODS];
+  if (!enabledMethods.includes(productionMethod)) {
     throw new DomainError(
       "PRODUCTION_METHOD_DISABLED",
       "Choose an enabled printing method.",
       422,
     );
   }
+  const embroiderySubtype =
+    productionMethod === "EMBROIDERY" && setup.embroiderySubtype
+      ? cleanEmbroiderySubtype(setup.embroiderySubtype)
+      : undefined;
   const placements = collectPlacementRecords(setup);
   const explicitPlacementCount = directPositiveInteger(
     setup.placementCount,
@@ -934,6 +983,7 @@ async function cleanCreatorProductSetup(
     fixedColor,
     selectedColors: [fixedColor],
     productionMethod,
+    ...(embroiderySubtype ? { embroiderySubtype } : {}),
     placementCount,
     placements: placements.length
       ? placements
@@ -1370,41 +1420,23 @@ export async function createCreatorProductDraft(
     );
   }
   const baseProductVariants = creatorProductBaseVariants(product);
-  const selectedColors = [
-    ...new Set([
-      ...stringArray(input.selectedColors),
-      ...stringArray(input.fixedColor),
-    ]),
-  ];
-  if (selectedColors.length !== 1) {
-    throw new DomainError(
-      "CREATOR_COLOR_REQUIRED",
-      "Choose exactly one product color for this Creator Product.",
-      422,
-    );
-  }
-  const fixedColor = selectedColors[0]!;
-  const colors = baseProductColorValues(baseProductVariants);
-  if (!colors.some((color) => normalizedOptionText(color) === normalizedOptionText(fixedColor))) {
-    throw new DomainError(
-      "CREATOR_COLOR_INVALID",
-      "Choose a color that exists on the base product.",
-      422,
-    );
-  }
   const productionMethod = cleanProductionMethod(
     input.fixedProductionMethod ?? input.selectedProductionMethod,
   );
   const enabledMethods = database.productionMethodSetting
-    ? await listEnabledProductionMethodCodes(
+    ? await listEnabledProductionMethods(
         shop,
-        database as unknown as Parameters<typeof listEnabledProductionMethodCodes>[1],
+        database as unknown as Parameters<typeof listEnabledProductionMethods>[1],
       )
-    : [];
-  if (enabledMethods.length && !enabledMethods.includes(productionMethod)) {
+    : PRODUCTION_METHODS.map((id) => ({ id, label: id }));
+  const availableMethods = productionMethodsForCreatorProduct(
+    enabledMethods,
+    product.productionMethodPricing?.value,
+  );
+  if (!availableMethods.some((method) => method.id === productionMethod)) {
     throw new DomainError(
       "PRODUCTION_METHOD_DISABLED",
-      "Choose an enabled printing method.",
+      "Choose an available printing method.",
       422,
     );
   }
@@ -1418,8 +1450,8 @@ export async function createCreatorProductDraft(
     creatorContext: true,
     launchContext: "creator_dashboard",
     isCreatorProduct: true,
-    fixedColor,
-    selectedColors: [fixedColor],
+    fixedColor: "",
+    selectedColors: [],
     productionMethod,
     fixedProductionMethod: productionMethod,
     placementCount: 0,
@@ -1458,7 +1490,6 @@ export async function createCreatorProductDraft(
         creatorId: creator.id,
         shopifyProductId: product.id,
         status: "DRAFT",
-        fixedColor,
         productionMethod,
       }),
     },
@@ -1473,6 +1504,12 @@ export async function listEligibleCreatorBaseProducts(
   database: CreatorProductDb = db,
 ) {
   await approvedCreatorForCustomer(shop, customerId, database);
+  const enabledMethods = database.productionMethodSetting
+    ? await listEnabledProductionMethods(
+        shop,
+        database as unknown as Parameters<typeof listEnabledProductionMethods>[1],
+      )
+    : PRODUCTION_METHODS.map((id) => ({ id, label: id }));
   const result = await client.request<{
     products: {
       nodes: Array<{
@@ -1534,6 +1571,10 @@ export async function listEligibleCreatorBaseProducts(
     .map((product) => {
       const classification = eligibleClassification(product);
       if (!classification) return null;
+      const productionMethods = productionMethodsForCreatorProduct(
+        enabledMethods,
+        product.productionMethodPricing?.value,
+      );
       return {
         id: product.id,
         title: product.title,
@@ -1544,6 +1585,7 @@ export async function listEligibleCreatorBaseProducts(
           product.legacyPitchprintDesignId?.value ||
           null,
         productionMethodPricing: product.productionMethodPricing?.value || null,
+        productionMethods,
         classification,
         variants: creatorProductBaseVariants(product),
       } satisfies EligibleCreatorBaseProduct;
@@ -1595,7 +1637,7 @@ export async function attachPitchPrintProjectToCreatorProduct(
   }
   const projectId = cleanProjectId(input.projectId);
   const previewUrls = cleanPreviewUrls(input);
-  const previewUrl = previewUrls[0] || existing.previewUrl || null;
+  const previewUrl = previewUrls[0] || null;
   let lockedSetup: Record<string, unknown> = {};
   try {
     const parsed = JSON.parse(existing.designVariantSelectionsJson || "{}");
@@ -1614,12 +1656,12 @@ export async function attachPitchPrintProjectToCreatorProduct(
     ]),
   ];
   const lockedColor = cleanOptionalText(lockedSetup.fixedColor, 120);
-  if (
-    lockedColor &&
-    requestedColors.some((color) => normalizedOptionText(color) !== normalizedOptionText(lockedColor))
-  ) {
-    throw new DomainError("CREATOR_COLOR_LOCKED", "The product color is fixed for this Creator Product.", 422);
-  }
+  const effectiveColors = requestedColors.length
+    ? requestedColors
+    : lockedColor
+      ? [lockedColor]
+      : [];
+  const effectiveColor = effectiveColors.length === 1 ? effectiveColors[0] : null;
   const lockedMethod = cleanOptionalText(lockedSetup.productionMethod, 40);
   const requestedMethod = cleanOptionalText(
     requestedSetup.fixedProductionMethod || requestedSetup.productionMethod || requestedSetup.selectedProductionMethod,
@@ -1630,8 +1672,8 @@ export async function attachPitchPrintProjectToCreatorProduct(
   }
   const lockedInput = {
     ...input,
-    fixedColor: lockedColor || input.fixedColor,
-    selectedColors: lockedColor ? [lockedColor] : input.selectedColors,
+    fixedColor: effectiveColor || input.fixedColor,
+    selectedColors: effectiveColors,
     fixedProductionMethod: lockedMethod || input.fixedProductionMethod,
     productionMethod: lockedMethod || input.productionMethod,
     selectedProductionMethod: lockedMethod || input.selectedProductionMethod,
@@ -1639,9 +1681,9 @@ export async function attachPitchPrintProjectToCreatorProduct(
       ...(input.creatorSetup && typeof input.creatorSetup === "object"
         ? (input.creatorSetup as Record<string, unknown>)
         : {}),
-      fixedColor: lockedColor || requestedSetup.fixedColor,
-      selectedColor: lockedColor || requestedSetup.selectedColor,
-      selectedColors: lockedColor ? [lockedColor] : requestedSetup.selectedColors,
+      fixedColor: effectiveColor || requestedSetup.fixedColor,
+      selectedColor: effectiveColor || requestedSetup.selectedColor,
+      selectedColors: effectiveColors,
       fixedProductionMethod:
         lockedMethod || requestedSetup.fixedProductionMethod,
       productionMethod: lockedMethod || requestedSetup.productionMethod,
@@ -1656,6 +1698,13 @@ export async function attachPitchPrintProjectToCreatorProduct(
     productBaseVariants(existing),
     database,
   );
+  if (!previewUrl) {
+    throw new DomainError(
+      "CREATOR_DESIGN_PREVIEW_REQUIRED",
+      "We couldn't load your saved design. Please return to the editor and save the design again.",
+      422,
+    );
+  }
   const nextStatus = existing.status === "PUBLISHED" ? "PENDING" : existing.status;
   const updated = await database.creatorProduct.update({
     where: { id: existing.id },
@@ -2527,7 +2576,10 @@ export async function getPublishedCreatorProductForHandle(
             database as unknown as Parameters<typeof listEnabledProductionMethodCodes>[1],
           )
         : [];
-      const methods = (enabledMethods.length ? enabledMethods : PRODUCTION_METHODS).map((method) => ({
+      const methods = (database.productionMethodSetting
+        ? enabledMethods
+        : PRODUCTION_METHODS
+      ).map((method) => ({
         method,
         surchargeMinor: decimalMoneyToMinorUnits(
           pricingForMethod(pricing, method),
@@ -2670,8 +2722,8 @@ export async function prepareCreatorProductCart(
         shop,
         database as unknown as Parameters<typeof listEnabledProductionMethodCodes>[1],
       )
-    : [];
-  if (enabledMethods.length && !enabledMethods.includes(productionMethod)) {
+    : [...PRODUCTION_METHODS];
+  if (!enabledMethods.includes(productionMethod)) {
     throw new DomainError(
       "PRODUCTION_METHOD_DISABLED",
       "Choose an enabled printing method.",

@@ -49,6 +49,11 @@ export type ProductionMethodSettingRecord = {
   enabled: boolean;
 };
 
+export type EnabledProductionMethod = {
+  id: ProductionMethodCode;
+  label: string;
+};
+
 export type SaveProductionPricingInput = {
   shopifyProductId: string;
   currency: string;
@@ -307,7 +312,7 @@ async function methodSettings(
   database: ProductionPricingDb = db as unknown as ProductionPricingDb,
 ) {
   const rows = await database.productionMethodSetting.findMany({
-    where: { shopKey: shop, enabled: true },
+    where: { shopKey: shop },
     orderBy: { method: "asc" },
   });
   const fallback: Record<ProductionMethodCode, ProductionMethodSettingRecord> = {
@@ -321,19 +326,35 @@ async function methodSettings(
     DTG: { method: "DTG", label: METHOD_LABELS.DTG, description: "", enabled: true },
   };
   for (const row of rows) {
-    fallback[cleanProductionMethod(row.method)] = row;
+    const method = cleanProductionMethod(row.method);
+    fallback[method] = { ...fallback[method], ...row };
   }
   return PRODUCTION_METHODS.map((method) => fallback[method]);
+}
+
+export async function listEnabledProductionMethods(
+  shop: string,
+  database: ProductionPricingDb = db as unknown as ProductionPricingDb,
+): Promise<EnabledProductionMethod[]> {
+  const settings = await methodSettings(shop, database);
+  return settings
+    .filter((setting) => setting.enabled !== false)
+    .map((setting) => {
+      const id = cleanProductionMethod(setting.method);
+      return {
+        id,
+        label: setting.label.trim() || METHOD_LABELS[id],
+      };
+    });
 }
 
 export async function listEnabledProductionMethodCodes(
   shop: string,
   database: ProductionPricingDb = db as unknown as ProductionPricingDb,
 ) {
-  const settings = await methodSettings(shop, database);
-  return settings
-    .filter((setting) => setting.enabled !== false)
-    .map((setting) => cleanProductionMethod(setting.method));
+  return (await listEnabledProductionMethods(shop, database)).map(
+    (setting) => setting.id,
+  );
 }
 
 export async function getProductionPricing(

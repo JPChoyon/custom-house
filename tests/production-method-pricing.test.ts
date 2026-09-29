@@ -8,6 +8,7 @@ import {
 import {
   CREATOR_PRODUCTION_PRICING_PRODUCT_ID,
   feeVariantIdForEmbroiderySubtype,
+  listEnabledProductionMethods,
   parseSurchargeInput,
   pricingForEmbroiderySubtype,
   productionPricingBridgePayload,
@@ -18,10 +19,54 @@ import {
   type ProductionPricingBridgePayload,
   type PublicProductProductionPricingRecord,
 } from "../app/services/production-method-pricing.server.ts";
+
 import {
   calculateTrustedProductionTotal,
   preparePublicProductionCart,
 } from "../app/services/production-method-cart.server.ts";
+
+test("enabled production methods preserve explicit disabled settings and canonical labels", async () => {
+  let findManyArgs: unknown;
+  const methods = await listEnabledProductionMethods(
+    "customhouse.test",
+    {
+      productionMethodSetting: {
+        async findMany(args: unknown) {
+          findManyArgs = args;
+          return [
+            {
+              method: "EMBROIDERY",
+              label: "Embroidery",
+              description: "",
+              enabled: true,
+            },
+            {
+              method: "DTF",
+              label: "DTF",
+              description: "",
+              enabled: false,
+            },
+            {
+              method: "DTG",
+              label: "",
+              description: "",
+              enabled: true,
+            },
+          ];
+        },
+      },
+    } as never,
+  );
+
+  assert.deepEqual(findManyArgs, {
+    where: { shopKey: "customhouse.test" },
+    orderBy: { method: "asc" },
+  });
+  assert.deepEqual(methods, [
+    { id: "EMBROIDERY", label: "Embroidery" },
+    { id: "DTG", label: "DTG printing" },
+  ]);
+});
 
 type PricingRow = PublicProductProductionPricingRecord;
 

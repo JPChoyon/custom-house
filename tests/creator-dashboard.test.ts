@@ -484,9 +484,9 @@ test("creator dashboard starts PitchPrint directly and reviews saved designs wit
   assert.match(script, /copy\.className = "ch-design-card__body customhouse-base-product-card__body"/);
   assert.match(script, /button\.className = "ch-design-card__button ch-design-card__button--primary"/);
   assert.match(script, /Unavailable/);
-  assert.match(script, /data-base-product-color/);
+  assert.doesNotMatch(script, /data-base-product-color/);
   assert.match(script, /data-base-product-method/);
-  assert.match(script, /Choose exactly one product color and one printing method/);
+  assert.match(script, /Choose one printing method before starting your design/);
   assert.match(script, /existing\?\.readyState === "complete"/);
   assert.match(script, /src === JQUERY_SRC && window\.jQuery/);
   assert.match(script, /root\.__customHouseCreatorDesignActionsBound/);
@@ -999,6 +999,33 @@ test("creator dashboard PitchPrint bridge uses Creator setup contract instead of
   assert.doesNotMatch(script, /Select at least one size and quantity\./);
 });
 
+test("Creator Add Product renders canonical method options and a safe empty state", () => {
+  const script = readFileSync(
+    "extensions/customhouse-creator-storefront/assets/customhouse-dashboard.js",
+    "utf8",
+  );
+
+  assert.match(script, /Array\.isArray\(product\.productionMethods\)/);
+  assert.match(script, /new Option\("Choose one method", ""\)/);
+  assert.match(script, /new Option\(method\.label, method\.id\)/);
+  assert.match(script, /seenMethods\.has\(id\)/);
+  assert.match(script, /methodSelect\.disabled = methods\.length === 0/);
+  assert.match(
+    script,
+    /No printing methods are currently available for this product\./,
+  );
+  assert.match(
+    script,
+    /!product\.pitchprintDesignId \|\| !methodSelect\.value/,
+  );
+  assert.doesNotMatch(script, /colorSelect/);
+  assert.doesNotMatch(script, /Product Color/);
+  assert.doesNotMatch(
+    script,
+    /pricing\?\.productionMethods\)\s*\?\s*pricing\.productionMethods\.filter/,
+  );
+});
+
 test("creator PitchPrint launch config separates template design ID from saved project ID", () => {
   const newDesign = creatorPitchPrintLaunchConfig({
     pitchprintDesignId: " pp_design_global_hoodie ",
@@ -1073,11 +1100,42 @@ test("creator PitchPrint save normalization keeps uploaded file previews", () =>
 
   assert.equal(saveEvent.projectId, "pp_project_with_file");
   assert.deepEqual(saveEvent.previews, [
-    { url: "https://cdn.pitchprint.test/uploaded-front.png" },
+    "https://cdn.pitchprint.test/uploaded-front.png",
   ]);
-  assert.deepEqual(saveEvent.previewUrl, {
-    url: "https://cdn.pitchprint.test/uploaded-front.png",
+  assert.equal(
+    saveEvent.previewUrl,
+    "https://cdn.pitchprint.test/uploaded-front.png",
+  );
+});
+
+test("creator setup normalization captures the active customizer color", () => {
+  const setupEvent = normalizeCreatorSetupEvent({
+    type: "CUSTOMHOUSE_PP_CREATOR_SETUP_READY",
+    payload: {
+      creatorContext: true,
+      projectId: "pp_project_green",
+      activeColor: { value: "Green", id: "color-green" },
+      selectedColor: "White",
+      selectedColors: ["White"],
+      productionMethod: "EMBROIDERY",
+      placements: [{ side: "Front", hasArtwork: true }],
+    },
   });
+
+  assert.equal(setupEvent?.creatorSetup.fixedColor, "Green");
+  assert.equal(setupEvent?.creatorSetup.selectedColor, "Green");
+  assert.deepEqual(setupEvent?.creatorSetup.selectedColors, ["Green"]);
+});
+
+test("Creator save waits for rendered project previews and labels only confirmed saved sides", () => {
+  assert.match(script, /const projectId = saveEvent\?\.projectId \|\| ""/);
+  assert.match(script, /if \(!projectId \|\| !previews\.length \|\| !setupEvent\?\.creatorSetup\) return null/);
+  assert.match(script, /CREATOR_DESIGN_PREVIEW_REQUIRED|couldn't load your saved design/i);
+  assert.match(script, /const placements = Array\.isArray\(setup\?\.placements\)/);
+  assert.match(script, /label: String\(placements\[index\] \|\| `Saved view/);
+  assert.match(script, /ch-creator-modal__preview--main/);
+  assert.match(script, /ch-creator-modal__preview-controls/);
+  assert.doesNotMatch(script, /Front Preview|Back Preview/);
 });
 
 test("profile picture upload stores Shopify media and returns a display URL", async () => {

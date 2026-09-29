@@ -15,6 +15,7 @@ import {
   moderateCreatorProductAsAdmin,
   prepareCreatorProductCart as prepareCreatorProductCartService,
   prepareNativeCreatorProductCart,
+  productionMethodsForCreatorProduct,
   publicCreatorProductDetail,
   archiveCreatorProductForCustomer,
   deleteCreatorProductForCustomer,
@@ -73,7 +74,6 @@ function createCreatorProductDraft(
     shopKey,
     customerId,
     {
-      fixedColor: "White",
       selectedProductionMethod: "DTF",
       ...input,
     },
@@ -547,6 +547,9 @@ test("authenticated Creator A can create a DRAFT Creator Product", async () => {
   assert.equal(product.status, "DRAFT");
   assert.equal(product.title, "Ari Hoodie");
   assert.equal(product.shopifyProductId, baseProduct.id);
+  assert.equal(JSON.parse(product.designVariantSelectionsJson).fixedColor, "");
+  assert.deepEqual(JSON.parse(product.designVariantSelectionsJson).selectedColors, []);
+  assert.equal(JSON.parse(product.designVariantSelectionsJson).productionMethod, "DTF");
 });
 
 test("Creator Product draft creation uses the stable Shopify featuredImage field", async () => {
@@ -700,6 +703,70 @@ test("eligible Creator base products expose the configured PitchPrint launch tem
   assert.equal(products.length, 1);
   assert.equal(products[0].id, "gid://shopify/Product/1001");
   assert.equal(products[0].pitchprintDesignId, "pp_design_global_hoodie");
+  assert.deepEqual(products[0].productionMethods, [
+    { id: "EMBROIDERY", label: "Embroidery" },
+    { id: "DTF", label: "DTF printing" },
+    { id: "DTG", label: "DTG printing" },
+  ]);
+});
+
+test("Creator base product method options fall back to canonical active settings when the legacy metafield is missing", () => {
+  const enabled = [
+    { id: "EMBROIDERY" as const, label: "Embroidery" },
+    { id: "DTF" as const, label: "DTF printing" },
+    { id: "DTG" as const, label: "DTG printing" },
+  ];
+
+  assert.deepEqual(productionMethodsForCreatorProduct(enabled, null), enabled);
+  assert.deepEqual(
+    productionMethodsForCreatorProduct(enabled, "{not-json"),
+    enabled,
+  );
+});
+
+test("Creator base product method options respect a valid product-specific subset without duplicates", () => {
+  const enabled = [
+    { id: "EMBROIDERY" as const, label: "Embroidery" },
+    { id: "DTF" as const, label: "DTF printing" },
+    { id: "DTG" as const, label: "DTG printing" },
+  ];
+  const pricing = JSON.stringify({
+    productionMethods: [
+      { id: "DTF", label: "Ignored browser label" },
+      { method: "DTF" },
+      { id: "UNKNOWN" },
+    ],
+  });
+
+  assert.deepEqual(productionMethodsForCreatorProduct(enabled, pricing), [
+    { id: "DTF", label: "DTF printing" },
+  ]);
+});
+
+test("Creator draft creation rejects a method outside the product-specific active options", async () => {
+  const db = fakeDb();
+  await assert.rejects(
+    () =>
+      createCreatorProductDraft(
+        shop,
+        "gid://shopify/Customer/1",
+        {
+          shopifyProductId: baseProduct.id,
+          selectedProductionMethod: "EMBROIDERY",
+        },
+        fakeClient({
+          ...baseProduct,
+          productionMethodPricing: {
+            value: JSON.stringify({
+              productionMethods: [{ id: "DTF", label: "DTF printing" }],
+            }),
+          },
+        }),
+        db,
+      ),
+    /available printing method/i,
+  );
+  assert.equal(db.products.length, 0);
 });
 
 test("Creator B cannot retrieve Creator A's private product by changing the ID", async () => {
@@ -899,6 +966,79 @@ test("PitchPrint Creator save preserves the fixed color and production method", 
   assert.equal(setup.placementCount, 1);
 });
 
+test("editing a Creator design persists the customizer's updated valid color while keeping its method fixed", async () => {
+  const db = fakeDb();
+  const productWithGreen = {
+    ...baseProduct,
+    variants: {
+      nodes: [
+        ...baseProduct.variants.nodes,
+        {
+          id: "gid://shopify/ProductVariant/2003",
+          legacyResourceId: "2003",
+          title: "S / Green",
+          availableForSale: true,
+          selectedOptions: [
+            { name: "Size", value: "S" },
+            { name: "Color", value: "Green" },
+          ],
+        },
+      ],
+    },
+  };
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id, selectedProductionMethod: "EMBROIDERY" },
+    fakeClient(productWithGreen),
+    db,
+  );
+  await attachPitchPrintProjectToCreatorProduct(
+    shop,
+    "gid://shopify/Customer/1",
+    draft.id,
+    {
+      ...pitchPrintPayload({
+        projectId: "pp_project_white",
+        previewUrl: "https://cdn.pitchprint.test/white-front.png",
+      }),
+      creatorSetup: {
+        ...pitchPrintPayload({ projectId: "pp_project_white" }).creatorSetup,
+        selectedColor: "White",
+        selectedColors: ["White"],
+        fixedColor: "White",
+      },
+    },
+    db,
+  );
+
+  const updated = await attachPitchPrintProjectToCreatorProduct(
+    shop,
+    "gid://shopify/Customer/1",
+    draft.id,
+    {
+      ...pitchPrintPayload({
+        projectId: "pp_project_green",
+        previewUrl: "https://cdn.pitchprint.test/green-front.png",
+      }),
+      creatorSetup: {
+        ...pitchPrintPayload({ projectId: "pp_project_green" }).creatorSetup,
+        selectedColor: "Green",
+        selectedColors: ["Green"],
+        fixedColor: "Green",
+      },
+    },
+    db,
+  );
+
+  const setup = JSON.parse(updated.designVariantSelectionsJson);
+  assert.equal(updated.pitchprintProjectId, "pp_project_green");
+  assert.equal(updated.previewUrl, "https://cdn.pitchprint.test/green-front.png");
+  assert.equal(setup.fixedColor, "Green");
+  assert.deepEqual(setup.selectedColors, ["Green"]);
+  assert.equal(setup.productionMethod, "EMBROIDERY");
+});
+
 test("PitchPrint save requires exactly one selected Creator color", async () => {
   const db = fakeDb();
   const draft = await createCreatorProductDraft(
@@ -927,7 +1067,7 @@ test("PitchPrint save requires exactly one selected Creator color", async () => 
         },
         db,
       ),
-    /product color is fixed/,
+    /exactly one product color/i,
   );
 });
 
@@ -961,7 +1101,7 @@ test("PitchPrint save rejects colors outside the base product", async () => {
         },
         db,
       ),
-    /product color is fixed/,
+    /color that exists on the base product/i,
   );
 });
 
@@ -1314,7 +1454,7 @@ test("draft without PitchPrint project cannot submit", async () => {
   );
 });
 
-test("draft without preview cannot submit", async () => {
+test("saved design without a rendered preview is rejected recoverably", async () => {
   const db = fakeDb();
   const draft = await createCreatorProductDraft(
     shop,
@@ -1326,23 +1466,18 @@ test("draft without preview cannot submit", async () => {
     }),
     db,
   );
-  await attachPitchPrintProjectToCreatorProduct(
-    shop,
-    "gid://shopify/Customer/1",
-    draft.id,
-    pitchPrintPayload({ projectId: "pp_no_preview" }),
-    db,
-  );
   await assert.rejects(
     () =>
-      submitCreatorProductForReview(
+      attachPitchPrintProjectToCreatorProduct(
         shop,
         "gid://shopify/Customer/1",
         draft.id,
+        pitchPrintPayload({ projectId: "pp_no_preview" }),
         db,
       ),
-    /Product preview is missing/,
+    /return to the editor and save the design again/i,
   );
+  assert.equal(draft.pitchprintProjectId, null);
 });
 
 test("creator cannot directly publish through owner update paths", async () => {

@@ -537,34 +537,37 @@ function renderBaseProducts(root, products) {
     title.className = "ch-design-card__title";
     title.textContent = product.title || "Base product";
     copy.append(title);
-    const colors = optionValuesFromVariants(
-      pitchPrintProductVariants(product),
-      /^(color|colour|farg|färg)$/i,
-    );
-    const pricing = parseJsonObject(product.productionMethodPricing);
-    const methods = Array.isArray(pricing?.productionMethods)
-      ? pricing.productionMethods.filter((item) => ["EMBROIDERY", "DTF", "DTG"].includes(item?.id || item?.method))
-      : [];
+    const seenMethods = new Set();
+    const methods = (Array.isArray(product.productionMethods)
+      ? product.productionMethods
+      : []
+    ).filter((method) => {
+      const id = String(method?.id || "").trim();
+      const label = String(method?.label || "").trim();
+      if (!id || !label || seenMethods.has(id)) return false;
+      seenMethods.add(id);
+      return true;
+    });
     const setup = document.createElement("div");
     setup.className = "customhouse-base-product-card__setup";
-    const colorLabel = document.createElement("label");
-    colorLabel.textContent = "Product Color";
-    const colorSelect = document.createElement("select");
-    colorSelect.dataset.baseProductColor = product.id || "";
-    colorSelect.append(new Option("Choose one color", ""));
-    colors.forEach((color) => colorSelect.append(new Option(color, color)));
-    colorLabel.append(colorSelect);
     const methodLabel = document.createElement("label");
     methodLabel.textContent = "Printing Method";
     const methodSelect = document.createElement("select");
     methodSelect.dataset.baseProductMethod = product.id || "";
     methodSelect.append(new Option("Choose one method", ""));
     methods.forEach((method) => {
-      const value = method.id || method.method;
-      methodSelect.append(new Option(method.label || value, value));
+      methodSelect.append(new Option(method.label, method.id));
     });
+    methodSelect.disabled = methods.length === 0;
     methodLabel.append(methodSelect);
-    setup.append(colorLabel, methodLabel);
+    setup.append(methodLabel);
+    if (!methods.length) {
+      const emptyMethods = document.createElement("p");
+      emptyMethods.className = "customhouse-base-product-card__method-empty";
+      emptyMethods.textContent =
+        "No printing methods are currently available for this product.";
+      setup.append(emptyMethods);
+    }
     copy.append(setup);
 
     const actions = document.createElement("div");
@@ -577,9 +580,8 @@ function renderBaseProducts(root, products) {
       ? "Start Design"
       : "Unavailable";
     const syncAvailability = () => {
-      button.disabled = !product.pitchprintDesignId || !colorSelect.value || !methodSelect.value;
+      button.disabled = !product.pitchprintDesignId || !methodSelect.value;
     };
-    colorSelect.addEventListener("change", syncAvailability);
     methodSelect.addEventListener("change", syncAvailability);
     syncAvailability();
     actions.append(button);
@@ -944,6 +946,80 @@ function firstPitchPrintRuntimeProjectId(...values) {
   return "";
 }
 
+function pitchPrintPreviewUrl(value) {
+  if (typeof value === "string") {
+    const url = value.trim();
+    return url.startsWith("https://") ? url : "";
+  }
+  if (!value || typeof value !== "object") return "";
+  const file = value.file && typeof value.file === "object" ? value.file : {};
+  return [
+    value.renderedPreviewUrl,
+    value.previewUrl,
+    value.preview,
+    value.url,
+    value.src,
+    value.downloadUrl,
+    value.resourceUrl,
+    value.secureUrl,
+    value.secure_url,
+    value.originalSrc,
+    value.thumbnailUrl,
+    value.thumbnail,
+    value.thumb,
+    file.url,
+  ].map(pitchPrintPreviewUrl).find(Boolean) || "";
+}
+
+function pitchPrintPreviewUrls(...sources) {
+  const urls = sources
+    .flatMap((source) => (Array.isArray(source) ? source : source ? [source] : []))
+    .map(pitchPrintPreviewUrl)
+    .filter(Boolean);
+  return [...new Set(urls)];
+}
+
+function creatorColorValue(value) {
+  if (typeof value === "string") return value.trim();
+  if (!value || typeof value !== "object") return "";
+  return creatorColorValue(
+    value.value ||
+      value.optionValue ||
+      value.colorName ||
+      value.name ||
+      value.label ||
+      value.color,
+  );
+}
+
+function creatorColorFromOptions(options) {
+  if (!Array.isArray(options)) return "";
+  const option = options.find((item) =>
+    /^(color|colour|farg|färg)$/i.test(String(item?.name || item?.label || "").trim()),
+  );
+  return creatorColorValue(option?.value || option?.optionValue || option);
+}
+
+function activeCreatorColor(setup) {
+  const variants = [
+    setup?.activeVariant,
+    setup?.selectedVariant,
+    setup?.variant,
+    setup?.productVariant,
+  ];
+  return [
+    setup?.activeColor,
+    setup?.selectedColor,
+    setup?.productColor,
+    setup?.selectedProductColor,
+    setup?.colorName,
+    setup?.color,
+    setup?.fixedColor,
+    ...variants.map((variant) => creatorColorFromOptions(variant?.selectedOptions)),
+    creatorColorFromOptions(setup?.selectedOptions),
+  ].map(creatorColorValue).find(Boolean) || "";
+}
+
 export function normalizePitchPrintSaveEvent(value, options = {}) {
   const data = value?.data && typeof value.data === "object" ? value.data : value;
   const project = data?.project && typeof data.project === "object" ? data.project : {};
@@ -957,22 +1033,30 @@ export function normalizePitchPrintSaveEvent(value, options = {}) {
     project?.id,
     ...(allowGenericIds ? [data?._id, data?.id, data?.tid] : []),
   );
-  const previews = Array.isArray(data?.previews)
-    ? data.previews
-    : Array.isArray(data?.previewUrls)
-      ? data.previewUrls
-      : Array.isArray(data?.files)
-        ? data.files
-      : data?.previewUrl
-        ? [data.previewUrl]
-        : data?.preview
-          ? [data.preview]
-        : [];
+  const previews = pitchPrintPreviewUrls(
+    data?.renderedPreviews,
+    data?.renderedPreviewUrls,
+    project?.renderedPreviews,
+    project?.renderedPreviewUrls,
+    data?.previews,
+    data?.previewUrls,
+    project?.previews,
+    project?.previewUrls,
+    data?.files,
+    project?.files,
+    data?.previewUrl,
+    data?.preview,
+  );
   return {
     projectId,
     previews,
-    previewUrl: previews[0] || data?.previewUrl || data?.preview || "",
-    designId: data?.designId || data?.design_id || "",
+    previewUrl: previews[0] || "",
+    designId:
+      data?.designId ||
+      data?.design_id ||
+      project?.designId ||
+      project?.design_id ||
+      "",
   };
 }
 
@@ -1032,12 +1116,11 @@ function normalizeCreatorSetupPayload(setup) {
   const record = setup && typeof setup === "object" ? { ...setup } : {};
   const selectedColors = Array.isArray(record.selectedColors)
     ? record.selectedColors
-        .map((color) => String(color || "").trim())
+        .map(creatorColorValue)
         .filter(Boolean)
     : [];
   const fixedColor =
-    String(record.fixedColor || "").trim() ||
-    String(record.selectedColor || "").trim() ||
+    activeCreatorColor(record) ||
     (selectedColors.length === 1 ? selectedColors[0] : "");
 
   if (fixedColor) {
@@ -1397,6 +1480,7 @@ function bindPitchPrintManager(root) {
     creatorSetupAbortController: null,
     showAppCalled: false,
     projectSaved: false,
+    saveFailureNotified: false,
     pendingCreatorSetup: null,
     pendingPitchPrintSave: null,
   };
@@ -1416,6 +1500,7 @@ function bindPitchPrintManager(root) {
     manager.client = null;
     manager.showAppCalled = false;
     manager.projectSaved = false;
+    manager.saveFailureNotified = false;
     manager.pendingCreatorSetup = null;
     manager.pendingPitchPrintSave = null;
     manager.isDesignerOpening = false;
@@ -1442,18 +1527,16 @@ function bindPitchPrintManager(root) {
   const buildCreatorSavePayload = () => {
     const setupEvent = manager.pendingCreatorSetup;
     const saveEvent = manager.pendingPitchPrintSave;
-    const projectId = setupEvent?.projectId || saveEvent?.projectId || "";
-    if (!projectId || !setupEvent?.creatorSetup) return null;
-    const previews = setupEvent.previews?.length
-      ? setupEvent.previews
-      : saveEvent?.previews || [];
+    const projectId = saveEvent?.projectId || "";
+    const previews = saveEvent?.previews || [];
+    if (!projectId || !previews.length || !setupEvent?.creatorSetup) return null;
     return {
       ...(saveEvent || {}),
       ...setupEvent,
       projectId,
-      previewUrl: setupEvent.previewUrl || saveEvent?.previewUrl || "",
+      previewUrl: saveEvent?.previewUrl || previews[0] || "",
       previews,
-      designId: setupEvent.designId || saveEvent?.designId || "",
+      designId: saveEvent?.designId || setupEvent.designId || "",
       creatorSetup: setupEvent.creatorSetup,
     };
   };
@@ -1468,7 +1551,20 @@ function bindPitchPrintManager(root) {
           manager.pendingCreatorSetup?.projectId ||
             manager.pendingPitchPrintSave?.projectId,
         ),
+        previewCount: manager.pendingPitchPrintSave?.previews?.length || 0,
       });
+      if (
+        manager.pendingPitchPrintSave &&
+        manager.pendingCreatorSetup?.creatorSetup &&
+        !manager.saveFailureNotified
+      ) {
+        manager.saveFailureNotified = true;
+        showCreatorToast(
+          root,
+          "We couldn't load your saved design. Please return to the editor and save the design again.",
+          true,
+        );
+      }
       return;
     }
     manager.projectSaved = true;
@@ -1502,14 +1598,16 @@ function bindPitchPrintManager(root) {
     const setupEvent = normalizeCreatorSetupEvent(event);
     if (setupEvent) manager.pendingCreatorSetup = setupEvent;
     const saveEvent = normalizePitchPrintSaveEvent(event);
-    if (
-      saveEvent.projectId ||
-      saveEvent.previewUrl ||
-      saveEvent.previews?.length ||
-      saveEvent.designId
-    ) {
-      manager.pendingPitchPrintSave = saveEvent;
-    }
+    manager.pendingPitchPrintSave = saveEvent;
+    pitchPrintDiagnostics(root, "creator-save-contract", {
+      hasProjectId: Boolean(saveEvent.projectId),
+      hasDesignId: Boolean(saveEvent.designId),
+      previewCount: saveEvent.previews?.length || 0,
+      activeColor: setupEvent?.creatorSetup?.fixedColor || "",
+      activeSides: Array.isArray(setupEvent?.creatorSetup?.placements)
+        ? setupEvent.creatorSetup.placements.length
+        : 0,
+    });
     await savePendingCreatorProduct(product, token);
   };
   const bindCreatorSetupWindowEvents = (product, token) => {
@@ -1720,18 +1818,15 @@ function bindCreatorDesignActions(root) {
       const restoreButton = setActionLoading(startButton, "Preparing designer...");
       try {
         const card = startButton.closest(".customhouse-base-product-card");
-        const fixedColor = card?.querySelector("[data-base-product-color]")?.value || "";
         const selectedProductionMethod = card?.querySelector("[data-base-product-method]")?.value || "";
-        if (!fixedColor || !selectedProductionMethod) {
-          throw new Error("Choose exactly one product color and one printing method.");
+        if (!selectedProductionMethod) {
+          throw new Error("Choose one printing method before starting your design.");
         }
         const created = await createCreatorProductDraft({
           shopifyProductId: baseProduct.id,
           title: baseProduct.title,
           description: "",
           pitchprintDesignId: baseProduct.pitchprintDesignId,
-          fixedColor,
-          selectedColors: [fixedColor],
           selectedProductionMethod,
           fixedProductionMethod: selectedProductionMethod,
         });
@@ -1745,9 +1840,6 @@ function bindCreatorDesignActions(root) {
           creatorContext: true,
           launchContext: "creator_dashboard",
           isCreatorProduct: true,
-          fixedColor,
-          selectedColor: fixedColor,
-          selectedColors: [fixedColor],
           selectedProductionMethod,
           productionMethod: selectedProductionMethod,
           fixedProductionMethod: selectedProductionMethod,
@@ -1804,18 +1896,43 @@ function renderReviewPreviews(root, product) {
     previews.append(empty);
     return;
   }
-  urls.slice(0, 2).forEach((url, index) => {
-    const tile = document.createElement("figure");
-    tile.className = "ch-creator-modal__preview";
-    const image = document.createElement("img");
-    image.src = url;
-    image.alt = index === 0 ? "Front design preview" : "Back design preview";
-    image.loading = "lazy";
-    const caption = document.createElement("figcaption");
-    caption.textContent = index === 0 ? "Front Preview" : "Back Preview";
-    tile.append(image, caption);
-    previews.append(tile);
-  });
+  const setup = creatorSetupForProduct(product);
+  const placements = Array.isArray(setup?.placements) ? setup.placements : [];
+  const entries = urls.slice(0, 3).map((url, index) => ({
+    url,
+    label: String(placements[index] || `Saved view ${index + 1}`),
+  }));
+  const main = document.createElement("figure");
+  main.className = "ch-creator-modal__preview ch-creator-modal__preview--main";
+  const mainImage = document.createElement("img");
+  mainImage.src = entries[0].url;
+  mainImage.alt = `${entries[0].label} design preview`;
+  const mainCaption = document.createElement("figcaption");
+  mainCaption.textContent = entries[0].label;
+  main.append(mainImage, mainCaption);
+  previews.append(main);
+
+  if (entries.length > 1) {
+    const controls = document.createElement("div");
+    controls.className = "ch-creator-modal__preview-controls";
+    entries.forEach((entry, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "ch-creator-modal__preview-control";
+      button.textContent = entry.label;
+      button.setAttribute("aria-pressed", String(index === 0));
+      button.addEventListener("click", () => {
+        mainImage.src = entry.url;
+        mainImage.alt = `${entry.label} design preview`;
+        mainCaption.textContent = entry.label;
+        controls.querySelectorAll("button").forEach((item) =>
+          item.setAttribute("aria-pressed", String(item === button)),
+        );
+      });
+      controls.append(button);
+    });
+    previews.append(controls);
+  }
 }
 
 function renderReviewVariantSelections(root, product) {
@@ -1834,6 +1951,7 @@ function renderReviewVariantSelections(root, product) {
   title.textContent = "Creator setup";
   const list = document.createElement("ul");
   [
+    `Printing Method: ${setup.productionMethod}`,
     `Color: ${setup.fixedColor}`,
     `Designed placements: ${setup.placementCount}`,
   ].forEach((text) => {
