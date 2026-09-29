@@ -946,36 +946,11 @@ function firstPitchPrintRuntimeProjectId(...values) {
   return "";
 }
 
-function pitchPrintPreviewUrl(value) {
-  if (typeof value === "string") {
-    const url = value.trim();
-    return url.startsWith("https://") ? url : "";
-  }
-  if (!value || typeof value !== "object") return "";
-  const file = value.file && typeof value.file === "object" ? value.file : {};
-  return [
-    value.renderedPreviewUrl,
-    value.previewUrl,
-    value.preview,
-    value.url,
-    value.src,
-    value.downloadUrl,
-    value.resourceUrl,
-    value.secureUrl,
-    value.secure_url,
-    value.originalSrc,
-    value.thumbnailUrl,
-    value.thumbnail,
-    value.thumb,
-    file.url,
-  ].map(pitchPrintPreviewUrl).find(Boolean) || "";
-}
-
-function pitchPrintPreviewUrls(...sources) {
-  const urls = sources
-    .flatMap((source) => (Array.isArray(source) ? source : source ? [source] : []))
-    .map(pitchPrintPreviewUrl)
-    .filter(Boolean);
+function canonicalPitchPrintPreviewUrls(source) {
+  const urls = (Array.isArray(source) ? source : [])
+    .filter((value) => typeof value === "string")
+    .map((value) => value.trim())
+    .filter((value) => value.startsWith("https://"));
   return [...new Set(urls)];
 }
 
@@ -1033,24 +1008,22 @@ export function normalizePitchPrintSaveEvent(value, options = {}) {
     project?.id,
     ...(allowGenericIds ? [data?._id, data?.id, data?.tid] : []),
   );
-  const previews = pitchPrintPreviewUrls(
-    data?.renderedPreviews,
-    data?.renderedPreviewUrls,
-    project?.renderedPreviews,
-    project?.renderedPreviewUrls,
-    data?.previews,
-    data?.previewUrls,
-    project?.previews,
-    project?.previewUrls,
-    data?.files,
-    project?.files,
-    data?.previewUrl,
-    data?.preview,
-  );
+  const previews = canonicalPitchPrintPreviewUrls(data?.previews);
+  const numPages = Number(data?.numPages);
   return {
     projectId,
     previews,
     previewUrl: previews[0] || "",
+    source:
+      typeof data?.source === "string" ||
+      (data?.source && typeof data.source === "object")
+        ? data.source
+        : undefined,
+    numPages: Number.isInteger(numPages) && numPages > 0 ? numPages : undefined,
+    meta:
+      data?.meta && typeof data.meta === "object" && !Array.isArray(data.meta)
+        ? data.meta
+        : undefined,
     designId:
       data?.designId ||
       data?.design_id ||
@@ -1537,6 +1510,9 @@ function bindPitchPrintManager(root) {
       previewUrl: saveEvent?.previewUrl || previews[0] || "",
       previews,
       designId: saveEvent?.designId || setupEvent.designId || "",
+      source: saveEvent?.source,
+      numPages: saveEvent?.numPages,
+      meta: saveEvent?.meta,
       creatorSetup: setupEvent.creatorSetup,
     };
   };

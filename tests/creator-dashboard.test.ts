@@ -1059,15 +1059,18 @@ test("creator PitchPrint launch config requires a template design ID only", () =
     /PitchPrint is not configured for this product/,
   );
 });
-test("creator PitchPrint save normalization ignores generic non-PitchPrint IDs", () => {
+test("creator PitchPrint save normalization ignores generic IDs and screenshot fields", () => {
   const saveEvent = normalizePitchPrintSaveEvent({
     data: {
       id: "gid://shopify/Product/123",
-      previewUrl: "https://cdn.pitchprint.test/preview.png",
+      previewUrl: "https://cdn.pitchprint.test/editor-screenshot.png",
+      preview: "https://cdn.pitchprint.test/canvas-screenshot.png",
+      files: [{ url: "https://cdn.pitchprint.test/uploaded-source.png" }],
     },
   });
   assert.equal(saveEvent.projectId, "");
-  assert.equal(saveEvent.previewUrl, "https://cdn.pitchprint.test/preview.png");
+  assert.equal(saveEvent.previewUrl, "");
+  assert.deepEqual(saveEvent.previews, []);
 
   const undefinedProject = normalizePitchPrintSaveEvent({
     data: { projectId: "undefined" },
@@ -1090,22 +1093,40 @@ test("creator PitchPrint save normalization ignores generic non-PitchPrint IDs",
   assert.equal(setupEvent?.creatorSetup.fixedColor, "White");
 });
 
-test("creator PitchPrint save normalization keeps uploaded file previews", () => {
+test("creator PitchPrint save normalization keeps only canonical saved project previews", () => {
+  const source = JSON.stringify({
+    pages: [
+      { name: "Front", objects: [{ type: "Textbox", text: "HELLO" }] },
+      { name: "Back", objects: [] },
+    ],
+  });
   const saveEvent = normalizePitchPrintSaveEvent({
     data: {
       projectId: "pp_project_with_file",
-      files: [{ url: "https://cdn.pitchprint.test/uploaded-front.png" }],
+      designId: "pp_design_tshirt",
+      previews: [
+        "https://s3-eu-west-1.amazonaws.com/pitchprint.io/previews/project_1.jpg",
+        "https://s3-eu-west-1.amazonaws.com/pitchprint.io/previews/project_2.jpg",
+      ],
+      source,
+      numPages: 2,
+      meta: { pageNames: ["Front", "Back"] },
     },
   });
 
   assert.equal(saveEvent.projectId, "pp_project_with_file");
+  assert.equal(saveEvent.designId, "pp_design_tshirt");
   assert.deepEqual(saveEvent.previews, [
-    "https://cdn.pitchprint.test/uploaded-front.png",
+    "https://s3-eu-west-1.amazonaws.com/pitchprint.io/previews/project_1.jpg",
+    "https://s3-eu-west-1.amazonaws.com/pitchprint.io/previews/project_2.jpg",
   ]);
   assert.equal(
     saveEvent.previewUrl,
-    "https://cdn.pitchprint.test/uploaded-front.png",
+    "https://s3-eu-west-1.amazonaws.com/pitchprint.io/previews/project_1.jpg",
   );
+  assert.equal(saveEvent.source, source);
+  assert.equal(saveEvent.numPages, 2);
+  assert.deepEqual(saveEvent.meta, { pageNames: ["Front", "Back"] });
 });
 
 test("creator setup normalization captures the active customizer color", () => {
@@ -1130,6 +1151,9 @@ test("creator setup normalization captures the active customizer color", () => {
 test("Creator save waits for rendered project previews and labels only confirmed saved sides", () => {
   assert.match(script, /const projectId = saveEvent\?\.projectId \|\| ""/);
   assert.match(script, /if \(!projectId \|\| !previews\.length \|\| !setupEvent\?\.creatorSetup\) return null/);
+  assert.match(script, /source: saveEvent\?\.source/);
+  assert.match(script, /numPages: saveEvent\?\.numPages/);
+  assert.match(script, /meta: saveEvent\?\.meta/);
   assert.match(script, /CREATOR_DESIGN_PREVIEW_REQUIRED|couldn't load your saved design/i);
   assert.match(script, /const placements = Array\.isArray\(setup\?\.placements\)/);
   assert.match(script, /label: String\(placements\[index\] \|\| `Saved view/);
