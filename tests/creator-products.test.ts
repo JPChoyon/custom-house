@@ -196,9 +196,22 @@ function pitchPrintPayload(input: {
   previewUrl?: string;
   previews?: string[];
   designId?: string;
+  source?: unknown;
+  numPages?: number;
+  meta?: Record<string, unknown>;
 }) {
   return {
     ...input,
+    source:
+      input.source ??
+      {
+        pages: [
+          {
+            name: "Front",
+            objects: [{ type: "Textbox", text: "TEST" }],
+          },
+        ],
+      },
     creatorSetup: {
       flowMode: "CREATOR_DESIGN",
       interactionMode: "CREATOR_DESIGN",
@@ -900,6 +913,14 @@ test("authenticated Creator A can attach a PitchPrint project to their own Draft
     productionMethod: "DTF",
     placementCount: 1,
     placements: ["Front"],
+    previewSurfaces: [
+      {
+        side: "Front",
+        url: "https://cdn.pitchprint.test/preview-1.png",
+        hasArtwork: true,
+      },
+    ],
+    artworkObjectCounts: { text: 1, image: 0 },
     copyrightAccepted: true,
     nonReturnAcknowledged: true,
     savedAt: JSON.parse(updated.designVariantSelectionsJson).savedAt,
@@ -1037,6 +1058,169 @@ test("editing a Creator design persists the customizer's updated valid color whi
   assert.equal(setup.fixedColor, "Green");
   assert.deepEqual(setup.selectedColors, ["Green"]);
   assert.equal(setup.productionMethod, "EMBROIDERY");
+});
+
+test("Embroidery text-only source overrides a claimed image subtype", async () => {
+  const db = fakeDb();
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id, selectedProductionMethod: "EMBROIDERY" },
+    fakeClient(),
+    db,
+  );
+
+  const updated = await attachPitchPrintProjectToCreatorProduct(
+    shop,
+    "gid://shopify/Customer/1",
+    draft.id,
+    {
+      ...pitchPrintPayload({
+        projectId: "pp_text_only",
+        previews: ["https://cdn.pitchprint.test/text-front.png"],
+        source: {
+          pages: [
+            {
+              name: "Front",
+              objects: [{ type: "Textbox", text: "HELLO", printable: true }],
+            },
+          ],
+        },
+        numPages: 1,
+        meta: { pageNames: ["Front"] },
+      }),
+      creatorSetup: {
+        ...pitchPrintPayload({ projectId: "pp_text_only" }).creatorSetup,
+        embroiderySubtype: "IMAGE_OR_LOGO",
+      },
+    },
+    db,
+  );
+
+  const setup = JSON.parse(updated.designVariantSelectionsJson);
+  assert.equal(setup.embroiderySubtype, "TEXT_ONLY");
+  assert.deepEqual(setup.artworkObjectCounts, { text: 1, image: 0 });
+  assert.equal(setup.placementCount, 1);
+  assert.deepEqual(setup.placements, ["Front"]);
+});
+
+test("Embroidery image and mixed sources cannot claim the cheaper text subtype", async () => {
+  for (const [projectId, objects] of [
+    ["pp_image_only", [{ type: "Image", src: "https://assets.pitchprint.test/logo.png" }]],
+    [
+      "pp_text_image",
+      [
+        { type: "Textbox", text: "HELLO" },
+        { type: "SVGImage", src: "https://assets.pitchprint.test/logo.svg" },
+      ],
+    ],
+  ] as const) {
+    const db = fakeDb();
+    const draft = await createCreatorProductDraft(
+      shop,
+      "gid://shopify/Customer/1",
+      { shopifyProductId: baseProduct.id, selectedProductionMethod: "EMBROIDERY" },
+      fakeClient(),
+      db,
+    );
+    const updated = await attachPitchPrintProjectToCreatorProduct(
+      shop,
+      "gid://shopify/Customer/1",
+      draft.id,
+      {
+        ...pitchPrintPayload({
+          projectId,
+          previews: [`https://cdn.pitchprint.test/${projectId}.png`],
+          source: { pages: [{ name: "Front", objects }] },
+          numPages: 1,
+        }),
+        creatorSetup: {
+          ...pitchPrintPayload({ projectId }).creatorSetup,
+          embroiderySubtype: "TEXT_ONLY",
+        },
+      },
+      db,
+    );
+
+    const setup = JSON.parse(updated.designVariantSelectionsJson);
+    assert.equal(setup.embroiderySubtype, "IMAGE_OR_LOGO");
+    assert.equal(setup.artworkObjectCounts.image, 1);
+  }
+});
+
+test("saved source derives distinct Front and Back placement previews", async () => {
+  const db = fakeDb();
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id, selectedProductionMethod: "EMBROIDERY" },
+    fakeClient(),
+    db,
+  );
+  const updated = await attachPitchPrintProjectToCreatorProduct(
+    shop,
+    "gid://shopify/Customer/1",
+    draft.id,
+    pitchPrintPayload({
+      projectId: "pp_front_back_source",
+      previews: [
+        "https://cdn.pitchprint.test/front-render.png",
+        "https://cdn.pitchprint.test/back-render.png",
+      ],
+      source: {
+        pages: [
+          { name: "Front", objects: [{ type: "Textbox", text: "FRONT" }] },
+          { name: "Back", objects: [{ type: "Textbox", text: "BACK" }] },
+        ],
+      },
+      numPages: 2,
+      meta: { pageNames: ["Front", "Back"] },
+    }),
+    db,
+  );
+
+  const setup = JSON.parse(updated.designVariantSelectionsJson);
+  assert.equal(setup.placementCount, 2);
+  assert.deepEqual(setup.placements, ["Front", "Back"]);
+  assert.deepEqual(setup.previewSurfaces, [
+    {
+      side: "Front",
+      url: "https://cdn.pitchprint.test/front-render.png",
+      hasArtwork: true,
+    },
+    {
+      side: "Back",
+      url: "https://cdn.pitchprint.test/back-render.png",
+      hasArtwork: true,
+    },
+  ]);
+});
+
+test("Embroidery save rejects missing or unsupported saved object metadata", async () => {
+  const db = fakeDb();
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id, selectedProductionMethod: "EMBROIDERY" },
+    fakeClient(),
+    db,
+  );
+
+  await assert.rejects(
+    () =>
+      attachPitchPrintProjectToCreatorProduct(
+        shop,
+        "gid://shopify/Customer/1",
+        draft.id,
+        pitchPrintPayload({
+          projectId: "pp_unknown_objects",
+          previews: ["https://cdn.pitchprint.test/unknown.png"],
+          source: { pages: [{ name: "Front", objects: [{ type: "MysteryObject" }] }] },
+        }),
+        db,
+      ),
+    /artwork type.*could not be determined/i,
+  );
 });
 
 test("PitchPrint save requires exactly one selected Creator color", async () => {
@@ -1177,6 +1361,18 @@ test("PitchPrint save counts only designed Creator placements", async () => {
       ...pitchPrintPayload({
         projectId: "pp_front_back",
         previewUrl: "https://cdn.pitchprint.test/front-back.png",
+        source: {
+          pages: [
+            {
+              name: "Front",
+              objects: [{ type: "Textbox", text: "FRONT" }],
+            },
+            {
+              name: "Back",
+              objects: [{ type: "Textbox", text: "BACK" }],
+            },
+          ],
+        },
       }),
       creatorSetup: {
         ...pitchPrintPayload({ projectId: "pp_front_back" }).creatorSetup,
@@ -1194,7 +1390,7 @@ test("PitchPrint save counts only designed Creator placements", async () => {
   assert.deepEqual(setup.placements, ["Front", "Back"]);
 });
 
-test("PitchPrint save treats saved preview files as artwork placement evidence", async () => {
+test("PitchPrint save does not treat preview files as artwork placement evidence", async () => {
   const db = fakeDb();
   const draft = await createCreatorProductDraft(
     shop,
@@ -1209,22 +1405,21 @@ test("PitchPrint save treats saved preview files as artwork placement evidence",
   delete creatorSetup.designedPlacementCount;
   delete creatorSetup.placements;
 
-  const updated = await attachPitchPrintProjectToCreatorProduct(
-    shop,
-    "gid://shopify/Customer/1",
-    draft.id,
-    {
-      projectId: "pp_preview_only",
-      previews: [{ url: "https://cdn.pitchprint.test/front-render.png" }],
-      creatorSetup,
-    },
-    db,
+  await assert.rejects(
+    () =>
+      attachPitchPrintProjectToCreatorProduct(
+        shop,
+        "gid://shopify/Customer/1",
+        draft.id,
+        {
+          projectId: "pp_preview_only",
+          previews: [{ url: "https://cdn.pitchprint.test/front-render.png" }],
+          creatorSetup,
+        },
+        db,
+      ),
+    /saved artwork type could not be determined/i,
   );
-
-  const setup = JSON.parse(updated.designVariantSelectionsJson);
-  assert.equal(updated.previewUrl, "https://cdn.pitchprint.test/front-render.png");
-  assert.equal(setup.placementCount, 1);
-  assert.deepEqual(setup.placements, ["Artwork area 1"]);
 });
 
 test("PitchPrint save still rejects without placement or saved preview evidence", async () => {
@@ -1254,7 +1449,7 @@ test("PitchPrint save still rejects without placement or saved preview evidence"
         },
         db,
       ),
-    /Add artwork to at least one printable area/,
+    /saved artwork type could not be determined/i,
   );
 });
 

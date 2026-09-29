@@ -38,6 +38,7 @@ import {
   type ProductionMethodCode,
   type EmbroiderySubtype,
 } from "./production-method-pricing.server.ts";
+import { classifyPitchPrintProjectSource } from "./pitchprint-project-metadata.ts";
 
 export type CreatorProductRecord = {
   id: string;
@@ -139,6 +140,9 @@ export type AttachPitchPrintProjectInput = {
   previews?: unknown;
   previewUrl?: unknown;
   designId?: unknown;
+  source?: unknown;
+  numPages?: unknown;
+  meta?: unknown;
   variantSelections?: unknown;
   creatorSetup?: unknown;
   selectedColor?: unknown;
@@ -206,6 +210,12 @@ export type CreatorProductSetup = {
   embroiderySubtype?: EmbroiderySubtype;
   placementCount: number;
   placements: string[];
+  previewSurfaces?: Array<{
+    side: string;
+    url: string;
+    hasArtwork: boolean;
+  }>;
+  artworkObjectCounts?: { text: number; image: number };
   copyrightAccepted: boolean;
   nonReturnAcknowledged: boolean;
   savedAt: string;
@@ -583,10 +593,6 @@ function cleanPreviewUrls(input: AttachPitchPrintProjectInput) {
   ];
 }
 
-function pitchPrintPreviewPlacementCount(input: AttachPitchPrintProjectInput) {
-  return cleanPreviewUrls(input).length;
-}
-
 function cleanPitchPrintDesignId(value: unknown) {
   if (typeof value !== "string") return null;
   const designId = value.trim();
@@ -726,63 +732,6 @@ function directPositiveInteger(...values: unknown[]) {
   return 0;
 }
 
-function placementLabel(value: unknown) {
-  if (typeof value === "string") return cleanOptionalText(value, 80);
-  if (!value || typeof value !== "object") return null;
-  const record = value as Record<string, unknown>;
-  return (
-    cleanOptionalText(record.label, 80) ||
-    cleanOptionalText(record.name, 80) ||
-    cleanOptionalText(record.side, 80) ||
-    cleanOptionalText(record.placement, 80) ||
-    cleanOptionalText(record.id, 80)
-  );
-}
-
-function placementHasArtwork(value: unknown) {
-  if (typeof value === "string") return Boolean(value.trim());
-  if (!value || typeof value !== "object") return false;
-  const record = value as Record<string, unknown>;
-  if (
-    record.hasArtwork === false ||
-    record.hasDesign === false ||
-    record.isBlank === true ||
-    record.blank === true ||
-    record.empty === true
-  ) {
-    return false;
-  }
-  return Boolean(
-    record.hasArtwork === true ||
-      record.hasDesign === true ||
-      record.artwork === true ||
-      record.printed === true ||
-      record.used === true ||
-      placementLabel(record),
-  );
-}
-
-function collectPlacementRecords(setup: Record<string, unknown>) {
-  const candidates = [
-    setup.placements,
-    setup.designedPlacements,
-    setup.printPlacements,
-    setup.printedPlacements,
-    (setup.productionSurchargeMetadata as Record<string, unknown> | undefined)
-      ?.placements,
-    (setup.dimensionData as Record<string, unknown> | undefined)?.placements,
-  ];
-  for (const candidate of candidates) {
-    if (!Array.isArray(candidate)) continue;
-    const placements = candidate
-      .filter(placementHasArtwork)
-      .map(placementLabel)
-      .filter((item): item is string => Boolean(item));
-    if (placements.length) return [...new Set(placements)].slice(0, 20);
-  }
-  return [];
-}
-
 function hasCustomerOrderQuantity(setup: Record<string, unknown>) {
   if (
     directPositiveInteger(
@@ -911,29 +860,28 @@ async function cleanCreatorProductSetup(
       422,
     );
   }
+  const artworkFacts = classifyPitchPrintProjectSource(input.source);
   const embroiderySubtype =
-    productionMethod === "EMBROIDERY" && setup.embroiderySubtype
-      ? cleanEmbroiderySubtype(setup.embroiderySubtype)
+    productionMethod === "EMBROIDERY"
+      ? artworkFacts.embroiderySubtype
       : undefined;
-  const placements = collectPlacementRecords(setup);
-  const explicitPlacementCount = directPositiveInteger(
-    setup.placementCount,
-    setup.designedPlacementCount,
-    (setup.productionSurchargeMetadata as Record<string, unknown> | undefined)
-      ?.placementCount,
-  );
-  const previewPlacementCount = pitchPrintPreviewPlacementCount(input);
-  const placementCount =
-    placements.length ||
-    explicitPlacementCount ||
-    previewPlacementCount;
-  if (!placementCount) {
-    throw new DomainError(
-      "DESIGNED_PLACEMENT_REQUIRED",
-      "Add artwork to at least one printable area before saving.",
-      422,
-    );
-  }
+  const placements = artworkFacts.placements;
+  const placementCount = artworkFacts.placementCount;
+  const previewUrls = cleanPreviewUrls(input);
+  const meta =
+    input.meta && typeof input.meta === "object" && !Array.isArray(input.meta)
+      ? (input.meta as Record<string, unknown>)
+      : {};
+  const metaPageNames = Array.isArray(meta.pageNames) ? meta.pageNames : [];
+  const previewSurfaces = previewUrls.map((url, index) => {
+    const sourceSurface = artworkFacts.surfaces[index];
+    const metaSide = cleanOptionalText(metaPageNames[index], 80);
+    return {
+      side: sourceSurface?.side || metaSide || `Saved view ${index + 1}`,
+      url,
+      hasArtwork: sourceSurface?.hasArtwork === true,
+    };
+  });
   if (
     !booleanTrue(
       setup.copyrightAccepted,
@@ -985,13 +933,9 @@ async function cleanCreatorProductSetup(
     productionMethod,
     ...(embroiderySubtype ? { embroiderySubtype } : {}),
     placementCount,
-    placements: placements.length
-      ? placements
-      : Array.from(
-          { length: placementCount },
-          (_, index) =>
-            `${previewPlacementCount && !explicitPlacementCount ? "Artwork area" : "Placement"} ${index + 1}`,
-        ),
+    placements,
+    previewSurfaces,
+    artworkObjectCounts: artworkFacts.objectCounts,
     copyrightAccepted: true,
     nonReturnAcknowledged: booleanTrue(setup.nonReturnAcknowledged),
     savedAt: new Date().toISOString(),
