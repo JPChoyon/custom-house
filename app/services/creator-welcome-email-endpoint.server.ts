@@ -61,6 +61,62 @@ function senderEmail(value: string) {
   return (displayNameMatch?.[1] || value).trim();
 }
 
+function recipientDomain(value: string) {
+  return value.split("@").at(-1)?.toLowerCase() || "unavailable";
+}
+
+function safeProviderErrorCode(value: unknown, fallback = "provider_rejected") {
+  const code = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "_")
+    .slice(0, 100);
+  return code || fallback;
+}
+
+function safeProviderMessage(value: unknown) {
+  const message = String(value || "Resend did not accept the email.")
+    .replace(/Bearer\s+\S+/gi, "Bearer [REDACTED]")
+    .replace(/\bre_[a-z0-9_-]+\b/gi, "[REDACTED_API_KEY]")
+    .replace(
+      /[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@([a-z0-9.-]+\.[a-z]{2,})/gi,
+      (_email, domain: string) => `[email@${domain.toLowerCase()}]`,
+    )
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 500);
+  return message || "Resend did not accept the email.";
+}
+
+function providerFailureResponse(
+  creatorId: string,
+  to: string,
+  error: { name?: string; message?: string } | Error | null,
+  fallbackCode = "provider_rejected",
+) {
+  const providerErrorCode = safeProviderErrorCode(
+    "name" in (error || {}) ? error?.name : undefined,
+    fallbackCode,
+  );
+  const providerMessage = safeProviderMessage(error?.message);
+  console.error("creator_welcome_email_resend_failed", {
+    creatorId,
+    recipientDomain: recipientDomain(to),
+    providerErrorCode,
+    providerMessage,
+  });
+  return jsonResponse(
+    {
+      ok: false,
+      error: "EMAIL_DELIVERY_FAILED",
+      message: "Resend did not accept the email.",
+      providerErrorCode,
+      providerMessage,
+    },
+    502,
+  );
+}
+
 export async function deliverCreatorWelcomeEmail(
   request: Request,
   options: CreatorWelcomeEmailEndpointOptions = {},
@@ -129,22 +185,30 @@ export async function deliverCreatorWelcomeEmail(
   }
 
   const sender = options.sender || new Resend(apiKey).emails;
+  console.info("creator_welcome_email_webhook_entered", {
+    creatorId,
+    recipientDomain: recipientDomain(to),
+  });
   try {
     const result = await sender.send(
       { from, to, subject: content.subject, text: content.body },
       { idempotencyKey: `creator-welcome/${creatorId}` },
     );
     if (result.error || !result.data?.id) {
-      return jsonResponse(
-        { ok: false, error: "EMAIL_DELIVERY_FAILED", message: "Resend did not accept the email." },
-        502,
-      );
+      return providerFailureResponse(creatorId, to, result.error, "missing_provider_email_id");
     }
+    console.info("creator_welcome_email_resend_accepted", {
+      creatorId,
+      recipientDomain: recipientDomain(to),
+      emailId: result.data.id,
+    });
     return jsonResponse({ ok: true, emailId: result.data.id }, 202);
-  } catch {
-    return jsonResponse(
-      { ok: false, error: "EMAIL_DELIVERY_FAILED", message: "Resend did not accept the email." },
-      502,
+  } catch (error) {
+    return providerFailureResponse(
+      creatorId,
+      to,
+      error instanceof Error ? { message: error.message } : null,
+      "provider_exception",
     );
   }
 }

@@ -116,7 +116,10 @@ test("Resend rejection produces a non-success response", async () => {
     async send() {
       return {
         data: null,
-        error: { name: "validation_error", message: "provider detail must stay private" },
+        error: {
+          name: "validation_error",
+          message: "Sender creators@customhouse.test is not verified; re_secret_must_not_escape",
+        },
       };
     },
   };
@@ -128,7 +131,27 @@ test("Resend rejection produces a non-success response", async () => {
 
   assert.equal(response.status, 502);
   assert.equal(body.error, "EMAIL_DELIVERY_FAILED");
-  assert.doesNotMatch(JSON.stringify(body), /provider detail/i);
+  assert.equal(body.providerErrorCode, "validation_error");
+  assert.match(String(body.providerMessage), /not verified/i);
+  assert.match(String(body.providerMessage), /\[email@customhouse\.test\]/);
+  assert.doesNotMatch(JSON.stringify(body), /creators@customhouse\.test|re_secret/i);
+});
+
+test("Resend exceptions return safe structured diagnostics", async () => {
+  const sender = {
+    async send() {
+      throw new Error("Network rejected Authorization: Bearer secret-value");
+    },
+  };
+  const response = await deliverCreatorWelcomeEmail(
+    request("POST", { authorization: "Bearer welcome-secret" }),
+    { environment, sender },
+  );
+  const body = await responseBody(response);
+
+  assert.equal(response.status, 502);
+  assert.equal(body.providerErrorCode, "provider_exception");
+  assert.doesNotMatch(JSON.stringify(body), /secret-value|welcome-secret/);
 });
 
 test("route action delegates valid POST delivery without exposing configuration", async () => {

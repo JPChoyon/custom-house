@@ -35,6 +35,15 @@ type WelcomeEmailOptions = {
 
 type WelcomeEmailEnvironment = Record<string, string | undefined>;
 
+type WelcomeEmailWebhookBody = {
+  ok?: boolean;
+  emailId?: string;
+  error?: string;
+  message?: string;
+  providerErrorCode?: string;
+  providerMessage?: string;
+};
+
 export const CREATOR_WELCOME_EMAIL_ENVIRONMENT_KEYS = [
   "RESEND_API_KEY",
   "CREATOR_EMAIL_FROM",
@@ -77,6 +86,38 @@ function isHttpsEndpoint(value: unknown) {
     return new URL(String(value || "").trim()).protocol === "https:";
   } catch {
     return false;
+  }
+}
+
+function safeDeliveryCode(value: unknown, fallback: string) {
+  const code = String(value || "")
+    .trim()
+    .replace(/[^A-Za-z0-9._-]+/g, "_")
+    .slice(0, 100);
+  return code || fallback;
+}
+
+function safeDeliveryMessage(value: unknown, fallback: string) {
+  const message = String(value || fallback)
+    .replace(/Bearer\s+\S+/gi, "Bearer [REDACTED]")
+    .replace(/\bre_[a-z0-9_-]+\b/gi, "[REDACTED_API_KEY]")
+    .replace(
+      /[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@([a-z0-9.-]+\.[a-z]{2,})/gi,
+      (_email, domain: string) => `[email@${domain.toLowerCase()}]`,
+    )
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 500);
+  return message || fallback;
+}
+
+async function welcomeEmailWebhookBody(response: Response) {
+  try {
+    const body: unknown = await response.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+    return body as WelcomeEmailWebhookBody;
+  } catch {
+    return null;
   }
 }
 
@@ -154,8 +195,78 @@ export async function sendCreatorWelcomeEmail(
         creatorId: creator.id,
       }),
     });
-    if (!response.ok) throw new Error("Creator welcome email delivery failed.");
-  } catch {
+    const responseBody = await welcomeEmailWebhookBody(response);
+    const emailId = String(responseBody?.emailId || "").trim();
+    if (!response.ok || !emailId) {
+      const httpStatus = response.status;
+      const errorCode = safeDeliveryCode(
+        responseBody?.providerErrorCode || responseBody?.error,
+        response.ok ? "MISSING_PROVIDER_EMAIL_ID" : "WEBHOOK_DELIVERY_FAILED",
+      );
+      const message = safeDeliveryMessage(
+        responseBody?.providerMessage || responseBody?.message,
+        response.ok
+          ? "The email provider did not return an accepted email ID."
+          : "The welcome email webhook rejected delivery.",
+      );
+      console.error("creator_welcome_email_delivery_failed", {
+        creatorId: creator.id,
+        recipientDomain: recipient.split("@").at(-1)?.toLowerCase() || "unavailable",
+        httpStatus,
+        errorCode,
+        message,
+      });
+      await database.auditLog.create({
+        data: {
+          shop,
+          actorType: "SYSTEM",
+          action: "creator.welcome_email.delivery_failed",
+          entityType: "Creator",
+          entityId: creator.id,
+          afterJson: safeJson({ retryable: true, httpStatus, errorCode, message }),
+        },
+      });
+      return {
+        sent: false as const,
+        reason: "delivery-failed" as const,
+        httpStatus,
+        errorCode,
+      };
+    }
+    const sentAt = new Date();
+    await database.$transaction([
+      database.creator.update({ where: { id: creator.id }, data: { welcomeEmailSentAt: sentAt } }),
+      database.auditLog.create({
+        data: {
+          shop,
+          actorType: "SYSTEM",
+          action: "creator.welcome_email.sent",
+          entityType: "Creator",
+          entityId: creator.id,
+          afterJson: safeJson({ sentAt, emailId }),
+        },
+      }),
+    ]);
+    console.info("creator_welcome_email_delivery_succeeded", {
+      creatorId: creator.id,
+      recipientDomain: recipient.split("@").at(-1)?.toLowerCase() || "unavailable",
+      httpStatus: response.status,
+      emailId,
+    });
+    return { sent: true as const, sentAt, emailId };
+  } catch (error) {
+    const errorCode = "WEBHOOK_REQUEST_FAILED";
+    const message = safeDeliveryMessage(
+      error instanceof Error ? error.message : undefined,
+      "The welcome email webhook request failed.",
+    );
+    console.error("creator_welcome_email_delivery_failed", {
+      creatorId: creator.id,
+      recipientDomain: recipient.split("@").at(-1)?.toLowerCase() || "unavailable",
+      httpStatus: null,
+      errorCode,
+      message,
+    });
     await database.auditLog.create({
       data: {
         shop,
@@ -163,24 +274,14 @@ export async function sendCreatorWelcomeEmail(
         action: "creator.welcome_email.delivery_failed",
         entityType: "Creator",
         entityId: creator.id,
-        afterJson: safeJson({ retryable: true }),
+        afterJson: safeJson({ retryable: true, httpStatus: null, errorCode, message }),
       },
     });
-    return { sent: false as const, reason: "delivery-failed" as const };
+    return {
+      sent: false as const,
+      reason: "delivery-failed" as const,
+      httpStatus: null,
+      errorCode,
+    };
   }
-  const sentAt = new Date();
-  await database.$transaction([
-    database.creator.update({ where: { id: creator.id }, data: { welcomeEmailSentAt: sentAt } }),
-    database.auditLog.create({
-      data: {
-        shop,
-        actorType: "SYSTEM",
-        action: "creator.welcome_email.sent",
-        entityType: "Creator",
-        entityId: creator.id,
-        afterJson: safeJson({ sentAt }),
-      },
-    }),
-  ]);
-  return { sent: true as const, sentAt };
 }

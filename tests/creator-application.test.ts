@@ -190,6 +190,7 @@ test("successful welcome email delivery records sent state and prevents a duplic
     welcomeEmailSentAt: null as Date | null,
   };
   const auditActions: string[] = [];
+  const auditPayloads: Array<Record<string, unknown>> = [];
   let deliveryCount = 0;
   const database = {
     creator: {
@@ -210,8 +211,9 @@ test("successful welcome email delivery records sent state and prevents a duplic
       },
     },
     auditLog: {
-      async create(args: { data: { action: string } }) {
+      async create(args: { data: { action: string; afterJson?: string } }) {
         auditActions.push(args.data.action);
+        auditPayloads.push(JSON.parse(args.data.afterJson || "{}"));
         return {};
       },
     },
@@ -232,7 +234,7 @@ test("successful welcome email delivery records sent state and prevents a duplic
       template: "creator-welcome",
       creatorId: creator.id,
     });
-    return new Response(null, { status: 204 });
+    return Response.json({ ok: true, emailId: "email_accepted_123" }, { status: 202 });
   };
 
   const first = await sendCreatorWelcomeEmail("customhouse.test", creator.id, {
@@ -249,11 +251,13 @@ test("successful welcome email delivery records sent state and prevents a duplic
   });
 
   assert.equal(first.sent, true);
+  assert.equal(first.emailId, "email_accepted_123");
   assert.equal(second.sent, false);
   assert.equal(second.reason, "not-eligible");
   assert.equal(deliveryCount, 1);
   assert.ok(creator.welcomeEmailSentAt instanceof Date);
   assert.deepEqual(auditActions, ["creator.welcome_email.sent"]);
+  assert.equal(auditPayloads[0]?.emailId, "email_accepted_123");
 });
 
 test("failed welcome email delivery remains retryable and is audited", async () => {
@@ -265,6 +269,7 @@ test("failed welcome email delivery remains retryable and is audited", async () 
     welcomeEmailSentAt: null as Date | null,
   };
   const auditActions: string[] = [];
+  const auditPayloads: Array<Record<string, unknown>> = [];
   const database = {
     creator: {
       async findFirst() {
@@ -283,8 +288,9 @@ test("failed welcome email delivery remains retryable and is audited", async () 
       },
     },
     auditLog: {
-      async create(args: { data: { action: string } }) {
+      async create(args: { data: { action: string; afterJson?: string } }) {
         auditActions.push(args.data.action);
+        auditPayloads.push(JSON.parse(args.data.afterJson || "{}"));
         return {};
       },
     },
@@ -296,15 +302,116 @@ test("failed welcome email delivery remains retryable and is audited", async () 
 
   const result = await sendCreatorWelcomeEmail("customhouse.test", creator.id, {
     database,
-    fetcher: async () => new Response(null, { status: 503 }),
+    fetcher: async () => Response.json({
+      ok: false,
+      error: "EMAIL_DELIVERY_FAILED",
+      providerErrorCode: "validation_error",
+      providerMessage: "Sender domain is not verified.",
+    }, { status: 502 }),
     endpoint: "https://mailer.example/send",
     secret: "test-secret",
   });
 
   assert.equal(result.sent, false);
   assert.equal(result.reason, "delivery-failed");
+  assert.equal(result.httpStatus, 502);
+  assert.equal(result.errorCode, "validation_error");
   assert.equal(creator.welcomeEmailSentAt, null);
   assert.deepEqual(auditActions, ["creator.welcome_email.delivery_failed"]);
+  assert.deepEqual(auditPayloads, [{
+    retryable: true,
+    httpStatus: 502,
+    errorCode: "validation_error",
+    message: "Sender domain is not verified.",
+  }]);
+});
+
+test("invalid welcome email recipient fails before the webhook call", async () => {
+  let deliveryCount = 0;
+  const database = {
+    creator: {
+      async findFirst() {
+        return {
+          id: "creator-invalid-email",
+          status: "APPROVED",
+          displayName: "Invalid Email Creator",
+          emailSnapshot: "not-an-email",
+          welcomeEmailSentAt: null,
+        };
+      },
+      async update() {
+        throw new Error("Invalid recipients must never be marked sent.");
+      },
+    },
+    shopConfig: {
+      async upsert() {
+        return {
+          creatorWelcomeEmailSubject: DEFAULT_CREATOR_WELCOME_SUBJECT,
+          creatorWelcomeEmailBody: DEFAULT_CREATOR_WELCOME_BODY,
+        };
+      },
+    },
+    auditLog: { async create() { return {}; } },
+    async $transaction() { throw new Error("Invalid recipients must not update state."); },
+  };
+  const result = await sendCreatorWelcomeEmail("customhouse.test", "creator-invalid-email", {
+    database,
+    fetcher: async () => {
+      deliveryCount += 1;
+      return Response.json({ ok: true, emailId: "unexpected" });
+    },
+    endpoint: "https://mailer.example/send",
+    secret: "test-secret",
+  });
+
+  assert.deepEqual(result, { sent: false, reason: "email-unavailable" });
+  assert.equal(deliveryCount, 0);
+});
+
+test("successful webhook response without an email ID remains retryable", async () => {
+  let updated = false;
+  const auditPayloads: Array<Record<string, unknown>> = [];
+  const database = {
+    creator: {
+      async findFirst() {
+        return {
+          id: "creator-missing-provider-id",
+          status: "APPROVED",
+          displayName: "Missing Provider ID",
+          emailSnapshot: "creator@example.com",
+          welcomeEmailSentAt: null,
+        };
+      },
+      async update() { updated = true; return {}; },
+    },
+    shopConfig: {
+      async upsert() {
+        return {
+          creatorWelcomeEmailSubject: DEFAULT_CREATOR_WELCOME_SUBJECT,
+          creatorWelcomeEmailBody: DEFAULT_CREATOR_WELCOME_BODY,
+        };
+      },
+    },
+    auditLog: {
+      async create(args: { data: { afterJson?: string } }) {
+        auditPayloads.push(JSON.parse(args.data.afterJson || "{}"));
+        return {};
+      },
+    },
+    async $transaction() { throw new Error("Missing provider IDs must not update state."); },
+  };
+  const result = await sendCreatorWelcomeEmail("customhouse.test", "creator-missing-provider-id", {
+    database,
+    fetcher: async () => Response.json({ ok: true }, { status: 202 }),
+    endpoint: "https://mailer.example/send",
+    secret: "test-secret",
+  });
+
+  assert.equal(result.sent, false);
+  assert.equal(result.reason, "delivery-failed");
+  assert.equal(result.errorCode, "MISSING_PROVIDER_EMAIL_ID");
+  assert.equal(updated, false);
+  assert.equal(auditPayloads[0]?.errorCode, "MISSING_PROVIDER_EMAIL_ID");
 });
 
 test("storefront creator form submits through the Shopify app proxy", () => {
