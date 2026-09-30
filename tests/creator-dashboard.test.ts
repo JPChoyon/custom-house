@@ -992,7 +992,7 @@ test("creator dashboard PitchPrint bridge uses Creator setup contract instead of
   assert.match(script, /ensurePitchPrintBaseProductConfig\(root, product\)/);
   assert.match(script, /pendingCreatorSetup: null/);
   assert.match(script, /pendingPitchPrintSave: null/);
-  assert.match(script, /const savePayload = buildCreatorSavePayload\(product\)/);
+  assert.match(script, /savePayload = buildCreatorSavePayload\(product\)/);
   assert.match(script, /if \(!savePayload\)/);
   assert.match(script, /handlePitchPrintProjectSaved\(product, event, token\)/);
   assert.match(script, /creatorSetup: normalizeCreatorSetupPayload\(setup\)/);
@@ -1157,6 +1157,62 @@ test("creator setup normalization captures the active customizer color", () => {
   assert.deepEqual(setupEvent?.creatorSetup.selectedColors, ["Green"]);
 });
 
+test("fixed Creator setup-ready contract carries canonical identity, artwork, and saved side previews", () => {
+  const setupEvent = normalizeCreatorSetupEvent({
+    type: "CUSTOMHOUSE_PP_CREATOR_SETUP_READY",
+    payload: {
+      flowMode: "CREATOR_DESIGN",
+      creatorProductId: "creator-product-one",
+      creatorProjectId: "pp_creator_project_1",
+      designId: "pp_design_1",
+      selectedProductionMethod: "EMBROIDERY",
+      selectedColor: { value: "Green", id: "green" },
+      artworkType: "IMAGE_OR_LOGO",
+      embroiderySubtype: "IMAGE_OR_LOGO",
+      placementCount: 2,
+      placements: ["Front", "Back"],
+      previews: [
+        "https://cdn.pitchprint.test/front.png",
+        "https://cdn.pitchprint.test/back.png",
+      ],
+      sidePreviews: [
+        { side: "Front", url: "https://cdn.pitchprint.test/front.png", hasArtwork: true },
+        { side: "Back", url: "https://cdn.pitchprint.test/back.png", hasArtwork: true },
+      ],
+      artworkSummary: { text: 1, image: 1 },
+      copyrightAccepted: true,
+    },
+  });
+
+  assert.equal(setupEvent?.projectId, "pp_creator_project_1");
+  assert.equal(setupEvent?.creatorSetup.creatorProductId, "creator-product-one");
+  assert.equal(setupEvent?.creatorSetup.embroiderySubtype, "IMAGE_OR_LOGO");
+  assert.deepEqual(setupEvent?.sidePreviews, [
+    { side: "Front", url: "https://cdn.pitchprint.test/front.png", hasArtwork: true },
+    { side: "Back", url: "https://cdn.pitchprint.test/back.png", hasArtwork: true },
+  ]);
+  assert.deepEqual(setupEvent?.previews, [
+    "https://cdn.pitchprint.test/front.png",
+    "https://cdn.pitchprint.test/back.png",
+  ]);
+});
+
+test("Creator setup normalizes legacy IMAGE_LOGO to canonical IMAGE_OR_LOGO", () => {
+  const setupEvent = normalizeCreatorSetupEvent({
+    type: "CUSTOMHOUSE_PP_CREATOR_SETUP_READY",
+    payload: {
+      flowMode: "CREATOR_DESIGN",
+      creatorProductId: "creator-product-one",
+      creatorProjectId: "pp_creator_project_legacy",
+      selectedColor: "White",
+      embroiderySubtype: "IMAGE_LOGO",
+      previews: ["https://cdn.pitchprint.test/front.png"],
+    },
+  });
+
+  assert.equal(setupEvent?.creatorSetup.embroiderySubtype, "IMAGE_OR_LOGO");
+});
+
 test("PitchPrint client options expose the persisted method and color at every supported boundary", () => {
   const customHouseConfig = {
     productOrigin: "global",
@@ -1308,6 +1364,29 @@ test("Creator save restores the persisted method instead of trusting the PitchPr
   }
 });
 
+test("Creator save rejects conflicting method and CreatorProduct identity", () => {
+  const product = {
+    id: "creator-product-one",
+    designVariantSelectionsJson: JSON.stringify({
+      schema: "creator_design_setup_v1",
+      productionMethod: "EMBROIDERY",
+    }),
+  };
+
+  assert.throws(
+    () => creatorSaveSetup(product, { productionMethod: "DTF" }),
+    /printing method.*does not match/i,
+  );
+  assert.throws(
+    () => creatorSaveSetup(product, { productionMethod: "SCREEN_PRINT" }),
+    /printing method.*does not match/i,
+  );
+  assert.throws(
+    () => creatorSaveSetup(product, { creatorProductId: "creator-product-two" }),
+    /different Creator Product/i,
+  );
+});
+
 test("Creator review reads method and color from the same persisted save contract", () => {
   const presentation = creatorReviewPresentation({
     designVariantSelectionsJson: JSON.stringify({
@@ -1338,12 +1417,12 @@ test("Creator review reads method and color from the same persisted save contrac
 });
 
 test("Creator save waits for rendered project previews and labels only confirmed saved sides", () => {
-  assert.match(script, /const projectId = saveEvent\?\.projectId \|\| ""/);
+  assert.match(script, /setupEvent\?\.projectId \|\| saveEvent\?\.projectId/);
   assert.match(script, /const creatorSetup = creatorSaveSetup\(product, setupEvent\?\.creatorSetup\)/);
   assert.match(script, /if \(!projectId \|\| !previews\.length \|\| !creatorSetup\) return null/);
-  assert.match(script, /source: saveEvent\?\.source/);
-  assert.match(script, /numPages: saveEvent\?\.numPages/);
-  assert.match(script, /meta: saveEvent\?\.meta/);
+  assert.match(script, /source: setupEvent\?\.source \|\| saveEvent\?\.source/);
+  assert.match(script, /numPages: setupEvent\?\.numPages \|\| saveEvent\?\.numPages/);
+  assert.match(script, /meta: setupEvent\?\.meta \|\| saveEvent\?\.meta/);
   assert.match(script, /CREATOR_DESIGN_PREVIEW_REQUIRED|couldn't load your saved design/i);
   assert.match(script, /const savedSurfaces = Array\.isArray\(setup\?\.previewSurfaces\)/);
   assert.match(script, /label: surface\.side/);

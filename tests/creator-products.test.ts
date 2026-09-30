@@ -1326,6 +1326,103 @@ test("Embroidery image and mixed sources cannot claim the cheaper text subtype",
   }
 });
 
+test("fixed PitchPrint contract saves canonical subtype and side previews without legacy source", async () => {
+  for (const [incomingSubtype, expectedSubtype] of [
+    ["TEXT_ONLY", "TEXT_ONLY"],
+    ["IMAGE_OR_LOGO", "IMAGE_OR_LOGO"],
+    ["IMAGE_LOGO", "IMAGE_OR_LOGO"],
+  ] as const) {
+    const db = fakeDb();
+    const draft = await createCreatorProductDraft(
+      shop,
+      "gid://shopify/Customer/1",
+      { shopifyProductId: baseProduct.id, selectedProductionMethod: "EMBROIDERY" },
+      fakeClient(),
+      db,
+    );
+    const updated = await attachPitchPrintProjectToCreatorProduct(
+      shop,
+      "gid://shopify/Customer/1",
+      draft.id,
+      {
+        projectId: `pp_canonical_${expectedSubtype.toLowerCase()}`,
+        creatorProductId: draft.id,
+        previews: [
+          "https://cdn.pitchprint.test/front.png",
+          "https://cdn.pitchprint.test/back.png",
+        ],
+        sidePreviews: [
+          { side: "Front", url: "https://cdn.pitchprint.test/front.png", hasArtwork: true },
+          { side: "Back", url: "https://cdn.pitchprint.test/back.png", hasArtwork: true },
+        ],
+        creatorSetup: {
+          flowMode: "CREATOR_DESIGN",
+          creatorProductId: draft.id,
+          selectedColor: "White",
+          selectedProductionMethod: "EMBROIDERY",
+          artworkType: incomingSubtype,
+          embroiderySubtype: incomingSubtype,
+          placementCount: 2,
+          placements: ["Front", "Back"],
+          artworkSummary:
+            expectedSubtype === "TEXT_ONLY"
+              ? { text: 1, image: 0 }
+              : { text: 0, image: 1 },
+          copyrightAccepted: true,
+        },
+      },
+      db,
+    );
+
+    const setup = JSON.parse(updated.designVariantSelectionsJson);
+    assert.equal(setup.embroiderySubtype, expectedSubtype);
+    assert.equal(setup.placementCount, 2);
+    assert.deepEqual(setup.placements, ["Front", "Back"]);
+    assert.deepEqual(setup.previewSurfaces, [
+      {
+        side: "Front",
+        url: "https://cdn.pitchprint.test/front.png",
+        hasArtwork: true,
+      },
+      {
+        side: "Back",
+        url: "https://cdn.pitchprint.test/back.png",
+        hasArtwork: true,
+      },
+    ]);
+  }
+});
+
+test("fixed PitchPrint contract rejects a different CreatorProduct identity", async () => {
+  const db = fakeDb();
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id, selectedProductionMethod: "EMBROIDERY" },
+    fakeClient(),
+    db,
+  );
+
+  await assert.rejects(
+    () =>
+      attachPitchPrintProjectToCreatorProduct(
+        shop,
+        "gid://shopify/Customer/1",
+        draft.id,
+        {
+          ...pitchPrintPayload({
+            projectId: "pp_wrong_creator_product",
+            previews: ["https://cdn.pitchprint.test/front.png"],
+          }),
+          creatorProductId: "another-creator-product",
+        },
+        db,
+      ),
+    /different Creator Product/i,
+  );
+  assert.equal(draft.pitchprintProjectId, null);
+});
+
 test("saved source derives distinct Front and Back placement previews", async () => {
   const db = fakeDb();
   const draft = await createCreatorProductDraft(

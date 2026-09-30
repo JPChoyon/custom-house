@@ -136,8 +136,11 @@ export type CreateCreatorProductInput = {
 };
 
 export type AttachPitchPrintProjectInput = {
-  projectId: unknown;
+  projectId?: unknown;
+  creatorProjectId?: unknown;
+  creatorProductId?: unknown;
   previews?: unknown;
+  sidePreviews?: unknown;
   previewUrl?: unknown;
   designId?: unknown;
   source?: unknown;
@@ -155,6 +158,9 @@ export type AttachPitchPrintProjectInput = {
   designedPlacementCount?: unknown;
   placements?: unknown;
   designedPlacements?: unknown;
+  artworkType?: unknown;
+  embroiderySubtype?: unknown;
+  artworkSummary?: unknown;
   copyrightAccepted?: unknown;
   copyrightConfirmed?: unknown;
   rightsConfirmed?: unknown;
@@ -576,6 +582,7 @@ function cleanPreviewUrls(input: AttachPitchPrintProjectInput) {
   const values = [
     ...previewUrlCandidates(input.previews),
     ...previewUrlCandidates(input.previewUrl),
+    ...previewUrlCandidates(input.sidePreviews),
   ];
   return [
     ...new Set(
@@ -593,6 +600,122 @@ function cleanPreviewUrls(input: AttachPitchPrintProjectInput) {
         .slice(0, 10),
     ),
   ];
+}
+
+function canonicalArtworkSubtype(value: unknown): EmbroiderySubtype | null {
+  const normalized = String(value || "").trim().toUpperCase();
+  if (normalized === "IMAGE_LOGO") return "IMAGE_OR_LOGO";
+  if (normalized === "TEXT_ONLY" || normalized === "IMAGE_OR_LOGO") {
+    return normalized;
+  }
+  return null;
+}
+
+function canonicalPlacementName(value: unknown, index: number) {
+  if (typeof value === "string") return cleanOptionalText(value, 80);
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  if (record.hasArtwork === false) return null;
+  return cleanOptionalText(
+    record.side || record.name || record.label || record.id,
+    80,
+  ) || `Saved view ${index + 1}`;
+}
+
+function canonicalPitchPrintArtworkFacts(setup: Record<string, unknown>) {
+  const subtypeValues = [setup.embroiderySubtype, setup.artworkType]
+    .map(canonicalArtworkSubtype)
+    .filter((value): value is EmbroiderySubtype => Boolean(value));
+  if (new Set(subtypeValues).size > 1) {
+    throw new DomainError(
+      "PITCHPRINT_ARTWORK_TYPE_CONFLICT",
+      "PitchPrint returned conflicting embroidery artwork types. Please save the design again.",
+      422,
+    );
+  }
+  const embroiderySubtype = subtypeValues[0];
+  if (!embroiderySubtype) {
+    throw new DomainError(
+      "PITCHPRINT_ARTWORK_TYPE_UNRESOLVED",
+      "The saved artwork type could not be determined. Please return to the editor and save the design again.",
+      422,
+    );
+  }
+  const rawPlacements = Array.isArray(setup.placements)
+    ? setup.placements
+    : Array.isArray(setup.designedPlacements)
+      ? setup.designedPlacements
+      : [];
+  const placements = rawPlacements
+    .map(canonicalPlacementName)
+    .filter((value): value is string => Boolean(value));
+  const placementCount = directPositiveInteger(
+    setup.placementCount,
+    setup.designedPlacementCount,
+  );
+  if (!placementCount || !placements.length || placementCount !== placements.length) {
+    throw new DomainError(
+      "CREATOR_PLACEMENT_REQUIRED",
+      "At least one designed placement is required, and its placement count must match.",
+      422,
+    );
+  }
+  const summary =
+    setup.artworkSummary && typeof setup.artworkSummary === "object" && !Array.isArray(setup.artworkSummary)
+      ? (setup.artworkSummary as Record<string, unknown>)
+      : setup.artworkObjectCounts && typeof setup.artworkObjectCounts === "object" && !Array.isArray(setup.artworkObjectCounts)
+        ? (setup.artworkObjectCounts as Record<string, unknown>)
+        : null;
+  const text = Number(summary?.text || 0);
+  const image = Number(summary?.image || 0);
+  if (
+    !summary ||
+    !Number.isSafeInteger(text) ||
+    !Number.isSafeInteger(image) ||
+    text < 0 ||
+    image < 0 ||
+    (embroiderySubtype === "TEXT_ONLY" && (text < 1 || image !== 0)) ||
+    (embroiderySubtype === "IMAGE_OR_LOGO" && image < 1)
+  ) {
+    throw new DomainError(
+      "PITCHPRINT_ARTWORK_TYPE_UNRESOLVED",
+      "The saved artwork summary does not verify its embroidery artwork type. Please save the design again.",
+      422,
+    );
+  }
+  return {
+    embroiderySubtype,
+    placements,
+    placementCount,
+    objectCounts: { text, image },
+    surfaces: placements.map((side) => ({ side, hasArtwork: true })),
+  };
+}
+
+function canonicalSidePreviews(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item, index) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+      const record = item as Record<string, unknown>;
+      const url = cleanOptionalText(
+        record.url || record.previewUrl || record.src,
+        2_048,
+      );
+      if (!url) return null;
+      try {
+        if (new URL(url).protocol !== "https:") return null;
+      } catch {
+        return null;
+      }
+      return {
+        side: cleanOptionalText(record.side || record.name || record.label, 80) || `Saved view ${index + 1}`,
+        url,
+        hasArtwork: record.hasArtwork !== false,
+      };
+    })
+    .filter((item): item is { side: string; url: string; hasArtwork: boolean } => Boolean(item))
+    .slice(0, 10);
 }
 
 function cleanPitchPrintDesignId(value: unknown) {
@@ -876,7 +999,9 @@ async function cleanCreatorProductSetup(
       422,
     );
   }
-  const artworkFacts = classifyPitchPrintProjectSource(input.source);
+  const artworkFacts = input.source === undefined || input.source === null
+    ? canonicalPitchPrintArtworkFacts(setup)
+    : classifyPitchPrintProjectSource(input.source);
   const embroiderySubtype =
     productionMethod === "EMBROIDERY"
       ? artworkFacts.embroiderySubtype
@@ -889,13 +1014,17 @@ async function cleanCreatorProductSetup(
       ? (input.meta as Record<string, unknown>)
       : {};
   const metaPageNames = Array.isArray(meta.pageNames) ? meta.pageNames : [];
+  const suppliedSidePreviews = canonicalSidePreviews(
+    input.sidePreviews || setup.sidePreviews,
+  );
   const previewSurfaces = previewUrls.map((url, index) => {
+    const suppliedSurface = suppliedSidePreviews.find((surface) => surface.url === url);
     const sourceSurface = artworkFacts.surfaces[index];
     const metaSide = cleanOptionalText(metaPageNames[index], 80);
     return {
-      side: sourceSurface?.side || metaSide || `Saved view ${index + 1}`,
+      side: suppliedSurface?.side || sourceSurface?.side || metaSide || `Saved view ${index + 1}`,
       url,
-      hasArtwork: sourceSurface?.hasArtwork === true,
+      hasArtwork: suppliedSurface?.hasArtwork ?? sourceSurface?.hasArtwork === true,
       ...(previewColor ? { color: previewColor } : {}),
     };
   });
@@ -933,7 +1062,11 @@ async function cleanCreatorProductSetup(
         409,
       );
     }
-    pricingForMethod(pricing, productionMethod);
+    if (productionMethod === "EMBROIDERY") {
+      pricingForEmbroiderySubtype(pricing, embroiderySubtype);
+    } else {
+      pricingForMethod(pricing, productionMethod);
+    }
   }
   return {
     schema: "creator_design_setup_v1",
@@ -1597,9 +1730,6 @@ export async function attachPitchPrintProjectToCreatorProduct(
       409,
     );
   }
-  const projectId = cleanProjectId(input.projectId);
-  const previewUrls = cleanPreviewUrls(input);
-  const previewUrl = previewUrls[0] || null;
   let lockedSetup: Record<string, unknown> = {};
   try {
     const parsed = JSON.parse(existing.designVariantSelectionsJson || "{}");
@@ -1609,7 +1739,44 @@ export async function attachPitchPrintProjectToCreatorProduct(
   } catch {
     lockedSetup = {};
   }
+  const nestedRequestedSetup =
+    input.creatorSetup && typeof input.creatorSetup === "object" && !Array.isArray(input.creatorSetup)
+      ? (input.creatorSetup as Record<string, unknown>)
+      : {};
   const requestedSetup = rawCreatorSetup(input);
+  const requestedCreatorProductIds = [
+    cleanOptionalText(input.creatorProductId, 200),
+    cleanOptionalText(nestedRequestedSetup.creatorProductId, 200),
+  ].filter((value): value is string => Boolean(value));
+  if (requestedCreatorProductIds.some((value) => value !== existing.id)) {
+    throw new DomainError(
+      "CREATOR_PRODUCT_CONTEXT_MISMATCH",
+      "PitchPrint returned a design for a different Creator Product.",
+      422,
+    );
+  }
+  const projectIds = [
+    input.projectId,
+    input.creatorProjectId,
+    nestedRequestedSetup.projectId,
+    nestedRequestedSetup.creatorProjectId,
+  ]
+    .filter((value) => value !== undefined && value !== null && String(value).trim())
+    .map(cleanProjectId);
+  if (!projectIds.length) cleanProjectId(undefined);
+  if (new Set(projectIds).size > 1) {
+    throw new DomainError(
+      "PITCHPRINT_PROJECT_CONFLICT",
+      "PitchPrint returned conflicting saved project IDs. Please save the design again.",
+      422,
+    );
+  }
+  const projectId = projectIds[0]!;
+  const previewUrls = cleanPreviewUrls({
+    ...input,
+    sidePreviews: input.sidePreviews || requestedSetup.sidePreviews,
+  });
+  const previewUrl = previewUrls[0] || null;
   const requestedColors = [
     ...new Set([
       ...stringArray(requestedSetup.selectedColors),
@@ -1638,11 +1805,18 @@ export async function attachPitchPrintProjectToCreatorProduct(
     );
   }
   const persistedProductionMethod = cleanProductionMethod(lockedMethod);
-  const requestedMethod = cleanOptionalText(
-    requestedSetup.fixedProductionMethod || requestedSetup.productionMethod || requestedSetup.selectedProductionMethod,
-    40,
-  );
-  if (requestedMethod && cleanProductionMethod(requestedMethod) !== persistedProductionMethod) {
+  const requestedMethods = [
+    input.fixedProductionMethod,
+    input.productionMethod,
+    input.selectedProductionMethod,
+    nestedRequestedSetup.fixedProductionMethod,
+    nestedRequestedSetup.productionMethod,
+    nestedRequestedSetup.selectedProductionMethod,
+  ]
+    .map((value) => cleanOptionalText(value, 40))
+    .filter((value): value is string => Boolean(value))
+    .map(cleanProductionMethod);
+  if (requestedMethods.some((method) => method !== persistedProductionMethod)) {
     throw new DomainError("PRODUCTION_METHOD_LOCKED", "The printing method is fixed for this Creator Product.", 422);
   }
   const lockedInput = {

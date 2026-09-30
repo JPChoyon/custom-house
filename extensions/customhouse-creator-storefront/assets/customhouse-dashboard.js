@@ -954,6 +954,35 @@ function canonicalPitchPrintPreviewUrls(source) {
   return [...new Set(urls)];
 }
 
+function canonicalCreatorSidePreviews(source) {
+  if (!Array.isArray(source)) return [];
+  return source
+    .map((value, index) => {
+      if (typeof value === "string") {
+        const url = value.trim();
+        return url.startsWith("https://")
+          ? { side: `Saved view ${index + 1}`, url, hasArtwork: true }
+          : null;
+      }
+      if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+      const url = String(value.url || value.previewUrl || value.src || "").trim();
+      if (!url.startsWith("https://")) return null;
+      return {
+        side: String(value.side || value.name || value.label || `Saved view ${index + 1}`).trim(),
+        url,
+        hasArtwork: value.hasArtwork !== false,
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 10);
+}
+
+function normalizedCreatorArtworkType(value) {
+  const normalized = String(value || "").trim().toUpperCase();
+  if (normalized === "IMAGE_LOGO") return "IMAGE_OR_LOGO";
+  return ["TEXT_ONLY", "IMAGE_OR_LOGO"].includes(normalized) ? normalized : "";
+}
+
 function creatorColorValue(value) {
   if (typeof value === "string") return value.trim();
   if (!value || typeof value !== "object") return "";
@@ -996,7 +1025,7 @@ function activeCreatorColor(setup) {
 }
 
 function creatorArtworkSubtypeFromSetup(setup) {
-  const counts = setup?.artworkObjectCounts || setup?.objectCounts;
+  const counts = setup?.artworkSummary || setup?.artworkObjectCounts || setup?.objectCounts;
   const countedText = Number(counts?.text || 0);
   const countedImages = Number(counts?.image || 0);
   const countedUnknown = Number(counts?.unknown || 0);
@@ -1014,7 +1043,11 @@ function creatorArtworkSubtypeFromSetup(setup) {
     setup?.objects,
     setup?.elements,
   ].find(Array.isArray);
-  if (!objects?.length) return "";
+  if (!objects?.length) {
+    return normalizedCreatorArtworkType(
+      setup?.embroiderySubtype || setup?.artworkType,
+    );
+  }
   let hasText = false;
   let hasUnknown = false;
   for (const object of objects) {
@@ -1070,17 +1103,23 @@ export function normalizePitchPrintSaveEvent(value, options = {}) {
   const projectId = firstPitchPrintRuntimeProjectId(
     data?.projectId,
     data?.project_id,
+    data?.creatorProjectId,
+    data?.creator_project_id,
     project?.projectId,
     project?.project_id,
     project?._id,
     project?.id,
     ...(allowGenericIds ? [data?._id, data?.id, data?.tid] : []),
   );
-  const previews = canonicalPitchPrintPreviewUrls(data?.previews);
+  const sidePreviews = canonicalCreatorSidePreviews(data?.sidePreviews);
+  const previews = canonicalPitchPrintPreviewUrls(data?.previews).length
+    ? canonicalPitchPrintPreviewUrls(data?.previews)
+    : sidePreviews.map((preview) => preview.url);
   const numPages = Number(data?.numPages);
   return {
     projectId,
     previews,
+    sidePreviews,
     previewUrl: previews[0] || "",
     source:
       typeof data?.source === "string" ||
@@ -1146,9 +1185,16 @@ export function normalizeCreatorSetupEvent(value) {
       setupSaveEvent.previews?.length
         ? setupSaveEvent.previews
         : dataSaveEvent.previews,
+    sidePreviews:
+      setupSaveEvent.sidePreviews?.length
+        ? setupSaveEvent.sidePreviews
+        : dataSaveEvent.sidePreviews,
     designId:
       setupSaveEvent.designId ||
       dataSaveEvent.designId,
+    source: setupSaveEvent.source || dataSaveEvent.source,
+    numPages: setupSaveEvent.numPages || dataSaveEvent.numPages,
+    meta: setupSaveEvent.meta || dataSaveEvent.meta,
     creatorSetup: normalizeCreatorSetupPayload(setup),
   };
 }
@@ -1283,6 +1329,26 @@ export function creatorProductProductionMethod(product) {
 export function creatorSaveSetup(product, handoffSetup) {
   const productionMethod = creatorProductProductionMethod(product);
   if (!productionMethod) return null;
+  const handoffMethod = String(
+    handoffSetup?.fixedProductionMethod ||
+      handoffSetup?.productionMethod ||
+      handoffSetup?.selectedProductionMethod ||
+      "",
+  ).trim().toUpperCase();
+  if (handoffMethod && handoffMethod !== productionMethod) {
+    throw new Error("The printing method returned by PitchPrint does not match this Creator Product.");
+  }
+  const handoffProductId = String(handoffSetup?.creatorProductId || "").trim();
+  if (handoffProductId && handoffProductId !== String(product?.id || "").trim()) {
+    throw new Error("PitchPrint returned a design for a different Creator Product.");
+  }
+  const handoffArtworkTypes = [
+    handoffSetup?.artworkType,
+    handoffSetup?.embroiderySubtype,
+  ].map(normalizedCreatorArtworkType).filter(Boolean);
+  if (new Set(handoffArtworkTypes).size > 1) {
+    throw new Error("PitchPrint returned conflicting embroidery artwork types.");
+  }
   const setup = normalizeCreatorSetupPayload({
     ...(handoffSetup && typeof handoffSetup === "object" ? handoffSetup : {}),
     selectedProductionMethod: productionMethod,
@@ -1708,26 +1774,50 @@ function bindPitchPrintManager(root) {
   const buildCreatorSavePayload = (product) => {
     const setupEvent = manager.pendingCreatorSetup;
     const saveEvent = manager.pendingPitchPrintSave;
-    const projectId = saveEvent?.projectId || "";
-    const previews = saveEvent?.previews || [];
+    if (
+      setupEvent?.projectId &&
+      saveEvent?.projectId &&
+      setupEvent.projectId !== saveEvent.projectId
+    ) {
+      throw new Error("PitchPrint returned conflicting saved project IDs. Please save the design again.");
+    }
+    const projectId = setupEvent?.projectId || saveEvent?.projectId || "";
+    const previews = setupEvent?.previews?.length
+      ? setupEvent.previews
+      : saveEvent?.previews || [];
     const creatorSetup = creatorSaveSetup(product, setupEvent?.creatorSetup);
     if (!projectId || !previews.length || !creatorSetup) return null;
     return {
       ...(saveEvent || {}),
       ...setupEvent,
       projectId,
-      previewUrl: saveEvent?.previewUrl || previews[0] || "",
+      creatorProductId: product.id,
+      previewUrl: setupEvent?.previewUrl || saveEvent?.previewUrl || previews[0] || "",
       previews,
-      designId: saveEvent?.designId || setupEvent.designId || "",
-      source: saveEvent?.source,
-      numPages: saveEvent?.numPages,
-      meta: saveEvent?.meta,
+      sidePreviews: setupEvent?.sidePreviews?.length
+        ? setupEvent.sidePreviews
+        : saveEvent?.sidePreviews || [],
+      designId: setupEvent?.designId || saveEvent?.designId || "",
+      source: setupEvent?.source || saveEvent?.source,
+      numPages: setupEvent?.numPages || saveEvent?.numPages,
+      meta: setupEvent?.meta || saveEvent?.meta,
       creatorSetup,
     };
   };
   const savePendingCreatorProduct = async (product, token) => {
     if (manager.projectSaved || token !== manager.token) return;
-    const savePayload = buildCreatorSavePayload(product);
+    let savePayload;
+    try {
+      savePayload = buildCreatorSavePayload(product);
+    } catch (error) {
+      manager.saveFailureNotified = true;
+      showCreatorToast(
+        root,
+        error instanceof Error ? error.message : "Design could not be saved.",
+        true,
+      );
+      return;
+    }
     if (!savePayload) {
       pitchPrintDiagnostics(root, "creator-save-pending", {
         creatorProductId: product?.id || "",
@@ -1736,7 +1826,10 @@ function bindPitchPrintManager(root) {
           manager.pendingCreatorSetup?.projectId ||
             manager.pendingPitchPrintSave?.projectId,
         ),
-        previewCount: manager.pendingPitchPrintSave?.previews?.length || 0,
+        previewCount:
+          manager.pendingCreatorSetup?.previews?.length ||
+          manager.pendingPitchPrintSave?.previews?.length ||
+          0,
         hasPersistedProductionMethod: Boolean(
           creatorProductProductionMethod(product),
         ),
