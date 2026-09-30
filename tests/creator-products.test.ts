@@ -1126,6 +1126,118 @@ test("editing a Creator design persists the customizer's updated valid color whi
   assert.equal(setup.productionMethod, "EMBROIDERY");
 });
 
+test("Creator save rejects a rendered preview color that differs from the active PitchPrint color", async () => {
+  const db = fakeDb();
+  const productWithGreen = {
+    ...baseProduct,
+    variants: {
+      nodes: [
+        ...baseProduct.variants.nodes,
+        {
+          id: "gid://shopify/ProductVariant/2003",
+          legacyResourceId: "2003",
+          title: "S / Green",
+          availableForSale: true,
+          selectedOptions: [
+            { name: "Size", value: "S" },
+            { name: "Color", value: "Green" },
+          ],
+        },
+      ],
+    },
+  };
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id, selectedProductionMethod: "EMBROIDERY" },
+    fakeClient(productWithGreen),
+    db,
+  );
+
+  await assert.rejects(
+    () =>
+      attachPitchPrintProjectToCreatorProduct(
+        shop,
+        "gid://shopify/Customer/1",
+        draft.id,
+        {
+          ...pitchPrintPayload({
+            projectId: "pp_color_mismatch",
+            previews: ["https://cdn.pitchprint.test/navy-front.png"],
+          }),
+          creatorSetup: {
+            ...pitchPrintPayload({ projectId: "pp_color_mismatch" }).creatorSetup,
+            activeColor: "Green",
+            selectedColor: "Green",
+            selectedColors: ["Green"],
+            fixedColor: "Green",
+            previewColor: "Navy",
+          },
+        },
+        db,
+      ),
+    (error: unknown) =>
+      error instanceof Error &&
+      error.name === "DomainError" &&
+      /preview color does not match/i.test(error.message),
+  );
+  assert.equal(draft.pitchprintProjectId, null);
+});
+
+test("Creator save persists one matching active and preview color", async () => {
+  const db = fakeDb();
+  const productWithGreen = {
+    ...baseProduct,
+    variants: {
+      nodes: [
+        ...baseProduct.variants.nodes,
+        {
+          id: "gid://shopify/ProductVariant/2003",
+          legacyResourceId: "2003",
+          title: "S / Green",
+          availableForSale: true,
+          selectedOptions: [
+            { name: "Size", value: "S" },
+            { name: "Color", value: "Green" },
+          ],
+        },
+      ],
+    },
+  };
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id, selectedProductionMethod: "EMBROIDERY" },
+    fakeClient(productWithGreen),
+    db,
+  );
+  const updated = await attachPitchPrintProjectToCreatorProduct(
+    shop,
+    "gid://shopify/Customer/1",
+    draft.id,
+    {
+      ...pitchPrintPayload({
+        projectId: "pp_color_green",
+        previews: ["https://cdn.pitchprint.test/green-front.png"],
+      }),
+      creatorSetup: {
+        ...pitchPrintPayload({ projectId: "pp_color_green" }).creatorSetup,
+        activeColor: "Green",
+        selectedColor: "Green",
+        selectedColors: ["Green"],
+        fixedColor: "Green",
+        previewColor: "Green",
+      },
+    },
+    db,
+  );
+
+  const setup = JSON.parse(updated.designVariantSelectionsJson);
+  assert.equal(setup.fixedColor, "Green");
+  assert.equal(setup.previewColor, "Green");
+  assert.equal(setup.previewSurfaces[0].color, "Green");
+});
+
 test("Embroidery text-only source overrides a claimed image subtype", async () => {
   const db = fakeDb();
   const draft = await createCreatorProductDraft(

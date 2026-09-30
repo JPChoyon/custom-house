@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
+  creatorPitchPrintClientOptions,
   creatorPitchPrintLaunchConfig,
   creatorProductProductionMethod,
   creatorReviewPresentation,
@@ -955,7 +956,7 @@ test("creator dashboard PitchPrint bridge uses Creator setup contract instead of
   assert.match(script, /creatorContext: true/);
   assert.match(script, /launchContext: "creator_dashboard"/);
   assert.match(script, /const \{ designId, projectId, mode \} = creatorPitchPrintLaunchConfig\(product\)/);
-  assert.match(script, /const clientOptions = \{/);
+  assert.match(script, /const clientOptions = creatorPitchPrintClientOptions\(\{/);
   assert.match(script, /designId,/);
   assert.match(script, /projectId,/);
   assert.match(script, /\.\.\.\(projectId \? \{ projectId \} : \{\}\)/);
@@ -1156,6 +1157,115 @@ test("creator setup normalization captures the active customizer color", () => {
   assert.deepEqual(setupEvent?.creatorSetup.selectedColors, ["Green"]);
 });
 
+test("PitchPrint client options expose the persisted method and color at every supported boundary", () => {
+  const customHouseConfig = {
+    productOrigin: "global",
+    baseProductOrigin: "global",
+    creatorPublicHandle: "creator-one",
+    productHandle: "global-t-shirt",
+    variantMatrix: [],
+    options: [],
+    selectedColor: "Green",
+    selectedColors: ["Green"],
+    fixedColor: "Green",
+    selectedProductionMethod: "EMBROIDERY",
+    productionMethod: "EMBROIDERY",
+    fixedProductionMethod: "EMBROIDERY",
+  };
+  const options = creatorPitchPrintClientOptions({
+    apiKey: "public-key",
+    designId: "pp-design",
+    mode: "new",
+    identity: { userId: "creator-one" },
+    product: {
+      id: "creator-product-one",
+      shopifyProductId: "gid://shopify/Product/1",
+      baseProductTitle: "T-shirt",
+    },
+    customHouseConfig,
+  });
+
+  for (const boundary of [options, options.product, options.userData]) {
+    assert.equal(boundary.productionMethod, "EMBROIDERY");
+    assert.equal(boundary.selectedProductionMethod, "EMBROIDERY");
+    assert.equal(boundary.fixedProductionMethod, "EMBROIDERY");
+    assert.equal(boundary.selectedColor, "Green");
+    assert.deepEqual(boundary.selectedColors, ["Green"]);
+    assert.equal(boundary.fixedColor, "Green");
+  }
+});
+
+test("creator setup normalization derives text-only and image embroidery from normalized objects", () => {
+  const normalize = (artworkObjects: Array<Record<string, unknown>>) =>
+    normalizeCreatorSetupEvent({
+      type: "CUSTOMHOUSE_PP_CREATOR_SETUP_READY",
+      payload: {
+        creatorContext: true,
+        activeColor: "Green",
+        previewColor: "Green",
+        productionMethod: "EMBROIDERY",
+        artworkObjects,
+      },
+    })?.creatorSetup;
+
+  assert.equal(
+    normalize([{ type: "Textbox", text: "hello world" }])?.embroiderySubtype,
+    "TEXT_ONLY",
+  );
+  assert.equal(
+    normalize([
+      { type: "Textbox", text: "hello world" },
+      { type: "Image", src: "https://assets.pitchprint.test/logo.png" },
+    ])?.embroiderySubtype,
+    "IMAGE_OR_LOGO",
+  );
+});
+
+test("Creator save rejects a selected color that disagrees with the rendered preview color", () => {
+  const product = {
+    designVariantSelectionsJson: JSON.stringify({
+      schema: "creator_design_setup_v1",
+      productionMethod: "EMBROIDERY",
+    }),
+  };
+
+  assert.equal(
+    creatorSaveSetup(product, {
+      activeColor: "Green",
+      previewColor: "Navy",
+      artworkObjects: [{ type: "Textbox", text: "hello world" }],
+    }),
+    null,
+  );
+  assert.deepEqual(
+    creatorSaveSetup(product, {
+      activeColor: "Green",
+      previewColor: "Green",
+      artworkObjects: [{ type: "Textbox", text: "hello world" }],
+    }),
+    {
+      activeColor: "Green",
+      previewColor: "Green",
+      artworkObjects: [{ type: "Textbox", text: "hello world" }],
+      embroiderySubtype: "TEXT_ONLY",
+      productionMethod: "EMBROIDERY",
+      selectedProductionMethod: "EMBROIDERY",
+      fixedProductionMethod: "EMBROIDERY",
+      fixedColor: "Green",
+      selectedColor: "Green",
+      selectedColors: ["Green"],
+      flowMode: "CREATOR_DESIGN",
+      interactionMode: "CREATOR_DESIGN",
+      productOrigin: "global",
+      baseProductOrigin: "global",
+      designMode: "creator_design",
+      creatorContext: true,
+      launchContext: "creator_dashboard",
+      isCreatorProduct: true,
+    },
+  );
+});
+
 test("Creator save restores the persisted method instead of trusting the PitchPrint handoff", () => {
   for (const productionMethod of ["EMBROIDERY", "DTF", "DTG"]) {
     const product = {
@@ -1211,6 +1321,7 @@ test("Creator review reads method and color from the same persisted save contrac
           side: "Front",
           url: "https://cdn.pitchprint.test/green-front.png",
           hasArtwork: true,
+          color: "Green",
         },
       ],
     }),
@@ -1219,6 +1330,7 @@ test("Creator review reads method and color from the same persisted save contrac
   assert.equal(presentation.productionMethod, "EMBROIDERY");
   assert.equal(presentation.embroideryArtworkType, "Image / Logo");
   assert.equal(presentation.fixedColor, "Green");
+  assert.equal(presentation.selectedPreview.color, "Green");
   assert.equal(
     presentation.selectedPreview.url,
     "https://cdn.pitchprint.test/green-front.png",

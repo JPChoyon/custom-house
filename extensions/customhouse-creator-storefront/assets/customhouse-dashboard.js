@@ -995,6 +995,74 @@ function activeCreatorColor(setup) {
   ].map(creatorColorValue).find(Boolean) || "";
 }
 
+function creatorArtworkSubtypeFromSetup(setup) {
+  const counts = setup?.artworkObjectCounts || setup?.objectCounts;
+  const countedText = Number(counts?.text || 0);
+  const countedImages = Number(counts?.image || 0);
+  const countedUnknown = Number(counts?.unknown || 0);
+  if (Number.isFinite(countedImages) && countedImages > 0) return "IMAGE_OR_LOGO";
+  if (
+    Number.isFinite(countedText) &&
+    countedText > 0 &&
+    (!Number.isFinite(countedUnknown) || countedUnknown === 0)
+  ) {
+    return "TEXT_ONLY";
+  }
+
+  const objects = [
+    setup?.artworkObjects,
+    setup?.objects,
+    setup?.elements,
+  ].find(Array.isArray);
+  if (!objects?.length) return "";
+  let hasText = false;
+  let hasUnknown = false;
+  for (const object of objects) {
+    if (!object || typeof object !== "object" || Array.isArray(object)) {
+      hasUnknown = true;
+      continue;
+    }
+    if (
+      object.visible === false ||
+      object.printable === false ||
+      object.excludeFromPrint === true ||
+      object.hidden === true ||
+      object.isBlank === true
+    ) {
+      continue;
+    }
+    const kind = String(
+      object.type ||
+        object.kind ||
+        object.objectType ||
+        object.className ||
+        object._type ||
+        "",
+    ).trim().toLowerCase();
+    if (/image|photo|logo|bitmap|raster|svg|vector/.test(kind)) {
+      return "IMAGE_OR_LOGO";
+    }
+    if (/text|textbox|i-text|itext|richtext/.test(kind)) {
+      hasText = true;
+    } else {
+      hasUnknown = true;
+    }
+  }
+  return hasText && !hasUnknown ? "TEXT_ONLY" : "";
+}
+
+function creatorColorPreviewMismatch(setup) {
+  const selectedColor = activeCreatorColor(setup);
+  const previewColor = creatorColorValue(
+    setup?.previewColor || setup?.renderedPreviewColor,
+  );
+  return Boolean(
+    selectedColor &&
+      previewColor &&
+      selectedColor.toLowerCase() !== previewColor.toLowerCase(),
+  );
+}
+
 export function normalizePitchPrintSaveEvent(value, options = {}) {
   const data = value?.data && typeof value.data === "object" ? value.data : value;
   const project = data?.project && typeof data.project === "object" ? data.project : {};
@@ -1101,6 +1169,13 @@ function normalizeCreatorSetupPayload(setup) {
     record.selectedColor = fixedColor;
     record.selectedColors = [fixedColor];
   }
+  const previewColor = creatorColorValue(
+    record.previewColor || record.renderedPreviewColor,
+  );
+  if (previewColor) record.previewColor = previewColor;
+  const embroiderySubtype = creatorArtworkSubtypeFromSetup(record);
+  if (embroiderySubtype) record.embroiderySubtype = embroiderySubtype;
+  else delete record.embroiderySubtype;
 
   record.flowMode = "CREATOR_DESIGN";
   record.interactionMode = "CREATOR_DESIGN";
@@ -1208,12 +1283,13 @@ export function creatorProductProductionMethod(product) {
 export function creatorSaveSetup(product, handoffSetup) {
   const productionMethod = creatorProductProductionMethod(product);
   if (!productionMethod) return null;
-  return normalizeCreatorSetupPayload({
+  const setup = normalizeCreatorSetupPayload({
     ...(handoffSetup && typeof handoffSetup === "object" ? handoffSetup : {}),
     selectedProductionMethod: productionMethod,
     productionMethod,
     fixedProductionMethod: productionMethod,
   });
+  return creatorColorPreviewMismatch(setup) ? null : setup;
 }
 
 export function creatorReviewPresentation(product, selectedIndex = 0) {
@@ -1225,6 +1301,9 @@ export function creatorReviewPresentation(product, selectedIndex = 0) {
           side: String(surface?.side || `Saved view ${index + 1}`).trim(),
           url: typeof surface?.url === "string" ? surface.url.trim() : "",
           hasArtwork: surface?.hasArtwork === true,
+          ...(creatorColorValue(surface?.color)
+            ? { color: creatorColorValue(surface.color) }
+            : {}),
         }))
         .filter((surface) => surface.url.startsWith("https://"))
     : [];
@@ -1362,6 +1441,7 @@ function creatorPitchPrintConfig(root, product, identity) {
     selectedColor: setup?.fixedColor || "",
     selectedColors: setup?.fixedColor ? [setup.fixedColor] : [],
     fixedColor: setup?.fixedColor || "",
+    previewColor: setup?.previewColor || "",
     selectedProductionMethod: productionMethod,
     productionMethod,
     fixedProductionMethod: productionMethod,
@@ -1372,6 +1452,66 @@ function creatorPitchPrintConfig(root, product, identity) {
   };
   window.CustomHouseCreatorPitchPrintConfig = config;
   return config;
+}
+
+export function creatorPitchPrintClientOptions({
+  apiKey,
+  designId,
+  mode,
+  identity,
+  product,
+  customHouseConfig,
+}) {
+  const creatorSelections = {
+    selectedColor: customHouseConfig.selectedColor || "",
+    selectedColors: Array.isArray(customHouseConfig.selectedColors)
+      ? customHouseConfig.selectedColors
+      : [],
+    fixedColor: customHouseConfig.fixedColor || "",
+    previewColor: customHouseConfig.previewColor || "",
+    selectedProductionMethod: customHouseConfig.selectedProductionMethod || "",
+    productionMethod: customHouseConfig.productionMethod || "",
+    fixedProductionMethod: customHouseConfig.fixedProductionMethod || "",
+  };
+  return {
+    apiKey,
+    designId,
+    mode,
+    userId: identity.userId,
+    custom: true,
+    isvx: true,
+    flowMode: "CREATOR_DESIGN",
+    interactionMode: "CREATOR_DESIGN",
+    productOrigin: customHouseConfig.productOrigin,
+    baseProductOrigin: customHouseConfig.baseProductOrigin,
+    designMode: "creator_design",
+    creatorContext: true,
+    launchContext: "creator_dashboard",
+    isCreatorProduct: true,
+    creatorProductId: product.id,
+    creatorPublicHandle: customHouseConfig.creatorPublicHandle,
+    ...creatorSelections,
+    customHouseConfig,
+    product: {
+      id: product.shopifyProductId,
+      title: product.baseProductTitle || product.title || "Creator Product",
+      name: product.baseProductTitle || product.title || "Creator Product",
+      handle: customHouseConfig.productHandle,
+      variants: customHouseConfig.variantMatrix,
+      options: customHouseConfig.options,
+      flowMode: "CREATOR_DESIGN",
+      designMode: "creator_design",
+      creatorContext: true,
+      launchContext: "creator_dashboard",
+      isCreatorProduct: true,
+      ...creatorSelections,
+    },
+    userData: {
+      source: "customhouse_creator_dashboard",
+      ...customHouseConfig,
+      ...creatorSelections,
+    },
+  };
 }
 
 function hydratePitchPrintProduct(root, product) {
@@ -1738,42 +1878,14 @@ function bindPitchPrintManager(root) {
       ]);
       if (token !== manager.token) return;
       const customHouseConfig = creatorPitchPrintConfig(root, product, identity);
-      const clientOptions = {
+      const clientOptions = creatorPitchPrintClientOptions({
         apiKey,
         designId,
         mode,
-        userId: identity.userId,
-        custom: true,
-        isvx: true,
-        flowMode: "CREATOR_DESIGN",
-        interactionMode: "CREATOR_DESIGN",
-        productOrigin: customHouseConfig.productOrigin,
-        baseProductOrigin: customHouseConfig.baseProductOrigin,
-        designMode: "creator_design",
-        creatorContext: true,
-        launchContext: "creator_dashboard",
-        isCreatorProduct: true,
-        creatorProductId: product.id,
-        creatorPublicHandle: customHouseConfig.creatorPublicHandle,
+        identity,
+        product,
         customHouseConfig,
-        product: {
-          id: product.shopifyProductId,
-          title: product.baseProductTitle || product.title || "Creator Product",
-          name: product.baseProductTitle || product.title || "Creator Product",
-          handle: customHouseConfig.productHandle,
-          variants: customHouseConfig.variantMatrix,
-          options: customHouseConfig.options,
-          flowMode: "CREATOR_DESIGN",
-          designMode: "creator_design",
-          creatorContext: true,
-          launchContext: "creator_dashboard",
-          isCreatorProduct: true,
-        },
-        userData: {
-          source: "customhouse_creator_dashboard",
-          ...customHouseConfig,
-        },
-      };
+      });
       const client = new Client({
         ...clientOptions,
         ...(projectId ? { projectId } : {}),

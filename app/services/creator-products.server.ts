@@ -205,6 +205,7 @@ export type CreatorProductSetup = {
   launchContext?: "creator_dashboard";
   isCreatorProduct: true;
   fixedColor: string;
+  previewColor?: string;
   selectedColors: string[];
   productionMethod: ProductionMethodCode;
   embroiderySubtype?: EmbroiderySubtype;
@@ -214,6 +215,7 @@ export type CreatorProductSetup = {
     side: string;
     url: string;
     hasArtwork: boolean;
+    color?: string;
   }>;
   artworkObjectCounts?: { text: number; image: number };
   copyrightAccepted: boolean;
@@ -835,6 +837,20 @@ async function cleanCreatorProductSetup(
       422,
     );
   }
+  const previewColor = cleanOptionalText(
+    setup.previewColor || setup.renderedPreviewColor,
+    120,
+  );
+  if (
+    previewColor &&
+    normalizedOptionText(previewColor) !== normalizedOptionText(fixedColor)
+  ) {
+    throw new DomainError(
+      "CREATOR_COLOR_PREVIEW_MISMATCH",
+      "The rendered preview color does not match the selected Creator color. Reselect the garment color and save again.",
+      422,
+    );
+  }
   const rawProductionMethod =
     setup.fixedProductionMethod ||
     setup.productionMethod ||
@@ -880,6 +896,7 @@ async function cleanCreatorProductSetup(
       side: sourceSurface?.side || metaSide || `Saved view ${index + 1}`,
       url,
       hasArtwork: sourceSurface?.hasArtwork === true,
+      ...(previewColor ? { color: previewColor } : {}),
     };
   });
   if (
@@ -929,6 +946,7 @@ async function cleanCreatorProductSetup(
     launchContext: "creator_dashboard",
     isCreatorProduct: true,
     fixedColor,
+    ...(previewColor ? { previewColor } : {}),
     selectedColors: [fixedColor],
     productionMethod,
     ...(embroiderySubtype ? { embroiderySubtype } : {}),
