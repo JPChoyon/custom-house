@@ -1414,6 +1414,7 @@ export function buildCreatorSavePayload(product, setupEvent, saveEvent) {
     : saveEvent?.previews || [];
   const creatorSetup = creatorSaveSetup(product, setupEvent?.creatorSetup);
   if (!projectId || !previews.length || !creatorSetup) return null;
+  const fixedColor = activeCreatorColor(creatorSetup);
   return {
     ...(saveEvent || {}),
     ...setupEvent,
@@ -1428,7 +1429,17 @@ export function buildCreatorSavePayload(product, setupEvent, saveEvent) {
     source: setupEvent?.source || saveEvent?.source,
     numPages: setupEvent?.numPages || saveEvent?.numPages,
     meta: setupEvent?.meta || saveEvent?.meta,
-    creatorSetup,
+    activeColor: fixedColor,
+    selectedColor: fixedColor,
+    selectedColors: [fixedColor],
+    fixedColor,
+    creatorSetup: {
+      ...creatorSetup,
+      activeColor: fixedColor,
+      selectedColor: fixedColor,
+      selectedColors: [fixedColor],
+      fixedColor,
+    },
   };
 }
 

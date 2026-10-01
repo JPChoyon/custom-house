@@ -1243,6 +1243,25 @@ test("nested Navy survives empty outer color aliases in the production save payl
     (payload?.creatorSetup as Record<string, unknown>)?.selectedColors,
     ["Navy"],
   );
+  assert.equal(payload?.activeColor, "Navy");
+  assert.equal(payload?.selectedColor, "Navy");
+  assert.deepEqual(payload?.selectedColors, ["Navy"]);
+  assert.equal(payload?.fixedColor, "Navy");
+
+  const serializedPayload = JSON.parse(JSON.stringify(payload)) as Record<
+    string,
+    unknown
+  >;
+  const serializedSetup = serializedPayload.creatorSetup as Record<
+    string,
+    unknown
+  >;
+  assert.equal(serializedPayload.selectedColor, "Navy");
+  assert.deepEqual(serializedPayload.selectedColors, ["Navy"]);
+  assert.equal(serializedPayload.fixedColor, "Navy");
+  assert.equal(serializedSetup.selectedColor, "Navy");
+  assert.deepEqual(serializedSetup.selectedColors, ["Navy"]);
+  assert.equal(serializedSetup.fixedColor, "Navy");
 });
 
 test("colorless project-saved event cannot replace the authoritative Navy setup handoff", () => {
