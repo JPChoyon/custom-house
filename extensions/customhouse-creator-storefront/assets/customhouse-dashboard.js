@@ -1361,6 +1361,12 @@ export function creatorProductProductionMethod(product) {
   );
 }
 
+export function chooseCreatorSetupEvent(currentEvent, candidateEvent) {
+  const candidateColor = activeCreatorColor(candidateEvent?.creatorSetup);
+  if (candidateColor) return candidateEvent;
+  return currentEvent || null;
+}
+
 export function creatorSaveSetup(product, handoffSetup) {
   const productionMethod = creatorProductProductionMethod(product);
   if (!productionMethod) return null;
@@ -1390,6 +1396,7 @@ export function creatorSaveSetup(product, handoffSetup) {
     productionMethod,
     fixedProductionMethod: productionMethod,
   });
+  if (!activeCreatorColor(setup)) return null;
   return creatorColorPreviewMismatch(setup) ? null : setup;
 }
 
@@ -1916,7 +1923,10 @@ function bindPitchPrintManager(root) {
   };
   const handlePitchPrintCreatorSetupReady = async (product, event, token) => {
     if (manager.projectSaved || token !== manager.token) return;
-    const setupEvent = normalizeCreatorSetupEvent(event);
+    const setupEvent = chooseCreatorSetupEvent(
+      null,
+      normalizeCreatorSetupEvent(event),
+    );
     if (!setupEvent) return;
     manager.pendingCreatorSetup = setupEvent;
     await savePendingCreatorProduct(product, token);
@@ -1924,7 +1934,10 @@ function bindPitchPrintManager(root) {
   const handlePitchPrintProjectSaved = async (product, event, token) => {
     if (manager.projectSaved || token !== manager.token) return;
     const setupEvent = normalizeCreatorSetupEvent(event);
-    if (setupEvent) manager.pendingCreatorSetup = setupEvent;
+    manager.pendingCreatorSetup = chooseCreatorSetupEvent(
+      manager.pendingCreatorSetup,
+      setupEvent,
+    );
     const saveEvent = normalizePitchPrintSaveEvent(event);
     manager.pendingPitchPrintSave = saveEvent;
     pitchPrintDiagnostics(root, "creator-save-contract", {

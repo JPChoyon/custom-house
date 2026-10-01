@@ -8,6 +8,7 @@ import {
   creatorProductProductionMethod,
   creatorReviewPresentation,
   creatorSaveSetup,
+  chooseCreatorSetupEvent,
   loadDashboardState,
   normalizeCreatorSetupEvent,
   normalizePitchPrintSaveEvent,
@@ -1242,6 +1243,69 @@ test("nested Navy survives empty outer color aliases in the production save payl
     (payload?.creatorSetup as Record<string, unknown>)?.selectedColors,
     ["Navy"],
   );
+});
+
+test("colorless project-saved event cannot replace the authoritative Navy setup handoff", () => {
+  const navySetupEvent = normalizeCreatorSetupEvent({
+    type: "CUSTOMHOUSE_PP_CREATOR_SETUP_READY",
+    payload: {
+      flowMode: "CREATOR_DESIGN",
+      creatorProductId: "creator-product-live",
+      selectedColor: "Navy",
+      selectedColorDetail: { name: "Navy", value: "Navy", key: "navy" },
+      selectedColors: ["Navy"],
+      productionMethod: "EMBROIDERY",
+      artworkType: "TEXT_ONLY",
+      placementCount: 1,
+      placements: [{ side: "Front", hasArtwork: true }],
+      copyrightAccepted: true,
+    },
+  });
+  const colorlessProjectSavedEvent = normalizeCreatorSetupEvent({
+    data: {
+      flowMode: "CREATOR_DESIGN",
+      creatorContext: true,
+      projectId: "pp-live-project",
+      productionMethod: "EMBROIDERY",
+      previews: ["https://cdn.pitchprint.test/live-navy-front.png"],
+    },
+  });
+
+  assert.equal(colorlessProjectSavedEvent?.creatorSetup.fixedColor, undefined);
+  assert.equal(
+    chooseCreatorSetupEvent(null, colorlessProjectSavedEvent),
+    null,
+  );
+
+  const authoritativeSetupEvent = chooseCreatorSetupEvent(
+    navySetupEvent,
+    colorlessProjectSavedEvent,
+  );
+  assert.equal(authoritativeSetupEvent, navySetupEvent);
+  assert.equal(authoritativeSetupEvent?.creatorSetup.fixedColor, "Navy");
+
+  const product = {
+    id: "creator-product-live",
+    designVariantSelectionsJson: JSON.stringify({
+      schema: "creator_design_setup_v1",
+      productionMethod: "EMBROIDERY",
+    }),
+  };
+  assert.equal(
+    creatorSaveSetup(product, colorlessProjectSavedEvent?.creatorSetup),
+    null,
+  );
+
+  const payload = dashboardModule.buildCreatorSavePayload(
+    product,
+    authoritativeSetupEvent,
+    {
+      projectId: "pp-live-project",
+      previews: ["https://cdn.pitchprint.test/live-navy-front.png"],
+    },
+  );
+  assert.equal(payload?.creatorSetup.fixedColor, "Navy");
+  assert.deepEqual(payload?.creatorSetup.selectedColors, ["Navy"]);
 });
 
 test("creator setup normalization accepts selectedColorDetail as the saved color", () => {
