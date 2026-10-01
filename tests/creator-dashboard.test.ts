@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import * as dashboardModule from "../extensions/customhouse-creator-storefront/assets/customhouse-dashboard.js";
 import {
   creatorPitchPrintClientOptions,
   creatorPitchPrintLaunchConfig,
@@ -992,7 +993,10 @@ test("creator dashboard PitchPrint bridge uses Creator setup contract instead of
   assert.match(script, /ensurePitchPrintBaseProductConfig\(root, product\)/);
   assert.match(script, /pendingCreatorSetup: null/);
   assert.match(script, /pendingPitchPrintSave: null/);
-  assert.match(script, /savePayload = buildCreatorSavePayload\(product\)/);
+  assert.match(
+    script,
+    /savePayload = buildCreatorSavePayload\(\s*product,\s*manager\.pendingCreatorSetup,\s*manager\.pendingPitchPrintSave,\s*\)/,
+  );
   assert.match(script, /if \(!savePayload\)/);
   assert.match(script, /handlePitchPrintProjectSaved\(product, event, token\)/);
   assert.match(script, /creatorSetup: normalizeCreatorSetupPayload\(setup\)/);
@@ -1175,6 +1179,69 @@ test("creator setup normalization keeps the outer PitchPrint color when nested s
   assert.equal(setupEvent?.creatorSetup.fixedColor, "Navy");
   assert.equal(setupEvent?.creatorSetup.selectedColor, "Navy");
   assert.deepEqual(setupEvent?.creatorSetup.selectedColors, ["Navy"]);
+});
+
+test("nested Navy survives empty outer color aliases in the production save payload", () => {
+  const setupEvent = normalizeCreatorSetupEvent({
+    type: "CUSTOMHOUSE_PP_CREATOR_SETUP_READY",
+    payload: {
+      flowMode: "CREATOR_DESIGN",
+      selectedColor: "",
+      selectedColors: [],
+      fixedColor: "",
+      creatorSetup: {
+        flowMode: "CREATOR_DESIGN",
+        creatorProductId: "creator-product-live",
+        creatorProjectId: "pp-live-project",
+        selectedColor: "Navy",
+        selectedColors: ["Navy"],
+        fixedColor: "Navy",
+        previewColor: "Navy",
+        productionMethod: "EMBROIDERY",
+        artworkObjects: [{ type: "Textbox", text: "Live QA Navy" }],
+        previews: ["https://cdn.pitchprint.test/live-navy-front.png"],
+      },
+    },
+  });
+
+  assert.equal(setupEvent?.creatorSetup.fixedColor, "Navy");
+  assert.equal(setupEvent?.creatorSetup.selectedColor, "Navy");
+  assert.deepEqual(setupEvent?.creatorSetup.selectedColors, ["Navy"]);
+
+  const requestBuilder = (
+    dashboardModule as unknown as {
+      buildCreatorSavePayload?: (
+        product: Record<string, unknown>,
+        setup: unknown,
+        save: unknown,
+      ) => Record<string, unknown> | null;
+    }
+  ).buildCreatorSavePayload;
+  assert.equal(typeof requestBuilder, "function");
+  if (typeof requestBuilder !== "function") return;
+
+  const payload = requestBuilder(
+    {
+      id: "creator-product-live",
+      designVariantSelectionsJson: JSON.stringify({
+        schema: "creator_design_setup_v1",
+        productionMethod: "EMBROIDERY",
+      }),
+    },
+    setupEvent,
+    {
+      projectId: "pp-live-project",
+      previews: ["https://cdn.pitchprint.test/live-navy-front.png"],
+    },
+  );
+  assert.equal(
+    (payload?.creatorSetup as Record<string, unknown>)?.fixedColor,
+    "Navy",
+  );
+  assert.deepEqual(
+    (payload?.creatorSetup as Record<string, unknown>)?.selectedColors,
+    ["Navy"],
+  );
 });
 
 test("creator setup normalization accepts selectedColorDetail as the saved color", () => {

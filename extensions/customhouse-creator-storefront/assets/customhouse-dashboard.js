@@ -1164,6 +1164,14 @@ export function normalizeCreatorSetupEvent(value) {
   const outerSetup = data && typeof data === "object" ? { ...data } : {};
   delete outerSetup.creatorSetup;
   const setup = nestedSetup ? { ...nestedSetup, ...outerSetup } : outerSetup;
+  const mergedActiveColor =
+    activeCreatorColor(outerSetup) || activeCreatorColor(nestedSetup);
+  if (mergedActiveColor) {
+    setup.activeColor = mergedActiveColor;
+    setup.selectedColor = mergedActiveColor;
+    setup.selectedColors = [mergedActiveColor];
+    setup.fixedColor = mergedActiveColor;
+  }
   if (
     setup?.creatorContext !== true &&
     setup?.launchContext !== "creator_dashboard" &&
@@ -1221,7 +1229,13 @@ function normalizeCreatorSetupPayload(setup) {
     activeCreatorColor(record) ||
     (selectedColors.length === 1 ? selectedColors[0] : "");
   const authoritativeActiveColor = creatorColorValue(
-    record.activeColor || record.selectedColorDetail,
+    record.activeColor ||
+      record.selectedColor ||
+      record.selectedColorDetail ||
+      record.productColor ||
+      record.selectedProductColor ||
+      record.colorName ||
+      record.color,
   );
 
   if (fixedColor) {
@@ -1377,6 +1391,38 @@ export function creatorSaveSetup(product, handoffSetup) {
     fixedProductionMethod: productionMethod,
   });
   return creatorColorPreviewMismatch(setup) ? null : setup;
+}
+
+export function buildCreatorSavePayload(product, setupEvent, saveEvent) {
+  if (
+    setupEvent?.projectId &&
+    saveEvent?.projectId &&
+    setupEvent.projectId !== saveEvent.projectId
+  ) {
+    throw new Error("PitchPrint returned conflicting saved project IDs. Please save the design again.");
+  }
+  const projectId = setupEvent?.projectId || saveEvent?.projectId || "";
+  const previews = setupEvent?.previews?.length
+    ? setupEvent.previews
+    : saveEvent?.previews || [];
+  const creatorSetup = creatorSaveSetup(product, setupEvent?.creatorSetup);
+  if (!projectId || !previews.length || !creatorSetup) return null;
+  return {
+    ...(saveEvent || {}),
+    ...setupEvent,
+    projectId,
+    creatorProductId: product.id,
+    previewUrl: setupEvent?.previewUrl || saveEvent?.previewUrl || previews[0] || "",
+    previews,
+    sidePreviews: setupEvent?.sidePreviews?.length
+      ? setupEvent.sidePreviews
+      : saveEvent?.sidePreviews || [],
+    designId: setupEvent?.designId || saveEvent?.designId || "",
+    source: setupEvent?.source || saveEvent?.source,
+    numPages: setupEvent?.numPages || saveEvent?.numPages,
+    meta: setupEvent?.meta || saveEvent?.meta,
+    creatorSetup,
+  };
 }
 
 export function creatorReviewPresentation(product, selectedIndex = 0) {
@@ -1792,44 +1838,15 @@ function bindPitchPrintManager(root) {
       handler?.(event);
     });
   };
-  const buildCreatorSavePayload = (product) => {
-    const setupEvent = manager.pendingCreatorSetup;
-    const saveEvent = manager.pendingPitchPrintSave;
-    if (
-      setupEvent?.projectId &&
-      saveEvent?.projectId &&
-      setupEvent.projectId !== saveEvent.projectId
-    ) {
-      throw new Error("PitchPrint returned conflicting saved project IDs. Please save the design again.");
-    }
-    const projectId = setupEvent?.projectId || saveEvent?.projectId || "";
-    const previews = setupEvent?.previews?.length
-      ? setupEvent.previews
-      : saveEvent?.previews || [];
-    const creatorSetup = creatorSaveSetup(product, setupEvent?.creatorSetup);
-    if (!projectId || !previews.length || !creatorSetup) return null;
-    return {
-      ...(saveEvent || {}),
-      ...setupEvent,
-      projectId,
-      creatorProductId: product.id,
-      previewUrl: setupEvent?.previewUrl || saveEvent?.previewUrl || previews[0] || "",
-      previews,
-      sidePreviews: setupEvent?.sidePreviews?.length
-        ? setupEvent.sidePreviews
-        : saveEvent?.sidePreviews || [],
-      designId: setupEvent?.designId || saveEvent?.designId || "",
-      source: setupEvent?.source || saveEvent?.source,
-      numPages: setupEvent?.numPages || saveEvent?.numPages,
-      meta: setupEvent?.meta || saveEvent?.meta,
-      creatorSetup,
-    };
-  };
   const savePendingCreatorProduct = async (product, token) => {
     if (manager.projectSaved || token !== manager.token) return;
     let savePayload;
     try {
-      savePayload = buildCreatorSavePayload(product);
+      savePayload = buildCreatorSavePayload(
+        product,
+        manager.pendingCreatorSetup,
+        manager.pendingPitchPrintSave,
+      );
     } catch (error) {
       manager.saveFailureNotified = true;
       showCreatorToast(
