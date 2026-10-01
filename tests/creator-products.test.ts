@@ -1238,6 +1238,63 @@ test("Creator save persists one matching active and preview color", async () => 
   assert.equal(setup.previewSurfaces[0].color, "Green");
 });
 
+test("Creator save canonicalizes duplicate PitchPrint color aliases after the handoff", async () => {
+  const db = fakeDb();
+  const productWithNavy = {
+    ...baseProduct,
+    variants: {
+      nodes: [
+        ...baseProduct.variants.nodes,
+        {
+          id: "gid://shopify/ProductVariant/2003",
+          legacyResourceId: "2003",
+          title: "S / Navy",
+          availableForSale: true,
+          selectedOptions: [
+            { name: "Size", value: "S" },
+            { name: "Color", value: "Navy" },
+          ],
+        },
+      ],
+    },
+  };
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id, selectedProductionMethod: "EMBROIDERY" },
+    fakeClient(productWithNavy),
+    db,
+  );
+
+  const updated = await attachPitchPrintProjectToCreatorProduct(
+    shop,
+    "gid://shopify/Customer/1",
+    draft.id,
+    {
+      ...pitchPrintPayload({
+        projectId: "pp_color_navy",
+        previews: ["https://cdn.pitchprint.test/navy-front.png"],
+      }),
+      selectedColor: "Navy",
+      selectedColorDetail: { name: "Navy", value: "Navy", key: "navy" },
+      selectedColors: ["Navy", "navy", "NAVY"],
+      creatorSetup: {
+        ...pitchPrintPayload({ projectId: "pp_color_navy" }).creatorSetup,
+        selectedColor: "Gray",
+        selectedColors: ["Gray"],
+        fixedColor: "Gray",
+        previewColor: "Navy",
+      },
+    },
+    db,
+  );
+
+  const setup = JSON.parse(updated.designVariantSelectionsJson);
+  assert.equal(setup.fixedColor, "Navy");
+  assert.deepEqual(setup.selectedColors, ["Navy"]);
+  assert.equal(setup.previewColor, "Navy");
+});
+
 test("Embroidery text-only source overrides a claimed image subtype", async () => {
   const db = fakeDb();
   const draft = await createCreatorProductDraft(
@@ -1522,6 +1579,45 @@ test("PitchPrint save requires exactly one selected Creator color", async () => 
           creatorSetup: {
             ...pitchPrintPayload({ projectId: "pp_multi_color" }).creatorSetup,
             selectedColors: ["White", "Navy"],
+          },
+        },
+        db,
+      ),
+    /exactly one product color/i,
+  );
+});
+
+test("PitchPrint re-save rejects a missing handoff color instead of keeping the stale fixed color", async () => {
+  const db = fakeDb();
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id, selectedProductionMethod: "EMBROIDERY" },
+    fakeClient(),
+    db,
+  );
+  draft.designVariantSelectionsJson = creatorSetupJson("White", "EMBROIDERY");
+
+  await assert.rejects(
+    () =>
+      attachPitchPrintProjectToCreatorProduct(
+        shop,
+        "gid://shopify/Customer/1",
+        draft.id,
+        {
+          projectId: "pp_missing_color",
+          previews: ["https://cdn.pitchprint.test/missing-color.png"],
+          source: {
+            pages: [
+              {
+                name: "Front",
+                objects: [{ type: "Textbox", text: "TEST" }],
+              },
+            ],
+          },
+          creatorSetup: {
+            flowMode: "CREATOR_DESIGN",
+            copyrightAccepted: true,
           },
         },
         db,

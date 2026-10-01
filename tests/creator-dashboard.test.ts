@@ -1157,6 +1157,40 @@ test("creator setup normalization captures the active customizer color", () => {
   assert.deepEqual(setupEvent?.creatorSetup.selectedColors, ["Green"]);
 });
 
+test("creator setup normalization keeps the outer PitchPrint color when nested setup is stale", () => {
+  const setupEvent = normalizeCreatorSetupEvent({
+    type: "CUSTOMHOUSE_PP_CREATOR_SETUP_READY",
+    payload: {
+      flowMode: "CREATOR_DESIGN",
+      selectedColor: "Navy",
+      selectedColorDetail: { name: "Navy", value: "Navy", key: "navy" },
+      selectedColors: ["Navy", "navy"],
+      creatorSetup: {
+        flowMode: "CREATOR_DESIGN",
+        fixedColor: "Gray",
+      },
+    },
+  });
+
+  assert.equal(setupEvent?.creatorSetup.fixedColor, "Navy");
+  assert.equal(setupEvent?.creatorSetup.selectedColor, "Navy");
+  assert.deepEqual(setupEvent?.creatorSetup.selectedColors, ["Navy"]);
+});
+
+test("creator setup normalization accepts selectedColorDetail as the saved color", () => {
+  const setupEvent = normalizeCreatorSetupEvent({
+    type: "CUSTOMHOUSE_PP_CREATOR_SETUP_READY",
+    payload: {
+      flowMode: "CREATOR_DESIGN",
+      selectedColorDetail: { name: "Navy", value: "Navy", key: "navy" },
+    },
+  });
+
+  assert.equal(setupEvent?.creatorSetup.fixedColor, "Navy");
+  assert.equal(setupEvent?.creatorSetup.selectedColor, "Navy");
+  assert.deepEqual(setupEvent?.creatorSetup.selectedColors, ["Navy"]);
+});
+
 test("fixed Creator setup-ready contract carries canonical identity, artwork, and saved side previews", () => {
   const setupEvent = normalizeCreatorSetupEvent({
     type: "CUSTOMHOUSE_PP_CREATOR_SETUP_READY",

@@ -149,8 +149,14 @@ export type AttachPitchPrintProjectInput = {
   variantSelections?: unknown;
   creatorSetup?: unknown;
   selectedColor?: unknown;
+  selectedColorDetail?: unknown;
   selectedColors?: unknown;
   fixedColor?: unknown;
+  activeColor?: unknown;
+  color?: unknown;
+  colorValues?: unknown;
+  productColors?: unknown;
+  variantColor?: unknown;
   selectedProductionMethod?: unknown;
   productionMethod?: unknown;
   fixedProductionMethod?: unknown;
@@ -826,15 +832,64 @@ function rawCreatorSetup(input: AttachPitchPrintProjectInput) {
       ? (input.creatorSetup as Record<string, unknown>)
       : {};
   return {
-    ...input,
     ...nested,
+    ...input,
   } as Record<string, unknown>;
 }
 
-function stringArray(value: unknown) {
-  return (Array.isArray(value) ? value : value ? [value] : [])
-    .map((item) => cleanOptionalText(item, 120))
-    .filter((item): item is string => Boolean(item));
+function creatorColorArray(value: unknown) {
+  return Array.isArray(value) ? value : value ? [value] : [];
+}
+
+function creatorColorValue(value: unknown): string | null {
+  if (typeof value === "string") return cleanOptionalText(value, 120);
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  return creatorColorValue(
+    record.value ||
+      record.optionValue ||
+      record.colorName ||
+      record.name ||
+      record.label ||
+      record.color,
+  );
+}
+
+function uniqueCreatorColorValues(values: unknown[]) {
+  const colors: string[] = [];
+  const normalized = new Set<string>();
+  for (const value of values) {
+    const color = creatorColorValue(value);
+    if (!color) continue;
+    const key = normalizedOptionText(color);
+    if (normalized.has(key)) continue;
+    normalized.add(key);
+    colors.push(color);
+  }
+  return colors;
+}
+
+function normalizedCreatorColorValues(setup: Record<string, unknown>) {
+  const currentColor = uniqueCreatorColorValues([
+    setup.activeColor,
+    setup.selectedColor,
+    setup.selectedColorDetail,
+    setup.productColor,
+    setup.selectedProductColor,
+    setup.colorName,
+    setup.color,
+    setup.variantColor,
+  ])[0];
+  const arrayColors = uniqueCreatorColorValues([
+    ...creatorColorArray(setup.selectedColors),
+    ...creatorColorArray(setup.colorValues),
+    ...creatorColorArray(setup.productColors),
+  ]);
+  if (currentColor) {
+    return uniqueCreatorColorValues([currentColor, ...arrayColors]);
+  }
+  if (arrayColors.length) return arrayColors;
+  return uniqueCreatorColorValues([setup.fixedColor]);
 }
 
 function booleanTrue(...values: unknown[]) {
@@ -935,13 +990,7 @@ async function cleanCreatorProductSetup(
       422,
     );
   }
-  const selectedColors = [
-    ...new Set([
-      ...stringArray(setup.selectedColors),
-      ...stringArray(setup.selectedColor),
-      ...stringArray(setup.fixedColor),
-    ]),
-  ];
+  const selectedColors = normalizedCreatorColorValues(setup);
   if (selectedColors.length !== 1) {
     throw new DomainError(
       "CREATOR_COLOR_REQUIRED",
@@ -949,11 +998,11 @@ async function cleanCreatorProductSetup(
       422,
     );
   }
-  const fixedColor = selectedColors[0]!;
-  if (
-    colors.length &&
-    !colors.some((color) => normalizedOptionText(color) === normalizedOptionText(fixedColor))
-  ) {
+  const requestedColor = selectedColors[0]!;
+  const fixedColor = colors.find(
+    (color) => normalizedOptionText(color) === normalizedOptionText(requestedColor),
+  );
+  if (!fixedColor) {
     throw new DomainError(
       "CREATOR_COLOR_INVALID",
       "Choose a color that exists on the base product.",
@@ -1777,19 +1826,7 @@ export async function attachPitchPrintProjectToCreatorProduct(
     sidePreviews: input.sidePreviews || requestedSetup.sidePreviews,
   });
   const previewUrl = previewUrls[0] || null;
-  const requestedColors = [
-    ...new Set([
-      ...stringArray(requestedSetup.selectedColors),
-      ...stringArray(requestedSetup.selectedColor),
-      ...stringArray(requestedSetup.fixedColor),
-    ]),
-  ];
-  const lockedColor = cleanOptionalText(lockedSetup.fixedColor, 120);
-  const effectiveColors = requestedColors.length
-    ? requestedColors
-    : lockedColor
-      ? [lockedColor]
-      : [];
+  const effectiveColors = normalizedCreatorColorValues(requestedSetup);
   const effectiveColor = effectiveColors.length === 1 ? effectiveColors[0] : null;
   const lockedMethod = cleanOptionalText(
     lockedSetup.productionMethod ||

@@ -1014,6 +1014,7 @@ function activeCreatorColor(setup) {
   return [
     setup?.activeColor,
     setup?.selectedColor,
+    setup?.selectedColorDetail,
     setup?.productColor,
     setup?.selectedProductColor,
     setup?.colorName,
@@ -1154,9 +1155,15 @@ export function normalizeCreatorSetupEvent(value) {
   ) {
     return null;
   }
-  const setup = data?.creatorSetup && typeof data.creatorSetup === "object"
-    ? data.creatorSetup
-    : data;
+  const nestedSetup =
+    data?.creatorSetup &&
+    typeof data.creatorSetup === "object" &&
+    !Array.isArray(data.creatorSetup)
+      ? data.creatorSetup
+      : null;
+  const outerSetup = data && typeof data === "object" ? { ...data } : {};
+  delete outerSetup.creatorSetup;
+  const setup = nestedSetup ? { ...nestedSetup, ...outerSetup } : outerSetup;
   if (
     setup?.creatorContext !== true &&
     setup?.launchContext !== "creator_dashboard" &&
@@ -1201,19 +1208,33 @@ export function normalizeCreatorSetupEvent(value) {
 
 function normalizeCreatorSetupPayload(setup) {
   const record = setup && typeof setup === "object" ? { ...setup } : {};
-  const selectedColors = Array.isArray(record.selectedColors)
-    ? record.selectedColors
-        .map(creatorColorValue)
-        .filter(Boolean)
-    : [];
+  const selectedColors = [];
+  const selectedColorKeys = new Set();
+  for (const value of Array.isArray(record.selectedColors) ? record.selectedColors : []) {
+    const color = creatorColorValue(value);
+    const key = color.toLowerCase();
+    if (!color || selectedColorKeys.has(key)) continue;
+    selectedColorKeys.add(key);
+    selectedColors.push(color);
+  }
   const fixedColor =
     activeCreatorColor(record) ||
     (selectedColors.length === 1 ? selectedColors[0] : "");
+  const authoritativeActiveColor = creatorColorValue(
+    record.activeColor || record.selectedColorDetail,
+  );
 
   if (fixedColor) {
     record.fixedColor = fixedColor;
     record.selectedColor = fixedColor;
-    record.selectedColors = [fixedColor];
+    record.selectedColors = authoritativeActiveColor
+      ? [fixedColor]
+      : [
+          fixedColor,
+          ...selectedColors.filter(
+            (color) => color.toLowerCase() !== fixedColor.toLowerCase(),
+          ),
+        ];
   }
   const previewColor = creatorColorValue(
     record.previewColor || record.renderedPreviewColor,
