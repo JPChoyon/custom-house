@@ -713,6 +713,7 @@ function productHtml(input: {
   id: string;
   title: string;
   description: string | null;
+  creatorPricingMode?: string | null;
   baseProductTitle: string;
   previewUrl: string | null;
   previewUrls?: string | null;
@@ -784,9 +785,12 @@ function productHtml(input: {
     (method) => method.method === fixedProductionMethod,
   );
   const defaultProductionMethod = fixedProductionMethod;
+  const priceAlreadyBaked = input.creatorPricingMode === "BAKED_IN_V1";
   const defaultProductionSurchargeMinor =
-    BigInt(productionMethods.find((method) => method.method === defaultProductionMethod)?.surchargeMinor || "0") *
-    BigInt(Math.max(1, placementCount));
+    priceAlreadyBaked
+      ? 0n
+      : BigInt(productionMethods.find((method) => method.method === defaultProductionMethod)?.surchargeMinor || "0") *
+        BigInt(Math.max(1, placementCount));
   const allVariants = input.baseProduct?.variants || [];
   const variants = fixedColor
     ? allVariants.filter((variant) => {
@@ -1013,7 +1017,7 @@ function productHtml(input: {
               <p class="customhouse-product-description">${escapeHtml(input.description || input.baseProductTitle)}</p>
               <p class="customhouse-locked-note">Creator artwork is locked for purchase.</p>
               ${lockedDetails}
-              <form class="customhouse-product-form" data-customhouse-creator-cart data-prepare-url="${postUrl}" data-variants="${jsonAttr(variants)}" data-production-methods="${jsonAttr(productionMethods)}" data-placement-count="${escapeHtml(String(placementCount))}">
+              <form class="customhouse-product-form" data-customhouse-creator-cart data-prepare-url="${postUrl}" data-variants="${jsonAttr(variants)}" data-production-methods="${jsonAttr(productionMethods)}" data-placement-count="${escapeHtml(String(placementCount))}" data-creator-pricing-mode="${escapeHtml(input.creatorPricingMode || "")}">
                 ${sizeControls}
                 <input type="hidden" name="variantId" value="${escapeHtml(firstAvailable?.cartId || "")}">
                 ${productionMethodControls}
@@ -1100,6 +1104,7 @@ function productHtml(input: {
             const productionMethodInput = form.querySelector("[name='selectedProductionMethod']");
             const productionMethods = JSON.parse(form.dataset.productionMethods || "[]");
             const placementCount = Math.max(1, Number(form.dataset.placementCount || 1));
+            const creatorPricingMode = String(form.dataset.creatorPricingMode || "");
             let pending = false;
 
             class CustomHouseCartError extends Error {
@@ -1179,7 +1184,9 @@ function productHtml(input: {
               variantInput.value = variant?.cartId ? String(variant.cartId) : "";
               button.disabled = !variant || !variant.availableForSale || !method;
               if (price) {
-                const productionSurchargeMinor = Number(method?.surchargeMinor || 0) * placementCount;
+                const productionSurchargeMinor = creatorPricingMode === "BAKED_IN_V1"
+                  ? 0
+                  : Number(method?.surchargeMinor || 0) * placementCount;
                 price.textContent = variant
                   ? customhouseMinorMoney(
                       Math.round(Number(variant.price.amount || 0) * 100) + (Number.isFinite(productionSurchargeMinor) ? productionSurchargeMinor : 0),
@@ -1761,6 +1768,7 @@ export async function handleStorefrontProxy(
               previewUrl: product.previewUrl,
               previewUrls: product.previewUrls,
               publishedAt: product.publishedAt,
+              creatorPricingMode: product.creatorPricingMode,
               baseProduct: product.baseProduct,
               relatedProducts: related.products
                 .filter((item) => item.id !== product.id)

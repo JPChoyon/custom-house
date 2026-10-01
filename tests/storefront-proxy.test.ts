@@ -169,6 +169,9 @@ test("public Creator product page is buy-only with fixed color and fixed printin
   assert.match(source, /customhouseMinorMoney/);
   assert.match(source, /productionMethods/);
   assert.match(source, /placementCount/);
+  assert.match(source, /const priceAlreadyBaked = input\.creatorPricingMode === "BAKED_IN_V1"/);
+  assert.match(source, /data-creator-pricing-mode=/);
+  assert.match(source, /creatorPricingMode === "BAKED_IN_V1"\s*\? 0/);
   assert.doesNotMatch(source, /pitchprint.*showApp\(/i);
 });
 

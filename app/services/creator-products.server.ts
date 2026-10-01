@@ -2958,7 +2958,14 @@ export async function getPublishedCreatorProductForHandle(
       404,
     );
   }
-  const baseProduct = client ? await publicBaseProduct(product.shopifyProductId, client) : undefined;
+  const storefrontProductId =
+    product.creatorPricingMode === CREATOR_PRICING_MODE_BAKED_IN_V1 &&
+    product.publishedShopifyProductId
+      ? product.publishedShopifyProductId
+      : product.shopifyProductId;
+  const baseProduct = client
+    ? await publicBaseProduct(storefrontProductId, client)
+    : undefined;
   const creatorSetup = creatorProductSetupFromRecord(product);
   let productionPricing: PublicCreatorProduct["productionPricing"] = null;
   if (creatorSetup && database.publicProductProductionPricing) {
@@ -3186,10 +3193,12 @@ export async function prepareCreatorProductCart(
         409,
       );
     }
-    const publishedVariantId = publishedVariantForBaseVariant(
+    const publishedVariantId = baseVariantForPublishedVariant(
       product,
       variant.graphqlId,
-    );
+    )
+      ? variant.graphqlId
+      : publishedVariantForBaseVariant(product, variant.graphqlId);
     if (!publishedVariantId) {
       throw new DomainError(
         "PUBLISHED_VARIANT_MAPPING_REQUIRED",

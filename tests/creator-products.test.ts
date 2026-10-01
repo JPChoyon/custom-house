@@ -3400,6 +3400,75 @@ test("published CreatorProduct public detail includes Shopify variants", async (
   assert.equal(product.baseProduct?.variants[0]?.numericId, "2001");
 });
 
+test("baked Creator product detail reads final prices from the published Shopify product", async () => {
+  const database = fakeDb();
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id, selectedProductionMethod: "EMBROIDERY" },
+    fakeClient(),
+    database,
+  );
+  draft.id = "cmcreatorproduct00000032";
+  draft.status = "PUBLISHED";
+  draft.creatorPricingMode = "BAKED_IN_V1";
+  draft.publishedShopifyProductId = "gid://shopify/Product/5003";
+  draft.baseVariantMappingJson = JSON.stringify({
+    "gid://shopify/ProductVariant/6003": "gid://shopify/ProductVariant/2001",
+  });
+
+  const requestedProductIds: string[] = [];
+  const client: ShopifyGraphqlClient = {
+    async request<T>(_query: string, variables?: Record<string, unknown>) {
+      requestedProductIds.push(String(variables?.id || ""));
+      return {
+        product: {
+          id: "gid://shopify/Product/5003",
+          title: "Creator Hoodie",
+          handle: "creator-hoodie",
+          onlineStoreUrl: "https://customhouse.se/products/creator-hoodie",
+          options: [
+            { name: "Size", values: ["S"] },
+            { name: "Color", values: ["White"] },
+          ],
+          priceRangeV2: {
+            minVariantPrice: { amount: "599.00", currencyCode: "SEK" },
+            maxVariantPrice: { amount: "599.00", currencyCode: "SEK" },
+          },
+          variants: {
+            nodes: [
+              {
+                id: "gid://shopify/ProductVariant/6003",
+                legacyResourceId: "6003",
+                title: "S / White",
+                availableForSale: true,
+                price: "599.00",
+                selectedOptions: [
+                  { name: "Size", value: "S" },
+                  { name: "Color", value: "White" },
+                ],
+              },
+            ],
+          },
+        },
+      } as T;
+    },
+  };
+
+  const product = await publicCreatorProductDetail(
+    shop,
+    "creator-a",
+    draft.id,
+    client,
+    database,
+  );
+
+  assert.deepEqual(requestedProductIds, ["gid://shopify/Product/5003"]);
+  assert.equal(product.baseProduct?.id, "gid://shopify/Product/5003");
+  assert.equal(product.baseProduct?.variants[0]?.graphqlId, "gid://shopify/ProductVariant/6003");
+  assert.equal(product.baseProduct?.variants[0]?.price.amount, "599.00");
+});
+
 test("native Creator publishing removes every variant outside the saved fixed color", () => {
   const variants = [
     {
