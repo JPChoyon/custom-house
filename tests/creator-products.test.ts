@@ -1521,7 +1521,13 @@ test("Embroidery text-only source overrides a claimed image subtype", async () =
 
 test("Embroidery image and mixed sources cannot claim the cheaper text subtype", async () => {
   for (const [projectId, objects] of [
-    ["pp_image_only", [{ type: "Image", src: "https://assets.pitchprint.test/logo.png" }]],
+    [
+      "pp_image_only",
+      [
+        { type: "Rect" },
+        { type: "Image", src: "https://assets.pitchprint.test/logo.png" },
+      ],
+    ],
     [
       "pp_text_image",
       [
@@ -1561,6 +1567,54 @@ test("Embroidery image and mixed sources cannot claim the cheaper text subtype",
     assert.equal(setup.embroiderySubtype, "IMAGE_OR_LOGO");
     assert.equal(setup.artworkObjectCounts.image, 1);
   }
+});
+
+test("PitchPrint serialized pages ignore canvas primitives and retain uploaded artwork", async () => {
+  const db = fakeDb();
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id, selectedProductionMethod: "EMBROIDERY" },
+    fakeClient(),
+    db,
+  );
+  const updated = await attachPitchPrintProjectToCreatorProduct(
+    shop,
+    "gid://shopify/Customer/1",
+    draft.id,
+    {
+      ...pitchPrintPayload({
+        projectId: "pp_serialized_image",
+        previews: ["https://cdn.pitchprint.test/front.png"],
+        source: {
+          pages: [
+            {
+              pageData: { title: "Front" },
+              items: [
+                { type: "Rect", selectable: false, evented: false },
+                {
+                  type: "Image",
+                  src: "https://assets.pitchprint.test/upload.png",
+                  selectable: true,
+                  evented: true,
+                },
+              ],
+            },
+          ],
+        },
+      }),
+      creatorSetup: {
+        ...pitchPrintPayload({ projectId: "pp_serialized_image" }).creatorSetup,
+        embroiderySubtype: "IMAGE_OR_LOGO",
+      },
+    },
+    db,
+  );
+
+  const setup = JSON.parse(updated.designVariantSelectionsJson);
+  assert.equal(setup.embroiderySubtype, "IMAGE_OR_LOGO");
+  assert.deepEqual(setup.artworkObjectCounts, { text: 0, image: 1 });
+  assert.deepEqual(setup.placements, ["Front"]);
 });
 
 test("fixed PitchPrint contract saves canonical subtype and side previews without legacy source", async () => {
