@@ -3325,14 +3325,6 @@ export async function prepareCreatorProductCart(
     _creator_name: product.creator.displayName,
     _customhouse_non_return_acknowledgement: "Accepted",
     _customhouse_terms_acknowledgement: "Accepted",
-    "Creator": product.creator.displayName,
-    "Printing method": productionMethod,
-    ...(embroiderySubtype
-      ? {
-          "Embroidery artwork":
-            embroiderySubtype === "TEXT_ONLY" ? "Text only" : "Image / Logo",
-        }
-      : {}),
   };
   const feeQuantity = quantity * setup.placementCount;
   const feeItem =
@@ -3352,8 +3344,6 @@ export async function prepareCreatorProductCart(
             _designed_placement_count: String(setup.placementCount),
             ...(embroiderySubtype ? { _embroidery_subtype: embroiderySubtype } : {}),
             _customhouse_creator_product_fee: "true",
-            "Printing method": productionMethod,
-            "Designed placements": String(setup.placementCount),
           },
         }
       : null;
@@ -3535,14 +3525,6 @@ export async function prepareNativeCreatorProductCart(
       _creator_name: creatorName,
       _customhouse_non_return_acknowledgement: "Accepted",
       _customhouse_terms_acknowledgement: "Accepted",
-      "Creator": creatorName,
-      "Printing method": productionMethod,
-      ...(embroiderySubtype
-        ? {
-            "Embroidery artwork":
-              embroiderySubtype === "TEXT_ONLY" ? "Text only" : "Image / Logo",
-          }
-        : {}),
     };
     const cartVariantId = numericVariantId(selectedVariantId);
     return {

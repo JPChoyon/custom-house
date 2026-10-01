@@ -3782,7 +3782,7 @@ test("baked native Creator purchase adds the published variant without a fee lin
   assert.equal(cart.production.feeQuantity, 0);
   assert.equal(cart.production.feeVariantId, null);
   assert.equal(cart.production.pricingMode, "BAKED_IN_V1");
-  assert.equal(cart.properties["Printing method"], "DTF");
+  assert.equal("Printing method" in cart.properties, false);
   assert.equal(cart.properties._base_variant_id, "gid://shopify/ProductVariant/2001");
   assert.equal(cart.properties._creator_product_id, draft.id);
   assert.equal(cart.properties._pitchprint, "pp_native_order");
@@ -3930,7 +3930,7 @@ test("cart prep validates variant ownership and locks creator artwork", async ()
   assert.equal(cart.properties._creator_public_handle, "creator-a");
   assert.equal(cart.properties._production_method, "DTF");
   assert.equal("Color" in cart.properties, false);
-  assert.equal(cart.properties["Printing method"], "DTF");
+  assert.equal("Printing method" in cart.properties, false);
   assert.equal(cart.production.method, "DTF");
   assert.equal(cart.production.fixedColor, "White");
   assert.equal(cart.production.placementCount, 1);
@@ -3955,6 +3955,8 @@ test("cart prep validates variant ownership and locks creator artwork", async ()
   assert.equal("Designed placements" in cart.properties, false);
   assert.equal("Customized product acknowledgement" in cart.properties, false);
   assert.equal("Terms & Conditions" in cart.properties, false);
+  assert.equal("Creator" in cart.properties, false);
+  assert.equal("Embroidery artwork" in cart.properties, false);
   assert.equal(db.products.find((product) => product.id === draft.id)?.pitchprintProjectId, "pp_master");
   assert.equal(await db.creatorSale.count(), 0);
 });
@@ -4036,7 +4038,7 @@ test("creator buy-only detail and cart use shared creator production pricing", a
   assert.equal(cart.production.method, "DTF");
   assert.equal(cart.production.surchargeMinor, "3000");
   assert.equal(cart.production.feeVariantId, "9102");
-  assert.equal(cart.properties["Printing method"], "DTF");
+  assert.equal("Printing method" in cart.properties, false);
 });
 
 test("creator cart prep resyncs stale shared creator fee variants", async () => {
@@ -4314,7 +4316,8 @@ test("creator buy-only production fee quantity uses saved designed placement cou
   const feeProperties = cart.items[1].properties as Record<string, string>;
   assert.equal(cart.items[1].id, "9002");
   assert.equal(cart.items[1].quantity, 12);
-  assert.equal(feeProperties["Designed placements"], "3");
+  assert.equal(feeProperties._designed_placement_count, "3");
+  assert.equal("Designed placements" in feeProperties, false);
 });
 
 test("Embroidery cart uses the saved subtype price and retains canonical production metadata", async () => {
