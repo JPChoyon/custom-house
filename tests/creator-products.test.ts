@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import {
   type CreatorProductRecord,
   attachPitchPrintProjectToCreatorProduct,
+  creatorProductSetupFromRecord,
   cleanupCreatorProductAsAdmin,
   createCreatorProductDraft as createCreatorProductDraftService,
   getCreatorProductForCustomer,
@@ -1104,6 +1105,17 @@ test("creator product route saves nested Navy when empty legacy outer aliases ar
   assert.deepEqual(savedSetup.selectedColors, ["Navy"]);
   assert.equal(savedSetup.productionMethod, "EMBROIDERY");
   assert.equal(savedSetup.embroiderySubtype, "TEXT_ONLY");
+  const submitted = await submitCreatorProductForReview(
+    shop,
+    "gid://shopify/Customer/1",
+    draft.id,
+    database,
+  );
+  assert.equal(submitted.status, "PENDING");
+  const publishSetup = creatorProductSetupFromRecord(submitted);
+  assert.equal(publishSetup?.fixedColor, "Navy");
+  assert.deepEqual(publishSetup?.selectedColors, ["Navy"]);
+  assert.equal(database.products.length, 1);
   assert.deepEqual(diagnostics, [
     {
       event: "creator_product_save_color_resolution",

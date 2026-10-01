@@ -837,8 +837,8 @@ function rawCreatorSetup(input: AttachPitchPrintProjectInput) {
     ...nested,
     ...outer,
   } as Record<string, unknown>;
-  const outerColors = normalizedCreatorColorValues(outer);
-  const colorSource = outerColors.length ? outer : nested;
+  const outerColor = resolveCanonicalCreatorFixedColor({ creatorSetup: outer });
+  const colorSource = outerColor.count ? outer : nested;
   for (const key of [
     "activeColor",
     "selectedColor",
@@ -912,6 +912,24 @@ function normalizedCreatorColorValues(setup: Record<string, unknown>) {
   return uniqueCreatorColorValues([setup.fixedColor]);
 }
 
+export function resolveCanonicalCreatorFixedColor(input: {
+  creatorSetup: Record<string, unknown>;
+  availableBaseColors?: string[];
+}) {
+  const logicalColors = normalizedCreatorColorValues(input.creatorSetup);
+  if (logicalColors.length !== 1) {
+    return { color: null, count: logicalColors.length };
+  }
+  const requestedColor = logicalColors[0]!;
+  if (!input.availableBaseColors?.length) {
+    return { color: requestedColor, count: 1 };
+  }
+  const canonicalBaseColor = input.availableBaseColors.find(
+    (color) => normalizedOptionText(color) === normalizedOptionText(requestedColor),
+  );
+  return { color: canonicalBaseColor || null, count: 1 };
+}
+
 export function creatorProductColorInputDiagnostics(
   input: AttachPitchPrintProjectInput,
 ) {
@@ -924,8 +942,8 @@ export function creatorProductColorInputDiagnostics(
   const outer = { ...input } as Record<string, unknown>;
   delete outer.creatorSetup;
   return {
-    outerColorCount: normalizedCreatorColorValues(outer).length,
-    nestedColorCount: normalizedCreatorColorValues(nested).length,
+    outerColorCount: resolveCanonicalCreatorFixedColor({ creatorSetup: outer }).count,
+    nestedColorCount: resolveCanonicalCreatorFixedColor({ creatorSetup: nested }).count,
     hasProjectId: Boolean(
       cleanOptionalText(
         input.projectId || input.creatorProjectId || nested.projectId || nested.creatorProjectId,
@@ -1007,19 +1025,27 @@ export function creatorProductSetupFromRecord(product: CreatorProductRecord) {
     return null;
   }
   const setup = parsed as Partial<CreatorProductSetup>;
+  const fixedColor = resolveCanonicalCreatorFixedColor({
+    creatorSetup: setup as Record<string, unknown>,
+  });
   if (
     setup.schema !== "creator_design_setup_v1" ||
     setup.flowMode !== "CREATOR_DESIGN" ||
     setup.designMode !== "creator_design" ||
     setup.isCreatorProduct !== true ||
-    !setup.fixedColor ||
+    fixedColor.count !== 1 ||
+    !fixedColor.color ||
     !setup.productionMethod ||
     !setup.placementCount ||
     !setup.copyrightAccepted
   ) {
     return null;
   }
-  return setup as CreatorProductSetup;
+  return {
+    ...setup,
+    fixedColor: fixedColor.color,
+    selectedColors: [fixedColor.color],
+  } as CreatorProductSetup;
 }
 
 async function cleanCreatorProductSetup(
@@ -1038,18 +1064,18 @@ async function cleanCreatorProductSetup(
       422,
     );
   }
-  const selectedColors = normalizedCreatorColorValues(setup);
-  if (selectedColors.length !== 1) {
+  const fixedColorResolution = resolveCanonicalCreatorFixedColor({
+    creatorSetup: setup,
+    availableBaseColors: colors,
+  });
+  if (fixedColorResolution.count !== 1) {
     throw new DomainError(
       "CREATOR_COLOR_REQUIRED",
       "Choose exactly one product color for this Creator Product.",
       422,
     );
   }
-  const requestedColor = selectedColors[0]!;
-  const fixedColor = colors.find(
-    (color) => normalizedOptionText(color) === normalizedOptionText(requestedColor),
-  );
+  const fixedColor = fixedColorResolution.color;
   if (!fixedColor) {
     throw new DomainError(
       "CREATOR_COLOR_INVALID",
