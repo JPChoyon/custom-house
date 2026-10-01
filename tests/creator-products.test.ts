@@ -118,6 +118,7 @@ const baseProduct = {
         legacyResourceId: "2001",
         title: "S / White",
         availableForSale: true,
+        price: "299.00",
         selectedOptions: [
           { name: "Size", value: "S" },
           { name: "Color", value: "White" },
@@ -128,6 +129,7 @@ const baseProduct = {
         legacyResourceId: "2002",
         title: "M / White",
         availableForSale: true,
+        price: "349.00",
         selectedOptions: [
           { name: "Size", value: "M" },
           { name: "Color", value: "White" },
@@ -188,7 +190,7 @@ type FakeCreatorProductWhereArgs = {
 function fakeClient(product: Record<string, unknown> | null = baseProduct): ShopifyGraphqlClient {
   return {
     async request<T>() {
-      return { product } as T;
+      return { shop: { currencyCode: "SEK" }, product } as T;
     },
   };
 }
@@ -400,6 +402,8 @@ function fakeDb() {
           publishedAt: null,
           rejectedAt: null,
           rejectionReason: null,
+          creatorPricingMode: args.data.creatorPricingMode ?? null,
+          creatorPricingPreviewJson: args.data.creatorPricingPreviewJson ?? "{}",
           createdAt: new Date("2026-08-11T00:00:00.000Z"),
           updatedAt: new Date("2026-08-11T00:00:00.000Z"),
         };
@@ -931,7 +935,24 @@ test("authenticated Creator A can attach a PitchPrint project to their own Draft
   assert.equal(updated.pitchprintDesignId, "pp_design_global_hoodie");
   assert.equal(updated.previewUrl, "https://cdn.pitchprint.test/preview-1.png");
   assert.equal(updated.status, "DRAFT");
-  assert.deepEqual(JSON.parse(updated.designVariantSelectionsJson), {
+  const savedSetup = JSON.parse(updated.designVariantSelectionsJson);
+  const pricingPreview = JSON.parse(updated.creatorPricingPreviewJson || "{}");
+  assert.equal(pricingPreview.pricingMode, "BAKED_IN_V1");
+  assert.equal(pricingPreview.productionCostMinor, "3000");
+  assert.deepEqual(
+    pricingPreview.variants.map(
+      (variant: { size: string; basePrice: string; finalPrice: string }) => ({
+        size: variant.size,
+        basePrice: variant.basePrice,
+        finalPrice: variant.finalPrice,
+      }),
+    ),
+    [
+      { size: "S", basePrice: "299.00", finalPrice: "329.00" },
+      { size: "M", basePrice: "349.00", finalPrice: "379.00" },
+    ],
+  );
+  assert.deepEqual(savedSetup, {
     schema: "creator_design_setup_v1",
     flowMode: "CREATOR_DESIGN",
     interactionMode: "CREATOR_DESIGN",
@@ -956,7 +977,7 @@ test("authenticated Creator A can attach a PitchPrint project to their own Draft
     artworkObjectCounts: { text: 1, image: 0 },
     copyrightAccepted: true,
     nonReturnAcknowledged: true,
-    savedAt: JSON.parse(updated.designVariantSelectionsJson).savedAt,
+    savedAt: savedSetup.savedAt,
   });
 });
 
@@ -972,6 +993,7 @@ test("creator product route saves nested Navy when empty legacy outer aliases ar
           legacyResourceId: "2003",
           title: "S / Navy",
           availableForSale: true,
+          price: "309.00",
           selectedOptions: [
             { name: "Size", value: "S" },
             { name: "Color", value: "Navy" },
@@ -1245,6 +1267,7 @@ test("editing a Creator design persists the customizer's updated valid color whi
           legacyResourceId: "2003",
           title: "S / Green",
           availableForSale: true,
+          price: "309.00",
           selectedOptions: [
             { name: "Size", value: "S" },
             { name: "Color", value: "Green" },
@@ -1318,6 +1341,7 @@ test("Creator save rejects a rendered preview color that differs from the active
           legacyResourceId: "2003",
           title: "S / Green",
           availableForSale: true,
+          price: "309.00",
           selectedOptions: [
             { name: "Size", value: "S" },
             { name: "Color", value: "Green" },
@@ -1376,6 +1400,7 @@ test("Creator save persists one matching active and preview color", async () => 
           legacyResourceId: "2003",
           title: "S / Green",
           availableForSale: true,
+          price: "309.00",
           selectedOptions: [
             { name: "Size", value: "S" },
             { name: "Color", value: "Green" },
@@ -1430,6 +1455,7 @@ test("Creator save canonicalizes duplicate PitchPrint color aliases after the ha
           legacyResourceId: "2003",
           title: "S / Navy",
           availableForSale: true,
+          price: "309.00",
           selectedOptions: [
             { name: "Size", value: "S" },
             { name: "Color", value: "Navy" },
@@ -3434,8 +3460,8 @@ test("native Creator publishing emits a versioned immutable cart validation cont
   assert.deepEqual(contract, {
     version: 1,
     creatorProductId: "creator-product-1",
-    feeRequired: true,
-    feeVariantId: "gid://shopify/ProductVariant/9002",
+    feeRequired: false,
+    feeVariantId: null,
     placementCount: 2,
   });
 
@@ -3455,12 +3481,17 @@ test("native Creator publishing emits a versioned immutable cart validation cont
       shopifyCollectionId: "gid://shopify/Collection/10",
     },
     setup,
+    pricingMode: "BAKED_IN_V1",
     cartValidationContract: contract,
   });
   const metafield = metafields.find((item) => item.key === "creator_cart_validation");
   assert.equal(metafield?.namespace, "customhouse");
   assert.equal(metafield?.type, "json");
   assert.deepEqual(JSON.parse(metafield?.value || "null"), contract);
+  assert.equal(
+    metafields.find((item) => item.key === "creator_pricing_mode")?.value,
+    "BAKED_IN_V1",
+  );
 });
 
 test("zero-surcharge Creator cart contract does not require fee merchandise", () => {
@@ -3490,7 +3521,7 @@ test("zero-surcharge Creator cart contract does not require fee merchandise", ()
   );
 });
 
-test("positive Creator surcharge requires synced fee merchandise at publish time", () => {
+test("positive Creator surcharge does not require fee merchandise for baked pricing", () => {
   const api = creatorCartContractApi();
   const setup = JSON.parse(creatorSetupJson("White", "EMBROIDERY", 1));
   const pricing = {
@@ -3505,13 +3536,19 @@ test("positive Creator surcharge requires synced fee merchandise at publish time
     dtfFeeVariantId: null,
     dtgFeeVariantId: null,
   };
-  assert.throws(
-    () => api.creatorCartValidationContract("creator-missing-fee", setup, pricing),
-    /fee merchandise is not synced/i,
+  assert.deepEqual(
+    api.creatorCartValidationContract("creator-missing-fee", setup, pricing),
+    {
+      version: 1,
+      creatorProductId: "creator-missing-fee",
+      feeRequired: false,
+      feeVariantId: null,
+      placementCount: 1,
+    },
   );
 });
 
-test("Creator publishing selects configured Embroidery subtype pricing and rejects unresolved subtype", () => {
+test("Creator publishing validates Embroidery subtype without selecting fee merchandise", () => {
   const api = creatorCartContractApi();
   const pricing = {
     embroiderySurcharge: parseSurchargeInput("50"),
@@ -3532,23 +3569,15 @@ test("Creator publishing selects configured Embroidery subtype pricing and rejec
     creatorSetupJson("Green", "EMBROIDERY", 2, "IMAGE_OR_LOGO"),
   );
 
-  assert.equal(
-    api.creatorCartValidationContract("creator-text", textSetup, pricing)
-      .feeVariantId,
-    "gid://shopify/ProductVariant/9004",
-  );
-  assert.equal(
-    api.creatorCartValidationContract("creator-image", imageSetup, pricing)
-      .feeVariantId,
-    "gid://shopify/ProductVariant/9005",
-  );
+  assert.equal(api.creatorCartValidationContract("creator-text", textSetup, pricing).feeRequired, false);
+  assert.equal(api.creatorCartValidationContract("creator-image", imageSetup, pricing).feeRequired, false);
   assert.equal(
     api.creatorCartValidationContract(
       "creator-dtf",
       JSON.parse(creatorSetupJson("Green", "DTF", 2)),
       pricing,
-    ).feeVariantId,
-    "gid://shopify/ProductVariant/9002",
+    ).feeRequired,
+    false,
   );
   const unresolved = { ...textSetup };
   delete unresolved.embroiderySubtype;
@@ -3600,6 +3629,7 @@ test("published Creator metadata fixes project design color method subtype place
       shopifyCollectionId: "gid://shopify/Collection/10",
     },
     setup,
+    pricingMode: "BAKED_IN_V1",
     cartValidationContract: contract,
   });
   const byKey = new Map(metafields.map((item) => [item.key, item]));
@@ -3622,7 +3652,7 @@ test("published Creator metadata fixes project design color method subtype place
   );
 });
 
-test("native Creator purchase delegates to authoritative cart pricing and saved method", async () => {
+test("baked native Creator purchase adds the published variant without a fee line", async () => {
   const database = fakeDb();
   const draft = await createCreatorProductDraft(
     shop,
@@ -3636,6 +3666,7 @@ test("native Creator purchase delegates to authoritative cart pricing and saved 
   draft.pitchprintProjectId = "pp_native_master";
   draft.designVariantSelectionsJson = creatorSetupJson("White", "DTF", 2);
   draft.publishedShopifyProductId = "gid://shopify/Product/5001";
+  draft.creatorPricingMode = "BAKED_IN_V1";
   draft.baseVariantMappingJson = JSON.stringify({
     "gid://shopify/ProductVariant/6001": "gid://shopify/ProductVariant/2001",
   });
@@ -3674,15 +3705,82 @@ test("native Creator purchase delegates to authoritative cart pricing and saved 
     database,
   );
 
-  assert.equal(cart.items[0].id, "2001");
+  assert.equal(cart.items[0].id, "6001");
   assert.equal(cart.items[0].quantity, 3);
-  assert.equal(cart.items[1].id, "9002");
-  assert.equal(cart.items[1].quantity, 6);
+  assert.equal(cart.items.length, 1);
   assert.equal(cart.production.method, "DTF");
   assert.equal(cart.production.placementCount, 2);
-  assert.equal(cart.production.feeQuantity, 6);
+  assert.equal(cart.production.feeQuantity, 0);
+  assert.equal(cart.production.feeVariantId, null);
+  assert.equal(cart.production.pricingMode, "BAKED_IN_V1");
   assert.equal(cart.properties["Printing method"], "DTF");
-  assert.equal(cart.nativeProduct.selectedVariantId, "gid://shopify/ProductVariant/6001");
+  assert.equal(cart.properties._base_variant_id, "gid://shopify/ProductVariant/2001");
+  assert.equal(cart.properties._creator_product_id, draft.id);
+  assert.equal(cart.properties._pitchprint, "pp_native_order");
+  assert.equal(cart.nativeProduct?.selectedVariantId, "gid://shopify/ProductVariant/6001");
+});
+
+test("baked app-proxy Creator purchase resolves the published variant without a fee line", async () => {
+  const database = fakeDb();
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id, selectedProductionMethod: "DTF" },
+    fakeClient(),
+    database,
+  );
+  draft.id = "cmcreatorproduct00000031";
+  draft.status = "PUBLISHED";
+  draft.pitchprintProjectId = "pp_proxy_master";
+  draft.designVariantSelectionsJson = creatorSetupJson("White", "DTF", 2);
+  draft.publishedShopifyProductId = "gid://shopify/Product/5002";
+  draft.creatorPricingMode = "BAKED_IN_V1";
+  draft.baseVariantMappingJson = JSON.stringify({
+    "gid://shopify/ProductVariant/6002": "gid://shopify/ProductVariant/2001",
+  });
+
+  const publicClient = fakePublicProductClient();
+  const client: ShopifyGraphqlClient = {
+    async request<T>(query: string) {
+      if (query.includes("NativeCreatorCartVariant")) {
+        return {
+          productVariant: {
+            id: "gid://shopify/ProductVariant/6002",
+            availableForSale: true,
+            product: { id: "gid://shopify/Product/5002" },
+          },
+        } as T;
+      }
+      return publicClient.request<T>(query);
+    },
+  };
+
+  const cart = await prepareCreatorProductCart(
+    shop,
+    {
+      creatorHandle: "creator-a",
+      creatorProductId: draft.id,
+      selectedVariantId: "gid://shopify/ProductVariant/2001",
+      quantity: 2,
+      nonReturnAcknowledged: true,
+      termsAccepted: true,
+    },
+    client,
+    async (projectId) => {
+      assert.equal(projectId, "pp_proxy_master");
+      return "pp_proxy_order";
+    },
+    database,
+  );
+
+  assert.equal(cart.items.length, 1);
+  assert.equal(cart.items[0].id, "6002");
+  assert.equal(cart.items[0].quantity, 2);
+  assert.equal(cart.production.feeVariantId, null);
+  assert.equal(cart.production.feeQuantity, 0);
+  assert.equal(cart.production.pricingMode, "BAKED_IN_V1");
+  assert.equal(cart.properties._base_variant_id, "gid://shopify/ProductVariant/2001");
+  assert.equal(cart.properties._pitchprint, "pp_proxy_order");
 });
 
 test("native Creator product form prepares authoritative lines before Shopify cart add", () => {
@@ -3858,7 +3956,6 @@ test("creator buy-only detail and cart use shared creator production pricing", a
   );
 
   assert.deepEqual([...new Set(lookedUpKeys)], [
-    baseProduct.id,
     CREATOR_PRODUCTION_PRICING_PRODUCT_ID,
   ]);
   assert.equal(cart.production.method, "DTF");

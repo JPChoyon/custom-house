@@ -28,7 +28,6 @@ import {
   feeVariantIdForEmbroiderySubtype,
   feeVariantIdForMethod,
   getCreatorProductionPricing,
-  getProductionPricing,
   listEnabledProductionMethodCodes,
   listEnabledProductionMethods,
   pricingForEmbroiderySubtype,
@@ -39,6 +38,10 @@ import {
   type EmbroiderySubtype,
 } from "./production-method-pricing.server.ts";
 import { classifyPitchPrintProjectSource } from "./pitchprint-project-metadata.ts";
+import {
+  creatorProductionPricingPreview,
+  CREATOR_PRICING_MODE_BAKED_IN_V1,
+} from "./creator-product-pricing.server.ts";
 
 export type CreatorProductRecord = {
   id: string;
@@ -65,6 +68,8 @@ export type CreatorProductRecord = {
   publishedShopifyProductUrl?: string | null;
   shopifyPublishedAt?: Date | null;
   baseVariantMappingJson?: string;
+  creatorPricingMode?: string | null;
+  creatorPricingPreviewJson?: string;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -197,6 +202,8 @@ export type CreatorProductBaseVariant = {
   title: string;
   size: string;
   availableForSale: boolean;
+  price: string;
+  currencyCode?: string;
   selectedOptions: Array<{ name: string; value: string }>;
 };
 
@@ -230,6 +237,22 @@ export type CreatorProductSetup = {
     color?: string;
   }>;
   artworkObjectCounts?: { text: number; image: number };
+  pricingPreview?: {
+    pricingMode: "BAKED_IN_V1";
+    productionMethod: ProductionMethodCode;
+    embroiderySubtype: EmbroiderySubtype | null;
+    placementCount: number;
+    surchargeMinor: string;
+    productionCostMinor: string;
+    currencyCode: string;
+    variants: Array<{
+      baseVariantId: string;
+      size: string;
+      basePrice: string;
+      finalPrice: string;
+    }>;
+    calculatedAt: string;
+  };
   copyrightAccepted: boolean;
   nonReturnAcknowledged: boolean;
   savedAt: string;
@@ -313,6 +336,40 @@ export type PrepareNativeCreatorProductCartInput = {
   quantity?: unknown;
   nonReturnAcknowledged?: unknown;
   termsAccepted?: unknown;
+};
+
+export type PreparedCreatorProductCart = {
+  variant: { graphqlId: string; cartId: string };
+  variantId: string;
+  cartVariantId: string;
+  shopifyVariantId: string;
+  quantity: number;
+  properties: Record<string, string>;
+  production: {
+    method: ProductionMethodCode;
+    embroiderySubtype: EmbroiderySubtype | null;
+    fixedColor: string;
+    placementCount: number;
+    surchargeMinor: string;
+    feeVariantId: string | null;
+    feeQuantity: number;
+    pricingMode: typeof CREATOR_PRICING_MODE_BAKED_IN_V1 | null;
+  };
+  items: Array<{
+    id: string;
+    quantity: number;
+    properties: Record<string, string>;
+  }>;
+  creatorProduct: {
+    id: string;
+    title: string;
+    creatorId: string;
+    masterPitchPrintProjectId: string;
+  };
+  nativeProduct?: {
+    shopifyProductId: string;
+    selectedVariantId: string;
+  };
 };
 
 function cleanOptionalText(value: unknown, maxLength: number) {
@@ -433,6 +490,7 @@ async function validateBaseProduct(
   shopifyProductId: string,
 ) {
   const result = await client.request<{
+    shop?: { currencyCode: string };
     product: {
       id: string;
       title: string;
@@ -449,12 +507,14 @@ async function validateBaseProduct(
           legacyResourceId: string;
           title: string;
           availableForSale: boolean;
+          price: string;
           selectedOptions: Array<{ name: string; value: string }>;
         }>;
       };
     } | null;
   }>(
     `#graphql query CreatorProductBaseProduct($id: ID!) {
+      shop { currencyCode }
       product(id: $id) {
         id
         title
@@ -471,6 +531,7 @@ async function validateBaseProduct(
             legacyResourceId
             title
             availableForSale
+            price
             selectedOptions { name value }
           }
         }
@@ -478,7 +539,7 @@ async function validateBaseProduct(
     }`,
     { id: shopifyProductId },
   );
-      const product = result.product;
+  const product = result.product;
   if (!product) {
     throw new DomainError(
       "PRODUCT_NOT_FOUND",
@@ -500,7 +561,10 @@ async function validateBaseProduct(
       422,
     );
   }
-  return product;
+  return {
+    ...product,
+    currencyCode: result.shop?.currencyCode || "",
+  };
 }
 
 function configuredProductionMethodCodes(value: string | null | undefined) {
@@ -748,10 +812,11 @@ function creatorProductBaseVariants(product: {
       legacyResourceId?: string | number | null;
       title?: string | null;
       availableForSale?: boolean | null;
+      price?: string | null;
       selectedOptions?: Array<{ name: string; value: string }> | null;
     }>;
   } | null;
-}) {
+}, currencyCode: string) {
   const variants = product.variants?.nodes || [];
   return variants
     .map((variant): CreatorProductBaseVariant | null => {
@@ -769,6 +834,8 @@ function creatorProductBaseVariants(product: {
       const title = cleanOptionalText(variant.title, 160) ||
         selectedOptions.map((option) => option.value).join(" / ") ||
         variantId;
+      const price = cleanOptionalText(variant.price, 40);
+      if (!price) return null;
       return {
         id: variant.id,
         graphqlId: variant.id,
@@ -776,6 +843,8 @@ function creatorProductBaseVariants(product: {
         title,
         size: sizeValueFromOptions(selectedOptions) || title,
         availableForSale: variant.availableForSale !== false,
+        price,
+        currencyCode,
         selectedOptions,
       };
     })
@@ -1050,7 +1119,7 @@ export function creatorProductSetupFromRecord(product: CreatorProductRecord) {
 
 async function cleanCreatorProductSetup(
   shop: string,
-  shopifyProductId: string,
+  _shopifyProductId: string,
   input: AttachPitchPrintProjectInput,
   variants: CreatorProductBaseVariant[],
   database: CreatorProductDb,
@@ -1172,24 +1241,54 @@ async function cleanCreatorProductSetup(
       422,
     );
   }
+  let pricingPreview: CreatorProductSetup["pricingPreview"];
   if (database.publicProductProductionPricing) {
-    const pricing = await getProductionPricing(
+    const pricing = await getCreatorProductionPricing(
       shop,
-      shopifyProductId,
-      database as unknown as Parameters<typeof getProductionPricing>[2],
+      database as unknown as Parameters<typeof getCreatorProductionPricing>[1],
     );
     if (!pricing) {
       throw new DomainError(
         "PRODUCTION_PRICING_REQUIRED",
-        "Production pricing is not configured for this product.",
+        "Production pricing is not configured for Creator Products.",
         409,
       );
     }
-    if (productionMethod === "EMBROIDERY") {
-      pricingForEmbroiderySubtype(pricing, embroiderySubtype);
-    } else {
-      pricingForMethod(pricing, productionMethod);
-    }
+    const fixedColorVariants = variants.filter((variant) =>
+      normalizedOptionText(colorValueFromOptions(variant.selectedOptions || [])) ===
+        normalizedOptionText(fixedColor),
+    );
+    const preview = creatorProductionPricingPreview({
+      productionMethod,
+      embroiderySubtype,
+      placementCount,
+      pricing,
+      baseVariants: fixedColorVariants.map((variant) => ({
+        id: variant.graphqlId,
+        price: variant.price,
+        selectedOptions: variant.selectedOptions,
+      })),
+    });
+    pricingPreview = {
+      pricingMode: CREATOR_PRICING_MODE_BAKED_IN_V1,
+      productionMethod: preview.productionMethod,
+      embroiderySubtype: preview.embroiderySubtype,
+      placementCount: preview.placementCount,
+      surchargeMinor: preview.surchargeMinor,
+      productionCostMinor: preview.productionCostMinor,
+      currencyCode:
+        fixedColorVariants.find((variant) => variant.currencyCode)?.currencyCode || "",
+      variants: preview.variants.map((variant) => ({
+        baseVariantId: variant.baseVariantId,
+        size:
+          fixedColorVariants.find(
+            (candidate) => candidate.graphqlId === variant.baseVariantId,
+          )?.size || "",
+        basePrice: variant.basePrice,
+        finalPrice: variant.finalPrice,
+      })),
+      calculatedAt: new Date().toISOString(),
+    };
   }
   return {
     schema: "creator_design_setup_v1",
@@ -1210,6 +1309,7 @@ async function cleanCreatorProductSetup(
     placements,
     previewSurfaces,
     artworkObjectCounts: artworkFacts.objectCounts,
+    ...(pricingPreview ? { pricingPreview } : {}),
     copyrightAccepted: true,
     nonReturnAcknowledged: booleanTrue(setup.nonReturnAcknowledged),
     savedAt: new Date().toISOString(),
@@ -1245,6 +1345,17 @@ function previewUrlsForProduct(product: CreatorProductRecord) {
 function creatorCartPreviewUrl(product: CreatorProductRecord) {
   if (product.previewUrl?.startsWith("https://")) return product.previewUrl;
   return previewUrlsForProduct(product)[0] || null;
+}
+
+function creatorPricingSurchargeMinor(product: CreatorProductRecord) {
+  try {
+    const parsed = JSON.parse(product.creatorPricingPreviewJson || "{}");
+    return typeof parsed?.surchargeMinor === "string" && /^\d+$/.test(parsed.surchargeMinor)
+      ? parsed.surchargeMinor
+      : "0";
+  } catch {
+    return "0";
+  }
 }
 
 function validateCompletableCreatorProduct(product: CreatorProductRecord) {
@@ -1461,6 +1572,23 @@ function baseVariantForPublishedVariant(
   }
 }
 
+function publishedVariantForBaseVariant(
+  product: CreatorProductRecord,
+  baseVariantId: string,
+) {
+  try {
+    const parsed = JSON.parse(product.baseVariantMappingJson || "{}");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return "";
+    const matches = Object.entries(parsed).filter(
+      ([publishedVariantId, mappedBaseVariantId]) =>
+        Boolean(publishedVariantId) && String(mappedBaseVariantId || "") === baseVariantId,
+    );
+    return matches.length === 1 ? matches[0][0] : "";
+  } catch {
+    return "";
+  }
+}
+
 async function publicBaseProduct(
   productId: string,
   client: ShopifyGraphqlClient,
@@ -1637,7 +1765,10 @@ export async function createCreatorProductDraft(
       422,
     );
   }
-  const baseProductVariants = creatorProductBaseVariants(product);
+  const baseProductVariants = creatorProductBaseVariants(
+    product,
+    product.currencyCode,
+  );
   const productionMethod = cleanProductionMethod(
     input.fixedProductionMethod ?? input.selectedProductionMethod,
   );
@@ -1729,6 +1860,7 @@ export async function listEligibleCreatorBaseProducts(
       )
     : PRODUCTION_METHODS.map((id) => ({ id, label: id }));
   const result = await client.request<{
+    shop?: { currencyCode: string };
     products: {
       nodes: Array<{
         id: string;
@@ -1752,6 +1884,7 @@ export async function listEligibleCreatorBaseProducts(
             legacyResourceId: string;
             title: string;
             availableForSale: boolean;
+            price: string;
             selectedOptions: Array<{ name: string; value: string }>;
           }>;
         };
@@ -1759,6 +1892,7 @@ export async function listEligibleCreatorBaseProducts(
     };
   }>(
     `#graphql query CreatorBaseProducts {
+      shop { currencyCode }
       products(first: 50, query: "status:active") {
         nodes {
           id title handle status tags
@@ -1778,6 +1912,7 @@ export async function listEligibleCreatorBaseProducts(
               legacyResourceId
               title
               availableForSale
+              price
               selectedOptions { name value }
             }
           }
@@ -1805,7 +1940,7 @@ export async function listEligibleCreatorBaseProducts(
         productionMethodPricing: product.productionMethodPricing?.value || null,
         productionMethods,
         classification,
-        variants: creatorProductBaseVariants(product),
+        variants: creatorProductBaseVariants(product, result.shop?.currencyCode || ""),
       } satisfies EligibleCreatorBaseProduct;
     })
     .filter((product): product is EligibleCreatorBaseProduct =>
@@ -1956,6 +2091,7 @@ export async function attachPitchPrintProjectToCreatorProduct(
     productBaseVariants(existing),
     database,
   );
+  const { pricingPreview, ...persistedSetup } = setup;
   if (!previewUrl) {
     throw new DomainError(
       "CREATOR_DESIGN_PREVIEW_REQUIRED",
@@ -1973,7 +2109,8 @@ export async function attachPitchPrintProjectToCreatorProduct(
         existing.pitchprintDesignId,
       previewUrl,
       previewUrls: safeJson(previewUrls),
-      designVariantSelectionsJson: safeJson(setup),
+      designVariantSelectionsJson: safeJson(persistedSetup),
+      creatorPricingPreviewJson: safeJson(pricingPreview || {}),
       status: nextStatus,
       submittedAt: nextStatus === "PENDING" ? new Date() : existing.submittedAt,
     },
@@ -2616,6 +2753,8 @@ export async function listCreatorProductsForAdmin(
       publishedShopifyProductUrl: true,
       shopifyPublishedAt: true,
       baseVariantMappingJson: true,
+      creatorPricingMode: true,
+      creatorPricingPreviewJson: true,
       submittedAt: true,
       publishedAt: true,
       rejectedAt: true,
@@ -2892,20 +3031,32 @@ export async function publicCreatorCollection(
   if (!client) return result;
   const bases = new Map<string, PublicCreatorProductBase>();
   for (const product of result.products) {
-    if (!bases.has(product.shopifyProductId)) {
+    const priceProductId =
+      product.creatorPricingMode === CREATOR_PRICING_MODE_BAKED_IN_V1 &&
+      product.publishedShopifyProductId
+        ? product.publishedShopifyProductId
+        : product.shopifyProductId;
+    if (!bases.has(priceProductId)) {
       bases.set(
-        product.shopifyProductId,
-        await publicBaseProduct(product.shopifyProductId, client),
+        priceProductId,
+        await publicBaseProduct(priceProductId, client),
       );
     }
   }
   return {
     collection: result.collection,
     creator: result.creator,
-    products: result.products.map((product) => ({
-      ...product,
-      baseProduct: bases.get(product.shopifyProductId),
-    })),
+    products: result.products.map((product) => {
+      const priceProductId =
+        product.creatorPricingMode === CREATOR_PRICING_MODE_BAKED_IN_V1 &&
+        product.publishedShopifyProductId
+          ? product.publishedShopifyProductId
+          : product.shopifyProductId;
+      return {
+        ...product,
+        baseProduct: bases.get(priceProductId),
+      };
+    }),
   };
 }
 
@@ -2915,7 +3066,7 @@ export async function prepareCreatorProductCart(
   client: ShopifyGraphqlClient,
   cloner: PitchPrintProjectCloner = clonePitchPrintProject,
   database: CreatorProductDb = db,
-) {
+): Promise<PreparedCreatorProductCart> {
   const creatorHandle =
     typeof input.publicHandle === "string"
       ? input.publicHandle.trim()
@@ -3025,6 +3176,39 @@ export async function prepareCreatorProductCart(
       "INVALID_CREATOR_COLOR",
       "Choose a size for this design's fixed product color.",
       422,
+    );
+  }
+  if (product.creatorPricingMode === CREATOR_PRICING_MODE_BAKED_IN_V1) {
+    if (!product.publishedShopifyProductId) {
+      throw new DomainError(
+        "PUBLISHED_PRODUCT_REQUIRED",
+        "This Creator Product is not ready for purchase.",
+        409,
+      );
+    }
+    const publishedVariantId = publishedVariantForBaseVariant(
+      product,
+      variant.graphqlId,
+    );
+    if (!publishedVariantId) {
+      throw new DomainError(
+        "PUBLISHED_VARIANT_MAPPING_REQUIRED",
+        "This Creator Product variant is not mapped to its published product.",
+        409,
+      );
+    }
+    return prepareNativeCreatorProductCart(
+      shop,
+      {
+        shopifyProductId: product.publishedShopifyProductId,
+        selectedVariantId: publishedVariantId,
+        quantity,
+        nonReturnAcknowledged: input.nonReturnAcknowledged,
+        termsAccepted: input.termsAccepted,
+      },
+      client,
+      cloner,
+      database,
     );
   }
   let pricing = await getCreatorProductionPricing(
@@ -3183,6 +3367,7 @@ export async function prepareCreatorProductCart(
       surchargeMinor: surchargeMinor.toString(),
       feeVariantId: feeVariantId ? numericVariantId(feeVariantId) : null,
       feeQuantity,
+      pricingMode: null,
     },
     items: [
       {
@@ -3207,7 +3392,7 @@ export async function prepareNativeCreatorProductCart(
   client: ShopifyGraphqlClient,
   cloner: PitchPrintProjectCloner = clonePitchPrintProject,
   database: CreatorProductDb = db,
-) {
+): Promise<PreparedCreatorProductCart> {
   const shopifyProductId = cleanProductGidOrNumeric(input.shopifyProductId);
   const selectedVariantId = cleanVariantGidOrNumeric(input.selectedVariantId);
   const quantity = cleanQuantity(input.quantity);
@@ -3218,6 +3403,7 @@ export async function prepareNativeCreatorProductCart(
       status: "PUBLISHED",
       creator: { status: "APPROVED" },
     },
+    include: { creator: true },
   } as unknown);
   if (!product) {
     throw new DomainError(
@@ -3253,6 +3439,131 @@ export async function prepareNativeCreatorProductCart(
       "This Creator Product variant is not mapped to its base product.",
       409,
     );
+  }
+  if (product.creatorPricingMode === CREATOR_PRICING_MODE_BAKED_IN_V1) {
+    if (!booleanTrue(input.nonReturnAcknowledged)) {
+      throw new DomainError(
+        "NON_RETURN_ACKNOWLEDGEMENT_REQUIRED",
+        "Confirm that this customized made-to-order product cannot be returned.",
+        422,
+      );
+    }
+    if (!booleanTrue(input.termsAccepted)) {
+      throw new DomainError(
+        "TERMS_ACCEPTANCE_REQUIRED",
+        "Accept the Terms and Conditions before adding this customized product to cart.",
+        422,
+      );
+    }
+    const setup = requireCreatorProductSetup(product);
+    const productionMethod = cleanProductionMethod(setup.productionMethod);
+    const enabledMethods = database.productionMethodSetting
+      ? await listEnabledProductionMethodCodes(
+          shop,
+          database as unknown as Parameters<typeof listEnabledProductionMethodCodes>[1],
+        )
+      : [...PRODUCTION_METHODS];
+    if (!enabledMethods.includes(productionMethod)) {
+      throw new DomainError(
+        "PRODUCTION_METHOD_DISABLED",
+        "Choose an enabled printing method.",
+        422,
+      );
+    }
+    const embroiderySubtype = productionMethod === "EMBROIDERY"
+      ? cleanEmbroiderySubtype(setup.embroiderySubtype)
+      : null;
+    const orderProjectId = await preparePitchPrintOrderProject(
+      product.pitchprintProjectId,
+      cloner,
+    );
+    const feeKey = [
+      "ch-creator-baked",
+      product.id.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 80),
+      orderProjectId.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 80),
+    ].join("-");
+    let attribution: string;
+    try {
+      attribution = signCreatorAttribution({
+        creatorProductId: product.id,
+        creatorId: product.creatorId,
+        creatorCollectionId: collection.id,
+        baseProductId: product.shopifyProductId,
+        baseVariantId,
+        pitchprintProjectId: orderProjectId,
+      });
+    } catch {
+      throw new DomainError(
+        "ATTRIBUTION_SIGNING_FAILED",
+        "This creator design is temporarily unavailable.",
+        500,
+      );
+    }
+    const previewUrl = creatorCartPreviewUrl(product);
+    const creatorName = (
+      product as CreatorProductRecord & { creator?: { displayName?: string } }
+    ).creator?.displayName || collection.displayName;
+    const properties = {
+      _pitchprint: orderProjectId,
+      _design_id: product.pitchprintDesignId || "",
+      _pitchprint_design_id: product.pitchprintDesignId || "",
+      _creator_master_project_id: product.pitchprintProjectId,
+      _creator_product_id: product.id,
+      _creator_id: product.creatorId,
+      _creator_collection_id: collection.id,
+      _base_product_id: product.shopifyProductId,
+      _base_variant_id: baseVariantId,
+      _creator_public_handle: collection.publicHandle,
+      _customhouse_creator_handle: collection.publicHandle,
+      _production_method: productionMethod,
+      _fixed_color: setup.fixedColor,
+      _designed_placement_count: String(setup.placementCount),
+      _creator_pricing_mode: CREATOR_PRICING_MODE_BAKED_IN_V1,
+      ...(embroiderySubtype ? { _embroidery_subtype: embroiderySubtype } : {}),
+      _customhouse_fee_key: feeKey,
+      ...(previewUrl ? { _creator_preview_url: previewUrl } : {}),
+      _customhouse_attribution: attribution,
+      "Creator Design": product.title,
+      "Creator": creatorName,
+      "Color": setup.fixedColor,
+      "Printing method": productionMethod,
+      ...(embroiderySubtype
+        ? {
+            "Embroidery artwork":
+              embroiderySubtype === "TEXT_ONLY" ? "Text only" : "Image / Logo",
+          }
+        : {}),
+      "Designed placements": String(setup.placementCount),
+      "Customized product acknowledgement": "Accepted",
+      "Terms & Conditions": "Accepted",
+    };
+    const cartVariantId = numericVariantId(selectedVariantId);
+    return {
+      variant: { graphqlId: selectedVariantId, cartId: cartVariantId },
+      variantId: cartVariantId,
+      cartVariantId,
+      shopifyVariantId: selectedVariantId,
+      quantity,
+      properties,
+      production: {
+        method: productionMethod,
+        embroiderySubtype,
+        fixedColor: setup.fixedColor,
+        placementCount: setup.placementCount,
+        surchargeMinor: creatorPricingSurchargeMinor(product),
+        feeVariantId: null,
+        feeQuantity: 0,
+        pricingMode: CREATOR_PRICING_MODE_BAKED_IN_V1,
+      },
+      items: [{ id: cartVariantId, quantity, properties }],
+      creatorProduct: {
+        id: product.id,
+        title: product.title,
+        creatorId: product.creatorId,
+        masterPitchPrintProjectId: product.pitchprintProjectId,
+      },
+      nativeProduct: { shopifyProductId, selectedVariantId },
+    };
   }
   const prepared = await prepareCreatorProductCart(
     shop,

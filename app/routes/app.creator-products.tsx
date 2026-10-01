@@ -13,6 +13,7 @@ import {
   cleanupCreatorProductAsAdmin,
   moderateCreatorProductAsAdmin,
 } from "../services/creator-products.server";
+import { publishCreatorProductToShopify } from "../services/creator-product-publishing.server";
 
 const FILTERS = ["PENDING", "PUBLISHED", "REJECTED", "DRAFT", "ARCHIVED", "ALL"] as const;
 
@@ -28,6 +29,38 @@ function formatDate(value: string | Date | null | undefined) {
 function projectLabel(value: string | null) {
   if (!value) return "-";
   return value.length > 14 ? `${value.slice(0, 8)}...${value.slice(-4)}` : value;
+}
+
+function creatorPricingPreview(value: string) {
+  try {
+    const preview = JSON.parse(value) as {
+      pricingMode?: string;
+      productionMethod?: string;
+      embroiderySubtype?: string | null;
+      placementCount?: number;
+      surchargeMinor?: string;
+      productionCostMinor?: string;
+      currencyCode?: string;
+      variants?: Array<{
+        baseVariantId?: string;
+        size?: string;
+        basePrice?: string;
+        finalPrice?: string;
+      }>;
+    };
+    return preview.pricingMode === "BAKED_IN_V1" ? preview : null;
+  } catch {
+    return null;
+  }
+}
+
+function minorAmount(value: string | undefined) {
+  try {
+    const minor = BigInt(value || "0");
+    return `${minor / 100n}.${(minor % 100n).toString().padStart(2, "0")}`;
+  } catch {
+    return "-";
+  }
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -64,15 +97,21 @@ export async function action({ request }: ActionFunctionArgs) {
         : "Creator Product archived; order and financial history remain preserved.",
     };
   }
-  const product = await moderateCreatorProductAsAdmin(
-    session.shop,
-    null,
-    {
-      creatorProductId: form.get("creatorProductId"),
-      decision,
-      rejectionReason: form.get("rejectionReason"),
-    },
-  );
+  const product = decision === "PUBLISHED"
+    ? await publishCreatorProductToShopify(
+        session.shop,
+        creatorProductId,
+        new AdminGraphqlClient(admin),
+      )
+    : await moderateCreatorProductAsAdmin(
+        session.shop,
+        session.id || null,
+        {
+          creatorProductId,
+          decision,
+          rejectionReason: form.get("rejectionReason"),
+        },
+      );
   return {
     ok: true,
     message:
@@ -115,8 +154,8 @@ export default function CreatorProductsAdmin() {
               <h2>{selected === "ALL" ? "All" : selected} Creator Products</h2>
               <p>
                 Approval makes the Creator Product visible in the creator&apos;s
-                Custom House collection. Checkout uses the original Shopify base
-                product and validated variant.
+                Custom House collection. Publishing recalculates every Shopify
+                variant from the base price plus its configured production cost.
               </p>
             </div>
             <div className="creator-link-row">
@@ -133,7 +172,11 @@ export default function CreatorProductsAdmin() {
           </div>
           {products.length ? (
             <div className="creator-application-list">
-              {products.map((product) => (
+              {products.map((product) => {
+                const pricing = creatorPricingPreview(
+                  product.creatorPricingPreviewJson || "{}",
+                );
+                return (
                 <article className="creator-application-card" key={product.id}>
                   <div className="creator-application-main">
                     {product.previewUrl?.startsWith("https://") ? (
@@ -169,6 +212,33 @@ export default function CreatorProductsAdmin() {
                     ) : null}
                     <p>Submitted: {formatDate(product.submittedAt)}</p>
                     <p>Published: {formatDate(product.publishedAt)}</p>
+                    {product.creatorPricingMode ? (
+                      <p>Pricing mode: <strong>{product.creatorPricingMode}</strong></p>
+                    ) : null}
+                    {pricing ? (
+                      <div className="creator-pricing-preview">
+                        <p>
+                          Expected pricing: <strong>{pricing.productionMethod}</strong>
+                          {pricing.embroiderySubtype
+                            ? ` / ${pricing.embroiderySubtype}`
+                            : ""}
+                          {` / ${pricing.placementCount || 0} placement(s)`}
+                        </p>
+                        <p>
+                          Surcharge: {minorAmount(pricing.surchargeMinor)} {pricing.currencyCode || ""}
+                          {" per placement; production total: "}
+                          {minorAmount(pricing.productionCostMinor)} {pricing.currencyCode || ""}
+                        </p>
+                        <ul>
+                          {(pricing.variants || []).map((variant) => (
+                            <li key={variant.baseVariantId || variant.size}>
+                              {variant.size || "Variant"}: {variant.basePrice} → {variant.finalPrice} {pricing.currencyCode || ""}
+                            </li>
+                          ))}
+                        </ul>
+                        <small>Publishing recalculates these prices from fresh Shopify and Admin data.</small>
+                      </div>
+                    ) : null}
                     {product.rejectionReason ? (
                       <p>Rejection reason: {product.rejectionReason}</p>
                     ) : null}
@@ -192,7 +262,7 @@ export default function CreatorProductsAdmin() {
                           <SubmitButton
                             name="decision"
                             value="PUBLISHED"
-                            confirmMessage="Approve this Creator Product? It will appear in the creator's Custom House collection and use the original Shopify base product for checkout."
+                            confirmMessage="Approve and publish this Creator Product with the displayed production cost baked into every Shopify variant price?"
                           >
                             Approve
                           </SubmitButton>
@@ -224,7 +294,8 @@ export default function CreatorProductsAdmin() {
                     </div>
                   ) : null}
                 </article>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="dashboard-empty">

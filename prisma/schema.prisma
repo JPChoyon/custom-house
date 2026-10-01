@@ -410,6 +410,8 @@ model CreatorProduct {
   publishedShopifyProductUrl    String?
   shopifyPublishedAt            DateTime?
   baseVariantMappingJson        String               @default("{}")
+  creatorPricingMode            String?
+  creatorPricingPreviewJson     String               @default("{}")
   submittedAt                   DateTime?
   publishedAt                   DateTime?
   rejectedAt                    DateTime?

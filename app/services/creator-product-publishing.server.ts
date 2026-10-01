@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import db from "../db.server.ts";
 import { DomainError, safeJson } from "./domain.ts";
 import {
@@ -10,22 +11,23 @@ import {
   creatorProductSetupFromRecord,
   type CreatorProductSetup,
 } from "./creator-products.server.ts";
-import { decimalMoneyToMinorUnits } from "./money.ts";
 import {
   cleanEmbroiderySubtype,
   cleanProductionMethod,
-  feeVariantIdForEmbroiderySubtype,
-  feeVariantIdForMethod,
   getCreatorProductionPricing,
-  pricingForEmbroiderySubtype,
-  pricingForMethod,
   type PublicProductProductionPricingRecord,
 } from "./production-method-pricing.server.ts";
+import {
+  buildCreatorPublishedPricingPlan,
+  CREATOR_PRICING_MODE_BAKED_IN_V1,
+  type CreatorPublishedPricingPlan,
+} from "./creator-product-pricing.server.ts";
 
 type Errors = Array<{ message: string }>;
 
 type ShopifyProductVariant = {
   id: string;
+  price?: string;
   selectedOptions: Array<{ name: string; value: string }>;
 };
 
@@ -81,6 +83,7 @@ export type CreatorProductForPublish = {
   publishedShopifyProductUrl?: string | null;
   shopifyPublishedAt?: Date | null;
   baseVariantMappingJson?: string;
+  creatorPricingMode?: string | null;
   creator?: {
     id: string;
     displayName: string;
@@ -103,13 +106,6 @@ function previewUrl(product: CreatorProductForPublish) {
   } catch {
     return null;
   }
-}
-
-function optionKey(options: Array<{ name: string; value: string }>) {
-  return options
-    .map((option) => `${option.name.trim().toLowerCase()}:${option.value.trim().toLowerCase()}`)
-    .sort()
-    .join("|");
 }
 
 export type CreatorCartValidationContract = {
@@ -137,8 +133,9 @@ type CreatorPricingForContract = Pick<
 export function creatorCartValidationContract(
   creatorProductId: string,
   setup: CreatorProductSetup,
-  pricing: CreatorPricingForContract,
+  _pricing: CreatorPricingForContract,
 ): CreatorCartValidationContract {
+  void _pricing;
   if (!Number.isInteger(setup.placementCount) || setup.placementCount < 1) {
     throw new DomainError(
       "CREATOR_PLACEMENT_COUNT_INVALID",
@@ -154,30 +151,12 @@ export function creatorCartValidationContract(
       409,
     );
   }
-  const embroiderySubtype = method === "EMBROIDERY"
-    ? cleanEmbroiderySubtype(setup.embroiderySubtype)
-    : null;
-  const surchargeMinor = decimalMoneyToMinorUnits(
-    embroiderySubtype
-      ? pricingForEmbroiderySubtype(pricing, embroiderySubtype)
-      : pricingForMethod(pricing, method),
-  );
-  const configuredFeeVariantId = embroiderySubtype
-    ? feeVariantIdForEmbroiderySubtype(pricing, embroiderySubtype)
-    : feeVariantIdForMethod(pricing, method);
-  const feeRequired = surchargeMinor > 0n;
-  if (feeRequired && !configuredFeeVariantId) {
-    throw new DomainError(
-      "PRODUCTION_FEE_SYNC_REQUIRED",
-      "Production fee merchandise is not synced for this Creator Product.",
-      409,
-    );
-  }
+  if (method === "EMBROIDERY") cleanEmbroiderySubtype(setup.embroiderySubtype);
   return {
     version: 1,
     creatorProductId,
-    feeRequired,
-    feeVariantId: feeRequired ? configuredFeeVariantId || null : null,
+    feeRequired: false,
+    feeVariantId: null,
     placementCount: setup.placementCount,
   };
 }
@@ -198,6 +177,7 @@ export function nativeCreatorProductMetafields(input: {
     "id" | "publicHandle" | "displayName" | "shopifyCollectionId"
   >;
   setup: CreatorProductSetup;
+  pricingMode: typeof CREATOR_PRICING_MODE_BAKED_IN_V1;
   cartValidationContract: CreatorCartValidationContract;
 }) {
   const metafields = [
@@ -219,6 +199,7 @@ export function nativeCreatorProductMetafields(input: {
     ["fixed_color", input.setup.fixedColor],
     ["production_method", input.setup.productionMethod],
     ["designed_placement_count", String(input.setup.placementCount)],
+    ["creator_pricing_mode", input.pricingMode],
     ...(input.setup.embroiderySubtype
       ? [["embroidery_artwork_type", input.setup.embroiderySubtype]]
       : []),
@@ -425,7 +406,7 @@ async function creatorProductVariants(
       `#graphql query NativeCreatorProductVariants($id: ID!, $after: String) {
         product(id: $id) {
           variants(first: 250, after: $after) {
-            nodes { id selectedOptions { name value } }
+            nodes { id price selectedOptions { name value } }
             pageInfo { hasNextPage endCursor }
           }
         }
@@ -483,6 +464,7 @@ async function configureProduct(
     collection: CreatorCollectionRecord;
     previewUrl: string;
     setup: CreatorProductSetup;
+    pricingMode: typeof CREATOR_PRICING_MODE_BAKED_IN_V1;
     cartValidationContract: CreatorCartValidationContract;
   },
 ) {
@@ -549,7 +531,12 @@ async function configureProduct(
   );
   throwUserErrors(removed.metafieldsDelete.userErrors, "Native creator customization cleanup");
 
-  const metafields = nativeCreatorProductMetafields(input);
+  const metafields = nativeCreatorProductMetafields(input).filter(
+    (metafield) =>
+      !["creator_pricing_mode", "creator_cart_validation"].includes(
+        metafield.key,
+      ),
+  );
   const metafieldResult = await client.request<{
     metafieldsSet: { userErrors: Errors };
   }>(
@@ -562,45 +549,158 @@ async function configureProduct(
   return handle;
 }
 
-async function productVariantMap(
+async function creatorPublishedPricingPlan(
   client: ShopifyGraphqlClient,
-  baseProductId: string,
-  publishedProductId: string,
+  input: {
+    product: CreatorProductForPublish;
+    publishedProductId: string;
+    setup: CreatorProductSetup;
+    pricing: CreatorPricingForContract;
+  },
+) {
+  const [baseVariants, publishedVariants] = await Promise.all([
+    creatorProductVariants(client, input.product.shopifyProductId),
+    creatorProductVariants(client, input.publishedProductId),
+  ]);
+  return buildCreatorPublishedPricingPlan({
+    creatorProductId: input.product.id,
+    baseProductId: input.product.shopifyProductId,
+    publishedProductId: input.publishedProductId,
+    productionMethod: input.setup.productionMethod,
+    embroiderySubtype: input.setup.embroiderySubtype,
+    placementCount: input.setup.placementCount,
+    pricing: input.pricing,
+    baseVariants: baseVariants.map((variant) => ({
+      id: variant.id,
+      price: variant.price || "",
+      selectedOptions: variant.selectedOptions,
+    })),
+    publishedVariants: publishedVariants.map((variant) => ({
+      id: variant.id,
+      price: variant.price || "",
+      selectedOptions: variant.selectedOptions,
+    })),
+  });
+}
+
+async function applyCreatorPublishedPricingPlan(
+  client: ShopifyGraphqlClient,
+  plan: CreatorPublishedPricingPlan,
 ) {
   const result = await client.request<{
-    base: {
-      variants: {
-        nodes: Array<{ id: string; selectedOptions: Array<{ name: string; value: string }> }>;
-      };
-    } | null;
-    published: {
-      variants: {
-        nodes: Array<{ id: string; selectedOptions: Array<{ name: string; value: string }> }>;
-      };
-    } | null;
+    productVariantsBulkUpdate: { userErrors: Errors };
   }>(
-    `#graphql query NativeCreatorVariantMap($baseId: ID!, $publishedId: ID!) {
-      base: product(id: $baseId) {
-        variants(first: 100) { nodes { id selectedOptions { name value } } }
-      }
-      published: product(id: $publishedId) {
-        variants(first: 100) { nodes { id selectedOptions { name value } } }
+    `#graphql mutation BakeNativeCreatorVariantPrices(
+      $productId: ID!,
+      $variants: [ProductVariantsBulkInput!]!
+    ) {
+      productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+        userErrors { message }
       }
     }`,
-    { baseId: baseProductId, publishedId: publishedProductId },
+    {
+      productId: plan.publishedProductId,
+      variants: plan.variants.map((variant) => ({
+        id: variant.publishedVariantId,
+        price: variant.finalPrice,
+      })),
+    },
   );
-  const baseByOptions = new Map(
-    (result.base?.variants.nodes || []).map((variant) => [
-      optionKey(variant.selectedOptions),
-      variant.id,
-    ]),
+  throwUserErrors(
+    result.productVariantsBulkUpdate.userErrors,
+    "Native Creator Product pricing",
   );
-  return Object.fromEntries(
-    (result.published?.variants.nodes || []).flatMap((variant) => {
-      const baseVariantId = baseByOptions.get(optionKey(variant.selectedOptions));
-      return baseVariantId ? [[variant.id, baseVariantId]] : [];
-    }),
+  const verified = await creatorProductVariants(client, plan.publishedProductId);
+  const byId = new Map(verified.map((variant) => [variant.id, variant.price]));
+  const mismatch = plan.variants.find((variant) => {
+    const actual = byId.get(variant.publishedVariantId);
+    try {
+      return !actual || !new Prisma.Decimal(actual).equals(variant.finalPrice);
+    } catch {
+      return true;
+    }
+  });
+  if (mismatch) {
+    throw new DomainError(
+      "CREATOR_PRICE_VERIFICATION_FAILED",
+      "Creator Product prices could not be verified after synchronization.",
+      502,
+    );
+  }
+}
+
+async function setAndVerifyCreatorPricingMetafields(
+  client: ShopifyGraphqlClient,
+  input: Parameters<typeof nativeCreatorProductMetafields>[0],
+) {
+  const metafields = nativeCreatorProductMetafields(input).filter((metafield) =>
+    ["creator_pricing_mode", "creator_cart_validation"].includes(metafield.key),
   );
+  const result = await client.request<{
+    metafieldsSet: { userErrors: Errors };
+  }>(
+    `#graphql mutation NativeCreatorProductPricingMetafields($metafields: [MetafieldsSetInput!]!) {
+      metafieldsSet(metafields: $metafields) { userErrors { message } }
+    }`,
+    { metafields },
+  );
+  throwUserErrors(
+    result.metafieldsSet.userErrors,
+    "Native Creator Product pricing metadata",
+  );
+  const verified = await client.request<{
+    product: {
+      pricingMode: { value: string } | null;
+      validation: { jsonValue: unknown } | null;
+    } | null;
+  }>(
+    `#graphql query VerifyNativeCreatorProductPricing($id: ID!) {
+      product(id: $id) {
+        pricingMode: metafield(namespace: "customhouse", key: "creator_pricing_mode") { value }
+        validation: metafield(namespace: "customhouse", key: "creator_cart_validation") { jsonValue }
+      }
+    }`,
+    { id: input.productId },
+  );
+  if (
+    verified.product?.pricingMode?.value !== CREATOR_PRICING_MODE_BAKED_IN_V1 ||
+    safeJson(verified.product.validation?.jsonValue) !==
+      safeJson(input.cartValidationContract)
+  ) {
+    throw new DomainError(
+      "CREATOR_PRICING_METADATA_VERIFICATION_FAILED",
+      "Creator Product pricing metadata could not be verified after synchronization.",
+      502,
+    );
+  }
+}
+
+export async function synchronizeBakedCreatorProductPricing(
+  client: ShopifyGraphqlClient,
+  input: {
+    product: CreatorProductForPublish;
+    publishedProductId: string;
+    collection: CreatorCollectionRecord;
+    setup: CreatorProductSetup;
+    pricing: CreatorPricingForContract;
+  },
+) {
+  const cartValidationContract = creatorCartValidationContract(
+    input.product.id,
+    input.setup,
+    input.pricing,
+  );
+  const pricingPlan = await creatorPublishedPricingPlan(client, input);
+  await applyCreatorPublishedPricingPlan(client, pricingPlan);
+  await setAndVerifyCreatorPricingMetafields(client, {
+    product: input.product,
+    productId: input.publishedProductId,
+    collection: input.collection,
+    setup: input.setup,
+    pricingMode: CREATOR_PRICING_MODE_BAKED_IN_V1,
+    cartValidationContract,
+  });
+  return { pricingPlan, cartValidationContract };
 }
 
 async function addToCollection(
@@ -752,11 +852,7 @@ export async function publishCreatorProductToShopify(
       409,
     );
   }
-  const cartValidationContract = creatorCartValidationContract(
-    product.id,
-    setup,
-    pricing,
-  );
+  const cartValidationContract = creatorCartValidationContract(product.id, setup, pricing);
 
   const existing =
     (await activeProduct(client, product.publishedShopifyProductId)) ||
@@ -772,6 +868,7 @@ export async function publishCreatorProductToShopify(
     collection,
     previewUrl: image,
     setup,
+    pricingMode: CREATOR_PRICING_MODE_BAKED_IN_V1,
     cartValidationContract,
   });
   await restrictCreatorProductToFixedColor(
@@ -779,14 +876,22 @@ export async function publishCreatorProductToShopify(
     shopifyProduct.id,
     setup.fixedColor,
   );
+  const synchronized = await synchronizeBakedCreatorProductPricing(client, {
+    product,
+    publishedProductId: shopifyProduct.id,
+    collection,
+    setup,
+    pricing,
+  });
+  const { pricingPlan } = synchronized;
   await addToCollection(client, collection.shopifyCollectionId, shopifyProduct.id);
   await publishResource(client, shopifyProduct.id, publicationId);
   await publishResource(client, collection.shopifyCollectionId, publicationId);
-  await activateProduct(client, shopifyProduct.id);
-  const variantMap = await productVariantMap(
-    client,
-    product.shopifyProductId,
-    shopifyProduct.id,
+  const variantMap = Object.fromEntries(
+    pricingPlan.variants.map((variant) => [
+      variant.publishedVariantId,
+      variant.baseVariantId,
+    ]),
   );
   const now = new Date();
   const updated = await database.creatorProduct.update({
@@ -801,8 +906,10 @@ export async function publishCreatorProductToShopify(
       publishedShopifyProductUrl: productUrl(handle),
       shopifyPublishedAt: now,
       baseVariantMappingJson: safeJson(variantMap),
+      creatorPricingMode: CREATOR_PRICING_MODE_BAKED_IN_V1,
     },
   } as unknown);
+  await activateProduct(client, shopifyProduct.id);
   await database.auditLog?.create({
     data: {
       shop,
@@ -814,6 +921,17 @@ export async function publishCreatorProductToShopify(
         creatorId: product.creatorId,
         shopifyProductId: shopifyProduct.id,
         shopifyCollectionId: collection.shopifyCollectionId,
+        creatorPricingMode: CREATOR_PRICING_MODE_BAKED_IN_V1,
+        productionMethod: pricingPlan.productionMethod,
+        embroiderySubtype: pricingPlan.embroiderySubtype,
+        placementCount: pricingPlan.placementCount,
+        surchargeMinor: pricingPlan.surchargeMinor,
+        variantPrices: pricingPlan.variants.map((variant) => ({
+          baseVariantId: variant.baseVariantId,
+          publishedVariantId: variant.publishedVariantId,
+          basePrice: variant.basePrice,
+          finalPrice: variant.finalPrice,
+        })),
       }),
     },
   });
