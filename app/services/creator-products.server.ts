@@ -831,10 +831,32 @@ function rawCreatorSetup(input: AttachPitchPrintProjectInput) {
     input.creatorSetup && typeof input.creatorSetup === "object"
       ? (input.creatorSetup as Record<string, unknown>)
       : {};
-  return {
+  const outer = { ...input } as Record<string, unknown>;
+  delete outer.creatorSetup;
+  const setup = {
     ...nested,
-    ...input,
+    ...outer,
   } as Record<string, unknown>;
+  const outerColors = normalizedCreatorColorValues(outer);
+  const colorSource = outerColors.length ? outer : nested;
+  for (const key of [
+    "activeColor",
+    "selectedColor",
+    "selectedColorDetail",
+    "productColor",
+    "selectedProductColor",
+    "colorName",
+    "color",
+    "variantColor",
+    "selectedColors",
+    "colorValues",
+    "productColors",
+    "fixedColor",
+  ]) {
+    delete setup[key];
+    if (key in colorSource) setup[key] = colorSource[key];
+  }
+  return setup;
 }
 
 function creatorColorArray(value: unknown) {
@@ -882,14 +904,40 @@ function normalizedCreatorColorValues(setup: Record<string, unknown>) {
   ])[0];
   const arrayColors = uniqueCreatorColorValues([
     ...creatorColorArray(setup.selectedColors),
-    ...creatorColorArray(setup.colorValues),
-    ...creatorColorArray(setup.productColors),
   ]);
   if (currentColor) {
     return uniqueCreatorColorValues([currentColor, ...arrayColors]);
   }
   if (arrayColors.length) return arrayColors;
   return uniqueCreatorColorValues([setup.fixedColor]);
+}
+
+export function creatorProductColorInputDiagnostics(
+  input: AttachPitchPrintProjectInput,
+) {
+  const nested =
+    input.creatorSetup &&
+    typeof input.creatorSetup === "object" &&
+    !Array.isArray(input.creatorSetup)
+      ? (input.creatorSetup as Record<string, unknown>)
+      : {};
+  const outer = { ...input } as Record<string, unknown>;
+  delete outer.creatorSetup;
+  return {
+    outerColorCount: normalizedCreatorColorValues(outer).length,
+    nestedColorCount: normalizedCreatorColorValues(nested).length,
+    hasProjectId: Boolean(
+      cleanOptionalText(
+        input.projectId || input.creatorProjectId || nested.projectId || nested.creatorProjectId,
+        200,
+      ),
+    ),
+    hasPreview: Boolean(
+      cleanOptionalText(input.previewUrl, 2_000) ||
+        (Array.isArray(input.previews) && input.previews.length) ||
+        (Array.isArray(input.sidePreviews) && input.sidePreviews.length),
+    ),
+  };
 }
 
 function booleanTrue(...values: unknown[]) {

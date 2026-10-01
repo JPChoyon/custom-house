@@ -25,6 +25,7 @@ import {
   withdrawCreatorProductForCustomer,
 } from "../app/services/creator-products.server.ts";
 import * as creatorPublishing from "../app/services/creator-product-publishing.server.ts";
+import * as creatorProductRoute from "../app/services/creator-product-action-core.server.ts";
 import { clonePitchPrintProject } from "../app/services/pitchprint-clone.server.ts";
 import {
   ensureCreatorCollectionRecord,
@@ -956,6 +957,173 @@ test("authenticated Creator A can attach a PitchPrint project to their own Draft
     nonReturnAcknowledged: true,
     savedAt: JSON.parse(updated.designVariantSelectionsJson).savedAt,
   });
+});
+
+test("creator product route saves nested Navy when empty legacy outer aliases are present", async () => {
+  const database = fakeDb();
+  const navyBaseProduct = {
+    ...baseProduct,
+    variants: {
+      nodes: [
+        ...baseProduct.variants.nodes,
+        {
+          id: "gid://shopify/ProductVariant/2003",
+          legacyResourceId: "2003",
+          title: "S / Navy",
+          availableForSale: true,
+          selectedOptions: [
+            { name: "Size", value: "S" },
+            { name: "Color", value: "Navy" },
+          ],
+        },
+      ],
+    },
+  };
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    {
+      shopifyProductId: baseProduct.id,
+      selectedProductionMethod: "EMBROIDERY",
+    },
+    fakeClient(navyBaseProduct),
+    database,
+  );
+  const liveBody = {
+    ...pitchPrintPayload({
+      projectId: "pp-live-navy-route",
+      previews: ["https://cdn.pitchprint.test/live-navy-front.png"],
+      source: {
+        pages: [
+          {
+            name: "Front",
+            objects: [{ type: "Textbox", text: "Live QA Navy" }],
+          },
+        ],
+      },
+    }),
+    selectedColor: "",
+    selectedColors: [],
+    fixedColor: "",
+    creatorSetup: {
+      flowMode: "CREATOR_DESIGN",
+      interactionMode: "CREATOR_DESIGN",
+      productOrigin: "global",
+      baseProductOrigin: "global",
+      designMode: "creator_design",
+      creatorContext: true,
+      launchContext: "creator_dashboard",
+      isCreatorProduct: true,
+      creatorProductId: draft.id,
+      selectedColor: "Navy",
+      selectedColors: ["Navy"],
+      colorValues: ["White", "Navy"],
+      productColors: ["White", "Navy"],
+      fixedColor: "Navy",
+      previewColor: "Navy",
+      productionMethod: "EMBROIDERY",
+      fixedProductionMethod: "EMBROIDERY",
+      selectedProductionMethod: "EMBROIDERY",
+      artworkObjects: [{ type: "Textbox", text: "Live QA Navy" }],
+      designedPlacementCount: 1,
+      placements: [{ id: "front", label: "Front", hasArtwork: true }],
+      copyrightAccepted: true,
+      nonReturnAcknowledged: true,
+    },
+  };
+  const routeAction = (
+    creatorProductRoute as unknown as {
+      creatorProductActionCore?: (
+        args: { params: { id: string }; request: Request },
+        dependencies: Record<string, unknown>,
+      ) => Promise<Response>;
+    }
+  ).creatorProductActionCore;
+  assert.equal(typeof routeAction, "function");
+  if (typeof routeAction !== "function") return;
+
+  const diagnostics: Array<Record<string, unknown>> = [];
+  const response = await routeAction(
+    {
+      params: { id: draft.id },
+      request: new Request(`https://${shop}/apps/customhouse/api/creator-products/${draft.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(liveBody),
+      }),
+    },
+    {
+      ...creatorProductRoute.creatorProductActionServices,
+      proxyContext: async () => ({
+        shop,
+        customerId: "gid://shopify/Customer/1",
+        client: fakeClient(navyBaseProduct),
+      }),
+      enforceRateLimit: () => undefined,
+      jsonBody: (request: Request) => request.json(),
+      apiData: (data: unknown) => Response.json({ ok: true, data }),
+      apiError: (error: unknown) =>
+        Response.json(
+          {
+            ok: false,
+            error: {
+              code:
+                error && typeof error === "object" && "code" in error
+                  ? String(error.code)
+                  : "UNKNOWN",
+            },
+          },
+          {
+            status:
+              error && typeof error === "object" && "status" in error
+                ? Number(error.status)
+                : 500,
+          },
+        ),
+      attachPitchPrintProjectToCreatorProduct: (
+        shopKey: string,
+        customerId: string,
+        creatorProductId: string,
+        input: Parameters<typeof attachPitchPrintProjectToCreatorProduct>[3],
+      ) =>
+        attachPitchPrintProjectToCreatorProduct(
+          shopKey,
+          customerId,
+          creatorProductId,
+          input,
+          database,
+        ),
+      logCreatorSave: (entry: Record<string, unknown>) => diagnostics.push(entry),
+    },
+  );
+
+  const responseBody = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(responseBody));
+  const savedSetup = JSON.parse(responseBody.data.product.designVariantSelectionsJson);
+  assert.equal(savedSetup.fixedColor, "Navy");
+  assert.deepEqual(savedSetup.selectedColors, ["Navy"]);
+  assert.equal(savedSetup.productionMethod, "EMBROIDERY");
+  assert.equal(savedSetup.embroiderySubtype, "TEXT_ONLY");
+  assert.deepEqual(diagnostics, [
+    {
+      event: "creator_product_save_color_resolution",
+      stage: "request",
+      creatorProductId: draft.id,
+      outerColorCount: 0,
+      nestedColorCount: 1,
+      hasProjectId: true,
+      hasPreview: true,
+    },
+    {
+      event: "creator_product_save_color_resolution",
+      stage: "success",
+      creatorProductId: draft.id,
+      outerColorCount: 0,
+      nestedColorCount: 1,
+      hasProjectId: true,
+      hasPreview: true,
+    },
+  ]);
 });
 
 test("Creator Product stores current Shopify size variants from the base product", async () => {
