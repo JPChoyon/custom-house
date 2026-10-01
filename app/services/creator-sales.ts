@@ -198,9 +198,11 @@ export function parsePaidOrder(payload: unknown): CreatorPaidLine[] {
           ),
           creatorDesignTitle: publicLineStringProperty(
             line.properties,
-            "Creator Design",
-          ),
-          creatorName: publicLineStringProperty(line.properties, "Creator"),
+            "_creator_design_title",
+          ) || publicLineStringProperty(line.properties, "Creator Design"),
+          creatorName:
+            publicLineStringProperty(line.properties, "_creator_name") ||
+            publicLineStringProperty(line.properties, "Creator"),
           attributionToken: lineStringProperty(
             line.properties,
             "_customhouse_attribution",

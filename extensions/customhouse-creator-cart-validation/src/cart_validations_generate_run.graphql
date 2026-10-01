@@ -15,7 +15,13 @@ query CartValidationsGenerateRunInput {
       nonReturnAcknowledgement: attribute(key: "Customized product acknowledgement") {
         value
       }
+      hiddenNonReturnAcknowledgement: attribute(key: "_customhouse_non_return_acknowledgement") {
+        value
+      }
       termsAcknowledgement: attribute(key: "Terms & Conditions") {
+        value
+      }
+      hiddenTermsAcknowledgement: attribute(key: "_customhouse_terms_acknowledgement") {
         value
       }
       merchandise {

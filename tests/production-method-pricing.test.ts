@@ -231,11 +231,17 @@ test("production method display config serializes minor units", () => {
 test("admin products page exposes pricing only for public customizable products", () => {
   const source = readFileSync("app/routes/app.products.tsx", "utf8");
   const appShell = readFileSync("app/routes/app.tsx", "utf8");
+  const creatorPricingForm = source.match(
+    /value="save-creator-production-pricing"[\s\S]*?Save Creator Printing Pricing/,
+  )?.[0] || "";
 
   assert.match(source, /save-production-pricing/);
   assert.match(source, /save-creator-production-pricing/);
   assert.match(source, /Creator Product Printing Methods/);
   assert.match(source, /Save Creator Printing Pricing/);
+  assert.doesNotMatch(creatorPricingForm, /<span>Embroidery<\/span>/);
+  assert.match(creatorPricingForm, /Embroidery — Text only/);
+  assert.match(creatorPricingForm, /Embroidery — Image \/ Logo/);
   assert.match(source, /CREATOR_PRODUCTION_PRICING_PRODUCT_ID/);
   assert.match(source, /product_type/);
   assert.match(source, /product_origin/);

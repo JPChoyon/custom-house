@@ -3321,9 +3321,11 @@ export async function prepareCreatorProductCart(
     _customhouse_fee_key: feeKey,
     ...(previewUrl ? { _creator_preview_url: previewUrl } : {}),
     _customhouse_attribution: attribution,
-    "Creator Design": product.title,
+    _creator_design_title: product.title,
+    _creator_name: product.creator.displayName,
+    _customhouse_non_return_acknowledgement: "Accepted",
+    _customhouse_terms_acknowledgement: "Accepted",
     "Creator": product.creator.displayName,
-    "Color": setup.fixedColor,
     "Printing method": productionMethod,
     ...(embroiderySubtype
       ? {
@@ -3331,9 +3333,6 @@ export async function prepareCreatorProductCart(
             embroiderySubtype === "TEXT_ONLY" ? "Text only" : "Image / Logo",
         }
       : {}),
-    "Designed placements": String(setup.placementCount),
-    "Customized product acknowledgement": "Accepted",
-    "Terms & Conditions": "Accepted",
   };
   const feeQuantity = quantity * setup.placementCount;
   const feeItem =
@@ -3532,9 +3531,11 @@ export async function prepareNativeCreatorProductCart(
       _customhouse_fee_key: feeKey,
       ...(previewUrl ? { _creator_preview_url: previewUrl } : {}),
       _customhouse_attribution: attribution,
-      "Creator Design": product.title,
+      _creator_design_title: product.title,
+      _creator_name: creatorName,
+      _customhouse_non_return_acknowledgement: "Accepted",
+      _customhouse_terms_acknowledgement: "Accepted",
       "Creator": creatorName,
-      "Color": setup.fixedColor,
       "Printing method": productionMethod,
       ...(embroiderySubtype
         ? {
@@ -3542,9 +3543,6 @@ export async function prepareNativeCreatorProductCart(
               embroiderySubtype === "TEXT_ONLY" ? "Text only" : "Image / Logo",
           }
         : {}),
-      "Designed placements": String(setup.placementCount),
-      "Customized product acknowledgement": "Accepted",
-      "Terms & Conditions": "Accepted",
     };
     const cartVariantId = numericVariantId(selectedVariantId);
     return {

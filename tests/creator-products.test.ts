@@ -3929,7 +3929,7 @@ test("cart prep validates variant ownership and locks creator artwork", async ()
   assert.equal(cart.properties._creator_preview_url, "https://cdn.pitchprint.test/master.png");
   assert.equal(cart.properties._creator_public_handle, "creator-a");
   assert.equal(cart.properties._production_method, "DTF");
-  assert.equal(cart.properties["Color"], "White");
+  assert.equal("Color" in cart.properties, false);
   assert.equal(cart.properties["Printing method"], "DTF");
   assert.equal(cart.production.method, "DTF");
   assert.equal(cart.production.fixedColor, "White");
@@ -3948,7 +3948,13 @@ test("cart prep validates variant ownership and locks creator artwork", async ()
   assert.equal(feeProperties._customhouse_fee_key, cart.properties._customhouse_fee_key);
   assert.equal(feeProperties._creator_product_id, draft.id);
   assert.equal(typeof cart.properties._customhouse_attribution, "string");
-  assert.equal(cart.properties["Creator Design"], draft.title);
+  assert.equal(cart.properties._creator_design_title, draft.title);
+  assert.equal(cart.properties._customhouse_non_return_acknowledgement, "Accepted");
+  assert.equal(cart.properties._customhouse_terms_acknowledgement, "Accepted");
+  assert.equal("Creator Design" in cart.properties, false);
+  assert.equal("Designed placements" in cart.properties, false);
+  assert.equal("Customized product acknowledgement" in cart.properties, false);
+  assert.equal("Terms & Conditions" in cart.properties, false);
   assert.equal(db.products.find((product) => product.id === draft.id)?.pitchprintProjectId, "pp_master");
   assert.equal(await db.creatorSale.count(), 0);
 });
@@ -4253,7 +4259,8 @@ test("cart prep rejects manually submitted variants outside the saved fixed colo
     db,
   );
 
-  assert.equal(cart.properties["Color"], "Black");
+  assert.equal(cart.properties._fixed_color, "Black");
+  assert.equal("Color" in cart.properties, false);
   assert.equal(cart.properties._production_method, "EMBROIDERY");
   await assert.rejects(
     () =>
@@ -4420,7 +4427,8 @@ test("cart prep uses stored preview URL list and omits invalid preview without b
 
   assert.equal("_creator_preview_url" in cartWithoutPreview.properties, false);
   assert.equal(cartWithoutPreview.properties._creator_product_id, draft.id);
-  assert.equal(cartWithoutPreview.properties["Creator Design"], draft.title);
+  assert.equal(cartWithoutPreview.properties._creator_design_title, draft.title);
+  assert.equal("Creator Design" in cartWithoutPreview.properties, false);
 });
 
 test("cart prep falls back to master PitchPrint project when clone config is optional", async () => {

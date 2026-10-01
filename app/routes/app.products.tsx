@@ -318,18 +318,12 @@ export default function Products() {
                 value="save-creator-production-pricing"
               />
               <input type="hidden" name="currency" value={creatorCurrency} />
+              <input
+                type="hidden"
+                name="embroiderySurcharge"
+                value={creatorPricingDefaults.embroiderySurcharge}
+              />
               <div className="production-pricing-fields">
-                <label>
-                  <span>Embroidery</span>
-                  <input
-                    name="embroiderySurcharge"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    defaultValue={creatorPricingDefaults.embroiderySurcharge}
-                  />
-                  <small>{creatorCurrency}</small>
-                </label>
                 <label>
                   <span>Embroidery — Text only</span>
                   <input name="embroideryTextSurcharge" type="number" min="0" step="0.01" defaultValue={creatorPricingDefaults.embroideryTextSurcharge} />

@@ -35,7 +35,9 @@ function normalLine(overrides: Partial<Line> = {}): Line {
     feeKeyAttribute: null,
     productionFeeAttribute: null,
     nonReturnAcknowledgement: null,
+    hiddenNonReturnAcknowledgement: null,
     termsAcknowledgement: null,
+    hiddenTermsAcknowledgement: null,
     merchandise: {
       __typename: "ProductVariant",
       id: "gid://shopify/ProductVariant/normal",
@@ -78,8 +80,10 @@ function creatorLine({
     creatorProductIdAttribute: attribute(id),
     feeKeyAttribute: attribute(feeKey),
     productionFeeAttribute: null,
-    nonReturnAcknowledgement: attribute(nonReturn),
-    termsAcknowledgement: attribute(terms),
+    nonReturnAcknowledgement: null,
+    hiddenNonReturnAcknowledgement: attribute(nonReturn),
+    termsAcknowledgement: null,
+    hiddenTermsAcknowledgement: attribute(terms),
     merchandise: {
       __typename: "ProductVariant",
       id: `gid://shopify/ProductVariant/${id}`,
@@ -113,7 +117,9 @@ function feeLine({
     feeKeyAttribute: attribute(feeKey),
     productionFeeAttribute: attribute("true"),
     nonReturnAcknowledgement: null,
+    hiddenNonReturnAcknowledgement: null,
     termsAcknowledgement: null,
+    hiddenTermsAcknowledgement: null,
     merchandise: {
       __typename: "ProductVariant",
       id: variantId,
@@ -142,6 +148,26 @@ describe("CustomHouse Creator cart validation", () => {
 
   test("allows a Creator product with its exact fee pair and acknowledgements", () => {
     expect(errors([creatorLine(), feeLine()])).toEqual([]);
+  });
+
+  test("keeps legacy visible acknowledgement properties valid", () => {
+    expect(
+      errors([
+        creatorLine({
+          nonReturn: null,
+          terms: null,
+        }),
+        feeLine(),
+      ].map((line, index) =>
+        index === 0
+          ? {
+              ...line,
+              nonReturnAcknowledgement: attribute("Accepted"),
+              termsAcknowledgement: attribute("Accepted"),
+            }
+          : line,
+      )),
+    ).toEqual([]);
   });
 
   test("rejects a Creator product with a missing fee", () => {

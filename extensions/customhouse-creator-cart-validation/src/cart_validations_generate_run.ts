@@ -154,10 +154,17 @@ export function cartValidationsGenerateRun(
       const creatorProductId = attributeValue(line.creatorProductIdAttribute);
       const feeKey = attributeValue(line.feeKeyAttribute);
 
-      if (attributeValue(line.nonReturnAcknowledgement) !== "Accepted") {
+      const nonReturnAcknowledgement =
+        attributeValue(line.hiddenNonReturnAcknowledgement) ??
+        attributeValue(line.nonReturnAcknowledgement);
+      const termsAcknowledgement =
+        attributeValue(line.hiddenTermsAcknowledgement) ??
+        attributeValue(line.termsAcknowledgement);
+
+      if (nonReturnAcknowledgement !== "Accepted") {
         addError(MESSAGES.nonReturn);
       }
-      if (attributeValue(line.termsAcknowledgement) !== "Accepted") {
+      if (termsAcknowledgement !== "Accepted") {
         addError(MESSAGES.terms);
       }
 
