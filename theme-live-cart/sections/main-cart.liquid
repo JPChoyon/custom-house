@@ -351,6 +351,84 @@
     text-underline-offset: 0.2em;
   }
 
+  #{{ section_id }} .customhouse-cart__item--grouped {
+    align-items: start;
+  }
+
+  #{{ section_id }} .customhouse-cart-group {
+    display: grid;
+    gap: 16px;
+    margin-top: 14px;
+  }
+
+  #{{ section_id }} .customhouse-cart-group__details,
+  #{{ section_id }} .customhouse-cart-group__totals {
+    display: grid;
+    gap: 7px;
+  }
+
+  #{{ section_id }} .customhouse-cart-group__detail {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px 18px;
+    color: var(--customhouse-cart-muted) !important;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  #{{ section_id }} .customhouse-cart-group__detail strong {
+    color: color-mix(in srgb, var(--customhouse-cart-text) 86%, transparent) !important;
+    font-weight: 900;
+  }
+
+  #{{ section_id }} .customhouse-cart-group__matrix {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    border-spacing: 0;
+    color: var(--customhouse-cart-text) !important;
+    font-size: 13px;
+    text-align: center;
+    border: 1px solid rgba(123, 63, 242, 0.34);
+    border-radius: 12px;
+    background: rgba(9, 9, 12, 0.72) !important;
+  }
+
+  #{{ section_id }} .customhouse-cart-group__matrix th,
+  #{{ section_id }} .customhouse-cart-group__matrix td {
+    padding: 8px 10px;
+    border-right: 1px solid rgba(123, 63, 242, 0.2);
+    border-bottom: 1px solid rgba(123, 63, 242, 0.2);
+  }
+
+  #{{ section_id }} .customhouse-cart-group__matrix th:last-child,
+  #{{ section_id }} .customhouse-cart-group__matrix td:last-child {
+    border-right: 0;
+  }
+
+  #{{ section_id }} .customhouse-cart-group__matrix tbody tr:last-child th,
+  #{{ section_id }} .customhouse-cart-group__matrix tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  #{{ section_id }} .customhouse-cart-group__matrix thead th,
+  #{{ section_id }} .customhouse-cart-group__matrix tbody th {
+    color: var(--customhouse-cart-text) !important;
+    font-weight: 900;
+  }
+
+  #{{ section_id }} .customhouse-cart-group__matrix thead th:first-child,
+  #{{ section_id }} .customhouse-cart-group__matrix tbody th {
+    text-align: left;
+  }
+
+  #{{ section_id }} .customhouse-cart-group__totals {
+    padding-top: 12px;
+    border-top: 1px solid rgba(123, 63, 242, 0.28);
+  }
+
   #{{ section_id }} .customhouse-cart__discount {
     color: color-mix(in srgb, var(--customhouse-cart-accent) 86%, #ffffff) !important;
     font-weight: 800;
@@ -1161,6 +1239,7 @@
 
 {{ cart_page_more_blocks_content }}
 
+<script src="{{ 'customhouse-cart-group-summary.js' | asset_url }}" defer></script>
 <script>
   (() => {
     const root = document.getElementById({{ section_id | json }});
@@ -1175,6 +1254,27 @@
     const lineItemKey = (item) => String(item?.key || item?.id || '').trim();
     const itemFeeKey = (item) => String(item?.properties?._customhouse_fee_key || '').trim();
     const isProductionFee = (item) => String(item?.properties?._customhouse_production_fee || '') === 'true';
+
+    async function fetchCart() {
+      const response = await fetch(route('cart.js'), {
+        headers: { Accept: 'application/json' },
+        credentials: 'same-origin',
+      });
+      if (!response.ok) throw new Error('Cart could not be loaded.');
+      return response.json();
+    }
+
+    async function submitCartUpdates(updates) {
+      return fetch(route('cart/update.js'), {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({ updates }),
+      });
+    }
 
     async function reconcileCustomHouseProductionFees(row, quantity) {
       const feeKey = String(row?.dataset.customhouseFeeKey || '').trim();
@@ -1215,25 +1315,45 @@
 
       const row = target.closest('[data-customhouse-cart-line]');
       const quantity = Math.max(0, Number(target.getAttribute('data-quantity') || 0));
+
+      if (target.getAttribute('data-customhouse-cart-action') === 'remove-group') {
+        event.preventDefault();
+        const groupFeeKey = String(row?.dataset.customhouseGroupFeeKey || '').trim();
+        try {
+          const cart = await fetchCart();
+          const updates = window.CustomHouseCartSummary?.groupRemovalUpdates(cart, groupFeeKey) || {};
+          if (!Object.keys(updates).length) throw new Error('Customized product group was not found.');
+          const response = await submitCartUpdates(updates);
+          if (!response.ok) throw new Error('Customized product could not be removed.');
+          window.location.reload();
+        } catch {
+          window.location.reload();
+        }
+        return;
+      }
+
       const updates = await reconcileCustomHouseProductionFees(row, quantity).catch(() => null);
       if (!updates) return;
 
       event.preventDefault();
-      const response = await fetch(route('cart/update.js'), {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        credentials: 'same-origin',
-        body: JSON.stringify({ updates }),
-      });
+      const response = await submitCartUpdates(updates);
       if (response.ok) {
         window.location.reload();
       } else {
         window.location.href = target.href;
       }
     });
+
+    const enhanceGroupedCart = () => {
+      fetchCart()
+        .then((cart) => window.CustomHouseCartSummary?.enhanceCart(root, cart))
+        .catch(() => {});
+    };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', enhanceGroupedCart, { once: true });
+    } else {
+      enhanceGroupedCart();
+    }
   })();
 </script>
 
