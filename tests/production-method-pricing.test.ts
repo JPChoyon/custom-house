@@ -1256,6 +1256,42 @@ test("trusted cart prep supports multi-size fee quantity", async () => {
   assert.equal(cart.items[2]?.quantity, 3);
 });
 
+test("trusted cart prep accepts the canonical public variantSelections contract", async () => {
+  const cart = await preparePublicProductionCart(
+    "shop.test",
+    {
+      ...publicCartInput({
+        shopifyProductId: "gid://shopify/Product/100",
+        pitchprintProjectId: "pp_variant_contract",
+        productionMethod: "EMBROIDERY",
+      }),
+      selections: undefined,
+      variantSelections: [
+        {
+          variantId: "gid://shopify/ProductVariant/1",
+          variantGid: "gid://shopify/ProductVariant/1",
+          color: "Green",
+          size: "S",
+          quantity: 1,
+        },
+        {
+          variantId: "gid://shopify/ProductVariant/2",
+          variantGid: "gid://shopify/ProductVariant/2",
+          color: "White",
+          size: "M",
+          quantity: 2,
+        },
+      ],
+    },
+    fakeProductClient,
+    fakePricingDb,
+  );
+
+  assert.equal(cart.items[0]?.quantity, 1);
+  assert.equal(cart.items[1]?.quantity, 2);
+  assert.equal(cart.items[2]?.quantity, 3);
+});
+
 test("public embroidery text uses the authoritative Text fee mapping", async () => {
   const cart = await preparePublicProductionCart(
     "shop.test",

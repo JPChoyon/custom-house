@@ -1618,6 +1618,7 @@
 </div>
 
 {% if is_pitchprint_required_product %}
+  <script src="{{ 'customhouse-pitchprint-public-contract.js' | asset_url }}" defer></script>
   <script src="{{ 'customhouse-pitchprint-order-handoff.js' | asset_url }}" defer></script>
   <script>
     (() => {

@@ -62,7 +62,8 @@
 
       for option in product.options_with_values
         assign option_name = option.name | downcase
-        if option_name contains 'size'
+        assign option_name_handle = option.name | handleize
+        if option_name contains 'size' or option_name_handle contains 'storlek'
           assign size_option = option
           assign size_option_name = option.name
           assign size_option_position = option.position
@@ -105,6 +106,7 @@
       class="marked-product-actions"
       data-marked-product-actions
       data-product-variants="{{ product.variants | json | escape }}"
+      data-product-option-names="{{ product.options | json | escape }}"
       data-size-option-position="{{ size_option_position }}"
       data-color-option-position="{{ color_option_position }}"
       data-product-id="{{ product.id }}"

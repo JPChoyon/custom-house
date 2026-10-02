@@ -40,6 +40,7 @@ export type PublicProductionCartInput = {
   rightsAccepted?: unknown;
   termsAccepted?: unknown;
   selections?: unknown;
+  variantSelections?: unknown;
   previewUrl?: unknown;
   browserSurchargeMinor?: unknown;
   browserTotalMinor?: unknown;
@@ -284,7 +285,7 @@ async function publicCustomizableProduct(
         pitchprintEnabled: metafield(namespace: "customhouse", key: "pitchprint_enabled") { value }
         origin: metafield(namespace: "customhouse", key: "product_origin") { value }
         mode: metafield(namespace: "customhouse", key: "design_mode") { value }
-        variants(first: 100) {
+        variants(first: 250) {
           nodes {
             id
             legacyResourceId
@@ -342,7 +343,7 @@ export async function preparePublicProductionCart(
   const productionMethod = cleanProductionMethod(
     input.selectedProductionMethod ?? input.productionMethod,
   );
-  const selections = cleanSelections(input.selections);
+  const selections = cleanSelections(input.variantSelections ?? input.selections);
   const product = await publicCustomizableProduct(client, productId);
   publicLegalConfirmations(input);
   const artworkFacts = publicArtworkFacts(input);

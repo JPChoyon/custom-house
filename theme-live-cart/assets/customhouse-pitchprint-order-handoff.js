@@ -6,6 +6,9 @@
     propertyHookUnavailable: false,
     snapshot: null,
     config: null,
+    configRevision: '',
+    acknowledgedRevision: '',
+    loggedRevision: '',
     lastSaved: null,
     inFlight: false,
     handledProjects: new Set(),
@@ -26,6 +29,13 @@
     }
   };
   const warn = (message) => console.warn(`[CustomHouse PitchPrint] ${message}`);
+  const publicContract = window.CustomHousePublicPitchPrintContract;
+
+  if (!publicContract) {
+    warn('Public customization contract unavailable');
+    state.initialized = false;
+    return;
+  }
 
   const route = (path) => {
     const root = window.Shopify?.routes?.root || '/';
@@ -104,14 +114,6 @@
     const text = String(value || '').trim();
     const match = text.match(/(\d+)$/);
     return match ? match[1] : text;
-  };
-
-  const optionValues = (actions, position, selector) => {
-    if (!Number.isFinite(position) || position <= 0) return [];
-    const values = Array.from(actions.querySelectorAll(selector))
-      .map((element) => String(element.dataset.colorOptionValue || element.dataset.sizeOptionValue || '').trim())
-      .filter(Boolean);
-    return Array.from(new Set(values));
   };
 
   const selectedVariantId = (actions) => {
@@ -246,25 +248,34 @@
     );
     if (!color && !size) return null;
     const variant = (config.variants || []).find((candidate) => {
-      const options = (candidate.options || []).map(normalizedOptionValue);
-      if (color && !options.includes(color)) return false;
-      if (size && !options.includes(size)) return false;
+      if (color && normalizedOptionValue(candidate.color) !== color) return false;
+      if (size && normalizedOptionValue(candidate.size) !== size) return false;
       return true;
     });
     if (!variant) return null;
     return {
-      variantId: normalizeVariantId(variant.id),
+      variantId: normalizeVariantId(variant.variantId || variant.id),
+      variantGid: String(variant.variantGid || variant.gid || ''),
+      color: String(variant.color || ''),
+      size: String(variant.size || ''),
       quantity,
     };
   };
 
   const selectionFrom = (item, config) => {
     if (!item || typeof item !== 'object') return null;
-    const variantId = normalizeVariantId(item.variantId || item.variant_id || item.id || item.merchandiseId || item.merchandise_id);
+    const variantId = normalizeVariantId(item.variantId || item.variantGid || item.variant_id || item.id || item.merchandiseId || item.merchandise_id);
     const quantity = numberFrom(item.quantity, item.qty, item.count, item.amount);
     if (variantId && quantity) {
+      const variant = (config?.variants || []).find((candidate) =>
+        normalizeVariantId(candidate.variantId || candidate.id) === variantId
+      );
+      if (!variant) return null;
       return {
         variantId,
+        variantGid: String(variant.variantGid || variant.gid || ''),
+        color: String(variant.color || ''),
+        size: String(variant.size || ''),
         quantity,
       };
     }
@@ -275,12 +286,16 @@
     const byVariant = new Map();
     for (const selection of selections) {
       if (!selection?.variantId || !selection.quantity) continue;
-      byVariant.set(
-        selection.variantId,
-        (byVariant.get(selection.variantId) || 0) + selection.quantity
-      );
+      const existing = byVariant.get(selection.variantId);
+      byVariant.set(selection.variantId, {
+        variantId: selection.variantId,
+        variantGid: selection.variantGid || existing?.variantGid || '',
+        color: selection.color || existing?.color || '',
+        size: selection.size || existing?.size || '',
+        quantity: Number(existing?.quantity || 0) + selection.quantity,
+      });
     }
-    return Array.from(byVariant, ([variantId, quantity]) => ({ variantId, quantity }));
+    return Array.from(byVariant.values());
   };
 
   const collectSelections = (value, config, depth = 0, seen = new Set()) => {
@@ -322,9 +337,15 @@
       ...collectSelections(source, config),
     ]);
     if (selections.length) return selections;
+    const fallbackVariant = (config?.variants || []).find((variant) =>
+      normalizeVariantId(variant.variantId || variant.id) === String(snapshot.variantId)
+    );
     return [
       {
         variantId: String(snapshot.variantId),
+        variantGid: String(fallbackVariant?.variantGid || fallbackVariant?.gid || ''),
+        color: String(fallbackVariant?.color || ''),
+        size: String(fallbackVariant?.size || ''),
         quantity: snapshot.quantity,
       },
     ];
@@ -421,38 +442,42 @@
         : method.surchargeMinor > 0
     )) return null;
 
-    const variants = parseJson(actions.dataset.productVariants, []).map((variant) => ({
-      id: normalizeVariantId(variant.id),
-      gid: String(variant.admin_graphql_api_id || variant.gid || ''),
-      title: variant.title || '',
-      price: variant.price,
-      priceMinor: Number(variant.price || 0),
-      available: variant.available !== false,
-      options: Array.isArray(variant.options) ? variant.options : [variant.option1, variant.option2, variant.option3].filter(Boolean),
-    }));
     const sizePosition = Number(actions.dataset.sizeOptionPosition || 0);
     const colorPosition = Number(actions.dataset.colorOptionPosition || 0);
+    const optionNames = parseJson(actions.dataset.productOptionNames, []);
+    const currency = String(pricing?.currency || actions.dataset.currency || 'SEK').toUpperCase();
+    const variants = publicContract.buildVariantMatrix({
+      variants: parseJson(actions.dataset.productVariants, []),
+      optionNames,
+      colorPosition,
+      sizePosition,
+      currency,
+    });
+    const colors = Array.from(new Set(variants.map((variant) => variant.color).filter(Boolean)));
+    const sizes = Array.from(new Set(variants.map((variant) => variant.size).filter(Boolean)));
 
-    return {
-      version: 1,
+    const baseConfig = {
+      version: 2,
+      contractVersion: publicContract.CONTRACT_VERSION,
       productId: String(actions.dataset.productId || ''),
       productHandle: String(actions.dataset.productHandle || ''),
       productTitle: String(actions.dataset.productTitle || ''),
-      currency: String(pricing?.currency || actions.dataset.currency || 'SEK').toUpperCase(),
+      currency,
+      optionNames,
       variants,
-      colors: optionValues(actions, colorPosition, '[data-color-option-value]'),
-      sizes: optionValues(actions, sizePosition, '[data-size-option-value]'),
+      colors,
+      sizes,
       optionGroups: [
         {
           id: 'color',
           label: 'Color',
-          values: optionValues(actions, colorPosition, '[data-color-option-value]'),
+          values: colors,
           multiple: true,
         },
         {
           id: 'size',
           label: 'Size',
-          values: optionValues(actions, sizePosition, '[data-size-option-value]'),
+          values: sizes,
           multiple: true,
         },
       ],
@@ -479,13 +504,28 @@
         ])
       ),
     };
+    const revision = publicContract.revisionFor({
+      productId: baseConfig.productId,
+      optionNames,
+      variants,
+      productionMethods,
+      currency,
+    });
+    return {
+      ...baseConfig,
+      revision,
+      configRevision: revision,
+      integrationSettings: publicContract.integrationSettings(revision),
+    };
   };
 
   const refreshPublicConfig = () => {
     const root = document.querySelector(rootSelector);
-    const config = buildProductConfig(root);
-    if (!config) return null;
+    const candidate = buildProductConfig(root);
+    if (!candidate) return state.config;
+    const config = publicContract.chooseCanonicalConfig(state.config, candidate);
     state.config = config;
+    state.configRevision = config.revision;
     window.CustomHousePublicPitchPrintConfig = config;
     window.CustomHousePitchPrintBridgeDebug = {
       getFeeMappings() {
@@ -500,13 +540,24 @@
         }));
       },
     };
-    log('Public PitchPrint config ready', {
-      productId: config.productId,
-      productionMethods: config.productionMethods.map((method) => ({
-        id: method.id,
-        surchargeMinor: method.surchargeMinor,
-      })),
-    });
+    if (state.loggedRevision !== config.revision) {
+      state.loggedRevision = config.revision;
+      log('Public PitchPrint config ready', {
+        PUBLIC_CONFIG_KEYS: Object.keys(config),
+        PUBLIC_PRODUCT_ID: config.productId,
+        PUBLIC_VARIANT_COUNT: config.variants.length,
+        PUBLIC_OPTION_NAMES: config.optionNames,
+        PUBLIC_COLORS: config.colors,
+        PUBLIC_SIZES: config.sizes,
+        PUBLIC_PRODUCTION_METHODS: config.productionMethods.map((method) => ({
+          id: method.id,
+          surchargeMinor: method.surchargeMinor,
+          embroiderySubtypes: method.embroiderySubtypes || null,
+        })),
+        PUBLIC_HAS_INTEGRATION_SETTINGS: Boolean(config.integrationSettings),
+        PUBLIC_CONFIG_REVISION: config.revision,
+      });
+    }
     return config;
   };
 
@@ -517,6 +568,10 @@
       type: 'CUSTOMHOUSE_PP_ORDER_CONFIG_DATA',
       payload: config,
     }, '*');
+    log('PUBLIC_CONFIG_SENT', {
+      PUBLIC_CONFIG_REVISION: config.revision,
+      PUBLIC_CONFIG_VARIANT_COUNT: config.variants.length,
+    });
     return true;
   };
 
@@ -745,6 +800,7 @@
       artworkSource,
       legalConfirmations,
       selections,
+      variantSelections: selections,
       previewUrl,
     });
     const preparedData = prepared?.data || prepared;
@@ -934,6 +990,18 @@
     const message = event?.data || {};
     if (message?.type === 'CUSTOMHOUSE_PP_CART_READY') {
       handleCartReady(message);
+      return;
+    }
+    if (message?.type === 'CUSTOMHOUSE_PP_ORDER_CONFIG_ACK') {
+      const acknowledgedRevision = String(
+        message?.payload?.configRevision || message?.configRevision || ''
+      );
+      if (acknowledgedRevision && acknowledgedRevision === state.configRevision) {
+        state.acknowledgedRevision = acknowledgedRevision;
+        log('PUBLIC_CONFIG_ACKNOWLEDGED', {
+          PUBLIC_CONFIG_REVISION: acknowledgedRevision,
+        });
+      }
       return;
     }
     if (message?.type !== 'CUSTOMHOUSE_PP_ORDER_CONFIG_REQUEST') return;
