@@ -12,6 +12,27 @@ query CartValidationsGenerateRunInput {
       productionFeeAttribute: attribute(key: "_customhouse_production_fee") {
         value
       }
+      publicCustomizeAttribute: attribute(key: "_customhouse_public_customize") {
+        value
+      }
+      pitchprintAttribute: attribute(key: "_pitchprint") {
+        value
+      }
+      parentProductIdAttribute: attribute(key: "_customhouse_parent_product_id") {
+        value
+      }
+      productionMethodAttribute: attribute(key: "_production_method") {
+        value
+      }
+      embroiderySubtypeAttribute: attribute(key: "_embroidery_subtype") {
+        value
+      }
+      placementCountAttribute: attribute(key: "_designed_placement_count") {
+        value
+      }
+      publicCartValidationAttribute: attribute(key: "_customhouse_public_cart_validation") {
+        value
+      }
       nonReturnAcknowledgement: attribute(key: "Customized product acknowledgement") {
         value
       }
@@ -29,6 +50,7 @@ query CartValidationsGenerateRunInput {
         ... on ProductVariant {
           id
           product {
+            id
             productOrigin: metafield(namespace: "customhouse", key: "product_origin") {
               value
             }
@@ -42,6 +64,9 @@ query CartValidationsGenerateRunInput {
               value
             }
             creatorCartValidation: metafield(namespace: "customhouse", key: "creator_cart_validation") {
+              jsonValue
+            }
+            productionMethodPricing: metafield(namespace: "customhouse", key: "production_method_pricing") {
               jsonValue
             }
           }

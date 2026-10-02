@@ -246,7 +246,12 @@ export class CartItemsComponent extends createViewEventElement(Component) {
         continue;
       }
 
-      baseQuantity += itemKey === lineId ? quantity : Number(item.quantity || 0);
+      const placementCount = Math.max(
+        1,
+        Number(item?.properties?._designed_placement_count || 1)
+      );
+      const itemQuantity = itemKey === lineId ? quantity : Number(item.quantity || 0);
+      baseQuantity += itemQuantity * placementCount;
     }
 
     if (!feeLineKey) return defaultRequest;

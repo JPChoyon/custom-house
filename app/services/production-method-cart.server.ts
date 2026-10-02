@@ -4,11 +4,16 @@ import { DomainError } from "./domain.ts";
 import { decimalMoneyToMinorUnits } from "./money.ts";
 import type { ShopifyGraphqlClient } from "./shopify-graphql.server.ts";
 import {
+  cleanEmbroiderySubtype,
   cleanProductionMethod,
+  feeVariantIdForEmbroiderySubtype,
   feeVariantIdForMethod,
+  pricingForEmbroiderySubtype,
   pricingForMethod,
+  type EmbroiderySubtype,
   type PublicProductProductionPricingRecord,
 } from "./production-method-pricing.server.ts";
+import { classifyPitchPrintProjectSource } from "./pitchprint-project-metadata.ts";
 
 type ProductionCartDb = {
   publicProductProductionPricing: {
@@ -21,6 +26,19 @@ export type PublicProductionCartInput = {
   pitchprintProjectId?: unknown;
   pitchprintDesignId?: unknown;
   productionMethod?: unknown;
+  selectedProductionMethod?: unknown;
+  artworkType?: unknown;
+  embroiderySubtype?: unknown;
+  placementCount?: unknown;
+  placements?: unknown;
+  totalQuantity?: unknown;
+  selectedColors?: unknown;
+  artworkSource?: unknown;
+  source?: unknown;
+  projectData?: unknown;
+  legalConfirmations?: unknown;
+  rightsAccepted?: unknown;
+  termsAccepted?: unknown;
   selections?: unknown;
   previewUrl?: unknown;
   browserSurchargeMinor?: unknown;
@@ -91,6 +109,78 @@ function cleanPreviewUrl(value: unknown) {
   }
 }
 
+function cleanOptionalPitchPrintId(value: unknown) {
+  const id = typeof value === "string" ? value.trim() : "";
+  return /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,200}$/.test(id) ? id : "";
+}
+
+function confirmed(value: unknown) {
+  return value === true || value === 1 || value === "1" || value === "true" || value === "Accepted";
+}
+
+function publicLegalConfirmations(input: PublicProductionCartInput) {
+  const legal =
+    input.legalConfirmations &&
+    typeof input.legalConfirmations === "object" &&
+    !Array.isArray(input.legalConfirmations)
+      ? (input.legalConfirmations as Record<string, unknown>)
+      : {};
+  const rightsAccepted = confirmed(
+    input.rightsAccepted ??
+      legal.rightsAccepted ??
+      legal.copyrightAccepted ??
+      legal.copyrightConfirmed,
+  );
+  const termsAccepted = confirmed(
+    input.termsAccepted ?? legal.termsAccepted ?? legal.termsConfirmed,
+  );
+  if (!rightsAccepted) {
+    throw new DomainError(
+      "COPYRIGHT_CONFIRMATION_REQUIRED",
+      "Confirm that you have the rights to use this design before adding it to cart.",
+      422,
+    );
+  }
+  if (!termsAccepted) {
+    throw new DomainError(
+      "TERMS_ACCEPTANCE_REQUIRED",
+      "Accept the Terms and Conditions before adding this customized product to cart.",
+      422,
+    );
+  }
+  return { rightsAccepted, termsAccepted };
+}
+
+function publicArtworkFacts(input: PublicProductionCartInput) {
+  const candidates = [input.artworkSource, input.projectData, input.source];
+  let lastError: unknown;
+  for (const candidate of candidates) {
+    if (candidate === undefined || candidate === null) continue;
+    try {
+      return classifyPitchPrintProjectSource(candidate);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (lastError instanceof DomainError) throw lastError;
+  throw new DomainError(
+    "PITCHPRINT_ARTWORK_TYPE_UNRESOLVED",
+    "The saved artwork type could not be verified. Please return to the editor and save the design again.",
+    422,
+  );
+}
+
+function cleanTextList(value: unknown, maximum = 20) {
+  if (!Array.isArray(value)) return [];
+  return Array.from(
+    new Set(
+      value
+        .map((entry) => String(entry || "").trim().slice(0, 120))
+        .filter(Boolean),
+    ),
+  ).slice(0, maximum);
+}
+
 function cleanSelections(value: unknown) {
   if (!Array.isArray(value)) {
     throw new DomainError(
@@ -151,6 +241,7 @@ function normalizedText(value: string | null | undefined) {
 export function calculateTrustedProductionTotal(input: {
   surchargeMinor: bigint;
   selections: TrustedSelection[];
+  placementCount?: number;
 }) {
   let productSubtotalMinor = 0n;
   let totalQuantity = 0;
@@ -158,11 +249,15 @@ export function calculateTrustedProductionTotal(input: {
     productSubtotalMinor += selection.priceMinor * BigInt(selection.quantity);
     totalQuantity += selection.quantity;
   }
-  const productionSurchargeMinor = input.surchargeMinor * BigInt(totalQuantity);
+  const placementCount = input.placementCount ?? 1;
+  const productionFeeQuantity = totalQuantity * placementCount;
+  const productionSurchargeMinor = input.surchargeMinor * BigInt(productionFeeQuantity);
   return {
     productSubtotalMinor,
     productionSurchargeMinor,
     totalQuantity,
+    placementCount,
+    productionFeeQuantity,
     totalMinor: productSubtotalMinor + productionSurchargeMinor,
   };
 }
@@ -243,9 +338,43 @@ export async function preparePublicProductionCart(
 ) {
   const productId = cleanProductId(input.shopifyProductId);
   const pitchprintProjectId = cleanPitchPrintProjectId(input.pitchprintProjectId);
-  const productionMethod = cleanProductionMethod(input.productionMethod);
+  const pitchprintDesignId = cleanOptionalPitchPrintId(input.pitchprintDesignId);
+  const productionMethod = cleanProductionMethod(
+    input.selectedProductionMethod ?? input.productionMethod,
+  );
   const selections = cleanSelections(input.selections);
   const product = await publicCustomizableProduct(client, productId);
+  publicLegalConfirmations(input);
+  const artworkFacts = publicArtworkFacts(input);
+  const placementCount = artworkFacts.placementCount;
+  const claimedPlacementCount = Number(input.placementCount || 0);
+  if (
+    claimedPlacementCount &&
+    (!Number.isSafeInteger(claimedPlacementCount) || claimedPlacementCount !== placementCount)
+  ) {
+    throw new DomainError(
+      "PLACEMENT_COUNT_MISMATCH",
+      "The saved design placement count could not be verified. Please save the design again.",
+      422,
+    );
+  }
+  const embroiderySubtype: EmbroiderySubtype | null =
+    productionMethod === "EMBROIDERY" ? artworkFacts.embroiderySubtype : null;
+  if (productionMethod === "EMBROIDERY") {
+    const claimedSubtype = input.embroiderySubtype ?? input.artworkType;
+    if (
+      claimedSubtype !== undefined &&
+      claimedSubtype !== null &&
+      cleanEmbroiderySubtype(claimedSubtype) !== embroiderySubtype
+    ) {
+      throw new DomainError(
+        "EMBROIDERY_ARTWORK_MISMATCH",
+        "The saved embroidery artwork type does not match the design. Please save the design again.",
+        422,
+      );
+    }
+  }
+  const selectedColors = cleanTextList(input.selectedColors);
   const pricing = await database.publicProductProductionPricing.findUnique({
     where: {
       shopKey_shopifyProductId: {
@@ -261,9 +390,25 @@ export async function preparePublicProductionCart(
       409,
     );
   }
-  const surcharge = pricingForMethod(pricing, productionMethod);
+  const surcharge = embroiderySubtype
+    ? pricingForEmbroiderySubtype(pricing, embroiderySubtype)
+    : pricingForMethod(pricing, productionMethod);
   const surchargeMinor = decimalMoneyToMinorUnits(surcharge);
-  const feeVariantId = feeVariantIdForMethod(pricing, productionMethod);
+  const feeVariantId = embroiderySubtype
+    ? feeVariantIdForEmbroiderySubtype(pricing, embroiderySubtype)
+    : feeVariantIdForMethod(pricing, productionMethod);
+  if (surchargeMinor <= 0n) {
+    const pricingLabel = embroiderySubtype === "TEXT_ONLY"
+      ? "Embroidery text"
+      : embroiderySubtype === "IMAGE_OR_LOGO"
+        ? "Embroidery image/logo"
+        : productionMethod;
+    throw new DomainError(
+      "PRODUCTION_PRICING_REQUIRED",
+      `${pricingLabel} pricing is not configured.`,
+      409,
+    );
+  }
   if (!feeVariantId) {
     throw new DomainError(
       "PRODUCTION_FEE_SYNC_REQUIRED",
@@ -299,19 +444,57 @@ export async function preparePublicProductionCart(
   const totals = calculateTrustedProductionTotal({
     surchargeMinor,
     selections: trustedSelections,
+    placementCount,
   });
+  const claimedTotalQuantity = Number(input.totalQuantity || 0);
+  if (
+    claimedTotalQuantity &&
+    (!Number.isSafeInteger(claimedTotalQuantity) ||
+      claimedTotalQuantity !== totals.totalQuantity)
+  ) {
+    throw new DomainError(
+      "TOTAL_QUANTITY_MISMATCH",
+      "The selected product quantity could not be verified.",
+      422,
+    );
+  }
   const feeKey = [
     "ch-production",
     numericId(productId),
     pitchprintProjectId.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 80),
     productionMethod.toLowerCase(),
+    ...(embroiderySubtype ? [embroiderySubtype.toLowerCase()] : []),
   ].join("-");
   const previewUrl = cleanPreviewUrl(input.previewUrl);
   const baseProperties = {
     _pitchprint: pitchprintProjectId,
+    _design_id: pitchprintDesignId,
+    _pitchprint_design_id: pitchprintDesignId,
+    _customhouse_public_customize: "true",
     _production_method: productionMethod,
+    _designed_placement_count: String(placementCount),
+    _designed_placements: JSON.stringify(artworkFacts.placements),
+    ...(selectedColors.length
+      ? { _selected_colors: JSON.stringify(selectedColors) }
+      : {}),
+    ...(embroiderySubtype ? { _embroidery_subtype: embroiderySubtype } : {}),
     _customhouse_fee_key: feeKey,
     _customhouse_parent_product_id: productId,
+    _customhouse_non_return_acknowledgement: "Accepted",
+    _customhouse_terms_acknowledgement: "Accepted",
+    _customhouse_public_cart_validation: JSON.stringify({
+      version: 1,
+      feeRequired: true,
+      feeVariantId,
+      productionMethod,
+      embroiderySubtype,
+      placementCount,
+    }),
+    "Printing method": productionMethod,
+    ...(embroiderySubtype ? { "Artwork type": embroiderySubtype } : {}),
+    "Designed placements": String(placementCount),
+    "Customized product acknowledgement": "Accepted",
+    "Terms & Conditions": "Accepted",
     ...(previewUrl ? { _pitchprint_preview: previewUrl } : {}),
   };
   const items = [
@@ -322,7 +505,7 @@ export async function preparePublicProductionCart(
     })),
     {
       id: numericId(feeVariantId),
-      quantity: totals.totalQuantity,
+      quantity: totals.productionFeeQuantity,
       properties: {
         _customhouse_production_fee: "true",
         _customhouse_parent_product_id: productId,
@@ -330,12 +513,20 @@ export async function preparePublicProductionCart(
         _customhouse_fee_key: feeKey,
         _pitchprint: pitchprintProjectId,
         _production_method: productionMethod,
+        _designed_placement_count: String(placementCount),
+        ...(embroiderySubtype ? { _embroidery_subtype: embroiderySubtype } : {}),
       },
     },
   ];
   return {
     items,
     productionMethod,
+    embroiderySubtype,
+    artworkType: embroiderySubtype,
+    placements: artworkFacts.placements,
+    placementCount,
+    feeVariantId,
+    feeRequired: true,
     feeKey,
     totals,
   };

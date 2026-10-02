@@ -7,6 +7,9 @@ const MESSAGES = {
   terms: "Please accept the Terms & Conditions before continuing.",
   fee: "This Creator product's production fee is missing or invalid. Please remove it and add it again.",
   contract: "This Creator product needs to be republished before checkout.",
+  publicFee:
+    "This customized product's production fee is missing or invalid. Please remove it and add it again.",
+  publicContract: "This customized product needs to be added again before checkout.",
 } as const;
 
 type Contract = {
@@ -131,6 +134,125 @@ function feeLine({
         creatorCartValidation: null,
       },
     },
+  };
+}
+
+const publicPricing = {
+  version: 1,
+  currency: "SEK",
+  embroideryPricing: {
+    TEXT_ONLY: {
+      label: "Embroidery — Text only",
+      surchargeMinor: 5500,
+      feeVariantGid: "gid://shopify/ProductVariant/public-text-fee",
+    },
+    IMAGE_OR_LOGO: {
+      label: "Embroidery — Image / Logo",
+      surchargeMinor: 6000,
+      feeVariantGid: "gid://shopify/ProductVariant/public-image-fee",
+    },
+  },
+  productionMethodPricing: {
+    EMBROIDERY: {
+      label: "Embroidery",
+      surchargeMinor: 0,
+      embroiderySubtypes: {
+        TEXT_ONLY: {
+          label: "Embroidery — Text only",
+          surchargeMinor: 5500,
+          feeVariantGid: "gid://shopify/ProductVariant/public-text-fee",
+        },
+        IMAGE_OR_LOGO: {
+          label: "Embroidery — Image / Logo",
+          surchargeMinor: 6000,
+          feeVariantGid: "gid://shopify/ProductVariant/public-image-fee",
+        },
+      },
+    },
+    DTF: {
+      label: "DTF printing",
+      surchargeMinor: 3000,
+      feeVariantGid: "gid://shopify/ProductVariant/public-dtf-fee",
+    },
+    DTG: {
+      label: "DTG printing",
+      surchargeMinor: 2000,
+      feeVariantGid: "gid://shopify/ProductVariant/public-dtg-fee",
+    },
+  },
+};
+
+function publicLine({
+  productId = "gid://shopify/Product/100",
+  feeKey = "public-fee-key",
+  quantity = 1,
+  method = "EMBROIDERY",
+  subtype = "TEXT_ONLY",
+  placementCount = 1,
+  feeVariantId = "gid://shopify/ProductVariant/public-text-fee",
+}: {
+  productId?: string;
+  feeKey?: string;
+  quantity?: number;
+  method?: "EMBROIDERY" | "DTF" | "DTG";
+  subtype?: "TEXT_ONLY" | "IMAGE_OR_LOGO" | null;
+  placementCount?: number;
+  feeVariantId?: string;
+} = {}): Line {
+  return {
+    id: `gid://shopify/CartLine/public-${quantity}`,
+    quantity,
+    creatorProductIdAttribute: null,
+    feeKeyAttribute: attribute(feeKey),
+    productionFeeAttribute: null,
+    publicCustomizeAttribute: attribute("true"),
+    parentProductIdAttribute: attribute(productId),
+    productionMethodAttribute: attribute(method),
+    embroiderySubtypeAttribute: subtype ? attribute(subtype) : null,
+    placementCountAttribute: attribute(String(placementCount)),
+    publicCartValidationAttribute: attribute(JSON.stringify({
+      version: 1,
+      feeRequired: true,
+      feeVariantId,
+      productionMethod: method,
+      embroiderySubtype: subtype,
+      placementCount,
+    })),
+    nonReturnAcknowledgement: null,
+    hiddenNonReturnAcknowledgement: attribute("Accepted"),
+    termsAcknowledgement: null,
+    hiddenTermsAcknowledgement: attribute("Accepted"),
+    merchandise: {
+      __typename: "ProductVariant",
+      id: "gid://shopify/ProductVariant/public-base",
+      product: {
+        id: productId,
+        productOrigin: productMetafield("global"),
+        designMode: productMetafield("customizable"),
+        productType: productMetafield("global_customizable"),
+        creatorProductId: null,
+        creatorCartValidation: null,
+        productionMethodPricing: { jsonValue: publicPricing },
+      },
+    },
+  };
+}
+
+function publicFeeLine({
+  productId = "gid://shopify/Product/100",
+  feeKey = "public-fee-key",
+  quantity = 1,
+  variantId = "gid://shopify/ProductVariant/public-text-fee",
+}: {
+  productId?: string;
+  feeKey?: string;
+  quantity?: number;
+  variantId?: string;
+} = {}): Line {
+  return {
+    ...feeLine({ id: "unused", feeKey, quantity, variantId }),
+    creatorProductIdAttribute: null,
+    parentProductIdAttribute: attribute(productId),
   };
 }
 
@@ -319,5 +441,49 @@ describe("CustomHouse Creator cart validation", () => {
         feeLine({ quantity: 5 }),
       ]),
     ).toEqual([]);
+  });
+});
+
+describe("CustomHouse public customization cart validation", () => {
+  test("allows text embroidery with its authoritative fee variant", () => {
+    expect(errors([publicLine(), publicFeeLine()])).toEqual([]);
+  });
+
+  test("allows image embroidery with its authoritative fee variant", () => {
+    expect(errors([
+      publicLine({
+        subtype: "IMAGE_OR_LOGO",
+        feeVariantId: "gid://shopify/ProductVariant/public-image-fee",
+      }),
+      publicFeeLine({ variantId: "gid://shopify/ProductVariant/public-image-fee" }),
+    ])).toEqual([]);
+  });
+
+  test("requires purchased quantity multiplied by placement count", () => {
+    expect(errors([
+      publicLine({ quantity: 2, placementCount: 2 }),
+      publicFeeLine({ quantity: 4 }),
+    ])).toEqual([]);
+    expect(errors([
+      publicLine({ quantity: 2, placementCount: 2 }),
+      publicFeeLine({ quantity: 2 }),
+    ])).toContainEqual({ message: MESSAGES.publicFee, target: "$.cart" });
+  });
+
+  test("rejects a cheaper text fee for image artwork", () => {
+    expect(errors([
+      publicLine({
+        subtype: "IMAGE_OR_LOGO",
+        feeVariantId: "gid://shopify/ProductVariant/public-text-fee",
+      }),
+      publicFeeLine({ variantId: "gid://shopify/ProductVariant/public-text-fee" }),
+    ])).toContainEqual({ message: MESSAGES.publicContract, target: "$.cart" });
+  });
+
+  test("rejects an orphan manually injected public production fee", () => {
+    expect(errors([publicFeeLine()])).toContainEqual({
+      message: MESSAGES.publicFee,
+      target: "$.cart",
+    });
   });
 });

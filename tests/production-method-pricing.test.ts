@@ -207,6 +207,10 @@ test("production method display config serializes minor units", () => {
       ],
       pricing: {
         embroideryFeeVariantId: "gid://shopify/ProductVariant/9001",
+        embroideryTextSurcharge: parseSurchargeInput("55.00"),
+        embroideryImageSurcharge: parseSurchargeInput("60.00"),
+        embroideryTextFeeVariantId: "gid://shopify/ProductVariant/9004",
+        embroideryImageFeeVariantId: "gid://shopify/ProductVariant/9005",
         dtfFeeVariantId: "gid://shopify/ProductVariant/9002",
         dtgFeeVariantId: "gid://shopify/ProductVariant/9003",
       },
@@ -217,6 +221,10 @@ test("production method display config serializes minor units", () => {
   assert.equal(value.currency, "SEK");
   assert.equal(value.productionMethodPricing.EMBROIDERY.surchargeMinor, 5000);
   assert.equal(value.productionMethodPricing.EMBROIDERY.feeVariantId, "9001");
+  assert.equal(value.embroideryPricing.TEXT_ONLY.surchargeMinor, 5500);
+  assert.equal(value.embroideryPricing.TEXT_ONLY.feeVariantId, "9004");
+  assert.equal(value.embroideryPricing.IMAGE_OR_LOGO.surchargeMinor, 6000);
+  assert.equal(value.embroideryPricing.IMAGE_OR_LOGO.feeVariantId, "9005");
   assert.equal(
     value.productionMethodPricing.EMBROIDERY.feeVariantGid,
     "gid://shopify/ProductVariant/9001",
@@ -1069,6 +1077,41 @@ const canonicalPublicProductClient = {
   },
 };
 
+const textArtworkSource = {
+  pages: [
+    {
+      name: "Front",
+      objects: [{ type: "Textbox", text: "hello" }],
+    },
+  ],
+};
+
+const imageArtworkSource = {
+  pages: [
+    {
+      name: "Front",
+      objects: [
+        {
+          type: "image",
+          src: "https://cdn.example.com/logo.png",
+          isUserArtwork: true,
+        },
+      ],
+    },
+  ],
+};
+
+function publicCartInput(overrides: Record<string, unknown>) {
+  return {
+    rightsAccepted: true,
+    termsAccepted: true,
+    artworkSource: textArtworkSource,
+    artworkType: "TEXT_ONLY",
+    placementCount: 1,
+    ...overrides,
+  };
+}
+
 test("trusted total uses actual variant prices plus method surcharge", () => {
   const result = calculateTrustedProductionTotal({
     surchargeMinor: 5000n,
@@ -1095,7 +1138,7 @@ test("trusted total uses actual variant prices plus method surcharge", () => {
 test("trusted cart prep ignores browser price tampering", async () => {
   const cart = await preparePublicProductionCart(
     "shop.test",
-    {
+    publicCartInput({
       shopifyProductId: "gid://shopify/Product/100",
       pitchprintProjectId: "pp_123",
       productionMethod: "EMBROIDERY",
@@ -1104,30 +1147,30 @@ test("trusted cart prep ignores browser price tampering", async () => {
       selections: [
         { variantId: "gid://shopify/ProductVariant/1", quantity: 1 },
       ],
-    },
+    }),
     fakeProductClient,
     fakePricingDb,
   );
 
   assert.equal(cart.totals.productSubtotalMinor, 10000n);
-  assert.equal(cart.totals.productionSurchargeMinor, 5000n);
-  assert.equal(cart.totals.totalMinor, 15000n);
+  assert.equal(cart.totals.productionSurchargeMinor, 5500n);
+  assert.equal(cart.totals.totalMinor, 15500n);
   assert.equal(cart.items[0]?.id, "1");
-  assert.equal(cart.items[1]?.id, "9001");
+  assert.equal(cart.items[1]?.id, "9004");
   assert.equal(cart.items[1]?.quantity, 1);
 });
 
 test("trusted cart prep accepts canonical global customizable PitchPrint products", async () => {
   const cart = await preparePublicProductionCart(
     "shop.test",
-    {
+    publicCartInput({
       shopifyProductId: "gid://shopify/Product/100",
       pitchprintProjectId: "pp_123",
       productionMethod: "DTF",
       selections: [
         { variantId: "gid://shopify/ProductVariant/1", quantity: 1 },
       ],
-    },
+    }),
     canonicalPublicProductClient,
     fakePricingDb,
   );
@@ -1160,8 +1203,11 @@ test("production pricing bridge payload contains only trusted minor-unit values"
   });
 
   assert.equal(payload.currency, "SEK");
-  assert.deepEqual(payload.productionMethods, [
-    { id: "EMBROIDERY", label: "Embroidery", surchargeMinor: 5000 },
+  assert.equal(payload.productionMethods[0]?.id, "EMBROIDERY");
+  assert.equal(payload.productionMethods[0]?.surchargeMinor, 5000);
+  assert.equal(payload.embroideryPricing.TEXT_ONLY.surchargeMinor, 5000);
+  assert.equal(payload.embroideryPricing.IMAGE_OR_LOGO.surchargeMinor, 5000);
+  assert.deepEqual(payload.productionMethods.slice(1), [
     { id: "DTF", label: "DTF printing", surchargeMinor: 3000 },
     { id: "DTG", label: "DTG printing", surchargeMinor: 2000 },
   ]);
@@ -1173,14 +1219,14 @@ test("creator buy-only products are excluded from production pricing cart prep",
     () =>
       preparePublicProductionCart(
         "shop.test",
-        {
+        publicCartInput({
           shopifyProductId: "gid://shopify/Product/200",
           pitchprintProjectId: "pp_123",
           productionMethod: "EMBROIDERY",
           selections: [
             { variantId: "gid://shopify/ProductVariant/1", quantity: 1 },
           ],
-        },
+        }),
         creatorLockedProductClient,
         fakePricingDb,
       ),
@@ -1191,7 +1237,7 @@ test("creator buy-only products are excluded from production pricing cart prep",
 test("trusted cart prep supports multi-size fee quantity", async () => {
   const cart = await preparePublicProductionCart(
     "shop.test",
-    {
+    publicCartInput({
       shopifyProductId: "gid://shopify/Product/100",
       pitchprintProjectId: "pp_123",
       productionMethod: "EMBROIDERY",
@@ -1199,15 +1245,223 @@ test("trusted cart prep supports multi-size fee quantity", async () => {
         { variantId: "gid://shopify/ProductVariant/1", quantity: 1 },
         { variantId: "gid://shopify/ProductVariant/2", quantity: 2 },
       ],
-    },
+    }),
     fakeProductClient,
     fakePricingDb,
   );
 
-  assert.equal(cart.totals.totalMinor, 47000n);
+  assert.equal(cart.totals.totalMinor, 48500n);
   assert.equal(cart.items[0]?.quantity, 1);
   assert.equal(cart.items[1]?.quantity, 2);
   assert.equal(cart.items[2]?.quantity, 3);
+});
+
+test("public embroidery text uses the authoritative Text fee mapping", async () => {
+  const cart = await preparePublicProductionCart(
+    "shop.test",
+    publicCartInput({
+      shopifyProductId: "gid://shopify/Product/100",
+      pitchprintProjectId: "pp_text",
+      pitchprintDesignId: "design_text",
+      productionMethod: "EMBROIDERY",
+      artworkType: "TEXT_ONLY",
+      selections: [{ variantId: "gid://shopify/ProductVariant/1", quantity: 1 }],
+    }),
+    fakeProductClient,
+    fakePricingDb,
+  );
+
+  assert.equal(cart.embroiderySubtype, "TEXT_ONLY");
+  assert.equal(cart.feeVariantId, "gid://shopify/ProductVariant/9004");
+  assert.equal(cart.totals.productionSurchargeMinor, 5500n);
+  assert.equal(cart.items[1]?.id, "9004");
+  assert.equal(cart.items[1]?.quantity, 1);
+  const baseProperties = cart.items[0]?.properties as Record<string, string>;
+  assert.equal(baseProperties._design_id, "design_text");
+  assert.equal(baseProperties._customhouse_public_customize, "true");
+  assert.match(baseProperties._customhouse_public_cart_validation, /"feeRequired":true/);
+});
+
+test("public embroidery image uses the authoritative Image or Logo fee mapping", async () => {
+  const cart = await preparePublicProductionCart(
+    "shop.test",
+    publicCartInput({
+      shopifyProductId: "gid://shopify/Product/100",
+      pitchprintProjectId: "pp_image",
+      productionMethod: "EMBROIDERY",
+      artworkType: "IMAGE_LOGO",
+      embroiderySubtype: "IMAGE_LOGO",
+      artworkSource: imageArtworkSource,
+      selections: [{ variantId: "gid://shopify/ProductVariant/1", quantity: 1 }],
+    }),
+    fakeProductClient,
+    fakePricingDb,
+  );
+
+  assert.equal(cart.embroiderySubtype, "IMAGE_OR_LOGO");
+  assert.equal(cart.feeVariantId, "gid://shopify/ProductVariant/9005");
+  assert.equal(cart.totals.productionSurchargeMinor, 6000n);
+  assert.equal(cart.items[1]?.id, "9005");
+});
+
+test("public artwork classification prevents an image from receiving the Text fee", async () => {
+  await assert.rejects(
+    () => preparePublicProductionCart(
+      "shop.test",
+      publicCartInput({
+        shopifyProductId: "gid://shopify/Product/100",
+        pitchprintProjectId: "pp_tampered",
+        productionMethod: "EMBROIDERY",
+        embroiderySubtype: "TEXT_ONLY",
+        artworkSource: imageArtworkSource,
+        selections: [{ variantId: "gid://shopify/ProductVariant/1", quantity: 1 }],
+      }),
+      fakeProductClient,
+      fakePricingDb,
+    ),
+    /artwork type does not match/i,
+  );
+});
+
+test("public front and back artwork multiplies aggregate quantity exactly once", async () => {
+  const frontAndBack = {
+    pages: [
+      { name: "Front", objects: [{ type: "Textbox", text: "front" }] },
+      { name: "Back", objects: [{ type: "Textbox", text: "back" }] },
+    ],
+  };
+  const cart = await preparePublicProductionCart(
+    "shop.test",
+    publicCartInput({
+      shopifyProductId: "gid://shopify/Product/100",
+      pitchprintProjectId: "pp_front_back",
+      productionMethod: "EMBROIDERY",
+      artworkSource: frontAndBack,
+      placementCount: 2,
+      totalQuantity: 2,
+      selections: [
+        { variantId: "gid://shopify/ProductVariant/1", quantity: 1 },
+        { variantId: "gid://shopify/ProductVariant/2", quantity: 1 },
+      ],
+    }),
+    fakeProductClient,
+    fakePricingDb,
+  );
+
+  assert.equal(cart.placementCount, 2);
+  assert.equal(cart.totals.totalQuantity, 2);
+  assert.equal(cart.totals.productionFeeQuantity, 4);
+  assert.equal(cart.items[2]?.quantity, 4);
+});
+
+test("public DTF and DTG use their authoritative fee mappings", async () => {
+  for (const [method, feeVariantId, surchargeMinor] of [
+    ["DTF", "gid://shopify/ProductVariant/9002", 3000n],
+    ["DTG", "gid://shopify/ProductVariant/9003", 2000n],
+  ] as const) {
+    const cart = await preparePublicProductionCart(
+      "shop.test",
+      publicCartInput({
+        shopifyProductId: "gid://shopify/Product/100",
+        pitchprintProjectId: `pp_${method.toLowerCase()}`,
+        productionMethod: method,
+        artworkType: null,
+        selections: [{ variantId: "gid://shopify/ProductVariant/1", quantity: 1 }],
+      }),
+      fakeProductClient,
+      fakePricingDb,
+    );
+    assert.equal(cart.feeVariantId, feeVariantId);
+    assert.equal(cart.totals.productionSurchargeMinor, surchargeMinor);
+  }
+});
+
+test("public multi-color variant selections aggregate one production fee", async () => {
+  const cart = await preparePublicProductionCart(
+    "shop.test",
+    publicCartInput({
+      shopifyProductId: "gid://shopify/Product/100",
+      pitchprintProjectId: "pp_colors",
+      productionMethod: "EMBROIDERY",
+      selectedColors: ["Navy", "White"],
+      totalQuantity: 3,
+      selections: [
+        { variantId: "gid://shopify/ProductVariant/1", quantity: 2 },
+        { variantId: "gid://shopify/ProductVariant/2", quantity: 1 },
+      ],
+    }),
+    fakeProductClient,
+    fakePricingDb,
+  );
+  assert.equal(cart.items.length, 3);
+  assert.equal(cart.items[2]?.id, "9004");
+  assert.equal(cart.items[2]?.quantity, 3);
+});
+
+test("missing public subtype pricing fails closed instead of granting free printing", async () => {
+  const missingPricingDb = {
+    publicProductProductionPricing: {
+      async findUnique() {
+        const pricing = await fakePricingDb.publicProductProductionPricing.findUnique();
+        return {
+          ...pricing,
+          embroideryImageSurcharge: parseSurchargeInput("0.00"),
+          embroideryImageFeeVariantId: null,
+        };
+      },
+    },
+  };
+  await assert.rejects(
+    () => preparePublicProductionCart(
+      "shop.test",
+      publicCartInput({
+        shopifyProductId: "gid://shopify/Product/100",
+        pitchprintProjectId: "pp_missing_image_pricing",
+        productionMethod: "EMBROIDERY",
+        artworkSource: imageArtworkSource,
+        artworkType: "IMAGE_OR_LOGO",
+        selections: [{ variantId: "gid://shopify/ProductVariant/1", quantity: 1 }],
+      }),
+      fakeProductClient,
+      missingPricingDb,
+    ),
+    /Embroidery image\/logo pricing is not configured/i,
+  );
+});
+
+test("public legal confirmations are required and preserved", async () => {
+  await assert.rejects(
+    () => preparePublicProductionCart(
+      "shop.test",
+      {
+        ...publicCartInput({
+          shopifyProductId: "gid://shopify/Product/100",
+          pitchprintProjectId: "pp_legal",
+          productionMethod: "DTF",
+          selections: [{ variantId: "gid://shopify/ProductVariant/1", quantity: 1 }],
+        }),
+        rightsAccepted: false,
+      },
+      fakeProductClient,
+      fakePricingDb,
+    ),
+    /rights to use this design/i,
+  );
+
+  const cart = await preparePublicProductionCart(
+    "shop.test",
+    publicCartInput({
+      shopifyProductId: "gid://shopify/Product/100",
+      pitchprintProjectId: "pp_legal_ok",
+      productionMethod: "DTF",
+      selections: [{ variantId: "gid://shopify/ProductVariant/1", quantity: 1 }],
+    }),
+    fakeProductClient,
+    fakePricingDb,
+  );
+  const properties = cart.items[0]?.properties as Record<string, string>;
+  assert.equal(properties._customhouse_non_return_acknowledgement, "Accepted");
+  assert.equal(properties._customhouse_terms_acknowledgement, "Accepted");
 });
 
 test("trusted cart prep rejects invalid method quantity and wrong product variants", async () => {
@@ -1215,14 +1469,14 @@ test("trusted cart prep rejects invalid method quantity and wrong product varian
     () =>
       preparePublicProductionCart(
         "shop.test",
-        {
+        publicCartInput({
           shopifyProductId: "gid://shopify/Product/100",
           pitchprintProjectId: "pp_123",
           productionMethod: "SCREENPRINT",
           selections: [
             { variantId: "gid://shopify/ProductVariant/1", quantity: 1 },
           ],
-        },
+        }),
         fakeProductClient,
         fakePricingDb,
       ),
@@ -1232,14 +1486,14 @@ test("trusted cart prep rejects invalid method quantity and wrong product varian
     () =>
       preparePublicProductionCart(
         "shop.test",
-        {
+        publicCartInput({
           shopifyProductId: "gid://shopify/Product/100",
           pitchprintProjectId: "pp_123",
           productionMethod: "EMBROIDERY",
           selections: [
             { variantId: "gid://shopify/ProductVariant/1", quantity: 0 },
           ],
-        },
+        }),
         fakeProductClient,
         fakePricingDb,
       ),
@@ -1249,14 +1503,14 @@ test("trusted cart prep rejects invalid method quantity and wrong product varian
     () =>
       preparePublicProductionCart(
         "shop.test",
-        {
+        publicCartInput({
           shopifyProductId: "gid://shopify/Product/100",
           pitchprintProjectId: "pp_123",
           productionMethod: "EMBROIDERY",
           selections: [
             { variantId: "gid://shopify/ProductVariant/999", quantity: 1 },
           ],
-        },
+        }),
         fakeProductClient,
         fakePricingDb,
       ),
@@ -1307,10 +1561,14 @@ test("storefront PitchPrint bridge exposes trusted product pricing config", () =
   assert.match(handoff, /window\.CustomHousePublicPitchPrintConfig = config/);
   assert.match(handoff, /CUSTOMHOUSE_PP_ORDER_CONFIG_REQUEST/);
   assert.match(handoff, /CUSTOMHOUSE_PP_ORDER_CONFIG_DATA/);
+  assert.match(handoff, /CUSTOMHOUSE_PP_CART_READY/);
   assert.match(handoff, /customhouse:pitchprint-order-config-request/);
   assert.match(handoff, /surchargeMinor/);
   assert.match(handoff, /feeVariantId/);
   assert.match(handoff, /feeVariantGid/);
+  assert.match(handoff, /embroiderySubtypes/);
+  assert.match(handoff, /TEXT_ONLY/);
+  assert.match(handoff, /IMAGE_OR_LOGO/);
   assert.match(handoff, /maxWidthCm: 8/);
   assert.match(handoff, /maxHeightCm: 40/);
   assert.doesNotMatch(handoff, /CUSTOMHOUSE_PP_PRODUCTION_METHODS/);
@@ -1326,11 +1584,17 @@ test("storefront PitchPrint handoff sends saved designs through trusted public c
 
   assert.match(handoff, /\/apps\/customhouse\/api\/public-production-cart/);
   assert.match(handoff, /productionMethod/);
+  assert.match(handoff, /embroiderySubtype/);
+  assert.match(handoff, /placementCount/);
+  assert.match(handoff, /legalConfirmations/);
+  assert.match(handoff, /artworkSource/);
   assert.match(handoff, /selections/);
   assert.match(handoff, /Printing method/);
   assert.match(handoff, /Printing charge \/ item/);
-  assert.match(handoff, /prepared\.items/);
+  assert.match(handoff, /preparedData\.items/);
+  assert.match(handoff, /prepared\?\.data\s*\|\|\s*prepared/);
   assert.match(handoff, /_customhouse_fee_key/);
+  assert.doesNotMatch(handoff, /pitchprint-creator-setup-ready/);
   assert.doesNotMatch(handoff, /items:\s*\[\s*\{\s*id:\s*variantId,\s*quantity,\s*properties,\s*\}\s*,?\s*\]/);
 });
 

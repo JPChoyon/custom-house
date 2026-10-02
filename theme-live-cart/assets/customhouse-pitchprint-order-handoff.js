@@ -6,6 +6,7 @@
     propertyHookUnavailable: false,
     snapshot: null,
     config: null,
+    lastSaved: null,
     inFlight: false,
     handledProjects: new Set(),
   };
@@ -368,6 +369,24 @@
 
   const normalizeProductionMethods = (pricing) => {
     const methods = pricing?.productionMethodPricing || {};
+    const rawEmbroideryPricing = pricing?.embroideryPricing || methods?.EMBROIDERY?.embroiderySubtypes || {};
+    const normalizeRate = (rate, fallbackLabel, maxWidthCm, maxHeightCm) => {
+      const surchargeMinor = Number(rate?.surchargeMinor || 0);
+      const feeVariantGid = String(rate?.feeVariantGid || rate?.productionFeeVariantId || rate?.shopifyFeeVariantId || '').trim();
+      const feeVariantId = String(rate?.feeVariantId || normalizeVariantId(feeVariantGid)).trim();
+      return {
+        label: String(rate?.label || fallbackLabel),
+        surchargeMinor: Number.isFinite(surchargeMinor) && surchargeMinor > 0 ? Math.round(surchargeMinor) : 0,
+        ...(feeVariantId ? { feeVariantId } : {}),
+        ...(feeVariantGid ? { feeVariantGid } : {}),
+        maxWidthCm,
+        maxHeightCm,
+      };
+    };
+    const embroiderySubtypes = {
+      TEXT_ONLY: normalizeRate(rawEmbroideryPricing.TEXT_ONLY, 'Embroidery — Text only', 8, 8),
+      IMAGE_OR_LOGO: normalizeRate(rawEmbroideryPricing.IMAGE_OR_LOGO || rawEmbroideryPricing.IMAGE_LOGO, 'Embroidery — Image / Logo', 8, 8),
+    };
     return Object.keys(METHOD_DETAILS).map((code) => {
       const detail = METHOD_DETAILS[code];
       const configured = methods[code] || (Array.isArray(pricing?.productionMethods)
@@ -382,6 +401,7 @@
         surchargeMinor: Number.isFinite(surchargeMinor) && surchargeMinor > 0 ? Math.round(surchargeMinor) : 0,
         ...(feeVariantId ? { feeVariantId } : {}),
         ...(feeVariantGid ? { feeVariantGid } : {}),
+        ...(code === 'EMBROIDERY' ? { embroiderySubtypes } : {}),
         maxWidthCm: detail.maxWidthCm,
         maxHeightCm: detail.maxHeightCm,
       };
@@ -395,7 +415,11 @@
     const rawPricing = actions.querySelector('[data-customhouse-production-pricing-json]')?.textContent || '';
     const pricing = parseJson(rawPricing, null);
     const productionMethods = normalizeProductionMethods(pricing);
-    if (!productionMethods.some((method) => method.surchargeMinor > 0)) return null;
+    if (!productionMethods.some((method) =>
+      method.id === 'embroidery'
+        ? Object.values(method.embroiderySubtypes || {}).some((rate) => rate.surchargeMinor > 0)
+        : method.surchargeMinor > 0
+    )) return null;
 
     const variants = parseJson(actions.dataset.productVariants, []).map((variant) => ({
       id: normalizeVariantId(variant.id),
@@ -438,6 +462,8 @@
       initialVariantId: selectedVariantId(actions),
       initialQuantity: selectedQuantity(actions),
       productionMethods,
+      embroideryPricing:
+        productionMethods.find((method) => method.id === 'embroidery')?.embroiderySubtypes || {},
       productionMethodPricing: Object.fromEntries(
         productionMethods.map((method) => [
           method.id,
@@ -446,6 +472,7 @@
             surchargeMinor: method.surchargeMinor,
             ...(method.feeVariantId ? { feeVariantId: method.feeVariantId } : {}),
             ...(method.feeVariantGid ? { feeVariantGid: method.feeVariantGid } : {}),
+            ...(method.embroiderySubtypes ? { embroiderySubtypes: method.embroiderySubtypes } : {}),
             maxWidthCm: method.maxWidthCm,
             maxHeightCm: method.maxHeightCm,
           },
@@ -469,6 +496,7 @@
           surchargeMinor: method.surchargeMinor,
           feeVariantId: method.feeVariantId || '',
           feeVariantGid: method.feeVariantGid || '',
+          embroiderySubtypes: method.embroiderySubtypes || null,
         }));
       },
     };
@@ -534,6 +562,67 @@
     return captureSnapshotFromRoot(matchedRoots[0], 'Snapshot recovered at project save', false);
   };
 
+  const embroiderySubtypeCode = (value) => {
+    const raw = String(value || '').trim().toUpperCase();
+    const normalized = raw === 'IMAGE_LOGO' ? 'IMAGE_OR_LOGO' : raw;
+    return normalized === 'TEXT_ONLY' || normalized === 'IMAGE_OR_LOGO' ? normalized : '';
+  };
+
+  const selectedEmbroiderySubtype = (value, source) => {
+    const candidates = [
+      value?.embroiderySubtype,
+      value?.artworkType,
+      source?.embroiderySubtype,
+      source?.artworkType,
+      value?.production?.embroiderySubtype,
+      source?.production?.embroiderySubtype,
+    ];
+    for (const candidate of candidates) {
+      const subtype = embroiderySubtypeCode(candidate);
+      if (subtype) return subtype;
+    }
+    return '';
+  };
+
+  const firstPositiveInteger = (...values) => {
+    for (const value of values) {
+      const number = Number(value);
+      if (Number.isSafeInteger(number) && number > 0) return number;
+    }
+    return 0;
+  };
+
+  const accepted = (value) => value === true || value === 1 || value === '1' || value === 'true' || value === 'Accepted';
+
+  const legalConfirmationsFrom = (value, source) => {
+    const legal = value?.legalConfirmations || source?.legalConfirmations || {};
+    return {
+      rightsAccepted: accepted(
+        value?.rightsAccepted ?? value?.copyrightAccepted ?? source?.rightsAccepted ?? source?.copyrightAccepted ?? legal.rightsAccepted ?? legal.copyrightAccepted
+      ),
+      termsAccepted: accepted(
+        value?.termsAccepted ?? source?.termsAccepted ?? legal.termsAccepted
+      ),
+    };
+  };
+
+  const artworkSourceFrom = (value, source) => {
+    const candidates = [
+      value?.artworkSource,
+      value?.projectData,
+      value?.savedProject,
+      source?.artworkSource,
+      source?.projectData,
+      source?.savedProject,
+    ];
+    for (const candidate of candidates) {
+      if (candidate && typeof candidate === 'object') return candidate;
+    }
+    if (Array.isArray(value?.pages) || Array.isArray(value?.canvases) || Array.isArray(value?.surfaces)) return value;
+    if (Array.isArray(source?.pages) || Array.isArray(source?.canvases) || Array.isArray(source?.surfaces)) return source;
+    return null;
+  };
+
   async function addProjectToCart(projectId, previewUrl, value = {}, source = {}) {
   const snapshot = state.snapshot;
   const root = snapshot?.root;
@@ -565,6 +654,12 @@
   const productionMethod = selectedProductionMethod(value, source);
   const configuredMethod = config?.productionMethodPricing?.[productionMethod] ||
     (config?.productionMethods || []).find((method) => methodCode(method.id) === productionMethod);
+  const embroiderySubtype = productionMethod === 'EMBROIDERY'
+    ? selectedEmbroiderySubtype(value, source)
+    : '';
+  const configuredRate = productionMethod === 'EMBROIDERY'
+    ? configuredMethod?.embroiderySubtypes?.[embroiderySubtype]
+    : configuredMethod;
 
   if (!productionMethod || !configuredMethod) {
     warn('Missing production method');
@@ -576,11 +671,21 @@
     return;
   }
 
-  if (Number(configuredMethod.surchargeMinor || 0) > 0 && !configuredMethod.feeVariantId) {
+  if (productionMethod === 'EMBROIDERY' && !embroiderySubtype) {
+    warn('Missing embroidery artwork type');
+    setStatus(
+      root,
+      'The embroidery artwork type could not be determined. Please save the design again.',
+      true
+    );
+    return;
+  }
+
+  if (!configuredRate || Number(configuredRate.surchargeMinor || 0) <= 0 || !configuredRate.feeVariantId) {
     warn('Missing production fee variant');
     setStatus(
       root,
-      'This printing method is temporarily unavailable. Please choose another method or try again later.',
+      `${configuredRate?.label || configuredMethod?.label || productionMethod} pricing is not configured. Please contact the store.`,
       true
     );
     return;
@@ -597,14 +702,26 @@
   }
 
   const selections = savedSelections(value, source, snapshot, config);
+  const placementCount = firstPositiveInteger(
+    value?.placementCount,
+    source?.placementCount,
+    value?.production?.placementCount,
+    source?.production?.placementCount
+  );
+  const totalQuantity = selections.reduce((sum, selection) => sum + Number(selection.quantity || 0), 0);
+  const legalConfirmations = legalConfirmationsFrom(value, source);
+  const artworkSource = artworkSourceFrom(value, source);
+  const pitchprintDesignId = String(
+    value?.designId || value?.pitchprintDesignId || source?.designId || source?.pitchprintDesignId || ''
+  ).trim();
   const visibleProperties = {
     'Printing method': configuredMethod.label || productionMethod,
-    'Printing charge / item': moneyFromMinor(configuredMethod.surchargeMinor, config?.currency || 'SEK'),
+    'Printing charge / item': moneyFromMinor(configuredRate.surchargeMinor, config?.currency || 'SEK'),
   };
 
   state.inFlight = true;
 
-  log('Cart add started', { productionMethod, selections });
+  log('Cart add started', { productionMethod, embroiderySubtype, placementCount, selections });
 
   setStatus(
     root,
@@ -616,11 +733,22 @@
     const prepared = await postJson('/apps/customhouse/api/public-production-cart', {
       shopifyProductId: config?.productId || snapshot.productId,
       pitchprintProjectId: projectId,
+      pitchprintDesignId,
       productionMethod,
+      selectedProductionMethod: productionMethod,
+      artworkType: embroiderySubtype || null,
+      embroiderySubtype: embroiderySubtype || null,
+      placementCount,
+      placements: value?.placements || source?.placements || [],
+      totalQuantity,
+      selectedColors: value?.selectedColors || source?.selectedColors || [],
+      artworkSource,
+      legalConfirmations,
       selections,
       previewUrl,
     });
-    const preparedItems = Array.isArray(prepared?.items) ? prepared.items : [];
+    const preparedData = prepared?.data || prepared;
+    const preparedItems = Array.isArray(preparedData?.items) ? preparedData.items : [];
     if (!prepared?.ok || !preparedItems.length) {
       throw new Error(prepared?.error?.message || 'Production pricing could not be prepared.');
     }
@@ -695,8 +823,42 @@
       setStatus(state.snapshot?.root, 'We could not receive your saved design. Please try submitting it again.', true);
       return;
     }
+    state.lastSaved = { projectId, value, source };
+    setStatus(state.snapshot?.root, 'Design saved. Preparing your cart...', false);
+  }
 
-    addProjectToCart(projectId, firstPreviewUrl(value.previews), value, source);
+  function handleCartReady(event) {
+    log('Public cart-ready contract received');
+    const message = event?.detail ?? event?.data ?? event ?? {};
+    const payload = message?.payload ?? message?.value ?? message?.data ?? message ?? {};
+    const savedValue = state.lastSaved?.value || {};
+    const value = { ...savedValue, ...payload };
+    const source = value?.source ?? state.lastSaved?.source ?? {};
+    const projectId = String(
+      value?.projectId ||
+      value?.pitchprintProjectId ||
+      source?.projectId ||
+      source?.pitchprintProjectId ||
+      state.lastSaved?.projectId ||
+      ''
+    ).trim();
+
+    if (!state.snapshot && !recoverSnapshotAtProjectSave(source, value)) {
+      warn('Missing snapshot');
+      setStatus(state.snapshot?.root, 'Please customize this product again before adding it to the cart.', true);
+      return;
+    }
+    if (!projectId) {
+      warn('Missing project ID');
+      setStatus(state.snapshot?.root, 'We could not receive your saved design. Please try submitting it again.', true);
+      return;
+    }
+    addProjectToCart(
+      projectId,
+      firstPreviewUrl(value.previews || source.previews),
+      value,
+      source
+    );
   }
 
   function bindPitchPrintClient(client) {
@@ -705,6 +867,8 @@
 
     try {
       client.on('project-saved', handleProjectSaved);
+      client.on('cart-ready', handleCartReady);
+      client.on('CUSTOMHOUSE_PP_CART_READY', handleCartReady);
       state.listenerBound = true;
       setStatus(state.snapshot?.root, '', false);
       log('Listener bound');
@@ -768,6 +932,10 @@
 
   window.addEventListener('message', (event) => {
     const message = event?.data || {};
+    if (message?.type === 'CUSTOMHOUSE_PP_CART_READY') {
+      handleCartReady(message);
+      return;
+    }
     if (message?.type !== 'CUSTOMHOUSE_PP_ORDER_CONFIG_REQUEST') return;
     respondWithProductConfig(event.source);
   });
@@ -777,6 +945,9 @@
     const targetWindow = detail.contentWindow || detail.source || detail.iframe?.contentWindow || detail.targetWindow || null;
     respondWithProductConfig(targetWindow);
   });
+
+  window.addEventListener('CUSTOMHOUSE_PP_CART_READY', handleCartReady);
+  window.addEventListener('customhouse:pitchprint-cart-ready', handleCartReady);
 
   log('Initialized');
   refreshPublicConfig();

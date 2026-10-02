@@ -88,19 +88,25 @@ export type ProductionPricingBridgeMethod = {
   surchargeMinor: number;
   feeVariantId?: string;
   feeVariantGid?: string;
+  embroiderySubtypes?: Record<EmbroiderySubtype, ProductionPricingBridgeRate>;
+};
+
+export type ProductionPricingBridgeRate = {
+  label: string;
+  surchargeMinor: number;
+  feeVariantId?: string;
+  feeVariantGid?: string;
 };
 
 export type ProductionPricingBridgePayload = {
   version: 1;
   currency: string;
   productionMethods: ProductionPricingBridgeMethod[];
+  embroideryPricing: Record<EmbroiderySubtype, ProductionPricingBridgeRate>;
   productionMethodPricing: Record<
     ProductionMethodCode,
-    {
-      label: string;
-      surchargeMinor: number;
-      feeVariantId?: string;
-      feeVariantGid?: string;
+    ProductionPricingBridgeRate & {
+      embroiderySubtypes?: Record<EmbroiderySubtype, ProductionPricingBridgeRate>;
     }
   >;
 };
@@ -196,7 +202,8 @@ export function pricingForMethod(
 }
 
 export function cleanEmbroiderySubtype(value: unknown): EmbroiderySubtype {
-  const normalized = String(value || "").trim().toUpperCase();
+  const raw = String(value || "").trim().toUpperCase();
+  const normalized = raw === "IMAGE_LOGO" ? "IMAGE_OR_LOGO" : raw;
   if (EMBROIDERY_SUBTYPES.includes(normalized as EmbroiderySubtype)) {
     return normalized as EmbroiderySubtype;
   }
@@ -248,7 +255,16 @@ export function pricingConfigToMetafieldValue(input: {
   pricing?: Pick<
     PublicProductProductionPricingRecord,
     "embroideryFeeVariantId" | "dtfFeeVariantId" | "dtgFeeVariantId"
-  >;
+  > &
+    Partial<
+      Pick<
+        PublicProductProductionPricingRecord,
+        | "embroideryTextSurcharge"
+        | "embroideryImageSurcharge"
+        | "embroideryTextFeeVariantId"
+        | "embroideryImageFeeVariantId"
+      >
+    >;
 }) {
   return safeJson(productionPricingBridgePayload(input));
 }
@@ -259,25 +275,66 @@ export function productionPricingBridgePayload(input: {
   pricing?: Pick<
     PublicProductProductionPricingRecord,
     "embroideryFeeVariantId" | "dtfFeeVariantId" | "dtgFeeVariantId"
-  >;
+  > &
+    Partial<
+      Pick<
+        PublicProductProductionPricingRecord,
+        | "embroideryTextSurcharge"
+        | "embroideryImageSurcharge"
+        | "embroideryTextFeeVariantId"
+        | "embroideryImageFeeVariantId"
+      >
+    >;
 }): ProductionPricingBridgePayload {
   const currency = input.currency.trim().toUpperCase() || "SEK";
   const byMethod = new Map(
     input.methods.map((method) => [cleanProductionMethod(method.method), method]),
   );
+  const pricing: NonNullable<typeof input.pricing> = input.pricing ?? {
+    embroideryFeeVariantId: null,
+    dtfFeeVariantId: null,
+    dtgFeeVariantId: null,
+  };
+  const bridgeRate = (
+    label: string,
+    surcharge: Prisma.Decimal,
+    feeVariantGidValue: string | null | undefined,
+  ): ProductionPricingBridgeRate => {
+    const feeVariantGid = feeVariantGidValue ?? "";
+    const feeVariantId = numericShopifyId(feeVariantGid);
+    return {
+      label,
+      surchargeMinor: Number(decimalToMinor(surcharge)),
+      ...(feeVariantId ? { feeVariantId } : {}),
+      ...(feeVariantGid ? { feeVariantGid } : {}),
+    };
+  };
+  const embroideryPricing: Record<EmbroiderySubtype, ProductionPricingBridgeRate> = {
+    TEXT_ONLY: bridgeRate(
+      "Embroidery — Text only",
+      pricing.embroideryTextSurcharge ??
+        byMethod.get("EMBROIDERY")?.surcharge ??
+        new Prisma.Decimal(0),
+      pricing.embroideryTextFeeVariantId,
+    ),
+    IMAGE_OR_LOGO: bridgeRate(
+      "Embroidery — Image / Logo",
+      pricing.embroideryImageSurcharge ??
+        byMethod.get("EMBROIDERY")?.surcharge ??
+        new Prisma.Decimal(0),
+      pricing.embroideryImageFeeVariantId,
+    ),
+  };
   const productionMethods = PRODUCTION_METHODS.map((method) => {
     const config = byMethod.get(method);
     const label = METHOD_LABELS[method];
-    const feeVariantGid = feeVariantIdForMethod(input.pricing ?? {
-      embroideryFeeVariantId: null,
-      dtfFeeVariantId: null,
-      dtgFeeVariantId: null,
-    }, method) ?? "";
+    const feeVariantGid = feeVariantIdForMethod(pricing, method) ?? "";
     const feeVariantId = numericShopifyId(feeVariantGid);
     const payload: ProductionPricingBridgeMethod = {
       id: method,
       label,
       surchargeMinor: Number(decimalToMinor(config?.surcharge ?? new Prisma.Decimal(0))),
+      ...(method === "EMBROIDERY" ? { embroiderySubtypes: embroideryPricing } : {}),
     };
     if (feeVariantId) payload.feeVariantId = feeVariantId;
     if (feeVariantGid) payload.feeVariantGid = feeVariantGid;
@@ -287,6 +344,7 @@ export function productionPricingBridgePayload(input: {
     version: 1,
     currency,
     productionMethods,
+    embroideryPricing,
     productionMethodPricing: Object.fromEntries(
       productionMethods.map((method) => [
         method.id,
@@ -295,6 +353,9 @@ export function productionPricingBridgePayload(input: {
           surchargeMinor: method.surchargeMinor,
           ...(method.feeVariantId ? { feeVariantId: method.feeVariantId } : {}),
           ...(method.feeVariantGid ? { feeVariantGid: method.feeVariantGid } : {}),
+          ...(method.embroiderySubtypes
+            ? { embroiderySubtypes: method.embroiderySubtypes }
+            : {}),
         },
       ]),
     ) as ProductionPricingBridgePayload["productionMethodPricing"],
@@ -302,9 +363,19 @@ export function productionPricingBridgePayload(input: {
 }
 
 function missingRequiredFeeVariantMethods(payload: ProductionPricingBridgePayload) {
-  return payload.productionMethods
-    .filter((method) => method.surchargeMinor > 0 && !method.feeVariantId)
-    .map((method) => method.label);
+  return [
+    ...Object.values(payload.embroideryPricing)
+      .filter((rate) => rate.surchargeMinor > 0 && !rate.feeVariantId)
+      .map((rate) => rate.label),
+    ...payload.productionMethods
+      .filter(
+        (method) =>
+          method.id !== "EMBROIDERY" &&
+          method.surchargeMinor > 0 &&
+          !method.feeVariantId,
+      )
+      .map((method) => method.label),
+  ];
 }
 
 async function methodSettings(
