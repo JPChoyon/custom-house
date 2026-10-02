@@ -341,24 +341,12 @@ export function cartValidationsGenerateRun(
 
     if (
       isPublicCustomizableProduct(product) &&
-      (attributeValue(line.publicCustomizeAttribute) === "true" ||
-        attributeValue(line.pitchprintAttribute) !== null ||
-        attributeValue(line.publicCartValidationAttribute) !== null)
+      attributeValue(line.publicCartValidationAttribute) !== null
     ) {
       const productId = product.id || "";
-      const parentProductId = attributeValue(line.parentProductIdAttribute);
       const feeKey = attributeValue(line.feeKeyAttribute);
       const contract = parsePublicContract(
         attributeValue(line.publicCartValidationAttribute),
-      );
-      const productionMethod = cleanProductionMethod(
-        attributeValue(line.productionMethodAttribute),
-      );
-      const embroiderySubtype = cleanEmbroiderySubtype(
-        attributeValue(line.embroiderySubtypeAttribute),
-      );
-      const placementCount = Number(
-        attributeValue(line.placementCountAttribute),
       );
       const nonReturnAcknowledgement =
         attributeValue(line.hiddenNonReturnAcknowledgement) ??
@@ -374,15 +362,9 @@ export function cartValidationsGenerateRun(
       const validContract = Boolean(
         contract &&
           pricingRate &&
-          contract.feeVariantId === pricingRate.feeVariantGid &&
-          contract.productionMethod === productionMethod &&
-          contract.placementCount === placementCount &&
-          (productionMethod === "EMBROIDERY"
-            ? contract.embroiderySubtype === embroiderySubtype
-            : contract.embroiderySubtype === null && embroiderySubtype === null),
+          contract.feeVariantId === pricingRate.feeVariantGid,
       );
       if (
-        parentProductId !== productId ||
         !feeKey ||
         !Number.isInteger(line.quantity) ||
         line.quantity < 1
@@ -426,8 +408,7 @@ export function cartValidationsGenerateRun(
     const isProductionFee =
       metafieldValue(product?.productType) === "production_fee" &&
       (feeCreatorProductId !== null || feeParentProductId !== null) &&
-      feeKey !== null &&
-      attributeValue(line.productionFeeAttribute) === "true";
+      feeKey !== null;
 
     if (!isProductionFee || !feeKey) {
       continue;

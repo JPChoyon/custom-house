@@ -41,3 +41,34 @@ test("root verification ignores regenerated Function codegen output", () => {
   const source = readFileSync(new URL("../.gitignore", import.meta.url), "utf8");
   assert.match(source, /^\/extensions\/\*\/generated\/$/m);
 });
+
+test("public cart validation avoids redundant line attributes that exceed Shopify complexity", () => {
+  const query = readFileSync(
+    new URL(
+      "../extensions/customhouse-creator-cart-validation/src/cart_validations_generate_run.graphql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const implementation = readFileSync(
+    new URL(
+      "../extensions/customhouse-creator-cart-validation/src/cart_validations_generate_run.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(query, /publicCartValidationAttribute/);
+  assert.match(query, /parentProductIdAttribute/);
+  for (const redundantField of [
+    "productionFeeAttribute",
+    "publicCustomizeAttribute",
+    "pitchprintAttribute",
+    "productionMethodAttribute",
+    "embroiderySubtypeAttribute",
+    "placementCountAttribute",
+  ]) {
+    assert.doesNotMatch(query, new RegExp(`\\b${redundantField}\\b`));
+    assert.doesNotMatch(implementation, new RegExp(`\\b${redundantField}\\b`));
+  }
+});
