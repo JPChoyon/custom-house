@@ -571,13 +571,68 @@
 
   const legalConfirmationsFrom = (value, source) => {
     const legal = value?.legalConfirmations || source?.legalConfirmations || {};
+    const acknowledgements = value?.acknowledgements || source?.acknowledgements || {};
     return {
       rightsAccepted: accepted(
-        value?.rightsAccepted ?? value?.copyrightAccepted ?? source?.rightsAccepted ?? source?.copyrightAccepted ?? legal.rightsAccepted ?? legal.copyrightAccepted
+        value?.rightsAccepted ??
+        value?.copyrightAccepted ??
+        value?.copyrightConfirmed ??
+        source?.rightsAccepted ??
+        source?.copyrightAccepted ??
+        source?.copyrightConfirmed ??
+        legal.rightsAccepted ??
+        legal.copyrightAccepted ??
+        legal.copyrightConfirmed ??
+        acknowledgements.rightsAccepted ??
+        acknowledgements.copyrightAccepted ??
+        acknowledgements.copyrightConfirmed
       ),
       termsAccepted: accepted(
-        value?.termsAccepted ?? source?.termsAccepted ?? legal.termsAccepted
+        value?.termsAccepted ??
+        value?.nonReturnConfirmed ??
+        source?.termsAccepted ??
+        source?.nonReturnConfirmed ??
+        legal.termsAccepted ??
+        legal.termsConfirmed ??
+        acknowledgements.termsAccepted ??
+        acknowledgements.termsConfirmed ??
+        acknowledgements.nonReturnConfirmed
       ),
+    };
+  };
+
+  const summarizedArtworkSource = (value, source) => {
+    const summary = value?.artworkSummary || source?.artworkSummary;
+    const placements = Array.isArray(value?.placements)
+      ? value.placements
+      : Array.isArray(source?.placements)
+        ? source.placements
+        : [];
+    if (!summary || typeof summary !== 'object' || !placements.length) return null;
+
+    const hasText = summary.hasText === true;
+    const hasImage = summary.hasImage === true;
+    const printableObjectCount = Number(summary.printableObjectCount);
+    if ((!hasText && !hasImage) || !Number.isSafeInteger(printableObjectCount) || printableObjectCount < 1) {
+      return null;
+    }
+
+    const objects = [];
+    if (hasText) objects.push({ type: 'text' });
+    if (hasImage) objects.push({ type: 'image', isUserArtwork: true });
+    return {
+      pages: placements.map((placement, index) => {
+        const record = placement && typeof placement === 'object' ? placement : {};
+        const name = String(
+          typeof placement === 'string'
+            ? placement
+            : record.side || record.name || record.label || record.title || record.id || `Saved view ${index + 1}`
+        ).trim();
+        return {
+          name: name || `Saved view ${index + 1}`,
+          objects: objects.map((object) => ({ ...object })),
+        };
+      }),
     };
   };
 
@@ -595,7 +650,7 @@
     }
     if (Array.isArray(value?.pages) || Array.isArray(value?.canvases) || Array.isArray(value?.surfaces)) return value;
     if (Array.isArray(source?.pages) || Array.isArray(source?.canvases) || Array.isArray(source?.surfaces)) return source;
-    return null;
+    return summarizedArtworkSource(value, source);
   };
 
   const cartFailure = (safeCode, status = 0) => {
@@ -605,13 +660,13 @@
     return error;
   };
 
-  const sendCartReadyAcknowledgement = (targetWindow, targetOrigin, projectId) => {
+  const sendCartReadyAcknowledgement = (targetWindow, targetOrigin, projectId, handoffId) => {
     if (!targetWindow || typeof targetWindow.postMessage !== 'function' || !isAllowedMessageOrigin(targetOrigin)) {
       return false;
     }
     targetWindow.postMessage({
       type: 'CUSTOMHOUSE_PP_CART_READY_ACK',
-      payload: { ok: true, projectId },
+      payload: { ok: true, projectId, ...(handoffId ? { handoffId } : {}) },
     }, targetOrigin);
     log('Cart-ready acknowledgement sent', {
       ACK_SENT: true,
@@ -630,6 +685,7 @@
       type: 'CUSTOMHOUSE_PP_CART_READY_ACK',
       payload: {
         ok: false,
+        ...(acknowledgement?.handoffId ? { handoffId: acknowledgement.handoffId } : {}),
         stage,
         error: message,
       },
@@ -805,10 +861,16 @@
       log('PUBLIC_CART_ADD_RESPONSE_SAFE_CODE', { PUBLIC_CART_ADD_RESPONSE_SAFE_CODE: 'OK' });
     } catch (error) {
       state.inFlight = false;
+      const safeCode = String(error?.safeCode || 'CART_ADD_FAILED');
       log('PUBLIC_CART_ADD_HTTP_STATUS', { PUBLIC_CART_ADD_HTTP_STATUS: Number(error?.status || 0) });
       log('PUBLIC_CART_ADD_RESPONSE_SAFE_CODE', {
-        PUBLIC_CART_ADD_RESPONSE_SAFE_CODE: String(error?.safeCode || 'CART_ADD_FAILED'),
+        PUBLIC_CART_ADD_RESPONSE_SAFE_CODE: safeCode,
       });
+      sendCartFailureAcknowledgement(
+        acknowledgement,
+        safeCode,
+        'Unable to add this customization to your cart. Please try again.'
+      );
       setStatus(root, 'Unable to add this customization to your cart. Please try again.', true);
       return;
     }
@@ -818,7 +880,8 @@
     sendCartReadyAcknowledgement(
       acknowledgement.source,
       acknowledgement.origin,
-      projectId
+      projectId,
+      acknowledgement.handoffId
     );
     setStatus(root, '', false);
     log('PUBLIC_CART_REDIRECT_STARTED', { REDIRECT_TO_CART: true });
@@ -942,6 +1005,7 @@
         acknowledgement: {
           source: event?.source,
           origin: event?.origin,
+          handoffId: String(value?.handoffId || '').trim(),
         },
       };
       setStatus(state.snapshot?.root, 'Saving your design before adding it to the cart...', false);
@@ -961,6 +1025,7 @@
       {
         source: event?.source,
         origin: event?.origin,
+        handoffId: String(value?.handoffId || '').trim(),
       }
     );
   }

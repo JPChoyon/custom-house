@@ -444,15 +444,27 @@ test("new public design saves first, then adds real PitchPrint identity to cart"
     data: {
       type: "CUSTOMHOUSE_PP_CART_READY",
       payload: {
+        handoffId: "handoff_live_123",
         projectId: "__CUSTOMHOUSE_PUBLIC_SAVE_PENDING__",
         designId: "base_design_123",
         productionMethod: "EMBROIDERY",
         artworkType: "IMAGE_OR_LOGO",
         embroiderySubtype: "IMAGE_OR_LOGO",
         placementCount: 1,
+        placements: [{ side: "front" }],
         totalQuantity: 1,
-        legalConfirmations: { rightsAccepted: true, termsAccepted: true },
-        artworkSource: { pages: [{ name: "Front", objects: [{ type: "image" }] }] },
+        copyrightConfirmed: true,
+        nonReturnConfirmed: true,
+        acknowledgements: {
+          copyrightConfirmed: true,
+          nonReturnConfirmed: true,
+        },
+        artworkSummary: {
+          hasText: false,
+          hasImage: true,
+          printableObjectCount: 1,
+          objectTypes: ["image"],
+        },
         variantSelections: [
           { variantId: "101", color: "Green", size: "M", quantity: 1 },
         ],
@@ -473,7 +485,6 @@ test("new public design saves first, then adds real PitchPrint identity to cart"
     previews: ["https://pitchprint.io/previews/project_real_123_1.jpg"],
     source: {
       designId: "design_real_123",
-      pages: [{ name: "Front", objects: [{ type: "image" }] }],
     },
   });
   await harness.flush();
@@ -481,10 +492,29 @@ test("new public design saves first, then adds real PitchPrint identity to cart"
   assert.equal(harness.requests.length, 2);
   assert.equal(harness.requests[0]?.payload.pitchprintProjectId, "project_real_123");
   assert.equal(harness.requests[0]?.payload.pitchprintDesignId, "design_real_123");
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(harness.requests[0]?.payload.legalConfirmations)),
+    { rightsAccepted: true, termsAccepted: true },
+  );
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(harness.requests[0]?.payload.artworkSource)),
+    {
+      pages: [
+        {
+          name: "front",
+          objects: [{ type: "image", isUserArtwork: true }],
+        },
+      ],
+    },
+  );
   assert.deepEqual(JSON.parse(JSON.stringify(harness.acknowledgements)), [
     {
       type: "CUSTOMHOUSE_PP_CART_READY_ACK",
-      payload: { ok: true, projectId: "project_real_123" },
+      payload: {
+        ok: true,
+        projectId: "project_real_123",
+        handoffId: "handoff_live_123",
+      },
     },
   ]);
   assert.equal(harness.location.href, "/cart");
