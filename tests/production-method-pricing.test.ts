@@ -1090,12 +1090,20 @@ const fakeProductClient = {
               legacyResourceId: "1",
               price: "100.00",
               availableForSale: true,
+              selectedOptions: [
+                { name: "Color", value: "Green" },
+                { name: "Size", value: "S" },
+              ],
             },
             {
               id: "gid://shopify/ProductVariant/2",
               legacyResourceId: "2",
               price: "110.00",
               availableForSale: true,
+              selectedOptions: [
+                { name: "Color", value: "White" },
+                { name: "Size", value: "M" },
+              ],
             },
           ],
         },
@@ -1120,6 +1128,10 @@ const canonicalPublicProductClient = {
               legacyResourceId: "1",
               price: "100.00",
               availableForSale: true,
+              selectedOptions: [
+                { name: "Color", value: "Green" },
+                { name: "Size", value: "S" },
+              ],
             },
           ],
         },
@@ -1605,6 +1617,94 @@ test("trusted cart prep rejects invalid method quantity and wrong product varian
   );
 });
 
+test("trusted cart prep rejects missing PitchPrint project identity", async () => {
+  await assert.rejects(
+    () => preparePublicProductionCart(
+      "shop.test",
+      publicCartInput({
+        shopifyProductId: "gid://shopify/Product/100",
+        pitchprintProjectId: "",
+        productionMethod: "EMBROIDERY",
+        selections: [{ variantId: "gid://shopify/ProductVariant/1", quantity: 1 }],
+      }),
+      fakeProductClient,
+      fakePricingDb,
+    ),
+    /save your PitchPrint design/i,
+  );
+});
+
+test("trusted cart prep rejects manipulated color and size claims", async () => {
+  await assert.rejects(
+    () => preparePublicProductionCart(
+      "shop.test",
+      {
+        ...publicCartInput({
+          shopifyProductId: "gid://shopify/Product/100",
+          pitchprintProjectId: "pp_manipulated_options",
+          productionMethod: "EMBROIDERY",
+        }),
+        variantSelections: [
+          {
+            variantId: "gid://shopify/ProductVariant/1",
+            color: "White",
+            size: "XL",
+            quantity: 1,
+          },
+        ],
+      },
+      fakeProductClient,
+      fakePricingDb,
+    ),
+    /variant options do not match/i,
+  );
+});
+
+test("trusted cart prep rejects an unavailable selected variant", async () => {
+  const unavailableVariantClient = {
+    async request<T>() {
+      return {
+        product: {
+          id: "gid://shopify/Product/100",
+          productType: { value: "global_customizable" },
+          pitchprintEnabled: { value: "true" },
+          origin: { value: "global" },
+          mode: { value: "customizable" },
+          variants: {
+            nodes: [
+              {
+                id: "gid://shopify/ProductVariant/1",
+                legacyResourceId: "1",
+                price: "100.00",
+                availableForSale: false,
+                selectedOptions: [
+                  { name: "Color", value: "Green" },
+                  { name: "Size", value: "S" },
+                ],
+              },
+            ],
+          },
+        },
+      } as T;
+    },
+  };
+
+  await assert.rejects(
+    () => preparePublicProductionCart(
+      "shop.test",
+      publicCartInput({
+        shopifyProductId: "gid://shopify/Product/100",
+        pitchprintProjectId: "pp_unavailable",
+        productionMethod: "EMBROIDERY",
+        selections: [{ variantId: "gid://shopify/ProductVariant/1", quantity: 1 }],
+      }),
+      unavailableVariantClient,
+      fakePricingDb,
+    ),
+    /available variant/i,
+  );
+});
+
 test("hidden fee merchandise sync is app managed per public product", () => {
   const service = readFileSync(
     "app/services/production-method-pricing.server.ts",
@@ -1697,15 +1797,19 @@ test("public product page keeps printing method inside PitchPrint handoff", () =
     "theme-live-cart/assets/customhouse-pitchprint-order-handoff.js",
     "utf8",
   );
+  const contract = readFileSync(
+    "theme-live-cart/assets/customhouse-pitchprint-public-contract.js",
+    "utf8",
+  );
 
   assert.doesNotMatch(productDetails, /marked-product-actions__block--production-method/);
   assert.doesNotMatch(productDetails, /name="customhouse_production_method"/);
   assert.match(productDetails, /data-customhouse-production-pricing-json/);
   assert.match(handoff, /findProductionMethodDeep/);
-  assert.match(handoff, /selectionFromOptions/);
+  assert.match(handoff, /buildCartSelectionContract/);
   assert.match(handoff, /supportsMultipleSelections/);
   assert.match(handoff, /optionGroups/);
-  assert.match(handoff, /mergeSelections/);
+  assert.match(contract, /collectCartSelections/);
   assert.doesNotMatch(handoff, /checkedProductionMethod/);
 });
 

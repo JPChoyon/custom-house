@@ -153,6 +153,7 @@ test("public integration settings are explicit and versioned", () => {
       configResponseMessageType: "CUSTOMHOUSE_PP_ORDER_CONFIG_DATA",
       configAcknowledgementMessageType: "CUSTOMHOUSE_PP_ORDER_CONFIG_ACK",
       cartReadyMessageType: "CUSTOMHOUSE_PP_CART_READY",
+      cartAcknowledgementMessageType: "CUSTOMHOUSE_PP_CART_READY_ACK",
     },
   );
 });
@@ -245,6 +246,10 @@ test("public handoff carries subtype prices, integration settings, acknowledgeme
     "theme-live-cart/assets/customhouse-pitchprint-order-handoff.js",
     "utf8",
   );
+  const contract = readFileSync(
+    "theme-live-cart/assets/customhouse-pitchprint-public-contract.js",
+    "utf8",
+  );
   const productDetails = readFileSync(
     "theme-live-cart/blocks/_product-details.liquid",
     "utf8",
@@ -273,9 +278,10 @@ test("public handoff carries subtype prices, integration settings, acknowledgeme
   assert.match(source, /TEXT_ONLY/);
   assert.match(source, /IMAGE_OR_LOGO/);
   assert.match(source, /variantSelections/);
-  assert.match(source, /variantGid/);
-  assert.match(source, /color/);
-  assert.match(source, /size/);
+  assert.match(source, /buildCartSelectionContract/);
+  assert.match(contract, /variantGid/);
+  assert.match(contract, /color/);
+  assert.match(contract, /size/);
   assert.doesNotMatch(source, /productionMethods\.some/);
   assert.doesNotMatch(source, /CustomHouseCreatorPitchPrintConfig/);
 });

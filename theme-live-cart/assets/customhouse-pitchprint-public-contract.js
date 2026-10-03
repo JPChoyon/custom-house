@@ -108,6 +108,115 @@
       configResponseMessageType: 'CUSTOMHOUSE_PP_ORDER_CONFIG_DATA',
       configAcknowledgementMessageType: 'CUSTOMHOUSE_PP_ORDER_CONFIG_ACK',
       cartReadyMessageType: 'CUSTOMHOUSE_PP_CART_READY',
+      cartAcknowledgementMessageType: 'CUSTOMHOUSE_PP_CART_READY_ACK',
+    };
+  }
+
+  const positiveInteger = (...values) => {
+    for (const value of values) {
+      const number = Number(value);
+      if (Number.isSafeInteger(number) && number > 0) return number;
+    }
+    return 0;
+  };
+
+  const normalizedOptionValue = (value) => text(value).toLowerCase();
+
+  const optionValueFrom = (item, keys, allowedValues = []) => {
+    if (!item || typeof item !== 'object') return '';
+    for (const key of keys) {
+      const value = normalizedOptionValue(item[key]);
+      if (value) return value;
+    }
+    const allowed = allowedValues.map(normalizedOptionValue).filter(Boolean);
+    const values = Object.values(item).map(normalizedOptionValue).filter(Boolean);
+    return allowed.find((allowedValue) => values.includes(allowedValue)) || '';
+  };
+
+  const canonicalSelection = (item, config) => {
+    if (!item || typeof item !== 'object') return null;
+    const variants = Array.isArray(config?.variants) ? config.variants : [];
+    const variantId = normalizeVariantId(
+      item.variantId || item.variantGid || item.variant_id || item.id ||
+      item.merchandiseId || item.merchandise_id
+    );
+    const quantity = positiveInteger(item.quantity, item.qty, item.count, item.amount);
+    let variant = variantId
+      ? variants.find((candidate) => normalizeVariantId(candidate.variantId || candidate.id) === variantId)
+      : null;
+    if (!variant) {
+      const color = optionValueFrom(
+        item,
+        ['color', 'colour', 'colorValue', 'colourValue', 'selectedColor', 'selected_colour'],
+        config?.colors
+      );
+      const size = optionValueFrom(
+        item,
+        ['size', 'sizeValue', 'selectedSize', 'selected_size'],
+        config?.sizes
+      );
+      if (!color && !size) return null;
+      variant = variants.find((candidate) => {
+        if (color && normalizedOptionValue(candidate.color) !== color) return false;
+        if (size && normalizedOptionValue(candidate.size) !== size) return false;
+        return true;
+      });
+    }
+    if (!variant || !quantity) return null;
+    return {
+      variantId: normalizeVariantId(variant.variantId || variant.id),
+      variantGid: text(variant.variantGid || variant.gid),
+      color: text(variant.color),
+      size: text(variant.size),
+      quantity,
+    };
+  };
+
+  const collectCartSelections = (value, config, depth = 0, seen = new Set()) => {
+    if (!value || typeof value !== 'object' || depth > 5 || seen.has(value)) return [];
+    seen.add(value);
+    if (Array.isArray(value)) {
+      const direct = value.map((item) => canonicalSelection(item, config)).filter(Boolean);
+      return direct.length
+        ? direct
+        : value.flatMap((item) => collectCartSelections(item, config, depth + 1, seen));
+    }
+    return Object.entries(value).flatMap(([key, nestedValue]) => {
+      const keyText = text(key).toLowerCase();
+      if (Array.isArray(nestedValue) && /selection|line|item|variant|colou?r|size/.test(keyText)) {
+        return collectCartSelections(nestedValue, config, depth + 1, seen);
+      }
+      return nestedValue && typeof nestedValue === 'object'
+        ? collectCartSelections(nestedValue, config, depth + 1, seen)
+        : [];
+    });
+  };
+
+  function buildCartSelectionContract({ value = {}, source = {}, snapshot = null, config = {} } = {}) {
+    const byVariant = new Map();
+    const valueSelections = collectCartSelections(value, config);
+    const canonicalSelections = valueSelections.length
+      ? valueSelections
+      : collectCartSelections(source, config);
+    for (const selection of canonicalSelections) {
+      const existing = byVariant.get(selection.variantId);
+      byVariant.set(selection.variantId, {
+        ...selection,
+        quantity: Number(existing?.quantity || 0) + selection.quantity,
+      });
+    }
+    let selections = Array.from(byVariant.values());
+    if (!selections.length) {
+      const fallback = canonicalSelection({
+        variantId: snapshot?.variantId,
+        quantity: snapshot?.quantity,
+      }, config);
+      selections = fallback ? [fallback] : [];
+    }
+    return {
+      selections,
+      selectionCount: selections.length,
+      totalQuantity: selections.reduce((sum, selection) => sum + selection.quantity, 0),
     };
   }
 
@@ -149,6 +258,7 @@
 
   global.CustomHousePublicPitchPrintContract = Object.freeze({
     CONTRACT_VERSION,
+    buildCartSelectionContract,
     buildProductionMethodPricing,
     buildVariantMatrix,
     chooseCanonicalConfig,

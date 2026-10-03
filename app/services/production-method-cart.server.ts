@@ -51,6 +51,10 @@ type VariantForPricing = {
   legacyResourceId: string;
   price: string;
   availableForSale: boolean;
+  selectedOptions?: Array<{
+    name: string;
+    value: string;
+  }>;
 };
 
 type TrustedSelection = {
@@ -193,7 +197,12 @@ function cleanSelections(value: unknown) {
   const selections = value.map((item) => {
     const record =
       item && typeof item === "object"
-        ? (item as { variantId?: unknown; quantity?: unknown })
+        ? (item as {
+            variantId?: unknown;
+            quantity?: unknown;
+            color?: unknown;
+            size?: unknown;
+          })
         : {};
     const variantId = typeof record.variantId === "string" ? record.variantId.trim() : "";
     const quantity = Number(record.quantity);
@@ -219,6 +228,8 @@ function cleanSelections(value: unknown) {
         ? variantId
         : `gid://shopify/ProductVariant/${variantId}`,
       quantity,
+      color: typeof record.color === "string" ? record.color.trim().slice(0, 120) : "",
+      size: typeof record.size === "string" ? record.size.trim().slice(0, 120) : "",
     };
   });
   if (!selections.length) {
@@ -291,6 +302,7 @@ async function publicCustomizableProduct(
             legacyResourceId
             price
             availableForSale
+            selectedOptions { name value }
           }
         }
       }
@@ -434,6 +446,19 @@ export async function preparePublicProductionCart(
         "VARIANT_UNAVAILABLE",
         "Choose an available variant.",
         409,
+      );
+    }
+    const selectedOptionValues = new Set(
+      (variant.selectedOptions || []).map((option) => normalizedText(option.value)),
+    );
+    if (
+      (selection.color && !selectedOptionValues.has(normalizedText(selection.color))) ||
+      (selection.size && !selectedOptionValues.has(normalizedText(selection.size)))
+    ) {
+      throw new DomainError(
+        "VARIANT_OPTION_MISMATCH",
+        "The selected variant options do not match this product.",
+        422,
       );
     }
     return {

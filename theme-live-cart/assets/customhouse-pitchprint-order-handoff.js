@@ -42,6 +42,12 @@
     return root.replace(/\/?$/, '/') + String(path || '').replace(/^\//, '');
   };
 
+  const PITCHPRINT_ORIGIN = 'https://pitchprint.io';
+  const isAllowedMessageOrigin = (origin) => {
+    const value = String(origin || '').replace(/\/$/, '');
+    return value === PITCHPRINT_ORIGIN || value === String(window.location?.origin || '').replace(/\/$/, '');
+  };
+
   const setStatus = (root, message = '', isError = false) => {
     const status = root?.querySelector?.('[data-cart-status]');
     if (!status) return;
@@ -154,8 +160,6 @@
     return '';
   };
 
-  const normalizedOptionValue = (value) => String(value || '').trim().toLowerCase();
-
   const directProductionMethod = (record) => {
     if (!record || typeof record !== 'object') return '';
     const candidates = [
@@ -213,144 +217,6 @@
     return '';
   };
 
-  const numberFrom = (...values) => {
-    for (const value of values) {
-      const number = Number(value);
-      if (Number.isFinite(number) && number > 0) return Math.floor(number);
-    }
-    return 0;
-  };
-
-  const optionValueFrom = (item, keys, allowedValues = []) => {
-    if (!item || typeof item !== 'object') return '';
-    for (const key of keys) {
-      const value = normalizedOptionValue(item[key]);
-      if (value) return value;
-    }
-    const allowed = allowedValues.map(normalizedOptionValue).filter(Boolean);
-    if (!allowed.length) return '';
-    const values = Object.values(item).map(normalizedOptionValue).filter(Boolean);
-    return allowed.find((allowedValue) => values.includes(allowedValue)) || '';
-  };
-
-  const selectionFromOptions = (item, config) => {
-    if (!item || typeof item !== 'object' || !config) return null;
-    const quantity = numberFrom(item.quantity, item.qty, item.count, item.amount, 1);
-    const color = optionValueFrom(
-      item,
-      ['color', 'colour', 'colorValue', 'colourValue', 'selectedColor', 'selected_colour'],
-      config.colors
-    );
-    const size = optionValueFrom(
-      item,
-      ['size', 'sizeValue', 'selectedSize', 'selected_size'],
-      config.sizes
-    );
-    if (!color && !size) return null;
-    const variant = (config.variants || []).find((candidate) => {
-      if (color && normalizedOptionValue(candidate.color) !== color) return false;
-      if (size && normalizedOptionValue(candidate.size) !== size) return false;
-      return true;
-    });
-    if (!variant) return null;
-    return {
-      variantId: normalizeVariantId(variant.variantId || variant.id),
-      variantGid: String(variant.variantGid || variant.gid || ''),
-      color: String(variant.color || ''),
-      size: String(variant.size || ''),
-      quantity,
-    };
-  };
-
-  const selectionFrom = (item, config) => {
-    if (!item || typeof item !== 'object') return null;
-    const variantId = normalizeVariantId(item.variantId || item.variantGid || item.variant_id || item.id || item.merchandiseId || item.merchandise_id);
-    const quantity = numberFrom(item.quantity, item.qty, item.count, item.amount);
-    if (variantId && quantity) {
-      const variant = (config?.variants || []).find((candidate) =>
-        normalizeVariantId(candidate.variantId || candidate.id) === variantId
-      );
-      if (!variant) return null;
-      return {
-        variantId,
-        variantGid: String(variant.variantGid || variant.gid || ''),
-        color: String(variant.color || ''),
-        size: String(variant.size || ''),
-        quantity,
-      };
-    }
-    return selectionFromOptions(item, config);
-  };
-
-  const mergeSelections = (selections) => {
-    const byVariant = new Map();
-    for (const selection of selections) {
-      if (!selection?.variantId || !selection.quantity) continue;
-      const existing = byVariant.get(selection.variantId);
-      byVariant.set(selection.variantId, {
-        variantId: selection.variantId,
-        variantGid: selection.variantGid || existing?.variantGid || '',
-        color: selection.color || existing?.color || '',
-        size: selection.size || existing?.size || '',
-        quantity: Number(existing?.quantity || 0) + selection.quantity,
-      });
-    }
-    return Array.from(byVariant.values());
-  };
-
-  const collectSelections = (value, config, depth = 0, seen = new Set()) => {
-    if (!value || typeof value !== 'object' || depth > 5 || seen.has(value)) return [];
-    seen.add(value);
-
-    if (Array.isArray(value)) {
-      const direct = value.map((item) => selectionFrom(item, config)).filter(Boolean);
-      if (direct.length) return direct;
-      return value.flatMap((item) => collectSelections(item, config, depth + 1, seen));
-    }
-
-    const selections = [];
-    for (const [key, nestedValue] of Object.entries(value)) {
-      const keyText = String(key || '').toLowerCase();
-      if (
-        Array.isArray(nestedValue) &&
-        (
-          keyText.includes('selection') ||
-          keyText.includes('line') ||
-          keyText.includes('item') ||
-          keyText.includes('variant') ||
-          keyText.includes('color') ||
-          keyText.includes('colour') ||
-          keyText.includes('size')
-        )
-      ) {
-        selections.push(...collectSelections(nestedValue, config, depth + 1, seen));
-      } else if (nestedValue && typeof nestedValue === 'object') {
-        selections.push(...collectSelections(nestedValue, config, depth + 1, seen));
-      }
-    }
-    return selections;
-  };
-
-  const savedSelections = (value, source, snapshot, config) => {
-    const selections = mergeSelections([
-      ...collectSelections(value, config),
-      ...collectSelections(source, config),
-    ]);
-    if (selections.length) return selections;
-    const fallbackVariant = (config?.variants || []).find((variant) =>
-      normalizeVariantId(variant.variantId || variant.id) === String(snapshot.variantId)
-    );
-    return [
-      {
-        variantId: String(snapshot.variantId),
-        variantGid: String(fallbackVariant?.variantGid || fallbackVariant?.gid || ''),
-        color: String(fallbackVariant?.color || ''),
-        size: String(fallbackVariant?.size || ''),
-        quantity: snapshot.quantity,
-      },
-    ];
-  };
-
   const postJson = (url, payload) => new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
 
@@ -361,6 +227,9 @@
     request.onload = () => {
       const responseData = parseJson(request.responseText || '{}', {});
       if (request.status >= 200 && request.status < 300) {
+        if (responseData && typeof responseData === 'object') {
+          responseData.__httpStatus = request.status;
+        }
         resolve(responseData);
         return;
       }
@@ -372,16 +241,19 @@
         `Request failed with status ${request.status}`;
       const error = new Error(message);
       error.status = request.status;
+      error.safeCode = String(responseData?.error?.code || responseData?.code || 'REQUEST_FAILED');
       reject(error);
     };
     request.onerror = () => {
       const error = new Error('A network error occurred while preparing your customized product.');
       error.status = request.status || 0;
+      error.safeCode = 'NETWORK_ERROR';
       reject(error);
     };
     request.ontimeout = () => {
       const error = new Error('The cart request timed out. Please try again.');
       error.status = 0;
+      error.safeCode = 'REQUEST_TIMEOUT';
       reject(error);
     };
     request.timeout = 20000;
@@ -692,188 +564,197 @@
     return null;
   };
 
-  async function addProjectToCart(projectId, previewUrl, value = {}, source = {}) {
-  const snapshot = state.snapshot;
-  const root = snapshot?.root;
-  const config = refreshPublicConfig() || state.config;
-
-  if (!snapshot) {
-    warn('Missing snapshot');
-    return;
-  }
-
-  const variantId = Number(snapshot.variantId);
-  const quantity = Number(snapshot.quantity);
-
-  if (
-    !Number.isFinite(variantId) ||
-    variantId <= 0 ||
-    !Number.isFinite(quantity) ||
-    quantity < 1
-  ) {
-    warn('Invalid variant');
-    setStatus(
-      root,
-      'Please select a valid product option before customizing.',
-      true
-    );
-    return;
-  }
-
-  const productionMethod = selectedProductionMethod(value, source);
-  const configuredMethod = config?.productionMethodPricing?.[productionMethod] ||
-    (config?.productionMethods || []).find((method) => methodCode(method.id) === productionMethod);
-  const embroiderySubtype = productionMethod === 'EMBROIDERY'
-    ? selectedEmbroiderySubtype(value, source)
-    : '';
-  const configuredRate = productionMethod === 'EMBROIDERY'
-    ? configuredMethod?.embroiderySubtypes?.[embroiderySubtype]
-    : configuredMethod;
-
-  if (!productionMethod || !configuredMethod) {
-    warn('Missing production method');
-    setStatus(
-      root,
-      'Choose a printing method before adding this custom product to the cart.',
-      true
-    );
-    return;
-  }
-
-  if (productionMethod === 'EMBROIDERY' && !embroiderySubtype) {
-    warn('Missing embroidery artwork type');
-    setStatus(
-      root,
-      'The embroidery artwork type could not be determined. Please save the design again.',
-      true
-    );
-    return;
-  }
-
-  if (!configuredRate || Number(configuredRate.surchargeMinor || 0) <= 0 || !configuredRate.feeVariantId) {
-    warn('Missing production fee variant');
-    setStatus(
-      root,
-      `${configuredRate?.label || configuredMethod?.label || productionMethod} pricing is not configured. Please contact the store.`,
-      true
-    );
-    return;
-  }
-
-  if (state.inFlight) {
-    warn('Request already in flight');
-    return;
-  }
-
-  if (state.handledProjects.has(projectId)) {
-    warn('Project already handled');
-    return;
-  }
-
-  const selections = savedSelections(value, source, snapshot, config);
-  const placementCount = firstPositiveInteger(
-    value?.placementCount,
-    source?.placementCount,
-    value?.production?.placementCount,
-    source?.production?.placementCount
-  );
-  const totalQuantity = selections.reduce((sum, selection) => sum + Number(selection.quantity || 0), 0);
-  const legalConfirmations = legalConfirmationsFrom(value, source);
-  const artworkSource = artworkSourceFrom(value, source);
-  const pitchprintDesignId = String(
-    value?.designId || value?.pitchprintDesignId || source?.designId || source?.pitchprintDesignId || ''
-  ).trim();
-  const visibleProperties = {
-    'Printing method': configuredMethod.label || productionMethod,
-    'Printing charge / item': moneyFromMinor(configuredRate.surchargeMinor, config?.currency || 'SEK'),
+  const cartFailure = (safeCode, status = 0) => {
+    const error = new Error('Public cart request failed');
+    error.safeCode = safeCode;
+    error.status = status;
+    return error;
   };
 
-  state.inFlight = true;
-
-  log('Cart add started', { productionMethod, embroiderySubtype, placementCount, selections });
-
-  setStatus(
-    root,
-    'Adding your custom product to the cart...',
-    false
-  );
-
-  try {
-    const prepared = await postJson('/apps/customhouse/api/public-production-cart', {
-      shopifyProductId: config?.productId || snapshot.productId,
-      pitchprintProjectId: projectId,
-      pitchprintDesignId,
-      productionMethod,
-      selectedProductionMethod: productionMethod,
-      artworkType: embroiderySubtype || null,
-      embroiderySubtype: embroiderySubtype || null,
-      placementCount,
-      placements: value?.placements || source?.placements || [],
-      totalQuantity,
-      selectedColors: value?.selectedColors || source?.selectedColors || [],
-      artworkSource,
-      legalConfirmations,
-      selections,
-      variantSelections: selections,
-      previewUrl,
+  const sendCartReadyAcknowledgement = (targetWindow, targetOrigin, projectId) => {
+    if (!targetWindow || typeof targetWindow.postMessage !== 'function' || !isAllowedMessageOrigin(targetOrigin)) {
+      return false;
+    }
+    targetWindow.postMessage({
+      type: 'CUSTOMHOUSE_PP_CART_READY_ACK',
+      payload: { ok: true, projectId },
+    }, targetOrigin);
+    log('Cart-ready acknowledgement sent', {
+      ACK_SENT: true,
+      PUBLIC_CART_PROJECT_ID: projectId,
     });
-    const preparedData = prepared?.data || prepared;
-    const preparedItems = Array.isArray(preparedData?.items) ? preparedData.items : [];
-    if (!prepared?.ok || !preparedItems.length) {
-      throw new Error(prepared?.error?.message || 'Production pricing could not be prepared.');
+    return true;
+  };
+
+  async function addProjectToCart(projectId, previewUrl, value = {}, source = {}, acknowledgement = {}) {
+    const snapshot = state.snapshot;
+    const root = snapshot?.root;
+    const config = refreshPublicConfig() || state.config;
+
+    if (!snapshot) {
+      warn('Missing snapshot');
+      return;
     }
 
-    const cartItems = preparedItems.map((item) => {
-      const properties = {
-        ...(item.properties || {}),
-      };
-      if (!properties._customhouse_fee_key) {
-        throw new Error('Production fee pairing could not be prepared.');
-      }
-      if (properties._customhouse_production_fee === 'true') {
-        properties['Printing method'] = visibleProperties['Printing method'];
-      } else {
-        properties['Printing method'] = visibleProperties['Printing method'];
-        properties['Printing charge / item'] = visibleProperties['Printing charge / item'];
-      }
-      return {
-        id: item.id,
-        quantity: item.quantity,
-        properties,
-      };
+    const selectionContract = publicContract.buildCartSelectionContract({
+      value,
+      source,
+      snapshot,
+      config,
     });
+    const selections = selectionContract.selections;
+    const totalQuantity = selectionContract.totalQuantity;
 
-    await postJson(route('cart/add.js'), { items: cartItems });
-  } catch (error) {
-    state.inFlight = false;
+    if (!selectionContract.selectionCount || totalQuantity < 1) {
+      warn('Invalid variants');
+      setStatus(root, 'Unable to add this customization to your cart. Please try again.', true);
+      return;
+    }
 
-    console.warn(
-      '[CustomHouse PitchPrint] Cart add failed',
-      {
-        status: error?.status,
-        message: error?.message || 'request failed',
+    const productionMethod = selectedProductionMethod(value, source);
+    const configuredMethod = config?.productionMethodPricing?.[productionMethod] ||
+      (config?.productionMethods || []).find((method) => methodCode(method.id) === productionMethod);
+    const embroiderySubtype = productionMethod === 'EMBROIDERY'
+      ? selectedEmbroiderySubtype(value, source)
+      : '';
+    const configuredRate = productionMethod === 'EMBROIDERY'
+      ? configuredMethod?.embroiderySubtypes?.[embroiderySubtype]
+      : configuredMethod;
+
+    if (!productionMethod || !configuredMethod) {
+      warn('Missing production method');
+      setStatus(root, 'Unable to add this customization to your cart. Please try again.', true);
+      return;
+    }
+
+    if (productionMethod === 'EMBROIDERY' && !embroiderySubtype) {
+      warn('Missing embroidery artwork type');
+      setStatus(root, 'Unable to add this customization to your cart. Please try again.', true);
+      return;
+    }
+
+    if (!configuredRate || Number(configuredRate.surchargeMinor || 0) <= 0 || !configuredRate.feeVariantId) {
+      warn('Missing production fee variant');
+      setStatus(root, 'Unable to add this customization to your cart. Please try again.', true);
+      return;
+    }
+
+    if (state.inFlight) {
+      warn('Request already in flight');
+      return;
+    }
+
+    if (state.handledProjects.has(projectId)) {
+      warn('Project already handled');
+      return;
+    }
+
+    const placementCount = firstPositiveInteger(
+      value?.placementCount,
+      source?.placementCount,
+      value?.production?.placementCount,
+      source?.production?.placementCount
+    );
+    const legalConfirmations = legalConfirmationsFrom(value, source);
+    const artworkSource = artworkSourceFrom(value, source);
+    const pitchprintDesignId = String(
+      value?.designId || value?.pitchprintDesignId || source?.designId || source?.pitchprintDesignId || ''
+    ).trim();
+    const productId = String(config?.productId || snapshot.productId || '').trim();
+    const visibleProperties = {
+      'Printing method': configuredMethod.label || productionMethod,
+      'Printing charge / item': moneyFromMinor(configuredRate.surchargeMinor, config?.currency || 'SEK'),
+    };
+
+    state.inFlight = true;
+    log('PUBLIC_CART_VALIDATION_STARTED', {
+      PUBLIC_CART_PRODUCT_ID: productId,
+      PUBLIC_CART_PROJECT_ID: projectId,
+      PUBLIC_CART_DESIGN_ID: pitchprintDesignId,
+      PUBLIC_CART_METHOD: productionMethod,
+      PUBLIC_CART_ARTWORK_TYPE: embroiderySubtype || null,
+      PUBLIC_CART_EMBROIDERY_SUBTYPE: embroiderySubtype || null,
+      PUBLIC_CART_VARIANT_SELECTIONS: selections.map(({ variantId, color, size, quantity }) => ({ variantId, color, size, quantity })),
+      PUBLIC_CART_SELECTION_COUNT: selectionContract.selectionCount,
+      PUBLIC_CART_TOTAL_QUANTITY: totalQuantity,
+      PUBLIC_CART_PLACEMENT_COUNT: placementCount,
+    });
+    setStatus(root, 'Adding your custom product to the cart...', false);
+
+    try {
+      const prepared = await postJson('/apps/customhouse/api/public-production-cart', {
+        shopifyProductId: productId,
+        pitchprintProjectId: projectId,
+        pitchprintDesignId,
+        productionMethod,
+        selectedProductionMethod: productionMethod,
+        artworkType: embroiderySubtype || null,
+        embroiderySubtype: embroiderySubtype || null,
+        placementCount,
+        placements: value?.placements || source?.placements || [],
+        totalQuantity,
+        selectedColors: value?.selectedColors || source?.selectedColors || [],
+        artworkSource,
+        legalConfirmations,
+        selections,
+        variantSelections: selections,
+        previewUrl,
+      });
+      const preparedData = prepared?.data || prepared;
+      const preparedItems = Array.isArray(preparedData?.items) ? preparedData.items : [];
+      if (!prepared?.ok || !preparedItems.length) {
+        throw cartFailure(String(prepared?.error?.code || 'CART_PREPARATION_REJECTED'), prepared?.__httpStatus || 0);
       }
-    );
 
-    setStatus(
-      root,
-      error?.message || 'We could not add your custom product to the cart. Please try again.',
-      true
-    );
+      log('PUBLIC_CART_VARIANTS_VALIDATED', {
+        PUBLIC_CART_SELECTION_COUNT: selections.length,
+        PUBLIC_CART_TOTAL_QUANTITY: totalQuantity,
+      });
+      log('PUBLIC_CART_FEE_RESOLVED', {
+        FEE_VARIANT: String(preparedData?.cart?.feeVariantId || configuredRate.feeVariantId || ''),
+        FEE_QUANTITY: totalQuantity * placementCount,
+      });
 
-    return;
+      const cartItems = preparedItems.map((item) => {
+        const properties = { ...(item.properties || {}) };
+        if (!properties._customhouse_fee_key) {
+          throw cartFailure('MISSING_FEE_PAIRING');
+        }
+        properties['Printing method'] = visibleProperties['Printing method'];
+        if (properties._customhouse_production_fee !== 'true') {
+          properties['Printing charge / item'] = visibleProperties['Printing charge / item'];
+        }
+        return { id: item.id, quantity: item.quantity, properties };
+      });
+
+      log('PUBLIC_CART_ADD_REQUEST_BUILT', {
+        CART_LINE_COUNT: cartItems.length,
+        CART_LINES: cartItems.map(({ id, quantity }) => ({ id, quantity })),
+      });
+      const cartResponse = await postJson(route('cart/add.js'), { items: cartItems });
+      log('PUBLIC_CART_ADD_HTTP_STATUS', { PUBLIC_CART_ADD_HTTP_STATUS: cartResponse?.__httpStatus || 200 });
+      log('PUBLIC_CART_ADD_RESPONSE_SAFE_CODE', { PUBLIC_CART_ADD_RESPONSE_SAFE_CODE: 'OK' });
+    } catch (error) {
+      state.inFlight = false;
+      log('PUBLIC_CART_ADD_HTTP_STATUS', { PUBLIC_CART_ADD_HTTP_STATUS: Number(error?.status || 0) });
+      log('PUBLIC_CART_ADD_RESPONSE_SAFE_CODE', {
+        PUBLIC_CART_ADD_RESPONSE_SAFE_CODE: String(error?.safeCode || 'CART_ADD_FAILED'),
+      });
+      setStatus(root, 'Unable to add this customization to your cart. Please try again.', true);
+      return;
+    }
+
+    state.handledProjects.add(projectId);
+    state.inFlight = false;
+    sendCartReadyAcknowledgement(
+      acknowledgement.source,
+      acknowledgement.origin,
+      projectId
+    );
+    setStatus(root, '', false);
+    log('PUBLIC_CART_REDIRECT_STARTED', { REDIRECT_TO_CART: true });
+    window.location.href = route('cart');
   }
-
-  // The Shopify request has definitely succeeded at this point.
-  state.handledProjects.add(projectId);
-  state.inFlight = false;
-
-  log('Cart add succeeded');
-  setStatus(root, '', false);
-
-  // Keep navigation outside the request error boundary.
-  window.location.href = route('cart');
-}
 
   function handleProjectSaved(event) {
     log('Project saved');
@@ -898,7 +779,8 @@
   }
 
   function handleCartReady(event) {
-    log('Public cart-ready contract received');
+    log('PUBLIC_CART_READY_RECEIVED', { PUBLIC_CART_READY_RECEIVED: true });
+    log('PUBLIC_CART_BRIDGE_RECEIVED', { PUBLIC_CART_BRIDGE_RECEIVED: true });
     const message = event?.detail ?? event?.data ?? event ?? {};
     const payload = message?.payload ?? message?.value ?? message?.data ?? message ?? {};
     const savedValue = state.lastSaved?.value || {};
@@ -927,7 +809,11 @@
       projectId,
       firstPreviewUrl(value.previews || source.previews),
       value,
-      source
+      source,
+      {
+        source: event?.source,
+        origin: event?.origin,
+      }
     );
   }
 
@@ -941,7 +827,10 @@
       client.on('CUSTOMHOUSE_PP_CART_READY', handleCartReady);
       state.listenerBound = true;
       setStatus(state.snapshot?.root, '', false);
-      log('Listener bound');
+      log('Listener bound', {
+        LISTENER_EVENT_NAME: 'cart-ready, CUSTOMHOUSE_PP_CART_READY',
+        LISTENER_BOUND: true,
+      });
       return true;
     } catch (error) {
       warn(`Client unavailable: ${error?.message || 'listener registration failed'}`);
@@ -1003,7 +892,15 @@
   window.addEventListener('message', (event) => {
     const message = event?.data || {};
     if (message?.type === 'CUSTOMHOUSE_PP_CART_READY') {
-      handleCartReady(message);
+      const originAllowed = isAllowedMessageOrigin(event.origin);
+      log('PitchPrint message origin checked', {
+        MESSAGE_ORIGIN_ALLOWED: originAllowed,
+      });
+      if (!originAllowed) {
+        warn('Rejected cart-ready message origin');
+        return;
+      }
+      handleCartReady(event);
       return;
     }
     if (message?.type === 'CUSTOMHOUSE_PP_ORDER_CONFIG_ACK') {
@@ -1032,6 +929,12 @@
 
   window.addEventListener('CUSTOMHOUSE_PP_CART_READY', handleCartReady);
   window.addEventListener('customhouse:pitchprint-cart-ready', handleCartReady);
+
+  log('Public cart message listener bound', {
+    LISTENER_EVENT_NAME: 'CUSTOMHOUSE_PP_CART_READY',
+    LISTENER_BOUND: true,
+    MESSAGE_ORIGIN_ALLOWED: PITCHPRINT_ORIGIN,
+  });
 
   log('Initialized');
   refreshPublicConfig();
