@@ -441,11 +441,6 @@
     const rawPricing = actions.querySelector('[data-customhouse-production-pricing-json]')?.textContent || '';
     const pricing = parseJson(rawPricing, null);
     const productionMethods = normalizeProductionMethods(pricing);
-    if (!productionMethods.some((method) =>
-      method.id === 'embroidery'
-        ? Object.values(method.embroiderySubtypes || {}).some((rate) => rate.surchargeMinor > 0)
-        : method.surchargeMinor > 0
-    )) return null;
 
     const sizePosition = Number(actions.dataset.sizeOptionPosition || 0);
     const colorPosition = Number(actions.dataset.colorOptionPosition || 0);
@@ -548,10 +543,23 @@
     if (state.loggedRevision !== config.revision) {
       state.loggedRevision = config.revision;
       const embroideryRates = config.embroideryPricing || {};
-      const dtfRate = config.productionMethodPricing?.DTF || {};
-      const dtgRate = config.productionMethodPricing?.DTG || {};
+      const dtfRate = config.productionMethodPricing?.dtf || {};
+      const dtgRate = config.productionMethodPricing?.dtg || {};
+      const variantPricesComplete = config.variants.length > 0 && config.variants.every((variant) =>
+        Number.isSafeInteger(variant.priceMinor) && variant.priceMinor >= 0 && variant.currency === config.currency
+      );
       log('Public PitchPrint config ready', {
+        PUBLIC_CONFIG_PRODUCT_ID: config.productId,
         PUBLIC_CONFIG_KEYS: Object.keys(config),
+        PUBLIC_CONFIG_VARIANT_COUNT: config.variants.length,
+        PUBLIC_CONFIG_COLORS: config.colors,
+        PUBLIC_CONFIG_SIZES: config.sizes,
+        PUBLIC_CONFIG_CURRENCY: config.currency,
+        PUBLIC_CONFIG_EMBROIDERY_TEXT_PRICE: Number(embroideryRates.TEXT_ONLY?.surchargeMinor || 0),
+        PUBLIC_CONFIG_EMBROIDERY_IMAGE_PRICE: Number(embroideryRates.IMAGE_OR_LOGO?.surchargeMinor || 0),
+        PUBLIC_CONFIG_DTF_PRICE: Number(dtfRate.surchargeMinor || 0),
+        PUBLIC_CONFIG_DTG_PRICE: Number(dtgRate.surchargeMinor || 0),
+        PUBLIC_CONFIG_HAS_VARIANT_PRICES: variantPricesComplete,
         PUBLIC_PRODUCT_ID: config.productId,
         PUBLIC_VARIANT_COUNT: config.variants.length,
         PUBLIC_OPTION_NAMES: config.optionNames,
@@ -583,7 +591,8 @@
     }, '*');
     log('PUBLIC_CONFIG_SENT', {
       PUBLIC_CONFIG_REVISION: config.revision,
-      PUBLIC_CONFIG_VARIANT_COUNT: config.variants.length,
+      PUBLIC_CONFIG_SENT_VARIANTS: config.variants.length,
+      PUBLIC_CONFIG_SENT_TEXT_PRICE: Number(config.embroideryPricing?.TEXT_ONLY?.surchargeMinor || 0),
     });
     return true;
   };
@@ -1013,6 +1022,8 @@
         state.acknowledgedRevision = acknowledgedRevision;
         log('PUBLIC_CONFIG_ACKNOWLEDGED', {
           PUBLIC_CONFIG_REVISION: acknowledgedRevision,
+          PUBLIC_CONFIG_ACK_VARIANTS: state.config?.variants?.length || 0,
+          PUBLIC_CONFIG_ACK_TEXT_PRICE: Number(state.config?.embroideryPricing?.TEXT_ONLY?.surchargeMinor || 0),
         });
       }
       return;
