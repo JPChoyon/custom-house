@@ -1381,6 +1381,102 @@ test("public embroidery text uses the authoritative Text fee mapping", async () 
   assert.match(baseProperties._customhouse_public_cart_validation, /"feeRequired":true/);
 });
 
+test("public cart prep resyncs stale public fee variants before returning cart lines", async () => {
+  let pricing = {
+    id: "pricing-stale-public",
+    shopKey: "shop.test",
+    shopifyProductId: "gid://shopify/Product/100",
+    embroiderySurcharge: parseSurchargeInput("0.00"),
+    embroideryTextSurcharge: parseSurchargeInput("55.00"),
+    embroideryImageSurcharge: parseSurchargeInput("60.00"),
+    dtfSurcharge: parseSurchargeInput("30.00"),
+    dtgSurcharge: parseSurchargeInput("20.00"),
+    embroideryFeeVariantId: null,
+    embroideryTextFeeVariantId: "gid://shopify/ProductVariant/9004",
+    embroideryImageFeeVariantId: "gid://shopify/ProductVariant/9005",
+    dtfFeeVariantId: "gid://shopify/ProductVariant/9002",
+    dtgFeeVariantId: "gid://shopify/ProductVariant/9003",
+  };
+  const db = {
+    publicProductProductionPricing: {
+      async findUnique() {
+        return pricing;
+      },
+      async update(args: { data: Partial<typeof pricing> }) {
+        pricing = { ...pricing, ...args.data };
+        return pricing;
+      },
+    },
+  };
+  let feeSyncCount = 0;
+  const client = {
+    async request<T>(query: string) {
+      if (query.includes("CustomHouseProductionFeeVariant")) {
+        return {
+          node: {
+            id: "gid://shopify/ProductVariant/9004",
+            availableForSale: false,
+            product: { status: "ACTIVE" },
+          },
+        } as T;
+      }
+      if (query.includes("query CustomHouseProductionFeeProduct")) {
+        return { products: { nodes: [] } } as T;
+      }
+      if (query.includes("productSet")) {
+        feeSyncCount += 1;
+        return {
+          productSet: {
+            product: {
+              id: "gid://shopify/Product/public-fee",
+              title: "Public Fee",
+              parentProductId: { value: "gid://shopify/Product/100" },
+              variants: {
+                nodes: [
+                  { id: "gid://shopify/ProductVariant/9204", title: "Embroidery Text Production Fee" },
+                  { id: "gid://shopify/ProductVariant/9205", title: "Embroidery Image or Logo Production Fee" },
+                  { id: "gid://shopify/ProductVariant/9202", title: "DTF Production Fee" },
+                  { id: "gid://shopify/ProductVariant/9203", title: "DTG Production Fee" },
+                ],
+              },
+            },
+            userErrors: [],
+          },
+        } as T;
+      }
+      if (query.includes("CustomHouseOnlineStorePublication")) {
+        return {
+          product: { resourcePublications: { nodes: [] } },
+          publications: {
+            nodes: [{ id: "gid://shopify/Publication/online-store", name: "Online Store" }],
+          },
+        } as T;
+      }
+      if (query.includes("publishablePublish")) {
+        return { publishablePublish: { userErrors: [] } } as T;
+      }
+      return fakeProductClient.request<T>();
+    },
+  };
+
+  const cart = await preparePublicProductionCart(
+    "shop.test",
+    publicCartInput({
+      shopifyProductId: "gid://shopify/Product/100",
+      pitchprintProjectId: "pp_text_resync",
+      productionMethod: "EMBROIDERY",
+      artworkType: "TEXT_ONLY",
+      selections: [{ variantId: "gid://shopify/ProductVariant/1", quantity: 1 }],
+    }),
+    client as never,
+    db as never,
+  );
+
+  assert.equal(feeSyncCount, 1);
+  assert.equal(cart.feeVariantId, "gid://shopify/ProductVariant/9204");
+  assert.equal(cart.items[1]?.id, "9204");
+});
+
 test("public embroidery image uses the authoritative Image or Logo fee mapping", async () => {
   const cart = await preparePublicProductionCart(
     "shop.test",
