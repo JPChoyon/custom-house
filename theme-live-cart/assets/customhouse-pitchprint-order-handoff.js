@@ -10,11 +10,15 @@
     acknowledgedRevision: '',
     loggedRevision: '',
     lastSaved: null,
+    pendingPublicCart: null,
+    publicSaveInFlight: false,
     inFlight: false,
     handledProjects: new Set(),
   };
 
   if (!(state.handledProjects instanceof Set)) state.handledProjects = new Set();
+  if (!('pendingPublicCart' in state)) state.pendingPublicCart = null;
+  if (!('publicSaveInFlight' in state)) state.publicSaveInFlight = false;
   if (state.initialized) return;
   state.initialized = true;
 
@@ -30,6 +34,7 @@
   };
   const warn = (message) => console.warn(`[CustomHouse PitchPrint] ${message}`);
   const publicContract = window.CustomHousePublicPitchPrintContract;
+  const PENDING_PUBLIC_SAVE_ID = '__CUSTOMHOUSE_PUBLIC_SAVE_PENDING__';
 
   if (!publicContract) {
     warn('Public customization contract unavailable');
@@ -121,6 +126,29 @@
     const match = text.match(/(\d+)$/);
     return match ? match[1] : text;
   };
+
+  const pitchPrintClientIdentity = () => {
+    try {
+      const vars = window.ppclient?.vars || {};
+      const source = vars.projectSource || {};
+      const projectId = String(vars.projectId || source.projectId || '').trim();
+      const designId = String(vars.designId || source.designId || '').trim();
+      if (projectId && designId) {
+        return { projectId, designId, pending: false };
+      }
+    } catch {
+      // The client may still be installing its property hook. The explicit
+      // pending identity below keeps the public final step recoverable.
+    }
+    return {
+      projectId: PENDING_PUBLIC_SAVE_ID,
+      designId: PENDING_PUBLIC_SAVE_ID,
+      pending: true,
+    };
+  };
+
+  const isPendingPublicIdentity = (value) =>
+    String(value || '').trim() === PENDING_PUBLIC_SAVE_ID;
 
   const selectedVariantId = (actions) => {
     const form = actions?.querySelector?.(formSelector);
@@ -327,6 +355,7 @@
     });
     const colors = Array.from(new Set(variants.map((variant) => variant.color).filter(Boolean)));
     const sizes = Array.from(new Set(variants.map((variant) => variant.size).filter(Boolean)));
+    const projectIdentity = pitchPrintClientIdentity();
 
     const baseConfig = {
       version: 2,
@@ -362,6 +391,9 @@
       embroideryPricing:
         productionMethods.find((method) => method.id === 'embroidery')?.embroiderySubtypes || {},
       productionMethodPricing: publicContract.buildProductionMethodPricing(productionMethods),
+      pitchprintProjectId: projectIdentity.projectId,
+      pitchprintDesignId: projectIdentity.designId,
+      projectIdentityMode: projectIdentity.pending ? 'SAVE_ON_CONTINUE' : 'SAVED',
     };
     const revision = publicContract.revisionFor({
       productId: baseConfig.productId,
@@ -369,6 +401,8 @@
       variants,
       productionMethods,
       currency,
+      pitchprintProjectId: baseConfig.pitchprintProjectId,
+      pitchprintDesignId: baseConfig.pitchprintDesignId,
     });
     return {
       ...baseConfig,
@@ -586,6 +620,41 @@
     return true;
   };
 
+  const sendCartFailureAcknowledgement = (acknowledgement, stage, message) => {
+    const targetWindow = acknowledgement?.source;
+    const targetOrigin = acknowledgement?.origin;
+    if (!targetWindow || typeof targetWindow.postMessage !== 'function' || !isAllowedMessageOrigin(targetOrigin)) {
+      return false;
+    }
+    targetWindow.postMessage({
+      type: 'CUSTOMHOUSE_PP_CART_READY_ACK',
+      payload: {
+        ok: false,
+        stage,
+        error: message,
+      },
+    }, targetOrigin);
+    return true;
+  };
+
+  const failPendingPublicSave = (stage, message) => {
+    const pending = state.pendingPublicCart;
+    state.pendingPublicCart = null;
+    state.publicSaveInFlight = false;
+    if (pending) sendCartFailureAcknowledgement(pending.acknowledgement, stage, message);
+    setStatus(state.snapshot?.root, message, true);
+    log('PUBLIC_PROJECT_SAVE_FAILED', { PUBLIC_PROJECT_SAVE_FAILURE_STAGE: stage });
+  };
+
+  const requestPendingPublicSave = () => {
+    const client = window.ppclient;
+    if (!client || typeof client.fire !== 'function') return false;
+    state.publicSaveInFlight = true;
+    client.fire('start-save', {});
+    log('PUBLIC_PROJECT_SAVE_REQUESTED', { PUBLIC_PROJECT_SAVE_REQUESTED: true });
+    return true;
+  };
+
   async function addProjectToCart(projectId, previewUrl, value = {}, source = {}, acknowledgement = {}) {
     const snapshot = state.snapshot;
     const root = snapshot?.root;
@@ -775,7 +844,63 @@
       return;
     }
     state.lastSaved = { projectId, value, source };
+
+    const pending = state.pendingPublicCart;
+    if (!pending) {
+      setStatus(state.snapshot?.root, 'Design saved. Preparing your cart...', false);
+      return;
+    }
+
+    const designId = String(
+      value?.designId || value?.pitchprintDesignId || source?.designId || source?.pitchprintDesignId || ''
+    ).trim();
+    if (!projectId || !designId) {
+      failPendingPublicSave(
+        'PUBLIC_PROJECT_IDENTITY_MISSING',
+        'PitchPrint saved the artwork but did not return its project identity. Please try again.'
+      );
+      return;
+    }
+
+    state.pendingPublicCart = null;
+    state.publicSaveInFlight = false;
+    const mergedSource = {
+      ...(pending.source || {}),
+      ...(source || {}),
+      projectId,
+      pitchprintProjectId: projectId,
+      designId,
+      pitchprintDesignId: designId,
+    };
+    const mergedValue = {
+      ...(pending.value || {}),
+      ...(value || {}),
+      projectId,
+      pitchprintProjectId: projectId,
+      designId,
+      pitchprintDesignId: designId,
+      source: mergedSource,
+    };
+    log('PUBLIC_PROJECT_SAVE_COMPLETED', {
+      PUBLIC_CART_PROJECT_ID: projectId,
+      PUBLIC_CART_DESIGN_ID: designId,
+    });
     setStatus(state.snapshot?.root, 'Design saved. Preparing your cart...', false);
+    addProjectToCart(
+      projectId,
+      firstPreviewUrl(mergedValue.previews || mergedSource.previews || pending.previewUrl),
+      mergedValue,
+      mergedSource,
+      pending.acknowledgement
+    );
+  }
+
+  function handleProjectSaveFailed() {
+    if (!state.pendingPublicCart) return;
+    failPendingPublicSave(
+      'PUBLIC_PROJECT_SAVE_FAILED',
+      'PitchPrint could not save this design. Please try again.'
+    );
   }
 
   function handleCartReady(event) {
@@ -805,6 +930,29 @@
       setStatus(state.snapshot?.root, 'We could not receive your saved design. Please try submitting it again.', true);
       return;
     }
+    const designId = String(
+      value?.designId || value?.pitchprintDesignId || source?.designId || source?.pitchprintDesignId || ''
+    ).trim();
+    if (isPendingPublicIdentity(projectId) || isPendingPublicIdentity(designId)) {
+      if (state.pendingPublicCart || state.publicSaveInFlight) return;
+      state.pendingPublicCart = {
+        value,
+        source,
+        previewUrl: firstPreviewUrl(value.previews || source.previews),
+        acknowledgement: {
+          source: event?.source,
+          origin: event?.origin,
+        },
+      };
+      setStatus(state.snapshot?.root, 'Saving your design before adding it to the cart...', false);
+      if (!requestPendingPublicSave()) {
+        failPendingPublicSave(
+          'PUBLIC_PROJECT_SAVE_UNAVAILABLE',
+          'PitchPrint is not ready to save this design. Please reopen the customizer and try again.'
+        );
+      }
+      return;
+    }
     addProjectToCart(
       projectId,
       firstPreviewUrl(value.previews || source.previews),
@@ -823,6 +971,7 @@
 
     try {
       client.on('project-saved', handleProjectSaved);
+      client.on('save-failed', handleProjectSaveFailed);
       client.on('cart-ready', handleCartReady);
       client.on('CUSTOMHOUSE_PP_CART_READY', handleCartReady);
       state.listenerBound = true;

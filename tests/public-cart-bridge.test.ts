@@ -124,9 +124,11 @@ test("the same nested source selections are not counted twice", () => {
 
 type BridgeHarness = {
   dispatchMessage(event: Record<string, unknown>): void;
+  emitClient(eventName: string, data: Record<string, unknown>): void;
   flush(): Promise<void>;
   requests: Array<{ url: string; payload: Record<string, unknown> }>;
   acknowledgements: Array<Record<string, unknown>>;
+  clientFires: Array<{ eventName: string; data: Record<string, unknown> }>;
   location: { href: string; origin: string };
   logs: Array<{ level: string; message: string; detail?: unknown }>;
 };
@@ -135,6 +137,8 @@ function bridgeHarness(): BridgeHarness {
   const listeners = new Map<string, Array<(event: Record<string, unknown>) => void>>();
   const requests: Array<{ url: string; payload: Record<string, unknown> }> = [];
   const acknowledgements: Array<Record<string, unknown>> = [];
+  const clientFires: Array<{ eventName: string; data: Record<string, unknown> }> = [];
+  const clientListeners = new Map<string, Array<(event: Record<string, unknown>) => void>>();
   const logs: Array<{ level: string; message: string; detail?: unknown }> = [];
   const status = { textContent: "", hidden: true, classList: { toggle() {} } };
   const pricing = {
@@ -253,6 +257,15 @@ function bridgeHarness(): BridgeHarness {
   } = {
     location,
     Shopify: { routes: { root: "/" } },
+    ppclient: {
+      vars: { designId: "base_design_123", projectId: "" },
+      on(eventName: string, listener: (event: Record<string, unknown>) => void) {
+        clientListeners.set(eventName, [...(clientListeners.get(eventName) || []), listener]);
+      },
+      fire(eventName: string, data: Record<string, unknown>) {
+        clientFires.push({ eventName, data });
+      },
+    },
     addEventListener(type: string, listener: (event: Record<string, unknown>) => void) {
       listeners.set(type, [...(listeners.get(type) || []), listener]);
     },
@@ -302,11 +315,17 @@ function bridgeHarness(): BridgeHarness {
     dispatchMessage(event) {
       for (const listener of listeners.get("message") || []) listener(event);
     },
+    emitClient(eventName, data) {
+      for (const listener of clientListeners.get(eventName) || []) {
+        listener({ type: eventName, data });
+      }
+    },
     async flush() {
       for (let index = 0; index < 8; index += 1) await Promise.resolve();
     },
     requests,
     acknowledgements,
+    clientFires,
     location,
     logs,
   };
@@ -380,4 +399,93 @@ test("foreign cart-ready postMessage cannot mutate the Shopify cart", async () =
 
   assert.equal(harness.requests.length, 0);
   assert.equal(harness.location.href, "https://customhouse.se/products/t-shirt");
+});
+
+test("new public design config exposes explicit save-on-continue identity", () => {
+  const harness = bridgeHarness();
+  const messages: Array<Record<string, unknown>> = [];
+  harness.dispatchMessage({
+    origin: "https://pitchprint.io",
+    source: {
+      postMessage(message: Record<string, unknown>) {
+        messages.push(message);
+      },
+    },
+    data: { type: "CUSTOMHOUSE_PP_ORDER_CONFIG_REQUEST" },
+  });
+
+  const response = messages[0] as {
+    type?: string;
+    payload?: Record<string, unknown>;
+  };
+  assert.equal(response.type, "CUSTOMHOUSE_PP_ORDER_CONFIG_DATA");
+  assert.equal(response.payload?.projectIdentityMode, "SAVE_ON_CONTINUE");
+  assert.equal(
+    response.payload?.pitchprintProjectId,
+    "__CUSTOMHOUSE_PUBLIC_SAVE_PENDING__",
+  );
+  assert.equal(
+    response.payload?.pitchprintDesignId,
+    "__CUSTOMHOUSE_PUBLIC_SAVE_PENDING__",
+  );
+});
+
+test("new public design saves first, then adds real PitchPrint identity to cart", async () => {
+  const harness = bridgeHarness();
+  const source = {
+    postMessage(message: Record<string, unknown>) {
+      harness.acknowledgements.push(message);
+    },
+  };
+
+  harness.dispatchMessage({
+    origin: "https://pitchprint.io",
+    source,
+    data: {
+      type: "CUSTOMHOUSE_PP_CART_READY",
+      payload: {
+        projectId: "__CUSTOMHOUSE_PUBLIC_SAVE_PENDING__",
+        designId: "base_design_123",
+        productionMethod: "EMBROIDERY",
+        artworkType: "IMAGE_OR_LOGO",
+        embroiderySubtype: "IMAGE_OR_LOGO",
+        placementCount: 1,
+        totalQuantity: 1,
+        legalConfirmations: { rightsAccepted: true, termsAccepted: true },
+        artworkSource: { pages: [{ name: "Front", objects: [{ type: "image" }] }] },
+        variantSelections: [
+          { variantId: "101", color: "Green", size: "M", quantity: 1 },
+        ],
+      },
+    },
+  });
+  await harness.flush();
+
+  assert.deepEqual(JSON.parse(JSON.stringify(harness.clientFires)), [
+    { eventName: "start-save", data: {} },
+  ]);
+  assert.equal(harness.requests.length, 0);
+  assert.equal(harness.acknowledgements.length, 0);
+
+  harness.emitClient("project-saved", {
+    projectId: "project_real_123",
+    designId: "design_real_123",
+    previews: ["https://pitchprint.io/previews/project_real_123_1.jpg"],
+    source: {
+      designId: "design_real_123",
+      pages: [{ name: "Front", objects: [{ type: "image" }] }],
+    },
+  });
+  await harness.flush();
+
+  assert.equal(harness.requests.length, 2);
+  assert.equal(harness.requests[0]?.payload.pitchprintProjectId, "project_real_123");
+  assert.equal(harness.requests[0]?.payload.pitchprintDesignId, "design_real_123");
+  assert.deepEqual(JSON.parse(JSON.stringify(harness.acknowledgements)), [
+    {
+      type: "CUSTOMHOUSE_PP_CART_READY_ACK",
+      payload: { ok: true, projectId: "project_real_123" },
+    },
+  ]);
+  assert.equal(harness.location.href, "/cart");
 });
