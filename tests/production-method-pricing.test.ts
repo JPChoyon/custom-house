@@ -219,16 +219,13 @@ test("production method display config serializes minor units", () => {
 
   assert.equal(value.version, 1);
   assert.equal(value.currency, "SEK");
-  assert.equal(value.productionMethodPricing.EMBROIDERY.surchargeMinor, 5000);
-  assert.equal(value.productionMethodPricing.EMBROIDERY.feeVariantId, "9001");
+  assert.equal(value.productionMethodPricing.EMBROIDERY.surchargeMinor, 0);
+  assert.equal(value.productionMethodPricing.EMBROIDERY.feeVariantId, undefined);
+  assert.equal(value.productionMethodPricing.EMBROIDERY.feeVariantGid, undefined);
   assert.equal(value.embroideryPricing.TEXT_ONLY.surchargeMinor, 5500);
   assert.equal(value.embroideryPricing.TEXT_ONLY.feeVariantId, "9004");
   assert.equal(value.embroideryPricing.IMAGE_OR_LOGO.surchargeMinor, 6000);
   assert.equal(value.embroideryPricing.IMAGE_OR_LOGO.feeVariantId, "9005");
-  assert.equal(
-    value.productionMethodPricing.EMBROIDERY.feeVariantGid,
-    "gid://shopify/ProductVariant/9001",
-  );
   assert.equal(value.productionMethodPricing.DTF.surchargeMinor, 3000);
   assert.equal(value.productionMethodPricing.DTF.feeVariantId, "9002");
   assert.equal(value.productionMethodPricing.DTG.surchargeMinor, 2000);
@@ -242,6 +239,9 @@ test("admin products page exposes pricing only for public customizable products"
   const creatorPricingForm = source.match(
     /value="save-creator-production-pricing"[\s\S]*?Save Creator Printing Pricing/,
   )?.[0] || "";
+  const publicPricingForm = source.match(
+    /value="save-production-pricing"[\s\S]*?Save Production Pricing/,
+  )?.[0] || "";
 
   assert.match(source, /save-production-pricing/);
   assert.match(source, /save-creator-production-pricing/);
@@ -250,6 +250,10 @@ test("admin products page exposes pricing only for public customizable products"
   assert.doesNotMatch(creatorPricingForm, /<span>Embroidery<\/span>/);
   assert.match(creatorPricingForm, /Embroidery — Text only/);
   assert.match(creatorPricingForm, /Embroidery — Image \/ Logo/);
+  assert.doesNotMatch(publicPricingForm, /<span>Embroidery<\/span>/);
+  assert.doesNotMatch(publicPricingForm, /name="embroiderySurcharge"/);
+  assert.match(publicPricingForm, /Embroidery — Text only/);
+  assert.match(publicPricingForm, /Embroidery — Image \/ Logo/);
   assert.match(source, /CREATOR_PRODUCTION_PRICING_PRODUCT_ID/);
   assert.match(source, /product_type/);
   assert.match(source, /product_origin/);
@@ -270,14 +274,21 @@ test("admin products page exposes pricing only for public customizable products"
 
 test("admin products regression keeps pricing controls visible without an existing row", () => {
   const source = readFileSync("app/routes/app.products.tsx", "utf8");
+  const styles = readFileSync("app/styles/admin.css", "utf8");
 
   assert.match(source, /const pricing = rowDefaults\(pricingByProduct\[product\.id\]\)/);
-  assert.match(source, /defaultValue=\{pricing\.embroiderySurcharge\}/);
+  assert.doesNotMatch(source, /defaultValue=\{pricing\.embroiderySurcharge\}/);
+  assert.match(source, /defaultValue=\{pricing\.embroideryTextSurcharge\}/);
+  assert.match(source, /defaultValue=\{pricing\.embroideryImageSurcharge\}/);
   assert.match(source, /defaultValue=\{pricing\.dtfSurcharge\}/);
   assert.match(source, /defaultValue=\{pricing\.dtgSurcharge\}/);
-  assert.match(source, /embroiderySurcharge: row\?\.embroiderySurcharge \?\? "0\.00"/);
+  assert.match(source, /embroideryTextSurcharge:[\s\S]*?allowLegacyEmbroideryFallback/);
   assert.match(source, /dtfSurcharge: row\?\.dtfSurcharge \?\? "0\.00"/);
   assert.match(source, /dtgSurcharge: row\?\.dtgSurcharge \?\? "0\.00"/);
+  assert.match(
+    styles,
+    /\.production-pricing-fields\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/,
+  );
 });
 
 test("admin product eligibility excludes creator buy-only products", () => {
@@ -370,7 +381,8 @@ test("saving production pricing is isolated per public product", async () => {
     {
       shopifyProductId: "gid://shopify/Product/100",
       currency: "SEK",
-      embroidery: "50.00",
+      embroideryText: "50.00",
+      embroideryImage: "60.00",
       dtf: "30.00",
       dtg: "20.00",
     },
@@ -382,9 +394,29 @@ test("saving production pricing is isolated per public product", async () => {
     {
       shopifyProductId: "gid://shopify/Product/101",
       currency: "SEK",
-      embroidery: "5.00",
+      embroideryText: "5.00",
+      embroideryImage: "6.00",
       dtf: "3.00",
       dtg: "2.00",
+    },
+    client,
+    database,
+  );
+  const legacyRow = rows.get("gid://shopify/Product/100");
+  assert.ok(legacyRow);
+  rows.set("gid://shopify/Product/100", {
+    ...legacyRow,
+    embroiderySurcharge: parseSurchargeInput("77.00"),
+  });
+  await saveProductionPricing(
+    "shop.test",
+    {
+      shopifyProductId: "gid://shopify/Product/100",
+      currency: "SEK",
+      embroideryText: "70.00",
+      embroideryImage: "80.00",
+      dtf: "30.00",
+      dtg: "20.00",
     },
     client,
     database,
@@ -394,8 +426,12 @@ test("saving production pricing is isolated per public product", async () => {
   const secondRow = rows.get("gid://shopify/Product/101");
   assert.ok(firstRow);
   assert.ok(secondRow);
-  assert.equal(firstRow.embroiderySurcharge.toFixed(2), "50.00");
-  assert.equal(secondRow.embroiderySurcharge.toFixed(2), "5.00");
+  assert.equal(firstRow.embroiderySurcharge.toFixed(2), "77.00");
+  assert.equal(secondRow.embroiderySurcharge.toFixed(2), "0.00");
+  assert.equal(firstRow.embroideryTextSurcharge.toFixed(2), "70.00");
+  assert.equal(firstRow.embroideryImageSurcharge.toFixed(2), "80.00");
+  assert.equal(secondRow.embroideryTextSurcharge.toFixed(2), "5.00");
+  assert.equal(secondRow.embroideryImageSurcharge.toFixed(2), "6.00");
 });
 
 test("saving creator production pricing uses one shared creator key without product metafield sync", async () => {
@@ -594,7 +630,8 @@ test("admin save writes storefront pricing metafield after fee IDs are persisted
     {
       shopifyProductId: "gid://shopify/Product/100",
       currency: "SEK",
-      embroidery: "10.00",
+      embroideryText: "10.00",
+      embroideryImage: "15.00",
       dtf: "20.00",
       dtg: "30.00",
     },
@@ -606,15 +643,16 @@ test("admin save writes storefront pricing metafield after fee IDs are persisted
   assert.ok(row);
   assert.ok(metafieldPayload);
   assert.equal(result.status, "saved");
-  assert.equal(row.embroideryFeeVariantId, "gid://shopify/ProductVariant/9001");
+  assert.equal(row.embroideryFeeVariantId, null);
+  assert.equal(row.embroideryTextFeeVariantId, "gid://shopify/ProductVariant/9004");
+  assert.equal(row.embroideryImageFeeVariantId, "gid://shopify/ProductVariant/9005");
   assert.equal(row.dtfFeeVariantId, "gid://shopify/ProductVariant/9002");
   assert.equal(row.dtgFeeVariantId, "gid://shopify/ProductVariant/9003");
-  assert.equal(metafieldPayload.productionMethods[0].surchargeMinor, 1000);
-  assert.equal(metafieldPayload.productionMethods[0].feeVariantId, "9001");
-  assert.equal(
-    metafieldPayload.productionMethods[0].feeVariantGid,
-    "gid://shopify/ProductVariant/9001",
-  );
+  assert.equal(metafieldPayload.productionMethods[0].surchargeMinor, 0);
+  assert.equal(metafieldPayload.productionMethods[0].feeVariantId, undefined);
+  assert.equal(metafieldPayload.productionMethods[0].feeVariantGid, undefined);
+  assert.equal(metafieldPayload.embroideryPricing.TEXT_ONLY.surchargeMinor, 1000);
+  assert.equal(metafieldPayload.embroideryPricing.IMAGE_OR_LOGO.surchargeMinor, 1500);
   assert.equal(metafieldPayload.productionMethods[1].feeVariantId, "9002");
   assert.equal(metafieldPayload.productionMethods[2].feeVariantId, "9003");
 });
@@ -625,8 +663,8 @@ test("production fee sync uses supported productSet variant input and maps price
     shopKey: "shop.test",
     shopifyProductId: "gid://shopify/Product/100",
     embroiderySurcharge: parseSurchargeInput("10.00"),
-    embroideryTextSurcharge: parseSurchargeInput("10.00"),
-    embroideryImageSurcharge: parseSurchargeInput("10.00"),
+    embroideryTextSurcharge: parseSurchargeInput("11.00"),
+    embroideryImageSurcharge: parseSurchargeInput("12.00"),
     dtfSurcharge: parseSurchargeInput("20.00"),
     dtgSurcharge: parseSurchargeInput("30.00"),
     embroideryFeeVariantId: null,
@@ -688,7 +726,6 @@ test("production fee sync uses supported productSet variant input and maps price
             parentProductId: { value: pricing.shopifyProductId },
             variants: {
               nodes: [
-                { id: "gid://shopify/ProductVariant/9001", title: "Embroidery Production Fee" },
                 { id: "gid://shopify/ProductVariant/9004", title: "Embroidery Text Production Fee" },
                 { id: "gid://shopify/ProductVariant/9005", title: "Embroidery Image or Logo Production Fee" },
                 { id: "gid://shopify/ProductVariant/9002", title: "DTF Production Fee" },
@@ -702,17 +739,22 @@ test("production fee sync uses supported productSet variant input and maps price
     },
   };
 
-  const result = await syncProductionFeeMerchandise("shop.test", pricing, client, database);
+  const result = await syncProductionFeeMerchandise(
+    "shop.test",
+    pricing,
+    client,
+    database,
+    { includeLegacyGenericEmbroidery: false },
+  );
 
   assert.equal(result.synced, true);
   assert.ok(productSetInput);
   assert.deepEqual(
     productSetInput.variants.map((variant) => variant.price),
-    ["10.00", "10.00", "10.00", "20.00", "30.00"],
+    ["11.00", "12.00", "20.00", "30.00"],
   );
   assert.equal(productSetInput.variants.some((variant) => "requiresShipping" in variant), false);
   assert.deepEqual(productSetInput.variants.map((variant) => variant.inventoryPolicy), [
-    "CONTINUE",
     "CONTINUE",
     "CONTINUE",
     "CONTINUE",
@@ -723,9 +765,10 @@ test("production fee sync uses supported productSet variant input and maps price
     false,
     false,
     false,
-    false,
   ]);
-  assert.equal(result.pricing.embroideryFeeVariantId, "gid://shopify/ProductVariant/9001");
+  assert.equal(result.pricing.embroideryFeeVariantId, null);
+  assert.equal(result.pricing.embroideryTextFeeVariantId, "gid://shopify/ProductVariant/9004");
+  assert.equal(result.pricing.embroideryImageFeeVariantId, "gid://shopify/ProductVariant/9005");
   assert.equal(result.pricing.dtfFeeVariantId, "gid://shopify/ProductVariant/9002");
   assert.equal(result.pricing.dtgFeeVariantId, "gid://shopify/ProductVariant/9003");
 });
@@ -825,7 +868,6 @@ test("production fee sync keeps fee product active and published to Online Store
               parentProductId: { value: pricing.shopifyProductId },
               variants: {
                 nodes: [
-                  { id: "gid://shopify/ProductVariant/9001", title: "Embroidery Production Fee" },
                   { id: "gid://shopify/ProductVariant/9004", title: "Embroidery Text Production Fee" },
                   { id: "gid://shopify/ProductVariant/9005", title: "Embroidery Image or Logo Production Fee" },
                   { id: "gid://shopify/ProductVariant/9002", title: "DTF Production Fee" },
@@ -856,7 +898,13 @@ test("production fee sync keeps fee product active and published to Online Store
     },
   };
 
-  await syncProductionFeeMerchandise("shop.test", pricing, client, database);
+  await syncProductionFeeMerchandise(
+    "shop.test",
+    pricing,
+    client,
+    database,
+    { includeLegacyGenericEmbroidery: false },
+  );
 
   assert.ok(productSetInput);
   assert.equal(productSetInput.status, "ACTIVE");
@@ -966,7 +1014,8 @@ test("partial production fee failure keeps saved DB values", async () => {
     {
       shopifyProductId: "gid://shopify/Product/100",
       currency: "SEK",
-      embroidery: "10.00",
+      embroideryText: "10.00",
+      embroideryImage: "15.00",
       dtf: "20.00",
       dtg: "30.00",
     },
@@ -981,7 +1030,9 @@ test("partial production fee failure keeps saved DB values", async () => {
   assert.equal(result.productionFeeSynced, false);
   assert.match(result.errors.join(" "), /Production fee sync failed: Variable \$input invalid/);
   assert.match(result.errors.join(" "), /Production fee variant IDs missing/);
-  assert.equal(row.embroiderySurcharge.toFixed(2), "10.00");
+  assert.equal(row.embroiderySurcharge.toFixed(2), "0.00");
+  assert.equal(row.embroideryTextSurcharge.toFixed(2), "10.00");
+  assert.equal(row.embroideryImageSurcharge.toFixed(2), "15.00");
   assert.equal(row.dtfSurcharge.toFixed(2), "20.00");
   assert.equal(row.dtgSurcharge.toFixed(2), "30.00");
 });
@@ -1204,14 +1255,14 @@ test("production pricing bridge payload contains only trusted minor-unit values"
 
   assert.equal(payload.currency, "SEK");
   assert.equal(payload.productionMethods[0]?.id, "EMBROIDERY");
-  assert.equal(payload.productionMethods[0]?.surchargeMinor, 5000);
-  assert.equal(payload.embroideryPricing.TEXT_ONLY.surchargeMinor, 5000);
-  assert.equal(payload.embroideryPricing.IMAGE_OR_LOGO.surchargeMinor, 5000);
+  assert.equal(payload.productionMethods[0]?.surchargeMinor, 0);
+  assert.equal(payload.embroideryPricing.TEXT_ONLY.surchargeMinor, 0);
+  assert.equal(payload.embroideryPricing.IMAGE_OR_LOGO.surchargeMinor, 0);
   assert.deepEqual(payload.productionMethods.slice(1), [
     { id: "DTF", label: "DTF printing", surchargeMinor: 3000 },
     { id: "DTG", label: "DTG printing", surchargeMinor: 2000 },
   ]);
-  assert.equal(payload.productionMethodPricing.EMBROIDERY.surchargeMinor, 5000);
+  assert.equal(payload.productionMethodPricing.EMBROIDERY.surchargeMinor, 0);
 });
 
 test("creator buy-only products are excluded from production pricing cart prep", async () => {
@@ -1605,6 +1656,12 @@ test("storefront PitchPrint bridge exposes trusted product pricing config", () =
   assert.match(handoff, /embroiderySubtypes/);
   assert.match(handoff, /TEXT_ONLY/);
   assert.match(handoff, /IMAGE_OR_LOGO/);
+  assert.match(handoff, /PUBLIC_EMBROIDERY_TEXT_PRICE/);
+  assert.match(handoff, /PUBLIC_EMBROIDERY_IMAGE_PRICE/);
+  assert.match(handoff, /PUBLIC_DTF_PRICE/);
+  assert.match(handoff, /PUBLIC_DTG_PRICE/);
+  assert.match(handoff, /PUBLIC_GENERIC_EMBROIDERY_PRICE_USED: false/);
+  assert.match(handoff, /const isEmbroidery = code === 'EMBROIDERY'/);
   assert.match(handoff, /maxWidthCm: 8/);
   assert.match(handoff, /maxHeightCm: 40/);
   assert.doesNotMatch(handoff, /CUSTOMHOUSE_PP_PRODUCTION_METHODS/);
@@ -1688,6 +1745,10 @@ test("storefront bridge maps saved 10 20 30 values to PitchPrint minor-unit payl
     ],
     pricing: {
       embroideryFeeVariantId: "gid://shopify/ProductVariant/9001",
+      embroideryTextSurcharge: parseSurchargeInput("40"),
+      embroideryImageSurcharge: parseSurchargeInput("50"),
+      embroideryTextFeeVariantId: "gid://shopify/ProductVariant/9004",
+      embroideryImageFeeVariantId: "gid://shopify/ProductVariant/9005",
       dtfFeeVariantId: "gid://shopify/ProductVariant/9002",
       dtgFeeVariantId: "gid://shopify/ProductVariant/9003",
     },
@@ -1705,9 +1766,9 @@ test("storefront bridge maps saved 10 20 30 values to PitchPrint minor-unit payl
     {
       id: "embroidery",
       label: "Embroidery",
-      surchargeMinor: 1000,
-      feeVariantId: "9001",
-      feeVariantGid: "gid://shopify/ProductVariant/9001",
+      surchargeMinor: 0,
+      feeVariantId: undefined,
+      feeVariantGid: undefined,
     },
     {
       id: "dtf",

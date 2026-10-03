@@ -416,13 +416,18 @@
       const surchargeMinor = Number(configured?.surchargeMinor || 0);
       const feeVariantGid = String(configured?.feeVariantGid || configured?.productionFeeVariantId || configured?.shopifyFeeVariantId || '').trim();
       const feeVariantId = String(configured?.feeVariantId || normalizeVariantId(feeVariantGid)).trim();
+      const isEmbroidery = code === 'EMBROIDERY';
       return {
         id: detail.id,
         label: detail.label,
-        surchargeMinor: Number.isFinite(surchargeMinor) && surchargeMinor > 0 ? Math.round(surchargeMinor) : 0,
-        ...(feeVariantId ? { feeVariantId } : {}),
-        ...(feeVariantGid ? { feeVariantGid } : {}),
-        ...(code === 'EMBROIDERY' ? { embroiderySubtypes } : {}),
+        surchargeMinor: isEmbroidery
+          ? 0
+          : Number.isFinite(surchargeMinor) && surchargeMinor > 0
+            ? Math.round(surchargeMinor)
+            : 0,
+        ...(!isEmbroidery && feeVariantId ? { feeVariantId } : {}),
+        ...(!isEmbroidery && feeVariantGid ? { feeVariantGid } : {}),
+        ...(isEmbroidery ? { embroiderySubtypes } : {}),
         maxWidthCm: detail.maxWidthCm,
         maxHeightCm: detail.maxHeightCm,
       };
@@ -542,6 +547,9 @@
     };
     if (state.loggedRevision !== config.revision) {
       state.loggedRevision = config.revision;
+      const embroideryRates = config.embroideryPricing || {};
+      const dtfRate = config.productionMethodPricing?.DTF || {};
+      const dtgRate = config.productionMethodPricing?.DTG || {};
       log('Public PitchPrint config ready', {
         PUBLIC_CONFIG_KEYS: Object.keys(config),
         PUBLIC_PRODUCT_ID: config.productId,
@@ -549,6 +557,11 @@
         PUBLIC_OPTION_NAMES: config.optionNames,
         PUBLIC_COLORS: config.colors,
         PUBLIC_SIZES: config.sizes,
+        PUBLIC_EMBROIDERY_TEXT_PRICE: Number(embroideryRates.TEXT_ONLY?.surchargeMinor || 0),
+        PUBLIC_EMBROIDERY_IMAGE_PRICE: Number(embroideryRates.IMAGE_OR_LOGO?.surchargeMinor || 0),
+        PUBLIC_DTF_PRICE: Number(dtfRate.surchargeMinor || 0),
+        PUBLIC_DTG_PRICE: Number(dtgRate.surchargeMinor || 0),
+        PUBLIC_GENERIC_EMBROIDERY_PRICE_USED: false,
         PUBLIC_PRODUCTION_METHODS: config.productionMethods.map((method) => ({
           id: method.id,
           surchargeMinor: method.surchargeMinor,

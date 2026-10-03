@@ -77,11 +77,19 @@ function moneyRange(product: ProductRow) {
   return `${min.amount} - ${max.amount} ${min.currencyCode}`;
 }
 
-function rowDefaults(row?: PricingDefaults): PricingDefaults {
+function rowDefaults(
+  row?: PricingDefaults,
+  options: { allowLegacyEmbroideryFallback?: boolean } = {},
+): PricingDefaults {
+  const legacyEmbroideryFallback = options.allowLegacyEmbroideryFallback
+    ? row?.embroiderySurcharge
+    : undefined;
   return {
     embroiderySurcharge: row?.embroiderySurcharge ?? "0.00",
-    embroideryTextSurcharge: row?.embroideryTextSurcharge ?? row?.embroiderySurcharge ?? "0.00",
-    embroideryImageSurcharge: row?.embroideryImageSurcharge ?? row?.embroiderySurcharge ?? "0.00",
+    embroideryTextSurcharge:
+      row?.embroideryTextSurcharge ?? legacyEmbroideryFallback ?? "0.00",
+    embroideryImageSurcharge:
+      row?.embroideryImageSurcharge ?? legacyEmbroideryFallback ?? "0.00",
     dtfSurcharge: row?.dtfSurcharge ?? "0.00",
     dtgSurcharge: row?.dtgSurcharge ?? "0.00",
     embroideryFeeVariantId: row?.embroideryFeeVariantId ?? null,
@@ -231,7 +239,6 @@ export async function action({ request }: ActionFunctionArgs) {
       {
         shopifyProductId: productId,
         currency,
-        embroidery: form.get("embroiderySurcharge"),
         embroideryText: form.get("embroideryTextSurcharge"),
         embroideryImage: form.get("embroideryImageSurcharge"),
         dtf: form.get("dtfSurcharge"),
@@ -270,7 +277,9 @@ export default function Products() {
   const excludedProducts = products.filter(
     (product) => !isPublicCustomizableProduct(product),
   );
-  const creatorPricingDefaults = rowDefaults(creatorPricing ?? undefined);
+  const creatorPricingDefaults = rowDefaults(creatorPricing ?? undefined, {
+    allowLegacyEmbroideryFallback: true,
+  });
   const creatorCurrency =
     eligibleProducts[0]?.priceRangeV2.minVariantPrice.currencyCode ??
     products[0]?.priceRangeV2.minVariantPrice.currencyCode ??
@@ -404,17 +413,6 @@ export default function Products() {
                       />
                       <input type="hidden" name="currency" value={currency} />
                       <div className="production-pricing-fields">
-                        <label>
-                          <span>Embroidery</span>
-                          <input
-                            name="embroiderySurcharge"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            defaultValue={pricing.embroiderySurcharge}
-                          />
-                          <small>{currency}</small>
-                        </label>
                         <label>
                           <span>Embroidery — Text only</span>
                           <input name="embroideryTextSurcharge" type="number" min="0" step="0.01" defaultValue={pricing.embroideryTextSurcharge} />

@@ -57,14 +57,20 @@ export type EnabledProductionMethod = {
 export type SaveProductionPricingInput = {
   shopifyProductId: string;
   currency: string;
-  embroidery: unknown;
-  embroideryText?: unknown;
-  embroideryImage?: unknown;
+  embroideryText: unknown;
+  embroideryImage: unknown;
   dtf: unknown;
   dtg: unknown;
 };
 
-export type SaveCreatorProductionPricingInput = Omit<SaveProductionPricingInput, "shopifyProductId">;
+export type SaveCreatorProductionPricingInput = Omit<
+  SaveProductionPricingInput,
+  "shopifyProductId" | "embroideryText" | "embroideryImage"
+> & {
+  embroidery: unknown;
+  embroideryText?: unknown;
+  embroideryImage?: unknown;
+};
 
 export type ProductionPricingSyncState = {
   saved: boolean;
@@ -312,28 +318,30 @@ export function productionPricingBridgePayload(input: {
   const embroideryPricing: Record<EmbroiderySubtype, ProductionPricingBridgeRate> = {
     TEXT_ONLY: bridgeRate(
       "Embroidery — Text only",
-      pricing.embroideryTextSurcharge ??
-        byMethod.get("EMBROIDERY")?.surcharge ??
-        new Prisma.Decimal(0),
+      pricing.embroideryTextSurcharge ?? new Prisma.Decimal(0),
       pricing.embroideryTextFeeVariantId,
     ),
     IMAGE_OR_LOGO: bridgeRate(
       "Embroidery — Image / Logo",
-      pricing.embroideryImageSurcharge ??
-        byMethod.get("EMBROIDERY")?.surcharge ??
-        new Prisma.Decimal(0),
+      pricing.embroideryImageSurcharge ?? new Prisma.Decimal(0),
       pricing.embroideryImageFeeVariantId,
     ),
   };
   const productionMethods = PRODUCTION_METHODS.map((method) => {
     const config = byMethod.get(method);
     const label = METHOD_LABELS[method];
-    const feeVariantGid = feeVariantIdForMethod(pricing, method) ?? "";
+    const feeVariantGid =
+      method === "EMBROIDERY"
+        ? ""
+        : feeVariantIdForMethod(pricing, method) ?? "";
     const feeVariantId = numericShopifyId(feeVariantGid);
     const payload: ProductionPricingBridgeMethod = {
       id: method,
       label,
-      surchargeMinor: Number(decimalToMinor(config?.surcharge ?? new Prisma.Decimal(0))),
+      surchargeMinor:
+        method === "EMBROIDERY"
+          ? 0
+          : Number(decimalToMinor(config?.surcharge ?? new Prisma.Decimal(0))),
       ...(method === "EMBROIDERY" ? { embroiderySubtypes: embroideryPricing } : {}),
     };
     if (feeVariantId) payload.feeVariantId = feeVariantId;
@@ -459,7 +467,10 @@ export async function syncProductionFeeMerchandise(
   pricing: PublicProductProductionPricingRecord,
   client: ShopifyGraphqlClient,
   database: ProductionPricingDb = db as unknown as ProductionPricingDb,
+  options: { includeLegacyGenericEmbroidery?: boolean } = {},
 ) {
+  const includeLegacyGenericEmbroidery =
+    options.includeLegacyGenericEmbroidery !== false;
   const existing = await client.request<{
     products: { nodes: ProductionFeeProductNode[] };
   }>(
@@ -518,7 +529,9 @@ export async function syncProductionFeeMerchandise(
           {
             name: FEE_PRODUCT_OPTION_NAME,
             values: [
-              { name: "Embroidery Production Fee" },
+              ...(includeLegacyGenericEmbroidery
+                ? [{ name: "Embroidery Production Fee" }]
+                : []),
               { name: "Embroidery Text Production Fee" },
               { name: "Embroidery Image or Logo Production Fee" },
               { name: "DTF Production Fee" },
@@ -531,7 +544,7 @@ export async function syncProductionFeeMerchandise(
             optionValues: [
               { optionName: FEE_PRODUCT_OPTION_NAME, name: "Embroidery Text Production Fee" },
             ],
-            price: (pricing.embroideryTextSurcharge ?? pricing.embroiderySurcharge).toFixed(2),
+            price: pricing.embroideryTextSurcharge.toFixed(2),
             taxable: true,
             inventoryPolicy: "CONTINUE",
             inventoryItem: { tracked: false },
@@ -540,20 +553,27 @@ export async function syncProductionFeeMerchandise(
             optionValues: [
               { optionName: FEE_PRODUCT_OPTION_NAME, name: "Embroidery Image or Logo Production Fee" },
             ],
-            price: (pricing.embroideryImageSurcharge ?? pricing.embroiderySurcharge).toFixed(2),
+            price: pricing.embroideryImageSurcharge.toFixed(2),
             taxable: true,
             inventoryPolicy: "CONTINUE",
             inventoryItem: { tracked: false },
           },
-          {
-            optionValues: [
-              { optionName: FEE_PRODUCT_OPTION_NAME, name: "Embroidery Production Fee" },
-            ],
-            price: pricing.embroiderySurcharge.toFixed(2),
-            taxable: true,
-            inventoryPolicy: "CONTINUE",
-            inventoryItem: { tracked: false },
-          },
+          ...(includeLegacyGenericEmbroidery
+            ? [
+                {
+                  optionValues: [
+                    {
+                      optionName: FEE_PRODUCT_OPTION_NAME,
+                      name: "Embroidery Production Fee",
+                    },
+                  ],
+                  price: pricing.embroiderySurcharge.toFixed(2),
+                  taxable: true,
+                  inventoryPolicy: "CONTINUE",
+                  inventoryItem: { tracked: false },
+                },
+              ]
+            : []),
           {
             optionValues: [
               { optionName: FEE_PRODUCT_OPTION_NAME, name: "DTF Production Fee" },
@@ -619,7 +639,13 @@ export async function syncProductionFeeMerchandise(
   const embroideryImageFeeVariantId = variantByTitle.get("Embroidery Image or Logo Production Fee");
   const dtfFeeVariantId = variantByTitle.get("DTF Production Fee");
   const dtgFeeVariantId = variantByTitle.get("DTG Production Fee");
-  if (!embroideryFeeVariantId || !embroideryTextFeeVariantId || !embroideryImageFeeVariantId || !dtfFeeVariantId || !dtgFeeVariantId) {
+  if (
+    (includeLegacyGenericEmbroidery && !embroideryFeeVariantId) ||
+    !embroideryTextFeeVariantId ||
+    !embroideryImageFeeVariantId ||
+    !dtfFeeVariantId ||
+    !dtgFeeVariantId
+  ) {
     throw new DomainError(
       "PRODUCTION_FEE_VARIANTS_MISSING",
       "Production fee variants could not be synced.",
@@ -630,7 +656,7 @@ export async function syncProductionFeeMerchandise(
   const updated = await database.publicProductProductionPricing.update({
     where: { id: pricing.id },
     data: {
-      embroideryFeeVariantId,
+      ...(includeLegacyGenericEmbroidery ? { embroideryFeeVariantId } : {}),
       embroideryTextFeeVariantId,
       embroideryImageFeeVariantId,
       dtfFeeVariantId,
@@ -745,9 +771,8 @@ export async function saveProductionPricing(
   client: ShopifyGraphqlClient,
   database: ProductionPricingDb = db as unknown as ProductionPricingDb,
 ): Promise<ProductionPricingSyncState> {
-  const embroidery = parseSurchargeInput(input.embroidery);
-  const embroideryText = parseSurchargeInput(input.embroideryText ?? input.embroidery);
-  const embroideryImage = parseSurchargeInput(input.embroideryImage ?? input.embroidery);
+  const embroideryText = parseSurchargeInput(input.embroideryText);
+  const embroideryImage = parseSurchargeInput(input.embroideryImage);
   const dtf = parseSurchargeInput(input.dtf);
   const dtg = parseSurchargeInput(input.dtg);
   const settings = await methodSettings(shop, database);
@@ -756,7 +781,7 @@ export async function saveProductionPricing(
     label: setting.label,
     surcharge:
       setting.method === "EMBROIDERY"
-        ? embroidery
+        ? new Prisma.Decimal(0)
         : setting.method === "DTF"
           ? dtf
           : dtg,
@@ -771,14 +796,13 @@ export async function saveProductionPricing(
     create: {
       shopKey: shop,
       shopifyProductId: input.shopifyProductId,
-      embroiderySurcharge: embroidery,
+      embroiderySurcharge: new Prisma.Decimal(0),
       embroideryTextSurcharge: embroideryText,
       embroideryImageSurcharge: embroideryImage,
       dtfSurcharge: dtf,
       dtgSurcharge: dtg,
     },
     update: {
-      embroiderySurcharge: embroidery,
       embroideryTextSurcharge: embroideryText,
       embroideryImageSurcharge: embroideryImage,
       dtfSurcharge: dtf,
@@ -790,7 +814,13 @@ export async function saveProductionPricing(
   let shopifySynced = false;
   let productionFeeSynced = false;
   try {
-    const feeSync = await syncProductionFeeMerchandise(shop, pricing, client, database);
+    const feeSync = await syncProductionFeeMerchandise(
+      shop,
+      pricing,
+      client,
+      database,
+      { includeLegacyGenericEmbroidery: false },
+    );
     pricing = feeSync.pricing;
     productionFeeSynced = feeSync.synced;
   } catch (error) {
