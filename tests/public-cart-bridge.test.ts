@@ -519,3 +519,66 @@ test("new public design saves first, then adds real PitchPrint identity to cart"
   ]);
   assert.equal(harness.location.href, "/cart");
 });
+
+test("public cart artwork summary includes only the claimed designed placements", async () => {
+  const harness = bridgeHarness();
+  const source = {
+    postMessage(message: Record<string, unknown>) {
+      harness.acknowledgements.push(message);
+    },
+  };
+
+  harness.dispatchMessage({
+    origin: "https://pitchprint.io",
+    source,
+    data: {
+      type: "CUSTOMHOUSE_PP_CART_READY",
+      payload: {
+        handoffId: "handoff_placement_123",
+        projectId: "__CUSTOMHOUSE_PUBLIC_SAVE_PENDING__",
+        designId: "base_design_123",
+        productionMethod: "EMBROIDERY",
+        artworkType: "TEXT_ONLY",
+        embroiderySubtype: "TEXT_ONLY",
+        placementCount: 1,
+        placements: [
+          { side: "front", hasArtwork: true },
+          { side: "back", hasArtwork: false },
+          { side: "side", hasArtwork: false },
+        ],
+        totalQuantity: 1,
+        copyrightConfirmed: true,
+        nonReturnConfirmed: true,
+        artworkSummary: {
+          hasText: true,
+          hasImage: false,
+          printableObjectCount: 1,
+          objectTypes: ["text"],
+        },
+        variantSelections: [
+          { variantId: "101", color: "Green", size: "M", quantity: 1 },
+        ],
+      },
+    },
+  });
+  await harness.flush();
+
+  harness.emitClient("project-saved", {
+    projectId: "project_placement_123",
+    designId: "design_placement_123",
+    source: { designId: "design_placement_123" },
+  });
+  await harness.flush();
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(harness.requests[0]?.payload.artworkSource)),
+    {
+      pages: [
+        {
+          name: "front",
+          objects: [{ type: "text" }],
+        },
+      ],
+    },
+  );
+});

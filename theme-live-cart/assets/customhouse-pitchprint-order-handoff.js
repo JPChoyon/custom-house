@@ -610,6 +610,32 @@
         : [];
     if (!summary || typeof summary !== 'object' || !placements.length) return null;
 
+    const placementCount = firstPositiveInteger(
+      value?.placementCount,
+      source?.placementCount,
+      value?.production?.placementCount,
+      source?.production?.placementCount
+    );
+    const explicitlyDesignedPlacements = placements.filter((placement) => {
+      if (!placement || typeof placement !== 'object') return false;
+      const record = placement;
+      return record.hasArtwork === true ||
+        record.designed === true ||
+        record.isDesigned === true ||
+        firstPositiveInteger(
+          record.printableObjectCount,
+          record.artworkObjectCount,
+          record.objectCount
+        ) > 0;
+    });
+    const placementCandidates = explicitlyDesignedPlacements.length
+      ? explicitlyDesignedPlacements
+      : placements;
+    if (placementCount && placementCandidates.length < placementCount) return null;
+    const designedPlacements = placementCount
+      ? placementCandidates.slice(0, placementCount)
+      : placementCandidates;
+
     const hasText = summary.hasText === true;
     const hasImage = summary.hasImage === true;
     const printableObjectCount = Number(summary.printableObjectCount);
@@ -621,7 +647,7 @@
     if (hasText) objects.push({ type: 'text' });
     if (hasImage) objects.push({ type: 'image', isUserArtwork: true });
     return {
-      pages: placements.map((placement, index) => {
+      pages: designedPlacements.map((placement, index) => {
         const record = placement && typeof placement === 'object' ? placement : {};
         const name = String(
           typeof placement === 'string'
