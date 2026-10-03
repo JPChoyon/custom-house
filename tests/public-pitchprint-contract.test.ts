@@ -4,6 +4,16 @@ import test from "node:test";
 import vm from "node:vm";
 
 type PublicContractApi = {
+  buildCartSelectionContract(input: {
+    value?: Record<string, unknown>;
+    source?: Record<string, unknown>;
+    snapshot?: Record<string, unknown> | null;
+    config?: Record<string, unknown>;
+  }): {
+    selections: Array<Record<string, unknown>>;
+    selectionCount: number;
+    totalQuantity: number;
+  };
   buildVariantMatrix(input: {
     variants: Array<Record<string, unknown>>;
     optionNames: string[];
@@ -115,6 +125,44 @@ test("public config variant matrix preserves every Shopify variant and semantic 
         currency: "SEK",
       },
     ],
+  );
+});
+
+test("public cart selections do not double count mirrored source payloads", () => {
+  const api = loadContract();
+  const config = {
+    variants: api.buildVariantMatrix({
+      variants,
+      optionNames: ["Colour", "Size"],
+      colorPosition: 1,
+      sizePosition: 2,
+      currency: "SEK",
+    }),
+  };
+
+  const contract = api.buildCartSelectionContract({
+    config,
+    value: {
+      variantSelections: [{ variantId: "102", color: "Green", size: "M", quantity: 1 }],
+      source: {
+        variantSelections: [{ variantId: "102", color: "Green", size: "M", quantity: 1 }],
+      },
+    },
+    source: {
+      variantSelections: [{ variantId: "102", color: "Green", size: "M", quantity: 1 }],
+    },
+  });
+
+  assert.equal(contract.selectionCount, 1);
+  assert.equal(contract.totalQuantity, 1);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(contract.selections.map(({ variantId, color, size, quantity }) => ({
+      variantId,
+      color,
+      size,
+      quantity,
+    })))),
+    [{ variantId: "102", color: "Green", size: "M", quantity: 1 }],
   );
 });
 

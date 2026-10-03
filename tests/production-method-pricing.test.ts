@@ -1859,7 +1859,9 @@ test("theme cart keeps production fee lines paired with customized base lines", 
   assert.match(cartItems, /cart_update_url/);
   assert.match(customCart, /Printing method/);
   assert.match(customCart, /Printing charge/);
-  assert.match(customCart, /customhouse-cart__item--production-fee/);
+  assert.match(customCart, /customhouse_visible_item_count/);
+  assert.match(customCart, /unless is_customhouse_production_fee/);
+  assert.doesNotMatch(customCart, /customhouse-cart__item--production-fee/);
   assert.match(drawerCart, /Printing method/);
   assert.match(drawerCart, /Printing charge/);
   assert.match(drawerCart, /cart-items__table-row--production-fee/);

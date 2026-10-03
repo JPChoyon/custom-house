@@ -172,6 +172,21 @@
     };
   };
 
+  const explicitSelectionArray = (value) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    const explicitKeys = [
+      'variantSelections',
+      'selectedVariants',
+      'selectedVariantSelections',
+      'cartSelections',
+      'selections',
+    ];
+    for (const key of explicitKeys) {
+      if (Array.isArray(value[key])) return value[key];
+    }
+    return null;
+  };
+
   const collectCartSelections = (value, config, depth = 0, seen = new Set()) => {
     if (!value || typeof value !== 'object' || depth > 5 || seen.has(value)) return [];
     seen.add(value);
@@ -181,8 +196,11 @@
         ? direct
         : value.flatMap((item) => collectCartSelections(item, config, depth + 1, seen));
     }
+    const explicit = explicitSelectionArray(value);
+    if (explicit) return collectCartSelections(explicit, config, depth + 1, seen);
     return Object.entries(value).flatMap(([key, nestedValue]) => {
       const keyText = text(key).toLowerCase();
+      if (keyText === 'source') return [];
       if (Array.isArray(nestedValue) && /selection|line|item|variant|colou?r|size/.test(keyText)) {
         return collectCartSelections(nestedValue, config, depth + 1, seen);
       }
