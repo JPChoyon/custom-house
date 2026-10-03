@@ -1985,11 +1985,16 @@ test("client-final dashboard controls reuse existing flows and preserve safe sta
   assert.match(block, /data-dashboard-tab-target="add-product"[^>]*>Create Product</);
   assert.match(block, /data-dashboard-notification-toggle/);
   assert.match(block, /data-dashboard-notification-panel/);
+  assert.match(block, /data-dashboard-notification-list/);
   assert.match(block, /data-has-unread="false"/);
   assert.match(script, /function bindCreatorNotifications\(root\)/);
+  assert.match(script, /function renderCreatorNotifications\(root\)/);
+  assert.match(script, /Creator account approved/);
+  assert.match(script, /Published and available in your CustomHouse collection/);
   assert.match(script, /document\.addEventListener\("click"/);
   assert.match(script, /event\.key === "Escape"/);
   assert.match(styles, /\[data-dashboard-notification-panel\][\s\S]*z-index: 1000/);
+  assert.match(styles, /\.customhouse-notification-item[\s\S]*grid-template-columns: auto minmax\(0, 1fr\)/);
   assert.match(script, /root\.__customHouseBannerDraft/);
   assert.match(script, /bannerDraft\.bannerImageUrl = URL\.createObjectURL\(file\)/);
   assert.match(block, /Danger Zone/);

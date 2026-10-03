@@ -388,6 +388,7 @@ function dashboardState(root) {
     designFilter: "ACTIVE",
     designSearch: "",
     designSort: "updated",
+    creatorView: null,
   };
   return root.__customHouseDashboardState;
 }
@@ -475,6 +476,7 @@ function updateCreatorProductInState(root, product) {
     state.creatorProducts,
   );
   renderRecentSubmissionsFromProducts(root, state.creatorProducts);
+  renderCreatorNotifications(root);
 }
 
 function removeCreatorProductFromState(root, productId) {
@@ -490,6 +492,7 @@ function removeCreatorProductFromState(root, productId) {
     state.creatorProducts,
   );
   renderRecentSubmissionsFromProducts(root, state.creatorProducts);
+  renderCreatorNotifications(root);
 }
 
 function creatorProductById(root, productId) {
@@ -908,6 +911,7 @@ async function refreshCreatorProducts(profile) {
     }
     renderCreatorProducts(list, empty, products);
     renderRecentSubmissionsFromProducts(root, products);
+    if (root) renderCreatorNotifications(root);
     if (message && message.dataset.persist !== "true") message.textContent = "";
   } catch {
     if (message) message.textContent = "Creator Products could not be loaded.";
@@ -3463,6 +3467,91 @@ function bindCreatorNotifications(root) {
   });
 }
 
+function creatorNotificationTimestamp(product) {
+  const status = String(product?.status || "").toUpperCase();
+  return (
+    (status === "PUBLISHED" && product.publishedAt) ||
+    (status === "PENDING" && product.submittedAt) ||
+    product?.updatedAt ||
+    product?.createdAt ||
+    null
+  );
+}
+
+function creatorProductNotification(product) {
+  const status = String(product?.status || "DRAFT").toUpperCase();
+  const title = product?.title || product?.baseProductTitle || "Creator product";
+  const label = creatorProductStatusLabel(status);
+  const timestamp = creatorNotificationTimestamp(product);
+  const messages = {
+    DRAFT: "Draft saved. Finish the design and submit it for review when ready.",
+    PENDING: "Submitted for admin review. We’ll update you when a decision is made.",
+    REJECTED: "Needs changes. Open the product to review feedback and resubmit.",
+    PUBLISHED: "Published and available in your CustomHouse collection.",
+    ARCHIVED: "Archived. Restore it if you want to continue this product.",
+  };
+  return {
+    key: `product-${product?.id || title}-${status}`,
+    title: `${label}: ${title}`,
+    body: messages[status] || "Product status updated.",
+    time: timestamp ? designRelativeDate({ updatedAt: timestamp }) : "Updated recently",
+    sortTime: new Date(timestamp || product?.updatedAt || product?.createdAt || 0).getTime(),
+    tone: status.toLowerCase(),
+  };
+}
+
+function buildCreatorNotifications(root) {
+  const state = dashboardState(root);
+  const creator = state.creatorView || {};
+  const notifications = [];
+  if (String(creator.status || "").toUpperCase() === "APPROVED") {
+    notifications.push({
+      key: "creator-approved",
+      title: "Creator account approved",
+      body: "You can create products, publish approved designs, and track earnings from your dashboard.",
+      time: creator.approvedAt ? `Approved ${formatDate(creator.approvedAt)}` : "Ready now",
+      sortTime: new Date(creator.approvedAt || creator.updatedAt || Date.now()).getTime(),
+      tone: "approved",
+    });
+  }
+  (state.creatorProducts || [])
+    .map(creatorProductNotification)
+    .sort((a, b) => b.sortTime - a.sortTime)
+    .slice(0, 4)
+    .forEach((item) => notifications.push(item));
+  return notifications.slice(0, 5);
+}
+
+function renderCreatorNotifications(root) {
+  const wrap = root.querySelector("[data-dashboard-notifications]");
+  const list = wrap?.querySelector("[data-dashboard-notification-list]");
+  const empty = wrap?.querySelector("[data-dashboard-notification-empty]");
+  const toggle = wrap?.querySelector("[data-dashboard-notification-toggle]");
+  if (!wrap || !list || !empty) return;
+  const notifications = buildCreatorNotifications(root);
+  list.replaceChildren();
+  empty.hidden = notifications.length > 0;
+  if (toggle) toggle.dataset.hasUnread = notifications.length > 0 ? "true" : "false";
+  notifications.forEach((item) => {
+    const article = document.createElement("article");
+    article.className = "customhouse-notification-item";
+    article.dataset.notificationTone = item.tone || "neutral";
+    const marker = document.createElement("span");
+    marker.className = "customhouse-notification-item__marker";
+    marker.setAttribute("aria-hidden", "true");
+    const content = document.createElement("div");
+    const title = document.createElement("strong");
+    const body = document.createElement("p");
+    const time = document.createElement("small");
+    title.textContent = item.title;
+    body.textContent = item.body;
+    time.textContent = item.time;
+    content.append(title, body, time);
+    article.append(marker, content);
+    list.append(article);
+  });
+}
+
 function collectionBannerData(data = {}) {
   const collection = data.collection || {};
   return {
@@ -4864,10 +4953,16 @@ function renderDashboard(root, view, refreshDashboard) {
     ].includes(view.state);
   }
 
+  dashboardState(root).creatorView = view.data || { status: view.state };
   const profile = root.querySelector("[data-dashboard-profile]");
   if (!profile) return;
   profile.hidden = view.state !== "APPROVED";
-  if (view.state !== "APPROVED") return;
+  if (view.state !== "APPROVED") {
+    renderCreatorNotifications(root);
+    return;
+  }
+  dashboardState(root).creatorView = view.data;
+  renderCreatorNotifications(root);
   const displayName =
     view.data.displayName ||
     view.data.legalName ||

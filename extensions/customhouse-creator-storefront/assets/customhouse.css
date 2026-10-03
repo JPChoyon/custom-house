@@ -11141,6 +11141,7 @@ body:has([data-customhouse-dashboard]) {
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 12px;
   background: #111;
+  color: #fff;
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
 }
 
@@ -11157,6 +11158,66 @@ body:has([data-customhouse-dashboard]) {
   color: inherit;
   font-size: 1.4rem;
   cursor: pointer;
+}
+
+.customhouse-notification-list {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.8rem;
+}
+
+.customhouse-notification-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(139, 92, 246, 0.34);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.18), rgba(15, 23, 42, 0.94));
+}
+
+.customhouse-notification-item__marker {
+  width: 10px;
+  height: 10px;
+  margin-top: 0.3rem;
+  border-radius: 999px;
+  background: #c8ff00;
+  box-shadow: 0 0 16px rgba(200, 255, 0, 0.6);
+}
+
+.customhouse-notification-item strong,
+.customhouse-notification-item p,
+.customhouse-notification-item small,
+.customhouse-notification-empty {
+  margin: 0;
+}
+
+.customhouse-notification-item strong {
+  display: block;
+  color: #fff;
+  font-size: 0.86rem;
+  line-height: 1.25;
+}
+
+.customhouse-notification-item p {
+  margin-top: 0.22rem;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.customhouse-notification-item small {
+  display: block;
+  margin-top: 0.34rem;
+  color: #c8ff00;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.customhouse-notification-empty {
+  margin-top: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.84rem;
 }
 
 .customhouse-my-designs-heading > button,
