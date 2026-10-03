@@ -248,7 +248,9 @@ function bridgeHarness(): BridgeHarness {
     }
   }
 
-  const windowObject: Record<string, any> = {
+  const windowObject: Record<string, unknown> & {
+    __customHousePitchPrintOrderHandoffState?: { snapshot: unknown };
+  } = {
     location,
     Shopify: { routes: { root: "/" } },
     addEventListener(type: string, listener: (event: Record<string, unknown>) => void) {
@@ -264,7 +266,7 @@ function bridgeHarness(): BridgeHarness {
     },
     addEventListener() {},
   };
-  const sandbox: Record<string, any> = {
+  const sandbox: Record<string, unknown> = {
     window: windowObject,
     document: documentObject,
     XMLHttpRequest: FakeXmlHttpRequest,
@@ -288,7 +290,7 @@ function bridgeHarness(): BridgeHarness {
     readFileSync("theme-live-cart/assets/customhouse-pitchprint-order-handoff.js", "utf8"),
     sandbox,
   );
-  windowObject.__customHousePitchPrintOrderHandoffState.snapshot = {
+  windowObject.__customHousePitchPrintOrderHandoffState!.snapshot = {
     root,
     form,
     variantId: 0,
