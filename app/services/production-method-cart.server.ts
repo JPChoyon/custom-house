@@ -557,3 +557,17 @@ export async function preparePublicProductionCart(
     totals,
   };
 }
+
+export function jsonSafePublicProductionCart(
+  cart: Awaited<ReturnType<typeof preparePublicProductionCart>>,
+) {
+  return {
+    ...cart,
+    totals: {
+      ...cart.totals,
+      productSubtotalMinor: Number(cart.totals.productSubtotalMinor),
+      productionSurchargeMinor: Number(cart.totals.productionSurchargeMinor),
+      totalMinor: Number(cart.totals.totalMinor),
+    },
+  };
+}

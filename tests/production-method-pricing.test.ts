@@ -22,6 +22,7 @@ import {
 
 import {
   calculateTrustedProductionTotal,
+  jsonSafePublicProductionCart,
   preparePublicProductionCart,
 } from "../app/services/production-method-cart.server.ts";
 
@@ -1221,6 +1222,31 @@ test("trusted cart prep ignores browser price tampering", async () => {
   assert.equal(cart.items[0]?.id, "1");
   assert.equal(cart.items[1]?.id, "9004");
   assert.equal(cart.items[1]?.quantity, 1);
+});
+
+test("public production cart response payload is JSON serializable", async () => {
+  const cart = await preparePublicProductionCart(
+    "shop.test",
+    publicCartInput({
+      shopifyProductId: "gid://shopify/Product/100",
+      pitchprintProjectId: "pp_123",
+      productionMethod: "EMBROIDERY",
+      selections: [
+        { variantId: "gid://shopify/ProductVariant/1", quantity: 1 },
+      ],
+    }),
+    fakeProductClient,
+    fakePricingDb,
+  );
+  const payload = {
+    items: cart.items,
+    cart: jsonSafePublicProductionCart(cart),
+  };
+
+  assert.doesNotThrow(() => JSON.stringify(payload));
+  assert.equal(payload.cart.totals.productSubtotalMinor, 10000);
+  assert.equal(payload.cart.totals.productionSurchargeMinor, 5500);
+  assert.equal(payload.cart.totals.totalMinor, 15500);
 });
 
 test("trusted cart prep accepts canonical global customizable PitchPrint products", async () => {
