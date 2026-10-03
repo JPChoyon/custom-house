@@ -747,6 +747,8 @@ function renderCreatorProducts(list, empty, products) {
   list.replaceChildren();
   const visibleProducts = filterCreatorProducts(products, state);
   empty.hidden = products.length > 0;
+  const headerCreateButton = root?.querySelector("[data-dashboard-my-products-create]");
+  if (headerCreateButton) headerCreateButton.hidden = products.length === 0;
   if (products.length > 0 && !visibleProducts.length) {
     const item = document.createElement("li");
     item.className = "ch-designs__empty-result";
