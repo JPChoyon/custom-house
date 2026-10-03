@@ -489,20 +489,7 @@
       productionMethods,
       embroideryPricing:
         productionMethods.find((method) => method.id === 'embroidery')?.embroiderySubtypes || {},
-      productionMethodPricing: Object.fromEntries(
-        productionMethods.map((method) => [
-          method.id,
-          {
-            label: method.label,
-            surchargeMinor: method.surchargeMinor,
-            ...(method.feeVariantId ? { feeVariantId: method.feeVariantId } : {}),
-            ...(method.feeVariantGid ? { feeVariantGid: method.feeVariantGid } : {}),
-            ...(method.embroiderySubtypes ? { embroiderySubtypes: method.embroiderySubtypes } : {}),
-            maxWidthCm: method.maxWidthCm,
-            maxHeightCm: method.maxHeightCm,
-          },
-        ])
-      ),
+      productionMethodPricing: publicContract.buildProductionMethodPricing(productionMethods),
     };
     const revision = publicContract.revisionFor({
       productId: baseConfig.productId,
@@ -543,8 +530,8 @@
     if (state.loggedRevision !== config.revision) {
       state.loggedRevision = config.revision;
       const embroideryRates = config.embroideryPricing || {};
-      const dtfRate = config.productionMethodPricing?.dtf || {};
-      const dtgRate = config.productionMethodPricing?.dtg || {};
+      const dtfRate = config.productionMethodPricing?.DTF || {};
+      const dtgRate = config.productionMethodPricing?.DTG || {};
       const variantPricesComplete = config.variants.length > 0 && config.variants.every((variant) =>
         Number.isSafeInteger(variant.priceMinor) && variant.priceMinor >= 0 && variant.currency === config.currency
       );
@@ -560,6 +547,11 @@
         PUBLIC_CONFIG_DTF_PRICE: Number(dtfRate.surchargeMinor || 0),
         PUBLIC_CONFIG_DTG_PRICE: Number(dtgRate.surchargeMinor || 0),
         PUBLIC_CONFIG_HAS_VARIANT_PRICES: variantPricesComplete,
+        PUBLIC_PRICE_CONFIG_REVISION: config.revision,
+        PUBLIC_PRICE_TEXT: Number(embroideryRates.TEXT_ONLY?.surchargeMinor || 0),
+        PUBLIC_PRICE_IMAGE: Number(embroideryRates.IMAGE_OR_LOGO?.surchargeMinor || 0),
+        PUBLIC_PRICE_DTF: Number(dtfRate.surchargeMinor || 0),
+        PUBLIC_PRICE_DTG: Number(dtgRate.surchargeMinor || 0),
         PUBLIC_PRODUCT_ID: config.productId,
         PUBLIC_VARIANT_COUNT: config.variants.length,
         PUBLIC_OPTION_NAMES: config.optionNames,

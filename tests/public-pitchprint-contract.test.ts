@@ -11,6 +11,9 @@ type PublicContractApi = {
     sizePosition?: number;
     currency: string;
   }): Array<Record<string, unknown>>;
+  buildProductionMethodPricing(
+    methods: Array<Record<string, unknown>>,
+  ): Record<string, Record<string, unknown>>;
   integrationSettings(revision: string): Record<string, unknown>;
   chooseCanonicalConfig(
     current: Record<string, unknown> | null,
@@ -154,6 +157,39 @@ test("public integration settings are explicit and versioned", () => {
   );
 });
 
+test("public pricing map preserves canonical uppercase method codes and embroidery subtype prices", () => {
+  const api = loadContract();
+  const pricing = api.buildProductionMethodPricing([
+    {
+      id: "embroidery",
+      label: "Embroidery",
+      surchargeMinor: 0,
+      embroiderySubtypes: {
+        TEXT_ONLY: { label: "Embroidery — Text only", surchargeMinor: 1000 },
+        IMAGE_OR_LOGO: { label: "Embroidery — Image / Logo", surchargeMinor: 30000 },
+      },
+    },
+    { id: "dtf", label: "DTF printing", surchargeMinor: 2000 },
+    { id: "dtg", label: "DTG printing", surchargeMinor: 3000 },
+  ]);
+
+  assert.deepEqual(JSON.parse(JSON.stringify(pricing)), {
+    EMBROIDERY: {
+      label: "Embroidery",
+      surchargeMinor: 0,
+      embroiderySubtypes: {
+        TEXT_ONLY: { label: "Embroidery — Text only", surchargeMinor: 1000 },
+        IMAGE_OR_LOGO: { label: "Embroidery — Image / Logo", surchargeMinor: 30000 },
+      },
+    },
+    DTF: { label: "DTF printing", surchargeMinor: 2000 },
+    DTG: { label: "DTG printing", surchargeMinor: 3000 },
+  });
+  assert.equal(pricing.embroidery, undefined);
+  assert.equal(pricing.dtf, undefined);
+  assert.equal(pricing.dtg, undefined);
+});
+
 test("repeated public config delivery is idempotent and partial config cannot overwrite complete config", () => {
   const api = loadContract();
   const complete = {
@@ -171,6 +207,37 @@ test("repeated public config delivery is idempotent and partial config cannot ov
 
   assert.equal(api.chooseCanonicalConfig(complete, same), complete);
   assert.equal(api.chooseCanonicalConfig(complete, partial), complete);
+});
+
+test("later config with the same variants cannot erase complete subtype pricing", () => {
+  const api = loadContract();
+  const complete = {
+    productId: "gid://shopify/Product/1",
+    revision: "complete-pricing",
+    variants: [{ variantId: "101" }, { variantId: "102" }],
+    embroideryPricing: {
+      TEXT_ONLY: { surchargeMinor: 1000 },
+      IMAGE_OR_LOGO: { surchargeMinor: 30000 },
+    },
+    productionMethodPricing: {
+      DTF: { surchargeMinor: 2000 },
+      DTG: { surchargeMinor: 3000 },
+    },
+  };
+  const missingPrices = {
+    ...complete,
+    revision: "missing-pricing",
+    embroideryPricing: {
+      TEXT_ONLY: { surchargeMinor: 0 },
+      IMAGE_OR_LOGO: { surchargeMinor: 0 },
+    },
+    productionMethodPricing: {
+      DTF: { surchargeMinor: 0 },
+      DTG: { surchargeMinor: 0 },
+    },
+  };
+
+  assert.equal(api.chooseCanonicalConfig(complete, missingPrices), complete);
 });
 
 test("public handoff carries subtype prices, integration settings, acknowledgements, and rich selections", () => {

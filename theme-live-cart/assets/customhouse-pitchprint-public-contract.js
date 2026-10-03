@@ -111,6 +111,28 @@
     };
   }
 
+  function buildProductionMethodPricing(methods) {
+    return (Array.isArray(methods) ? methods : []).reduce((result, method) => {
+      const code = text(method?.id).toUpperCase();
+      if (!['EMBROIDERY', 'DTF', 'DTG'].includes(code)) return result;
+      const { id: _id, ...pricing } = method;
+      result[code] = pricing;
+      return result;
+    }, {});
+  }
+
+  function pricingCompleteness(config) {
+    const embroidery = config?.embroideryPricing ||
+      config?.productionMethodPricing?.EMBROIDERY?.embroiderySubtypes || {};
+    const pricing = config?.productionMethodPricing || {};
+    return [
+      embroidery?.TEXT_ONLY,
+      embroidery?.IMAGE_OR_LOGO,
+      pricing?.DTF,
+      pricing?.DTG,
+    ].filter((rate) => Number(rate?.surchargeMinor || 0) > 0).length;
+  }
+
   function chooseCanonicalConfig(current, candidate) {
     if (!current) return candidate;
     if (!candidate) return current;
@@ -118,12 +140,16 @@
     const currentCount = Array.isArray(current.variants) ? current.variants.length : 0;
     const candidateCount = Array.isArray(candidate.variants) ? candidate.variants.length : 0;
     if (candidateCount < currentCount) return current;
+    if (candidateCount === currentCount && pricingCompleteness(candidate) < pricingCompleteness(current)) {
+      return current;
+    }
     if (candidate.revision === current.revision) return current;
     return candidate;
   }
 
   global.CustomHousePublicPitchPrintContract = Object.freeze({
     CONTRACT_VERSION,
+    buildProductionMethodPricing,
     buildVariantMatrix,
     chooseCanonicalConfig,
     integrationSettings,
