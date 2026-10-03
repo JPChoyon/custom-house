@@ -1,5 +1,6 @@
 import type { ActionFunctionArgs } from "react-router";
 import {
+  jsonSafePublicProductionCart,
   preparePublicProductionCart,
   type PublicProductionCartInput,
 } from "../services/production-method-cart.server";
@@ -22,7 +23,7 @@ export async function action({ request }: ActionFunctionArgs) {
     );
     return apiData({
       items: cart.items,
-      cart,
+      cart: jsonSafePublicProductionCart(cart),
     });
   } catch (error) {
     return apiError(error);
