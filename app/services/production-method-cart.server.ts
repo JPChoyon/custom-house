@@ -8,10 +8,8 @@ import {
   cleanProductionMethod,
   feeVariantIdForEmbroiderySubtype,
   feeVariantIdForMethod,
-  productionFeeVariantNeedsSync,
   pricingForEmbroiderySubtype,
   pricingForMethod,
-  syncProductionFeeMerchandise,
   type EmbroiderySubtype,
   type PublicProductProductionPricingRecord,
 } from "./production-method-pricing.server.ts";
@@ -390,7 +388,7 @@ export async function preparePublicProductionCart(
     }
   }
   const selectedColors = cleanTextList(input.selectedColors);
-  let pricing = await database.publicProductProductionPricing.findUnique({
+  const pricing = await database.publicProductProductionPricing.findUnique({
     where: {
       shopKey_shopifyProductId: {
         shopKey: shop,
@@ -409,7 +407,7 @@ export async function preparePublicProductionCart(
     ? pricingForEmbroiderySubtype(pricing, embroiderySubtype)
     : pricingForMethod(pricing, productionMethod);
   const surchargeMinor = decimalMoneyToMinorUnits(surcharge);
-  let feeVariantId = embroiderySubtype
+  const feeVariantId = embroiderySubtype
     ? feeVariantIdForEmbroiderySubtype(pricing, embroiderySubtype)
     : feeVariantIdForMethod(pricing, productionMethod);
   if (surchargeMinor <= 0n) {
@@ -423,26 +421,6 @@ export async function preparePublicProductionCart(
       `${pricingLabel} pricing is not configured.`,
       409,
     );
-  }
-  if (
-    surchargeMinor > 0n &&
-    (!feeVariantId || (await productionFeeVariantNeedsSync(feeVariantId, client)))
-  ) {
-    try {
-      const feeSync = await syncProductionFeeMerchandise(
-        shop,
-        pricing,
-        client,
-        database as unknown as Parameters<typeof syncProductionFeeMerchandise>[3],
-        { includeLegacyGenericEmbroidery: false },
-      );
-      pricing = feeSync.pricing;
-      feeVariantId = embroiderySubtype
-        ? feeVariantIdForEmbroiderySubtype(pricing, embroiderySubtype)
-        : feeVariantIdForMethod(pricing, productionMethod);
-    } catch {
-      feeVariantId = null;
-    }
   }
   if (!feeVariantId) {
     throw new DomainError(
