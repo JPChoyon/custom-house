@@ -40,6 +40,7 @@ import {
 } from "./production-method-pricing.server.ts";
 import { classifyPitchPrintProjectSource } from "./pitchprint-project-metadata.ts";
 import {
+  canonicalVariantIdentity,
   creatorProductionPricingPreview,
   CREATOR_PRICING_MODE_BAKED_IN_V1,
 } from "./creator-product-pricing.server.ts";
@@ -1505,6 +1506,7 @@ async function verifyNativeVariant(
       productVariant(id: $id) {
         id
         availableForSale
+        selectedOptions { name value }
         product { id }
       }
     }`,
@@ -1533,6 +1535,80 @@ function baseVariantForPublishedVariant(
   } catch {
     return "";
   }
+}
+
+function safeCanonicalVariantIdentity(
+  selectedOptions: Array<{ name: string; value: string }>,
+) {
+  try {
+    return canonicalVariantIdentity(selectedOptions);
+  } catch {
+    return "";
+  }
+}
+
+function nonColorSelectedOptions(
+  selectedOptions: Array<{ name: string; value: string }>,
+) {
+  return selectedOptions.filter((option) =>
+    !/^(color|colour|farg|färg)$/i.test(String(option.name || "").trim()),
+  );
+}
+
+function uniqueGraphqlVariantId(variants: CreatorProductBaseVariant[]) {
+  const ids = [
+    ...new Set(
+      variants
+        .map((variant) => variant.graphqlId || variant.id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  return ids.length === 1 ? ids[0] : "";
+}
+
+function inferredBaseVariantForPublishedVariant(
+  product: CreatorProductRecord,
+  publishedVariant: {
+    id?: string | null;
+    graphqlId?: string | null;
+    selectedOptions?: Array<{ name: string; value: string }> | null;
+  },
+) {
+  const publishedVariantId = publishedVariant.graphqlId || publishedVariant.id || "";
+  const mapped = baseVariantForPublishedVariant(product, publishedVariantId);
+  if (mapped) return mapped;
+  const selectedOptions = Array.isArray(publishedVariant.selectedOptions)
+    ? publishedVariant.selectedOptions
+    : [];
+  if (!selectedOptions.length) return "";
+  const setup = creatorProductSetupFromRecord(product);
+  const fixedColor = setup?.fixedColor || "";
+  const baseVariants = productBaseVariants(product).filter((variant) => {
+    const color = colorValueFromOptions(variant.selectedOptions || []);
+    return !fixedColor || !color ||
+      normalizedOptionText(color) === normalizedOptionText(fixedColor);
+  });
+  if (!baseVariants.length) return "";
+  const exactIdentity = safeCanonicalVariantIdentity(selectedOptions);
+  if (exactIdentity) {
+    const exactMatches = baseVariants.filter(
+      (variant) =>
+        safeCanonicalVariantIdentity(variant.selectedOptions || []) === exactIdentity,
+    );
+    const exactId = uniqueGraphqlVariantId(exactMatches);
+    if (exactId) return exactId;
+  }
+  const sizeOnlyOptions = nonColorSelectedOptions(selectedOptions);
+  const sizeOnlyIdentity = safeCanonicalVariantIdentity(sizeOnlyOptions);
+  if (!sizeOnlyIdentity || sizeOnlyIdentity === exactIdentity) return "";
+  return uniqueGraphqlVariantId(
+    baseVariants.filter(
+      (variant) =>
+        safeCanonicalVariantIdentity(
+          nonColorSelectedOptions(variant.selectedOptions || []),
+        ) === sizeOnlyIdentity,
+    ),
+  );
 }
 
 function publishedVariantForBaseVariant(
@@ -3156,10 +3232,13 @@ export async function prepareCreatorProductCart(
         409,
       );
     }
-    const publishedVariantId = baseVariantForPublishedVariant(
-      product,
-      variant.graphqlId,
-    )
+    const selectedVariantIsPublished =
+      Boolean(product.publishedShopifyProductId) &&
+      product.baseProduct?.id === product.publishedShopifyProductId;
+    const inferredBaseVariantId = selectedVariantIsPublished
+      ? inferredBaseVariantForPublishedVariant(product, variant)
+      : "";
+    const publishedVariantId = inferredBaseVariantId
       ? variant.graphqlId
       : publishedVariantForBaseVariant(product, variant.graphqlId);
     if (!publishedVariantId) {
@@ -3380,7 +3459,7 @@ export async function prepareNativeCreatorProductCart(
       409,
     );
   }
-  await verifyNativeVariant(client, shopifyProductId, selectedVariantId);
+  const nativeVariant = await verifyNativeVariant(client, shopifyProductId, selectedVariantId);
   const collection = await getCreatorCollectionByCreatorId(
     shop,
     product.creatorId,
@@ -3393,7 +3472,7 @@ export async function prepareNativeCreatorProductCart(
       404,
     );
   }
-  const baseVariantId = baseVariantForPublishedVariant(product, selectedVariantId);
+  const baseVariantId = inferredBaseVariantForPublishedVariant(product, nativeVariant);
   if (!baseVariantId) {
     throw new DomainError(
       "BASE_VARIANT_MAPPING_REQUIRED",

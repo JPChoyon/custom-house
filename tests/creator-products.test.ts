@@ -3852,6 +3852,110 @@ test("baked app-proxy Creator purchase resolves the published variant without a 
   assert.equal(cart.properties._pitchprint, "pp_proxy_order");
 });
 
+test("baked app-proxy Creator purchase recovers missing non-first size mapping by variant identity", async () => {
+  const database = fakeDb();
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id, selectedProductionMethod: "DTF" },
+    fakeClient(),
+    database,
+  );
+  draft.id = "cmcreatorproduct00000033";
+  draft.status = "PUBLISHED";
+  draft.pitchprintProjectId = "pp_proxy_master_m";
+  draft.designVariantSelectionsJson = creatorSetupJson("White", "DTF", 1);
+  draft.publishedShopifyProductId = "gid://shopify/Product/5004";
+  draft.creatorPricingMode = "BAKED_IN_V1";
+  draft.baseVariantMappingJson = JSON.stringify({
+    "gid://shopify/ProductVariant/6003": "gid://shopify/ProductVariant/2001",
+  });
+
+  const client: ShopifyGraphqlClient = {
+    async request<T>(query: string, variables?: Record<string, unknown>) {
+      if (query.includes("NativeCreatorCartVariant")) {
+        return {
+          productVariant: {
+            id: variables?.id,
+            availableForSale: true,
+            selectedOptions: [
+              { name: "Size", value: "M" },
+              { name: "Color", value: "White" },
+            ],
+            product: { id: "gid://shopify/Product/5004" },
+          },
+        } as T;
+      }
+      return {
+        product: {
+          id: "gid://shopify/Product/5004",
+          title: "Creator Hoodie",
+          handle: "creator-hoodie",
+          onlineStoreUrl: "https://customhouse.se/products/creator-hoodie",
+          options: [
+            { name: "Size", values: ["S", "M"] },
+            { name: "Color", values: ["White"] },
+          ],
+          priceRangeV2: {
+            minVariantPrice: { amount: "599.00", currencyCode: "SEK" },
+            maxVariantPrice: { amount: "649.00", currencyCode: "SEK" },
+          },
+          variants: {
+            nodes: [
+              {
+                id: "gid://shopify/ProductVariant/6003",
+                legacyResourceId: "6003",
+                title: "S / White",
+                availableForSale: true,
+                price: "599.00",
+                selectedOptions: [
+                  { name: "Size", value: "S" },
+                  { name: "Color", value: "White" },
+                ],
+              },
+              {
+                id: "gid://shopify/ProductVariant/6004",
+                legacyResourceId: "6004",
+                title: "M / White",
+                availableForSale: true,
+                price: "649.00",
+                selectedOptions: [
+                  { name: "Size", value: "M" },
+                  { name: "Color", value: "White" },
+                ],
+              },
+            ],
+          },
+        },
+      } as T;
+    },
+  };
+
+  const cart = await prepareCreatorProductCart(
+    shop,
+    {
+      creatorHandle: "creator-a",
+      creatorProductId: draft.id,
+      selectedVariantId: "6004",
+      quantity: 1,
+      nonReturnAcknowledged: true,
+      termsAccepted: true,
+    },
+    client,
+    async (projectId) => {
+      assert.equal(projectId, "pp_proxy_master_m");
+      return "pp_proxy_order_m";
+    },
+    database,
+  );
+
+  assert.equal(cart.items.length, 1);
+  assert.equal(cart.items[0].id, "6004");
+  assert.equal(cart.production.pricingMode, "BAKED_IN_V1");
+  assert.equal(cart.properties._base_variant_id, "gid://shopify/ProductVariant/2002");
+  assert.equal(cart.nativeProduct?.selectedVariantId, "gid://shopify/ProductVariant/6004");
+});
+
 test("native Creator product form prepares authoritative lines before Shopify cart add", () => {
   const block = readFileSync(
     "extensions/customhouse-creator-storefront/blocks/buy-only-product-form.liquid",
