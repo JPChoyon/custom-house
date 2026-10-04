@@ -229,6 +229,8 @@ test("app managed creator cart uses base variants and signed attribution", () =>
   assert.match(proxy, /@media screen and \(min-width:901px\)\{\.customhouse-header__menu-button\{display:none!important\}/);
   assert.match(proxy, /FooterStrip-customhouse-app/);
   assert.match(proxy, /footer-strip__texture/);
+  assert.match(proxy, /#FooterStrip-customhouse-app \.footer-strip__heading,#FooterStrip-customhouse-app \.footer-strip__link\{[^}]*font-family:Inter/);
+  assert.match(proxy, /--footer-link-size:17px/);
   assert.match(proxy, /customhouse-mobile-drawer__line-icon/);
   assert.match(proxy, /customhouse-header__profile-menu/);
   assert.match(proxy, /T-SHIRTS/);
