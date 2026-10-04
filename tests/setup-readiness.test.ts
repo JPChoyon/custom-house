@@ -211,11 +211,10 @@ test("app managed creator cart uses base variants and signed attribution", () =>
   assert.match(proxy, /Creator collection/);
   assert.match(proxy, /const href = getCreatorProductStorefrontUrl\(input\.collection, product\) \|\| "#"/);
   assert.doesNotMatch(proxy, /product\.publishedShopifyProductUrl \|\|\s*getCreatorProductStorefrontUrl\(input\.collection, product\)/);
-  assert.match(proxy, /customhouse-proxy-logo-mark/);
-  assert.match(proxy, /CUSTOM<span>HOUSE<\/span>/);
-  assert.match(proxy, /Inspiration/);
-  assert.match(proxy, /aria-label="Search"/);
-  assert.match(proxy, /Creator products, premium blanks, and custom pieces made for everyday wear\./);
+  assert.doesNotMatch(proxy, /customhouse-proxy-header/);
+  assert.doesNotMatch(proxy, /customhouse-proxy-footer/);
+  assert.doesNotMatch(proxy, /siteHeader\(\)/);
+  assert.doesNotMatch(proxy, /siteFooter\(\)/);
   assert.match(proxy, /Material\+Symbols\+Outlined/);
   assert.match(proxy, /material-symbols-outlined/);
   assert.match(proxy, /shopping_bag/);
