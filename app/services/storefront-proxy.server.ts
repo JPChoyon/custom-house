@@ -311,6 +311,43 @@ function publicCss() {
     [data-customhouse]{--ch-primary:#8a2cff;--ch-primary-2:#5b22e8;--ch-service:#c8ff00;--ch-text:#f8fafc;--ch-muted:#b8bfd0;--ch-border:rgba(255,255,255,.13);--ch-soft:#151515;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ch-text);letter-spacing:0}
     .material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:400;font-style:normal;font-size:1.25rem;line-height:1;letter-spacing:normal;text-transform:none;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;word-wrap:normal;direction:ltr;-webkit-font-feature-settings:"liga";-webkit-font-smoothing:antialiased;font-variation-settings:"FILL" 0,"wght" 600,"GRAD" 0,"opsz" 24}
     body:has([data-customhouse]){margin:0;background:radial-gradient(circle at 78% 4%,#16081f 0,#080808 34%,#030303 100%);color:var(--ch-text)}
+    .customhouse-header{--customhouse-header-height:86px;--customhouse-header-pad-x:clamp(24px,4.4vw,58px);--customhouse-header-text:#fff;position:relative;z-index:50;background:#101010;color:var(--customhouse-header-text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    .customhouse-header__inner{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;width:min(100%,1440px);min-height:var(--customhouse-header-height);margin:0 auto;padding:20px var(--customhouse-header-pad-x) 12px;box-sizing:border-box}
+    .customhouse-header__logo,.customhouse-header__nav a,.customhouse-header__icon,.customhouse-mobile-drawer__link,.customhouse-mobile-drawer__action{color:inherit;text-decoration:none}
+    .customhouse-header__logo{display:inline-flex;align-items:center;gap:10px;justify-self:start;min-width:0}
+    .customhouse-header__mark{display:inline-grid;place-items:center;width:74px;height:45px;color:#fff;line-height:1}
+    .customhouse-header__mark svg{display:block;width:100%;height:100%;fill:currentColor}
+    .customhouse-header__wordmark{font-family:Impact,Haettenschweiler,"Arial Narrow Bold",sans-serif;font-size:clamp(1.7rem,2.45vw,2.45rem);font-weight:900;letter-spacing:-.055em;line-height:.85;color:#fff;text-transform:uppercase}
+    .customhouse-header__nav{display:flex;align-items:center;justify-content:center;gap:clamp(28px,4.5vw,58px)}
+    .customhouse-header__nav a{font-size:clamp(.94rem,1.15vw,1.15rem);font-weight:950;text-transform:uppercase;letter-spacing:-.02em;transition:color .18s ease,transform .18s ease}
+    .customhouse-header__nav a:hover,.customhouse-header__nav a:focus-visible{color:#c8ff00;transform:translateY(-1px);outline:0}
+    .customhouse-header__actions{display:flex;align-items:center;justify-content:flex-end;gap:clamp(14px,2vw,22px)}
+    .customhouse-header__icon{position:relative;display:inline-grid;place-items:center;width:34px;height:34px;border:0;background:transparent;color:#fff;padding:0;cursor:pointer}
+    .customhouse-header__icon svg{display:block;width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+    .customhouse-header__cart-count{position:absolute;right:-6px;bottom:-4px;display:grid;place-items:center;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:#fff;color:#111;font-size:.68rem;font-weight:950;line-height:1}
+    .customhouse-header__menu-button{display:none}
+    .customhouse-mobile-drawer{position:fixed;inset:0;z-index:70;display:grid;grid-template-columns:minmax(260px,82vw) 1fr;pointer-events:none;visibility:hidden}
+    .customhouse-mobile-drawer.is-open{pointer-events:auto;visibility:visible}
+    .customhouse-mobile-drawer__panel{height:100%;padding:22px;background:#0b0b0c;box-shadow:22px 0 60px rgba(0,0,0,.42);transform:translateX(-100%);transition:transform .22s ease}
+    .customhouse-mobile-drawer.is-open .customhouse-mobile-drawer__panel{transform:translateX(0)}
+    .customhouse-mobile-drawer__backdrop{background:rgba(0,0,0,.62);opacity:0;transition:opacity .22s ease}
+    .customhouse-mobile-drawer.is-open .customhouse-mobile-drawer__backdrop{opacity:1}
+    .customhouse-mobile-drawer__top{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:2rem}
+    .customhouse-mobile-drawer__close{display:grid;place-items:center;width:42px;height:42px;border:1px solid rgba(255,255,255,.15);border-radius:999px;background:rgba(255,255,255,.04);color:#fff}
+    .customhouse-mobile-drawer__close svg{width:22px;height:22px;stroke:currentColor;stroke-width:2.5;stroke-linecap:round}
+    .customhouse-mobile-drawer__nav{display:grid;gap:.6rem}
+    .customhouse-mobile-drawer__link,.customhouse-mobile-drawer__action{display:flex;align-items:center;justify-content:space-between;min-height:48px;border-bottom:1px solid rgba(255,255,255,.1);color:#fff;font-size:1rem;font-weight:950;text-transform:uppercase}
+    .customhouse-mobile-drawer__action{margin-top:1rem;border:1px solid rgba(138,44,255,.55);border-radius:10px;padding:0 1rem;background:rgba(138,44,255,.14)}
+    .customhouse-global-footer{position:relative;z-index:1;margin-top:0;min-height:180px;padding:56px clamp(24px,6vw,72px);background:#050506;color:#f4f4f2;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden}
+    .customhouse-global-footer::before{content:"";position:absolute;top:10px;left:clamp(24px,6vw,80px);right:clamp(24px,6vw,80px);height:2px;background:#7d3cc7;box-shadow:0 0 12px #7d3cc7;opacity:.9}
+    .customhouse-global-footer::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 12% 72%,rgba(125,60,199,.26),transparent 24%),radial-gradient(circle at 88% 45%,rgba(200,255,0,.1),transparent 18%),repeating-linear-gradient(90deg,rgba(255,255,255,.035) 0 1px,transparent 1px 6px);opacity:.45;pointer-events:none}
+    .customhouse-global-footer__inner{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:2rem;max-width:1440px;margin:0 auto}
+    .customhouse-global-footer__heading{margin:0 0 1rem;color:#fff;font-size:.95rem;font-weight:950;text-transform:uppercase}
+    .customhouse-global-footer__socials,.customhouse-global-footer__links{display:flex;align-items:center;flex-wrap:wrap;gap:14px}
+    .customhouse-global-footer__social{display:grid;place-items:center;width:40px;height:40px;border-radius:999px;color:#fff;text-decoration:none}
+    .customhouse-global-footer__social svg{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:2}
+    .customhouse-global-footer__links a{color:#f4f4f2;text-decoration:none;font-size:.95rem;font-weight:950;text-transform:uppercase;letter-spacing:.02em}
+    .customhouse-global-footer__links a+a::before{content:"|";margin-right:14px;color:rgba(244,244,242,.72)}
     .customhouse-public-page,.customhouse-product-page{width:min(1180px,calc(100vw - 2rem));margin:0 auto;padding:0 0 2.5rem}
     .customhouse-public-hero{position:relative;z-index:2;min-height:260px;display:grid;align-content:center;gap:1.25rem;padding:2.15rem clamp(1.1rem,4vw,3rem) 2.35rem;border:1px solid rgba(255,255,255,.1);border-radius:0 0 12px 12px;background:radial-gradient(circle at 78% 20%,rgba(138,44,255,.16),transparent 28%),linear-gradient(100deg,#09090a 0%,#050506 46%,rgba(18,18,20,.92) 100%);overflow:visible}
     .customhouse-public-hero--with-banner{background-size:cover;background-position:center;background-repeat:no-repeat;background-origin:border-box;background-clip:border-box}
@@ -432,9 +469,110 @@ function publicCss() {
     .customhouse-more__arrow{width:38px;height:38px;border:1px solid var(--ch-primary);border-radius:999px;background:rgba(0,0,0,.2);color:var(--ch-primary);font-size:1.45rem;line-height:1}
     [data-customhouse-cart-message],.customhouse-public-empty{color:var(--ch-muted)}
     @media(max-width:1100px){.customhouse-public-grid,.customhouse-more__grid{grid-template-columns:repeat(3,minmax(0,1fr))}.customhouse-public-services{grid-template-columns:repeat(2,minmax(0,1fr))}.customhouse-public-service:nth-child(3){border-left:0;border-top:1px solid var(--ch-border)}.customhouse-public-service:nth-child(4){border-top:1px solid var(--ch-border)}}
-    @media(max-width:900px){.customhouse-public-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.customhouse-product-layout{grid-template-columns:1fr;gap:1.5rem}.customhouse-product-page{padding:1rem 0 2rem}.customhouse-product-gallery{display:flex;flex-direction:column-reverse;gap:.75rem}.customhouse-product-thumbs{display:flex;gap:.65rem;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:.15rem}.customhouse-product-thumb{width:76px;min-width:76px;scroll-snap-align:start}.customhouse-service-row{grid-template-columns:1fr}.customhouse-service-row span+span{border-left:0;border-top:1px solid var(--ch-border)}.customhouse-more__grid{grid-template-columns:repeat(2,minmax(0,1fr))}.customhouse-more__controls{gap:4rem}}
+    @media(max-width:900px){.customhouse-header{--customhouse-header-height:82px;--customhouse-header-pad-x:clamp(14px,4vw,34px)}.customhouse-header__inner{grid-template-columns:1fr auto;min-height:var(--customhouse-header-height)}.customhouse-header__nav,.customhouse-header__profile-link{display:none}.customhouse-header__menu-button{display:inline-grid}.customhouse-header__mark{width:58px;height:36px}.customhouse-header__wordmark{font-size:clamp(1.28rem,5vw,1.7rem)}.customhouse-header__icon{width:32px;height:32px}.customhouse-header__icon svg{width:26px;height:26px}.customhouse-public-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.customhouse-product-layout{grid-template-columns:1fr;gap:1.5rem}.customhouse-product-page{padding:1rem 0 2rem}.customhouse-product-gallery{display:flex;flex-direction:column-reverse;gap:.75rem}.customhouse-product-thumbs{display:flex;gap:.65rem;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:.15rem}.customhouse-product-thumb{width:76px;min-width:76px;scroll-snap-align:start}.customhouse-service-row{grid-template-columns:1fr}.customhouse-service-row span+span{border-left:0;border-top:1px solid var(--ch-border)}.customhouse-more__grid{grid-template-columns:repeat(2,minmax(0,1fr))}.customhouse-more__controls{gap:4rem}.customhouse-global-footer__inner{align-items:flex-start;flex-direction:column}.customhouse-global-footer__links{gap:10px 0}.customhouse-global-footer__links a{font-size:.86rem}.customhouse-global-footer__links a+a::before{margin:0 10px}}
     @media(max-width:760px){.customhouse-public-page,.customhouse-product-page{width:min(100vw - 1rem,1180px)}.customhouse-public-hero{min-height:auto;padding:1.35rem 1rem 1.5rem;border-radius:0 0 10px 10px}.customhouse-public-hero h1{font-size:clamp(2.5rem,15vw,4rem)}.customhouse-public-socials{gap:.45rem}.customhouse-public-social{width:36px;height:36px}.customhouse-public-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}.customhouse-public-stat{min-width:0;padding:.6rem .58rem;gap:.45rem}.customhouse-public-stat-icon.material-symbols-outlined{font-size:1.6rem}.customhouse-public-share{align-items:stretch;flex-direction:column}.customhouse-public-share-toggle,.customhouse-public-share-copy{width:100%}.customhouse-public-share-menu{position:static;width:100%;margin-top:-.2rem}.customhouse-public-services{grid-template-columns:1fr}.customhouse-public-service+.customhouse-public-service{border-left:0;border-top:1px solid var(--ch-border)}.customhouse-public-service{padding:1.05rem}.customhouse-public-service-icon.material-symbols-outlined{font-size:1.7rem}.customhouse-public-toolbar{align-items:stretch;flex-direction:column}.customhouse-public-toolbar-right{width:100%;justify-content:space-between}.customhouse-public-filter,.customhouse-public-sort{width:100%;min-width:0}.customhouse-public-view{flex:0 0 auto}.customhouse-public-grid{grid-template-columns:1fr}.customhouse-product-panel h1{font-size:clamp(1.9rem,10vw,2.8rem)}.customhouse-product-media img{padding:1rem}.customhouse-option-pill{flex:1 1 auto}.customhouse-field--color .customhouse-option-pill{flex:0 1 calc(50% - .4rem)}.customhouse-more{padding:1.5rem .8rem 1rem}.customhouse-more__title::before,.customhouse-more__title::after{width:28px}.customhouse-more__grid{grid-template-columns:1fr}.customhouse-more__image{max-height:170px}.customhouse-more__card h3{font-size:.9rem}.customhouse-more__button{min-height:32px}}
   </style>`;
+}
+
+function siteHeader() {
+  return `<header class="customhouse-header" data-customhouse-shell>
+    <div class="customhouse-header__inner">
+      <a class="customhouse-header__logo" href="/" aria-label="CustomHouse home">
+        <span class="customhouse-header__mark" aria-hidden="true">
+          <svg viewBox="0 0 112 68" focusable="false">
+            <path d="M0 0h30.8l17.4 20.7L66.1 0H112L75 33.8 112 68H78.4L58.1 44.2 37.5 68H0l39.2-34.8L0 0Zm32.2 9.7 23.7 26.8L34.4 58.3h14.1l14.6-17.1 14.6 17.1h14.1L67.5 35.7 92.6 9.7H72L57 27.1 42 9.7H32.2Z"></path>
+          </svg>
+        </span>
+        <span class="customhouse-header__wordmark">CUSTOMHOUSE</span>
+      </a>
+      <nav class="customhouse-header__nav" aria-label="Main navigation">
+        <a href="/collections/t-shirts">T-SHIRTS</a>
+        <a href="/collections/hoodies">HOODIES</a>
+        <a href="/pages/design-selv">DESIGN SELV</a>
+        <a href="/blogs/news">INSPIRATION</a>
+      </nav>
+      <div class="customhouse-header__actions">
+        <a class="customhouse-header__icon" href="/search" aria-label="Search">
+          <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle cx="14" cy="14" r="9.5"></circle><path d="m21 21 7 7"></path></svg>
+        </a>
+        <a class="customhouse-header__icon" href="/cart" aria-label="Cart">
+          <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><path d="M3 5h4l3 17h15l4-12H9"></path><circle cx="13" cy="27" r="1.8"></circle><circle cx="24" cy="27" r="1.8"></circle></svg>
+        </a>
+        <a class="customhouse-header__icon customhouse-header__profile-link" href="/pages/creator-dashboard" aria-label="Creator dashboard">
+          <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle cx="16" cy="10" r="5"></circle><path d="M5 28c2.2-6.4 6-9.5 11-9.5S24.8 21.6 27 28"></path></svg>
+        </a>
+        <button class="customhouse-header__icon customhouse-header__menu-button" type="button" data-customhouse-menu-open aria-label="Open menu" aria-expanded="false">
+          <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><path d="M6 9h20M6 16h20M6 23h20"></path></svg>
+        </button>
+      </div>
+    </div>
+    <div class="customhouse-mobile-drawer" data-customhouse-mobile-drawer aria-hidden="true">
+      <div class="customhouse-mobile-drawer__panel">
+        <div class="customhouse-mobile-drawer__top">
+          <a class="customhouse-header__logo" href="/" aria-label="CustomHouse home">
+            <span class="customhouse-header__mark" aria-hidden="true">
+              <svg viewBox="0 0 112 68" focusable="false"><path d="M0 0h30.8l17.4 20.7L66.1 0H112L75 33.8 112 68H78.4L58.1 44.2 37.5 68H0l39.2-34.8L0 0Zm32.2 9.7 23.7 26.8L34.4 58.3h14.1l14.6-17.1 14.6 17.1h14.1L67.5 35.7 92.6 9.7H72L57 27.1 42 9.7H32.2Z"></path></svg>
+            </span>
+            <span class="customhouse-header__wordmark">CUSTOMHOUSE</span>
+          </a>
+          <button class="customhouse-mobile-drawer__close" type="button" data-customhouse-menu-close aria-label="Close menu">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5 5 19"></path></svg>
+          </button>
+        </div>
+        <nav class="customhouse-mobile-drawer__nav" aria-label="Mobile navigation">
+          <a class="customhouse-mobile-drawer__link" href="/collections/t-shirts">T-SHIRTS</a>
+          <a class="customhouse-mobile-drawer__link" href="/collections/hoodies">HOODIES</a>
+          <a class="customhouse-mobile-drawer__link" href="/pages/design-selv">DESIGN SELV</a>
+          <a class="customhouse-mobile-drawer__link" href="/blogs/news">INSPIRATION</a>
+          <a class="customhouse-mobile-drawer__action" href="/pages/creator-dashboard">Creator dashboard</a>
+        </nav>
+      </div>
+      <button class="customhouse-mobile-drawer__backdrop" type="button" data-customhouse-menu-close aria-label="Close menu"></button>
+    </div>
+  </header>`;
+}
+
+function siteFooter() {
+  return `<footer class="customhouse-global-footer" data-customhouse-shell>
+    <div class="customhouse-global-footer__inner">
+      <div>
+        <p class="customhouse-global-footer__heading">FÖLJ OSS</p>
+        <div class="customhouse-global-footer__socials" aria-label="Social links">
+          <a class="customhouse-global-footer__social" href="https://www.instagram.com/customhouse.se/" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="5"></rect><circle cx="12" cy="12" r="3.5"></circle><circle cx="17.2" cy="6.8" r="1"></circle></svg></a>
+          <a class="customhouse-global-footer__social" href="https://www.facebook.com/customhouse.se/" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M13.2 18v-5.4h1.9l.3-2.2h-2.2V9.1c0-.6.2-1 1.1-1h1.1V6.2c-.2 0-.9-.1-1.7-.1-1.7 0-2.8 1-2.8 2.9v1.4H9v2.2h1.9V18"></path></svg></a>
+        </div>
+      </div>
+      <nav class="customhouse-global-footer__links" aria-label="Footer navigation">
+        <a href="/pages/faq">FAQ</a>
+        <a href="/pages/contact">KONTAKT</a>
+        <a href="/policies/terms-of-service">VILLKOR</a>
+        <a href="/pages/creator-dashboard">BECOME A CREATOR</a>
+      </nav>
+    </div>
+  </footer>`;
+}
+
+function siteShellScript() {
+  return `<script>
+    (() => {
+      const drawer = document.querySelector("[data-customhouse-mobile-drawer]");
+      const openButton = document.querySelector("[data-customhouse-menu-open]");
+      if (!drawer || !openButton) return;
+      const setOpen = (open) => {
+        drawer.classList.toggle("is-open", open);
+        drawer.setAttribute("aria-hidden", open ? "false" : "true");
+        openButton.setAttribute("aria-expanded", open ? "true" : "false");
+        document.documentElement.style.overflow = open ? "hidden" : "";
+      };
+      openButton.addEventListener("click", () => setOpen(true));
+      drawer.querySelectorAll("[data-customhouse-menu-close], a").forEach((item) => {
+        item.addEventListener("click", () => setOpen(false));
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") setOpen(false);
+      });
+    })();
+  </script>`;
 }
 
 export function collectionHtml(input: {
@@ -524,6 +662,7 @@ export function collectionHtml(input: {
         ${publicCss()}
       </head>
       <body>
+        ${siteHeader()}
         <main class="customhouse-public-page" data-customhouse>
           <header class="customhouse-public-hero${heroImageUrl ? " customhouse-public-hero--with-banner" : ""}"${heroBackgroundAttr(heroImageUrl)}>
             <div class="customhouse-public-hero-copy">
@@ -647,6 +786,8 @@ export function collectionHtml(input: {
             });
           })();
         </script>
+        ${siteFooter()}
+        ${siteShellScript()}
       </body>
     </html>`);
 }
@@ -926,6 +1067,7 @@ function productHtml(input: {
         ${publicCss()}
       </head>
       <body>
+        ${siteHeader()}
         <main class="customhouse-product-page" data-customhouse>
           <section class="customhouse-product-layout">
             <div>
@@ -1419,6 +1561,8 @@ function productHtml(input: {
             });
           })();
         </script>
+        ${siteFooter()}
+        ${siteShellScript()}
       </body>
     </html>`);
 }
