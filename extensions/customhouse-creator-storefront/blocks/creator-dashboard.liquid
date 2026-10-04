@@ -568,11 +568,15 @@
           <a data-dashboard-account-learn-more href="{{ routes.root_url }}" target="_blank" rel="noreferrer">Learn more about your profile</a>
         </div>
         <section class="customhouse-creator-danger-zone" aria-label="Creator account danger zone">
-          <div>
-            <h4>Danger Zone</h4>
-            <p>Deactivate your Creator participation and public Creator presence. Your Shopify customer account, orders, earnings, payouts, and audit history are preserved.</p>
+          <span class="customhouse-creator-danger-zone__icon material-symbols-outlined notranslate" translate="no" aria-hidden="true">shield_lock</span>
+          <div class="customhouse-creator-danger-zone__content">
+            <span class="customhouse-creator-danger-zone__eyebrow">Sensitive account action</span>
+            <h4>Deactivate creator profile</h4>
+            <p>Hide your public Creator presence and pause Creator participation. Your Shopify customer account, orders, earnings, payouts, and audit history are preserved.</p>
           </div>
-          <button type="button" data-dashboard-deactivate-creator>Delete Creator Account</button>
+          <button class="customhouse-creator-danger-zone__button" type="button" data-dashboard-deactivate-creator>
+            Deactivate profile
+          </button>
         </section>
       </section>
 

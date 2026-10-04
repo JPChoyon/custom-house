@@ -3425,7 +3425,7 @@ function bindCreatorAccountDeactivation(root, refreshDashboard) {
   button.dataset.bound = "true";
   button.addEventListener("click", async () => {
     const confirmation = window.prompt(
-      "This deactivates your Creator profile but keeps your Shopify customer account and financial history. Type DEACTIVATE to continue.",
+      "This will deactivate your public Creator profile and pause Creator participation. Your Shopify customer account, orders, earnings, payouts, and audit history stay preserved. Type DEACTIVATE to continue.",
     );
     if (confirmation !== "DEACTIVATE") return;
     const restore = setActionLoading(button, "Deactivating...");

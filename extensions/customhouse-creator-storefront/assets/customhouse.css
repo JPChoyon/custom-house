@@ -11265,15 +11265,42 @@ body:has([data-customhouse-dashboard]) {
 }
 
 .customhouse-creator-danger-zone {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-top: 1rem;
-  padding: 1rem;
-  border: 1px solid rgba(239, 68, 68, 0.5);
-  border-radius: 12px;
-  background: rgba(127, 29, 29, 0.12);
+  gap: 1.05rem;
+  margin-top: 1.2rem;
+  padding: 1.1rem;
+  border: 1px solid rgba(248, 113, 113, 0.38);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(248, 113, 113, 0.12), transparent 34%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 247, 247, 0.92));
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.06);
+}
+
+.customhouse-creator-danger-zone__icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: #fff1f2;
+  color: #dc2626;
+}
+
+.customhouse-creator-danger-zone__content {
+  min-width: 0;
+}
+
+.customhouse-creator-danger-zone__eyebrow {
+  display: block;
+  margin-bottom: 0.22rem;
+  color: #b42318;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .customhouse-creator-danger-zone h4,
@@ -11281,19 +11308,39 @@ body:has([data-customhouse-dashboard]) {
   margin: 0;
 }
 
-.customhouse-creator-danger-zone p {
-  margin-top: 0.35rem;
+.customhouse-creator-danger-zone h4 {
+  color: #111827;
+  font-size: 1.05rem;
+  line-height: 1.2;
 }
 
-.customhouse-creator-danger-zone button {
+.customhouse-creator-danger-zone p {
+  margin-top: 0.35rem;
+  max-width: 58rem;
+  color: #475467;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.customhouse-creator-danger-zone__button {
   flex: 0 0 auto;
-  min-height: 42px;
-  border: 1px solid #ef4444;
-  border-radius: 8px;
-  background: transparent;
-  color: #fecaca;
-  font-weight: 850;
+  min-height: 46px;
+  border: 1px solid rgba(220, 38, 38, 0.42);
+  border-radius: 12px;
+  background: #fff;
+  color: #b42318;
+  padding: 0 1rem;
+  font-weight: 900;
   cursor: pointer;
+  box-shadow: 0 12px 28px rgba(180, 35, 24, 0.1);
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+
+.customhouse-creator-danger-zone__button:hover,
+.customhouse-creator-danger-zone__button:focus-visible {
+  border-color: #dc2626;
+  background: #fff7f7;
+  transform: translateY(-1px);
 }
 
 @media (max-width: 700px) {
@@ -11307,6 +11354,6 @@ body:has([data-customhouse-dashboard]) {
 
   .customhouse-creator-danger-zone {
     align-items: stretch;
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 }

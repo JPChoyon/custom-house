@@ -1936,13 +1936,13 @@ test("global collection grid excludes Creator buy-only products by canonical met
     "utf8",
   );
 
-  assert.match(collectionGrid, /exclude_creator_products_from_global/);
   assert.match(collectionGrid, /product\.metafields\.customhouse\.product_origin/);
   assert.match(collectionGrid, /product_origin == 'creator'/);
   assert.match(collectionGrid, /product\.metafields\.customhouse\.design_mode/);
   assert.match(collectionGrid, /design_mode == 'buy_only'/);
   assert.match(collectionGrid, /product\.metafields\.customhouse\.product_type/);
   assert.match(collectionGrid, /product_type == 'creator_fixed'/);
-  assert.match(collectionGrid, /unless section\.settings\.exclude_creator_products_from_global and is_creator_catalog_product/);
+  assert.match(collectionGrid, /unless is_creator_catalog_product/);
+  assert.doesNotMatch(collectionGrid, /unless section\.settings\.exclude_creator_products_from_global and is_creator_catalog_product/);
   assert.doesNotMatch(collectionGrid, /title contains|handle contains|CreatorProduct/i);
 });

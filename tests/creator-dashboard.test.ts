@@ -1997,9 +1997,12 @@ test("client-final dashboard controls reuse existing flows and preserve safe sta
   assert.match(styles, /\.customhouse-notification-item[\s\S]*grid-template-columns: auto minmax\(0, 1fr\)/);
   assert.match(script, /root\.__customHouseBannerDraft/);
   assert.match(script, /bannerDraft\.bannerImageUrl = URL\.createObjectURL\(file\)/);
-  assert.match(block, /Danger Zone/);
-  assert.match(block, /Delete Creator Account/);
+  assert.match(block, /Sensitive account action/);
+  assert.match(block, /Deactivate creator profile/);
+  assert.match(block, /Deactivate profile/);
+  assert.match(block, /customhouse-creator-danger-zone__button/);
   assert.match(script, /method: "DELETE"/);
+  assert.match(script, /deactivate your public Creator profile and pause Creator participation/);
   assert.match(script, /confirmation !== "DEACTIVATE"/);
   const profileRoute = readFileSync("app/routes/proxy.api.creator-profile.tsx", "utf8");
   assert.match(profileRoute, /changeCreatorStatus\([\s\S]*"SUSPENDED"/);
