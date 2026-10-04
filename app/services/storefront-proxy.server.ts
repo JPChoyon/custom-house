@@ -471,19 +471,87 @@ function publicCss() {
     @media(max-width:1100px){.customhouse-public-grid,.customhouse-more__grid{grid-template-columns:repeat(3,minmax(0,1fr))}.customhouse-public-services{grid-template-columns:repeat(2,minmax(0,1fr))}.customhouse-public-service:nth-child(3){border-left:0;border-top:1px solid var(--ch-border)}.customhouse-public-service:nth-child(4){border-top:1px solid var(--ch-border)}}
     @media(max-width:900px){.customhouse-header{--customhouse-header-height:82px;--customhouse-header-pad-x:clamp(14px,4vw,34px)}.customhouse-header__inner{grid-template-columns:1fr auto;min-height:var(--customhouse-header-height)}.customhouse-header__nav,.customhouse-header__profile-link{display:none}.customhouse-header__menu-button{display:inline-grid}.customhouse-header__mark{width:58px;height:36px}.customhouse-header__wordmark{font-size:clamp(1.28rem,5vw,1.7rem)}.customhouse-header__icon{width:32px;height:32px}.customhouse-header__icon svg{width:26px;height:26px}.customhouse-public-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.customhouse-product-layout{grid-template-columns:1fr;gap:1.5rem}.customhouse-product-page{padding:1rem 0 2rem}.customhouse-product-gallery{display:flex;flex-direction:column-reverse;gap:.75rem}.customhouse-product-thumbs{display:flex;gap:.65rem;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:.15rem}.customhouse-product-thumb{width:76px;min-width:76px;scroll-snap-align:start}.customhouse-service-row{grid-template-columns:1fr}.customhouse-service-row span+span{border-left:0;border-top:1px solid var(--ch-border)}.customhouse-more__grid{grid-template-columns:repeat(2,minmax(0,1fr))}.customhouse-more__controls{gap:4rem}.customhouse-global-footer__inner{align-items:flex-start;flex-direction:column}.customhouse-global-footer__links{gap:10px 0}.customhouse-global-footer__links a{font-size:.86rem}.customhouse-global-footer__links a+a::before{margin:0 10px}}
     @media(max-width:760px){.customhouse-public-page,.customhouse-product-page{width:min(100vw - 1rem,1180px)}.customhouse-public-hero{min-height:auto;padding:1.35rem 1rem 1.5rem;border-radius:0 0 10px 10px}.customhouse-public-hero h1{font-size:clamp(2.5rem,15vw,4rem)}.customhouse-public-socials{gap:.45rem}.customhouse-public-social{width:36px;height:36px}.customhouse-public-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}.customhouse-public-stat{min-width:0;padding:.6rem .58rem;gap:.45rem}.customhouse-public-stat-icon.material-symbols-outlined{font-size:1.6rem}.customhouse-public-share{align-items:stretch;flex-direction:column}.customhouse-public-share-toggle,.customhouse-public-share-copy{width:100%}.customhouse-public-share-menu{position:static;width:100%;margin-top:-.2rem}.customhouse-public-services{grid-template-columns:1fr}.customhouse-public-service+.customhouse-public-service{border-left:0;border-top:1px solid var(--ch-border)}.customhouse-public-service{padding:1.05rem}.customhouse-public-service-icon.material-symbols-outlined{font-size:1.7rem}.customhouse-public-toolbar{align-items:stretch;flex-direction:column}.customhouse-public-toolbar-right{width:100%;justify-content:space-between}.customhouse-public-filter,.customhouse-public-sort{width:100%;min-width:0}.customhouse-public-view{flex:0 0 auto}.customhouse-public-grid{grid-template-columns:1fr}.customhouse-product-panel h1{font-size:clamp(1.9rem,10vw,2.8rem)}.customhouse-product-media img{padding:1rem}.customhouse-option-pill{flex:1 1 auto}.customhouse-field--color .customhouse-option-pill{flex:0 1 calc(50% - .4rem)}.customhouse-more{padding:1.5rem .8rem 1rem}.customhouse-more__title::before,.customhouse-more__title::after{width:28px}.customhouse-more__grid{grid-template-columns:1fr}.customhouse-more__image{max-height:170px}.customhouse-more__card h3{font-size:.9rem}.customhouse-more__button{min-height:32px}}
+    .customhouse-header{--customhouse-header-content-width:1440px;--customhouse-logo-width-desktop:390px;--customhouse-logo-mark-width-desktop:133px;--customhouse-logo-mark-height-desktop:47px;--customhouse-logo-wordmark-size-desktop:42px;--customhouse-logo-width-mobile:170px;--customhouse-logo-mark-width-mobile:58px;--customhouse-logo-mark-height-mobile:20px;--customhouse-logo-wordmark-size-mobile:18px;--customhouse-drawer-logo-width:190px;--customhouse-drawer-logo-mark-width:65px;--customhouse-drawer-logo-mark-height:23px;--customhouse-drawer-logo-wordmark-size:20px;--customhouse-drawer-menu-font-size:clamp(28px,9vw,46px);--customhouse-header-height:86px;--customhouse-header-pad-x:clamp(24px,4.4vw,58px);--customhouse-header-text:#fff;position:relative;z-index:50;display:block;width:100%;color:var(--customhouse-header-text);background:rgb(6 7 8 / .96)}
+    .customhouse-header__inner{box-sizing:border-box;width:min(100%,var(--customhouse-header-content-width));margin-inline:auto;min-height:var(--customhouse-header-height);display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:clamp(28px,4vw,54px);padding:22px var(--customhouse-header-pad-x) 12px}
+    .customhouse-header__logo{--customhouse-logo-width:var(--customhouse-logo-width-desktop);--customhouse-logo-mark-width:var(--customhouse-logo-mark-width-desktop);--customhouse-logo-mark-height:var(--customhouse-logo-mark-height-desktop);--customhouse-logo-wordmark-size:var(--customhouse-logo-wordmark-size-desktop);display:inline-flex;align-items:center;gap:8px;width:var(--customhouse-logo-width);max-width:100%;min-width:0;line-height:1;filter:drop-shadow(0 2px 4px rgb(0 0 0 / .35))}
+    .customhouse-header__mark{position:relative;width:var(--customhouse-logo-mark-width);height:var(--customhouse-logo-mark-height);flex:0 0 auto;display:block;color:#fff}
+    .customhouse-header__logo-image{display:block;width:100%;height:auto;max-height:var(--customhouse-header-height);object-fit:contain}
+    .customhouse-header__wordmark{font-family:Impact,Haettenschweiler,"Arial Narrow Bold","Arial Narrow",sans-serif;font-size:var(--customhouse-logo-wordmark-size);font-weight:900;letter-spacing:0;line-height:1;font-stretch:condensed;white-space:nowrap}
+    .customhouse-header__nav{display:flex;align-items:center;justify-content:flex-end;gap:clamp(24px,3.1vw,46px);min-width:0;overflow:hidden}
+    .customhouse-header__nav a{font-family:Impact,Haettenschweiler,"Arial Narrow Bold",sans-serif;font-size:clamp(14px,1.25vw,19px);font-weight:900;line-height:1;white-space:nowrap;text-transform:uppercase;text-shadow:0 2px 4px rgb(0 0 0 / .45)}
+    .customhouse-header__actions{display:flex;align-items:center;gap:clamp(18px,2.1vw,28px);min-width:0;justify-content:flex-end}
+    .customhouse-header__icon{position:relative;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;flex:0 0 auto}
+    .customhouse-header__icon svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:3.1;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 2px 3px rgb(0 0 0 / .35))}
+    .customhouse-header__profile{position:relative;display:block;flex:0 0 auto}
+    .customhouse-header__profile>summary{box-sizing:border-box;display:inline-flex;width:30px;height:30px;min-width:30px;padding:0;list-style:none;cursor:pointer;border-radius:50%;color:#fff;background:transparent;transition:color .18s ease,background-color .18s ease,transform .18s ease}
+    .customhouse-header__profile>summary svg{display:block;width:30px!important;height:30px!important;min-width:30px}
+    .customhouse-header__profile>summary:hover,.customhouse-header__profile>summary:focus-visible,.customhouse-header__profile[open]>summary{color:#9bd21a;background:rgb(155 210 26 / .14);box-shadow:0 0 0 5px rgb(155 210 26 / .08);outline:none;transform:scale(1.06)}
+    .customhouse-header__profile>summary::-webkit-details-marker{display:none}
+    .customhouse-header__profile-menu{position:absolute;top:calc(100% + 14px);right:0;z-index:20;display:grid;width:min(280px,calc(100vw - 32px));padding:12px;border:1px solid rgb(255 255 255 / .14);border-radius:12px;color:#fff;background:rgb(8 9 10 / .98);box-shadow:0 18px 48px rgb(0 0 0 / .38)}
+    .customhouse-header__profile-menu a{padding:11px 12px;border-radius:8px;color:inherit;font-weight:700;text-decoration:none}
+    .customhouse-header__profile-menu a:hover,.customhouse-header__profile-menu a:focus-visible{color:#111;background:#9bd21a;outline:none}
+    .customhouse-header__profile-choice{display:grid;gap:3px}
+    .customhouse-header__profile-choice small{color:rgba(255,255,255,.66);font-size:.76rem;line-height:1.25}
+    .customhouse-header__profile-choice:hover small,.customhouse-header__profile-choice:focus-visible small{color:#111}
+    .customhouse-header__profile-name{margin:0 0 6px;padding:7px 12px 12px;border-bottom:1px solid rgb(255 255 255 / .14);font-size:.875rem;font-weight:800;overflow-wrap:anywhere}
+    html.customhouse-mobile-drawer-open,html.customhouse-mobile-drawer-open body{overflow:hidden}
+    .customhouse-mobile-drawer__overlay{position:fixed;inset:0;z-index:998;display:block;border:0;background:rgb(0 0 0 / .34);opacity:0;pointer-events:none;transition:opacity .24s ease}
+    .customhouse-mobile-drawer__overlay.is-open{opacity:1;pointer-events:auto}
+    .customhouse-mobile-drawer{position:fixed;inset:0 0 0 auto;z-index:999;box-sizing:border-box;display:flex;width:min(84vw,420px);max-width:calc(100vw - 24px);height:100vh;height:100dvh;flex-direction:column;overflow-y:auto;padding:clamp(28px,8vw,46px) clamp(20px,5.8vw,34px) 32px;color:#fff;background:radial-gradient(circle at 28% 22%,rgb(255 255 255 / .055),transparent 30%),linear-gradient(145deg,#070707,#121212 56%,#080808);box-shadow:-18px 0 34px rgb(0 0 0 / .42);opacity:0;pointer-events:none;visibility:visible;transform:translateX(105%);transition:transform .28s ease,opacity .24s ease}
+    .customhouse-mobile-drawer::before{content:"";position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(90deg,rgb(255 255 255 / .025) 1px,transparent 1px),linear-gradient(0deg,rgb(255 255 255 / .018) 1px,transparent 1px);background-size:19px 23px;opacity:.42}
+    .customhouse-mobile-drawer.is-open{opacity:1;pointer-events:auto;transform:translateX(0)}
+    .customhouse-mobile-drawer__header,.customhouse-mobile-drawer__nav,.customhouse-mobile-drawer__account{position:relative;z-index:1}
+    .customhouse-mobile-drawer__header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:clamp(34px,9vw,58px)}
+    .customhouse-mobile-drawer__logo{--customhouse-logo-width:var(--customhouse-drawer-logo-width);--customhouse-logo-mark-width:var(--customhouse-drawer-logo-mark-width);--customhouse-logo-mark-height:var(--customhouse-drawer-logo-mark-height);--customhouse-logo-wordmark-size:var(--customhouse-drawer-logo-wordmark-size);gap:7px}
+    .customhouse-mobile-drawer__close{display:inline-flex;width:clamp(36px,9vw,46px);height:clamp(36px,9vw,46px);align-items:center;justify-content:center;flex:0 0 auto;padding:0;border:0;color:#fff;background:transparent;cursor:pointer}
+    .customhouse-mobile-drawer__close svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}
+    .customhouse-mobile-drawer__nav{display:grid;margin-bottom:clamp(34px,9vw,54px)}
+    .customhouse-mobile-drawer__nav a,.customhouse-mobile-drawer__account a{display:grid;grid-template-columns:clamp(30px,8vw,42px) minmax(0,1fr);align-items:center;gap:clamp(12px,3.8vw,20px);color:#fff;font-family:Impact,Haettenschweiler,"Arial Narrow Bold",sans-serif;font-size:var(--customhouse-drawer-menu-font-size);font-weight:900;line-height:.95;text-decoration:none;text-transform:uppercase}
+    .customhouse-mobile-drawer__nav a{min-height:clamp(62px,17vw,86px);border-bottom:1px solid rgb(255 255 255 / .18)}
+    .customhouse-mobile-drawer__line-icon{color:#9bd21a}
+    .customhouse-mobile-drawer__line-icon svg,.customhouse-mobile-drawer__account-icon svg{width:clamp(24px,6.5vw,34px);height:clamp(24px,6.5vw,34px);fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+    .customhouse-mobile-drawer__account{display:grid;gap:22px;margin-top:auto;padding-bottom:8px}
+    #FooterStrip-customhouse-app{position:relative;isolation:isolate;overflow:hidden;width:100%;min-height:var(--footer-min-height);padding:var(--footer-padding-top) var(--footer-padding-x) var(--footer-padding-bottom);background:var(--footer-bg);color:var(--footer-text);box-sizing:border-box}
+    #FooterStrip-customhouse-app::before{content:"";position:absolute;z-index:3;top:var(--footer-line-offset);left:var(--footer-line-inset);right:var(--footer-line-inset);height:var(--footer-line-height);background:var(--footer-accent);opacity:var(--footer-line-opacity);box-shadow:0 0 10px var(--footer-accent)}
+    #FooterStrip-customhouse-app .footer-strip__image,#FooterStrip-customhouse-app .footer-strip__texture{position:absolute;inset:0;pointer-events:none}
+    #FooterStrip-customhouse-app .footer-strip__image{z-index:0;background-repeat:no-repeat;background-size:cover;opacity:var(--footer-image-opacity)}
+    #FooterStrip-customhouse-app .footer-strip__texture{z-index:1;opacity:var(--footer-texture-opacity);background:radial-gradient(circle at 50% 40%,rgba(255,255,255,.22) 0 1px,transparent 1.6px) 0 0/13px 11px,radial-gradient(circle at 40% 60%,rgba(255,255,255,.16) 0 1px,transparent 1.9px) 4px 5px/21px 17px,radial-gradient(ellipse at 58% 42%,rgba(255,255,255,.18),transparent 34%),linear-gradient(90deg,rgba(255,255,255,.04),transparent 18%,rgba(255,255,255,.09) 50%,transparent 82%);mix-blend-mode:screen}
+    #FooterStrip-customhouse-app .footer-strip__inner{position:relative;z-index:2;min-height:calc(var(--footer-min-height) - var(--footer-padding-top) - var(--footer-padding-bottom));max-width:var(--footer-max-width);margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:var(--footer-group-gap);box-sizing:border-box}
+    #FooterStrip-customhouse-app .footer-strip__social{display:grid;gap:11px;min-width:max-content}
+    #FooterStrip-customhouse-app .footer-strip__heading,#FooterStrip-customhouse-app .footer-strip__link{margin:0;color:var(--footer-text);font-family:Impact,Haettenschweiler,"Arial Narrow Bold",sans-serif;font-style:normal;font-weight:var(--footer-text-weight);line-height:1.05;letter-spacing:0;text-transform:uppercase;text-decoration:none;text-shadow:0 1px 0 rgba(0,0,0,.35)}
+    #FooterStrip-customhouse-app .footer-strip__heading{font-size:var(--footer-label-size)}
+    #FooterStrip-customhouse-app .footer-strip__icons{display:flex;align-items:center;gap:var(--footer-icon-gap);min-height:var(--footer-icon-size)}
+    #FooterStrip-customhouse-app .footer-strip__icon{width:var(--footer-icon-size);height:var(--footer-icon-size);display:inline-flex;align-items:center;justify-content:center;color:var(--footer-text);flex:0 0 auto;text-decoration:none}
+    #FooterStrip-customhouse-app .footer-strip__icon svg{width:100%;height:100%;display:block;object-fit:contain;fill:currentColor}
+    #FooterStrip-customhouse-app .footer-strip__icon svg rect,#FooterStrip-customhouse-app .footer-strip__icon svg circle{fill:none;stroke:currentColor;stroke-width:2.15}
+    #FooterStrip-customhouse-app .footer-strip__icon svg .footer-strip__icon-dot{fill:currentColor;stroke:none}
+    #FooterStrip-customhouse-app .footer-strip__icon svg .footer-strip__facebook-circle{fill:currentColor;stroke:none}
+    #FooterStrip-customhouse-app .footer-strip__icon svg .footer-strip__facebook-f{fill:var(--footer-icon-cutout)}
+    #FooterStrip-customhouse-app .footer-strip__links{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:10px var(--footer-link-gap);max-width:100%}
+    #FooterStrip-customhouse-app .footer-strip__link{position:relative;display:inline-flex;align-items:center;min-height:24px;font-size:var(--footer-link-size);white-space:nowrap}
+    #FooterStrip-customhouse-app .footer-strip__link+.footer-strip__link::before{content:"";width:2px;height:18px;margin-right:var(--footer-link-gap);background:currentColor;opacity:.55}
+    @media screen and (max-width:1180px){.customhouse-header{--customhouse-header-height:clamp(74px,10vw,94px);--customhouse-header-pad-x:clamp(14px,4vw,34px);background:rgb(6 7 8 / .96)}.customhouse-header__inner{min-height:var(--customhouse-header-height);grid-template-columns:minmax(0,1fr) auto;gap:clamp(10px,2.4vw,24px);padding-top:clamp(14px,2.2vw,20px);padding-bottom:12px}.customhouse-header__nav{display:none}.customhouse-header__profile{display:none}.customhouse-header__logo{--customhouse-logo-width:clamp(var(--customhouse-logo-width-mobile),24vw,var(--customhouse-logo-width-desktop));--customhouse-logo-mark-width:clamp(var(--customhouse-logo-mark-width-mobile),7.2vw,var(--customhouse-logo-mark-width-desktop));--customhouse-logo-mark-height:clamp(var(--customhouse-logo-mark-height-mobile),2.6vw,var(--customhouse-logo-mark-height-desktop));--customhouse-logo-wordmark-size:clamp(var(--customhouse-logo-wordmark-size-mobile),2.45vw,var(--customhouse-logo-wordmark-size-desktop));gap:7px}.customhouse-header__actions{gap:clamp(10px,2.2vw,18px)}.customhouse-header__icon{width:clamp(28px,3.6vw,34px);height:clamp(28px,3.6vw,34px)}.customhouse-header__icon svg{stroke-width:2.6}.customhouse-header__menu-button{display:inline-flex;color:#9bd21a}.customhouse-header__menu-button svg{stroke-width:2.8}}
+    @media screen and (max-width:749px){.customhouse-header{--customhouse-header-height:94px;--customhouse-header-pad-x:clamp(13px,4.5vw,22px)}.customhouse-header__inner{gap:10px;padding-top:16px;padding-bottom:12px}.customhouse-header__logo{--customhouse-logo-width:var(--customhouse-logo-width-mobile);--customhouse-logo-mark-width:var(--customhouse-logo-mark-width-mobile);--customhouse-logo-mark-height:var(--customhouse-logo-mark-height-mobile);--customhouse-logo-wordmark-size:var(--customhouse-logo-wordmark-size-mobile)}.customhouse-header__actions{gap:clamp(10px,3vw,18px)}.customhouse-header__icon{width:clamp(28px,8vw,34px);height:clamp(28px,8vw,34px)}.customhouse-mobile-drawer{width:min(82vw,390px)}#FooterStrip-customhouse-app{min-height:auto;padding-right:var(--footer-mobile-padding-x);padding-left:var(--footer-mobile-padding-x)}#FooterStrip-customhouse-app .footer-strip__inner{min-height:auto;flex-direction:column;align-items:center;justify-content:center;gap:22px;text-align:center}#FooterStrip-customhouse-app .footer-strip__social{justify-items:center;min-width:0;width:100%}#FooterStrip-customhouse-app .footer-strip__heading{font-size:var(--footer-mobile-label-size)}#FooterStrip-customhouse-app .footer-strip__icon{width:var(--footer-mobile-icon-size);height:var(--footer-mobile-icon-size)}#FooterStrip-customhouse-app .footer-strip__links{width:100%;justify-content:center;row-gap:8px}#FooterStrip-customhouse-app .footer-strip__link{font-size:var(--footer-mobile-link-size);min-height:22px;white-space:normal;overflow-wrap:anywhere}}
   </style>`;
 }
 
 function siteHeader() {
+  const logoUrl = publicImageUrl(process.env.CUSTOMHOUSE_HEADER_LOGO_URL);
+  const logoMarkup = logoUrl
+    ? `<img class="customhouse-header__logo-image" src="${escapeHtml(logoUrl)}" alt="CustomHouse" loading="eager">`
+    : `<span class="customhouse-header__mark" aria-hidden="true">
+        <svg viewBox="0 0 140 54" focusable="false">
+          <path d="M0 0h43l25 27-25 27H0l24-27L0 0Z"></path>
+          <path d="M140 0H97L72 27l25 27h43l-24-27 24-27Z"></path>
+        </svg>
+      </span>
+      <span class="customhouse-header__wordmark">CUSTOMHOUSE</span>`;
+  const loginUrl = "/customer_authentication/login?return_to=%2Fpages%2Fcreator-dashboard";
+  const becomeCreatorLoginUrl = "/customer_authentication/login?return_to=%2Fpages%2Fbecome-a-creator";
   return `<header class="customhouse-header" data-customhouse-shell>
     <div class="customhouse-header__inner">
       <a class="customhouse-header__logo" href="/" aria-label="CustomHouse home">
-        <span class="customhouse-header__mark" aria-hidden="true">
-          <svg viewBox="0 0 112 68" focusable="false">
-            <path d="M0 0h30.8l17.4 20.7L66.1 0H112L75 33.8 112 68H78.4L58.1 44.2 37.5 68H0l39.2-34.8L0 0Zm32.2 9.7 23.7 26.8L34.4 58.3h14.1l14.6-17.1 14.6 17.1h14.1L67.5 35.7 92.6 9.7H72L57 27.1 42 9.7H32.2Z"></path>
-          </svg>
-        </span>
-        <span class="customhouse-header__wordmark">CUSTOMHOUSE</span>
+        ${logoMarkup}
       </a>
       <nav class="customhouse-header__nav" aria-label="Main navigation">
         <a href="/collections/t-shirts">T-SHIRTS</a>
@@ -498,55 +566,92 @@ function siteHeader() {
         <a class="customhouse-header__icon" href="/cart" aria-label="Cart">
           <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><path d="M3 5h4l3 17h15l4-12H9"></path><circle cx="13" cy="27" r="1.8"></circle><circle cx="24" cy="27" r="1.8"></circle></svg>
         </a>
-        <a class="customhouse-header__icon customhouse-header__profile-link" href="/pages/creator-dashboard" aria-label="Creator dashboard">
-          <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle cx="16" cy="10" r="5"></circle><path d="M5 28c2.2-6.4 6-9.5 11-9.5S24.8 21.6 27 28"></path></svg>
-        </a>
+        <details class="customhouse-header__profile">
+          <summary class="customhouse-header__icon" aria-label="Open profile menu">
+            <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle cx="16" cy="10" r="5.5"></circle><path d="M5 28c1.5-6.2 5.2-9.5 11-9.5s9.5 3.3 11 9.5"></path></svg>
+          </summary>
+          <div class="customhouse-header__profile-menu">
+            <p class="customhouse-header__profile-name">Customer account</p>
+            <a href="${loginUrl}">Log in</a>
+            <a class="customhouse-header__profile-choice" href="${loginUrl}">
+              <strong>Create account</strong>
+              <small>Create a customer account to manage your orders and purchases.</small>
+            </a>
+            <a class="customhouse-header__profile-choice" href="${becomeCreatorLoginUrl}">
+              <strong>Become a creator</strong>
+              <small>Apply to become a Creator and publish your designs on CustomHouse.</small>
+            </a>
+          </div>
+        </details>
         <button class="customhouse-header__icon customhouse-header__menu-button" type="button" data-customhouse-menu-open aria-label="Open menu" aria-expanded="false">
           <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><path d="M6 9h20M6 16h20M6 23h20"></path></svg>
         </button>
       </div>
     </div>
-    <div class="customhouse-mobile-drawer" data-customhouse-mobile-drawer aria-hidden="true">
-      <div class="customhouse-mobile-drawer__panel">
-        <div class="customhouse-mobile-drawer__top">
-          <a class="customhouse-header__logo" href="/" aria-label="CustomHouse home">
-            <span class="customhouse-header__mark" aria-hidden="true">
-              <svg viewBox="0 0 112 68" focusable="false"><path d="M0 0h30.8l17.4 20.7L66.1 0H112L75 33.8 112 68H78.4L58.1 44.2 37.5 68H0l39.2-34.8L0 0Zm32.2 9.7 23.7 26.8L34.4 58.3h14.1l14.6-17.1 14.6 17.1h14.1L67.5 35.7 92.6 9.7H72L57 27.1 42 9.7H32.2Z"></path></svg>
-            </span>
-            <span class="customhouse-header__wordmark">CUSTOMHOUSE</span>
-          </a>
-          <button class="customhouse-mobile-drawer__close" type="button" data-customhouse-menu-close aria-label="Close menu">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5 5 19"></path></svg>
-          </button>
-        </div>
-        <nav class="customhouse-mobile-drawer__nav" aria-label="Mobile navigation">
-          <a class="customhouse-mobile-drawer__link" href="/collections/t-shirts">T-SHIRTS</a>
-          <a class="customhouse-mobile-drawer__link" href="/collections/hoodies">HOODIES</a>
-          <a class="customhouse-mobile-drawer__link" href="/pages/design-selv">DESIGN SELV</a>
-          <a class="customhouse-mobile-drawer__link" href="/blogs/news">INSPIRATION</a>
-          <a class="customhouse-mobile-drawer__action" href="/pages/creator-dashboard">Creator dashboard</a>
-        </nav>
+    <button class="customhouse-mobile-drawer__overlay" type="button" aria-label="Close menu" hidden data-customhouse-menu-close></button>
+    <aside id="CustomhouseMobileDrawer-app" class="customhouse-mobile-drawer" aria-label="Mobile menu" aria-hidden="true" tabindex="-1" hidden data-customhouse-mobile-drawer>
+      <div class="customhouse-mobile-drawer__header">
+        <a class="customhouse-header__logo customhouse-mobile-drawer__logo" href="/" aria-label="CustomHouse home">${logoMarkup}</a>
+        <button class="customhouse-mobile-drawer__close" type="button" aria-label="Close menu" data-customhouse-menu-close>
+          <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><path d="M7 7 25 25"></path><path d="M25 7 7 25"></path></svg>
+        </button>
       </div>
-      <button class="customhouse-mobile-drawer__backdrop" type="button" data-customhouse-menu-close aria-label="Close menu"></button>
-    </div>
+      <nav class="customhouse-mobile-drawer__nav" aria-label="Mobile navigation">
+        <a href="/collections/t-shirts">
+          <span class="customhouse-mobile-drawer__line-icon" aria-hidden="true"><svg viewBox="0 0 48 48" focusable="false"><path d="M17 8h14l10 8-5 8-5-3v19H17V21l-5 3-5-8 10-8Z"></path><path d="M20 8c1.1 3 2.4 4.5 4 4.5S26.9 11 28 8"></path><path d="M18 35h12"></path></svg></span>
+          <span>T-SHIRTS</span>
+        </a>
+        <a href="/collections/hoodies">
+          <span class="customhouse-mobile-drawer__line-icon" aria-hidden="true"><svg viewBox="0 0 48 48" focusable="false"><path d="M15 20c0-7.6 3.8-13 9-13s9 5.4 9 13"></path><path d="M13 18 7 32l8 4 3-8v13h12V28l3 8 8-4-6-14"></path><path d="M18 20h12"></path><path d="M21 41v-8h6v8"></path></svg></span>
+          <span>HOODIES</span>
+        </a>
+        <a href="/pages/design-selv">
+          <span class="customhouse-mobile-drawer__line-icon" aria-hidden="true"><svg viewBox="0 0 48 48" focusable="false"><path d="M10 37 36 11l6 6-26 26-8 2 2-8Z"></path><path d="m31 16 6 6"></path><path d="M8 43h26"></path></svg></span>
+          <span>DESIGN SELV</span>
+        </a>
+        <a href="/blogs/news">
+          <span class="customhouse-mobile-drawer__line-icon" aria-hidden="true"><svg viewBox="0 0 48 48" focusable="false"><path d="M18 30c-2.8-2.2-4.5-5.3-4.5-9 0-6.3 4.7-11 10.5-11s10.5 4.7 10.5 11c0 3.7-1.7 6.8-4.5 9"></path><path d="M19 34h10"></path><path d="M20.5 39h7"></path><path d="M24 3v4"></path><path d="M9 10l3 3"></path><path d="M39 10l-3 3"></path><path d="M7 22h4"></path><path d="M37 22h4"></path></svg></span>
+          <span>INSPIRATION</span>
+        </a>
+      </nav>
+      <div class="customhouse-mobile-drawer__account">
+        <a href="${becomeCreatorLoginUrl}">
+          <span class="customhouse-mobile-drawer__account-icon" aria-hidden="true"><svg viewBox="0 0 32 32" focusable="false"><path d="M16 4v24"></path><path d="M4 16h24"></path></svg></span>
+          <span>BECOME A CREATOR</span>
+        </a>
+        <a href="${loginUrl}">
+          <span class="customhouse-mobile-drawer__account-icon" aria-hidden="true"><svg viewBox="0 0 32 32" focusable="false"><path d="M14 6H7v20h7"></path><path d="M16 16h11"></path><path d="m22 11 5 5-5 5"></path></svg></span>
+          <span>LOG IN</span>
+        </a>
+      </div>
+    </aside>
   </header>`;
 }
 
 function siteFooter() {
-  return `<footer class="customhouse-global-footer" data-customhouse-shell>
-    <div class="customhouse-global-footer__inner">
-      <div>
-        <p class="customhouse-global-footer__heading">FÖLJ OSS</p>
-        <div class="customhouse-global-footer__socials" aria-label="Social links">
-          <a class="customhouse-global-footer__social" href="https://www.instagram.com/customhouse.se/" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="5"></rect><circle cx="12" cy="12" r="3.5"></circle><circle cx="17.2" cy="6.8" r="1"></circle></svg></a>
-          <a class="customhouse-global-footer__social" href="https://www.facebook.com/customhouse.se/" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M13.2 18v-5.4h1.9l.3-2.2h-2.2V9.1c0-.6.2-1 1.1-1h1.1V6.2c-.2 0-.9-.1-1.7-.1-1.7 0-2.8 1-2.8 2.9v1.4H9v2.2h1.9V18"></path></svg></a>
+  const backgroundUrl = publicImageUrl(process.env.CUSTOMHOUSE_FOOTER_BACKGROUND_URL);
+  return `<footer
+    id="FooterStrip-customhouse-app"
+    class="footer-strip"
+    data-customhouse-shell
+    style="--footer-bg:#050506;--footer-text:#f4f4f2;--footer-accent:#7d3cc7;--footer-icon-cutout:#050506;--footer-max-width:1200px;--footer-min-height:128px;--footer-padding-top:32px;--footer-padding-bottom:22px;--footer-padding-x:42px;--footer-mobile-padding-x:22px;--footer-label-size:18px;--footer-link-size:21px;--footer-mobile-label-size:16px;--footer-mobile-link-size:16px;--footer-icon-size:28px;--footer-mobile-icon-size:26px;--footer-icon-gap:13px;--footer-link-gap:22px;--footer-group-gap:36px;--footer-text-weight:800;--footer-line-height:3px;--footer-line-offset:20px;--footer-line-inset:0px;--footer-line-opacity:.85;--footer-texture-opacity:.65;--footer-image-opacity:.7;"
+  >
+    ${backgroundUrl ? `<div class="footer-strip__image footer-strip__image--desktop" style="background-image:url(${escapeHtml(backgroundUrl)});background-position:center center;" aria-hidden="true"></div>` : ""}
+    <div class="footer-strip__texture" aria-hidden="true"></div>
+    <div class="footer-strip__inner">
+      <div class="footer-strip__social">
+        <div class="footer-strip__heading">FÖLJ OSS</div>
+        <div class="footer-strip__icons" aria-label="FÖLJ OSS">
+          <a class="footer-strip__icon" href="https://www.youtube.com/" target="_blank" rel="noopener noreferrer" aria-label="YouTube"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21.35 7.4a3 3 0 0 0-2.11-2.12C17.38 4.78 12 4.78 12 4.78s-5.38 0-7.24.5A3 3 0 0 0 2.65 7.4 31.42 31.42 0 0 0 2.15 12c0 1.55.17 3.1.5 4.6a3 3 0 0 0 2.11 2.12c1.86.5 7.24.5 7.24.5s5.38 0 7.24-.5a3 3 0 0 0 2.11-2.12c.33-1.5.5-3.05.5-4.6s-.17-3.1-.5-4.6ZM10.05 15.45v-6.9L15.68 12l-5.63 3.45Z"></path></svg></a>
+          <a class="footer-strip__icon" href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle class="footer-strip__facebook-circle" cx="12" cy="12" r="10"></circle><path class="footer-strip__facebook-f" d="M13.12 18.15v-5.57h1.86l.28-2.17h-2.14V9.03c0-.63.17-1.06 1.08-1.06h1.15V6.03c-.2-.03-.88-.09-1.68-.09-1.66 0-2.8 1.01-2.8 2.87v1.6H8.99v2.17h1.88v5.57h2.25Z"></path></svg></a>
+          <a class="footer-strip__icon" href="https://www.instagram.com/" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.1" y="3.1" width="17.8" height="17.8" rx="5.1"></rect><circle cx="12" cy="12" r="4.15"></circle><circle class="footer-strip__icon-dot" cx="17.25" cy="6.85" r="1.15"></circle></svg></a>
         </div>
       </div>
-      <nav class="customhouse-global-footer__links" aria-label="Footer navigation">
-        <a href="/pages/faq">FAQ</a>
-        <a href="/pages/contact">KONTAKT</a>
-        <a href="/policies/terms-of-service">VILLKOR</a>
-        <a href="/pages/creator-dashboard">BECOME A CREATOR</a>
+      <nav class="footer-strip__links" aria-label="Footer quick links">
+        <a class="footer-strip__link" href="/pages/faq">FAQ</a>
+        <a class="footer-strip__link" href="/pages/contact">KONTAKT</a>
+        <a class="footer-strip__link" href="/policies/privacy-policy">VILLKOR</a>
+        <a class="footer-strip__link" href="/pages/become-a-creator">BECOME A CREATOR</a>
       </nav>
     </div>
   </footer>`;
@@ -557,15 +662,20 @@ function siteShellScript() {
     (() => {
       const drawer = document.querySelector("[data-customhouse-mobile-drawer]");
       const openButton = document.querySelector("[data-customhouse-menu-open]");
-      if (!drawer || !openButton) return;
+      const overlay = document.querySelector(".customhouse-mobile-drawer__overlay");
+      if (!drawer || !openButton || !overlay) return;
       const setOpen = (open) => {
         drawer.classList.toggle("is-open", open);
         drawer.setAttribute("aria-hidden", open ? "false" : "true");
+        drawer.hidden = !open;
+        overlay.classList.toggle("is-open", open);
+        overlay.hidden = !open;
         openButton.setAttribute("aria-expanded", open ? "true" : "false");
-        document.documentElement.style.overflow = open ? "hidden" : "";
+        document.documentElement.classList.toggle("customhouse-mobile-drawer-open", open);
+        if (open) drawer.focus({ preventScroll: true });
       };
       openButton.addEventListener("click", () => setOpen(true));
-      drawer.querySelectorAll("[data-customhouse-menu-close], a").forEach((item) => {
+      document.querySelectorAll("[data-customhouse-menu-close], .customhouse-mobile-drawer a").forEach((item) => {
         item.addEventListener("click", () => setOpen(false));
       });
       document.addEventListener("keydown", (event) => {
