@@ -213,9 +213,13 @@ test("app managed creator cart uses base variants and signed attribution", () =>
   assert.doesNotMatch(proxy, /product\.publishedShopifyProductUrl \|\|\s*getCreatorProductStorefrontUrl\(input\.collection, product\)/);
   assert.doesNotMatch(proxy, /customhouse-proxy-header/);
   assert.doesNotMatch(proxy, /customhouse-proxy-footer/);
-  assert.match(proxy, /function siteHeader\(\)/);
+  assert.match(proxy, /async function siteHeaderAccount\(context: VerifiedProxyContext\)/);
+  assert.match(proxy, /function siteHeader\(account: SiteHeaderAccount = \{ loggedIn: false \}\)/);
   assert.match(proxy, /function siteFooter\(\)/);
-  assert.match(proxy, /\$\{siteHeader\(\)\}/);
+  assert.match(proxy, /\$\{siteHeader\(input\.headerAccount\)\}/);
+  assert.match(proxy, /headerAccount: await siteHeaderAccount\(context\)/);
+  assert.match(proxy, /Creator dashboard/);
+  assert.match(proxy, /Log out/);
   assert.match(proxy, /\$\{siteFooter\(\)\}/);
   assert.match(proxy, /customhouse-header__nav/);
   assert.match(proxy, /CUSTOMHOUSE_HEADER_LOGO_URL/);

@@ -1,3 +1,4 @@
+import db from "../db.server.ts";
 import { DomainError } from "./domain.ts";
 import {
   creatorProductSetupFromRecord,
@@ -12,6 +13,7 @@ import {
   getCreatorCollectionStorefrontUrl,
   getCreatorProductStorefrontUrl,
 } from "./creator-storefront-urls.ts";
+import { normalizeCustomerGid } from "./helium-sync.ts";
 import { formatMinorMoney } from "./money.ts";
 
 const SAFE_HEADERS = {
@@ -45,6 +47,14 @@ type ProxyRoute =
   | { kind: "design"; designSlug: string }
   | { kind: "designCart"; designId: string }
   | { kind: "notFound" };
+
+type SiteHeaderAccount =
+  | { loggedIn: false }
+  | {
+      loggedIn: true;
+      displayName: string | null;
+      hasCreatorDashboard: boolean;
+    };
 
 function success(data: Record<string, unknown>, status = 200): Response {
   return Response.json(
@@ -541,7 +551,28 @@ function publicCss() {
   </style>`;
 }
 
-function siteHeader() {
+async function siteHeaderAccount(context: VerifiedProxyContext): Promise<SiteHeaderAccount> {
+  if (!context.customerId) return { loggedIn: false };
+  const customerId = normalizeCustomerGid(context.customerId);
+  const creator = await db.creator.findUnique({
+    where: {
+      shop_customerId: {
+        shop: context.shop,
+        customerId,
+      },
+    },
+    select: {
+      displayName: true,
+    },
+  });
+  return {
+    loggedIn: true,
+    displayName: creator?.displayName?.trim() || null,
+    hasCreatorDashboard: Boolean(creator),
+  };
+}
+
+function siteHeader(account: SiteHeaderAccount = { loggedIn: false }) {
   const logoUrl =
     publicImageUrl(process.env.CUSTOMHOUSE_HEADER_LOGO_URL) ||
     DEFAULT_HEADER_LOGO_URL;
@@ -556,6 +587,43 @@ function siteHeader() {
       <span class="customhouse-header__wordmark">CUSTOMHOUSE</span>`;
   const loginUrl = "/customer_authentication/login?return_to=%2Fpages%2Fcreator-dashboard";
   const becomeCreatorLoginUrl = "/customer_authentication/login?return_to=%2Fpages%2Fbecome-a-creator";
+  const creatorDashboardUrl = "/pages/creator-dashboard";
+  const logoutUrl = "/account/logout";
+  const profileMenu = account.loggedIn
+    ? `<p class="customhouse-header__profile-name">${escapeHtml(account.displayName || "Customer account")}</p>
+            ${
+              account.hasCreatorDashboard
+                ? `<a href="${creatorDashboardUrl}">Creator dashboard</a>`
+                : `<a href="/pages/become-a-creator">Become a creator</a>`
+            }
+            <a href="${logoutUrl}">Log out</a>`
+    : `<p class="customhouse-header__profile-name">Customer account</p>
+            <a href="${loginUrl}">Log in</a>
+            <a class="customhouse-header__profile-choice" href="${loginUrl}">
+              <strong>Create account</strong>
+              <small>Create a customer account to manage your orders and purchases.</small>
+            </a>
+            <a class="customhouse-header__profile-choice" href="${becomeCreatorLoginUrl}">
+              <strong>Become a creator</strong>
+              <small>Apply to become a Creator and publish your designs on CustomHouse.</small>
+            </a>`;
+  const mobileAccountLinks = account.loggedIn
+    ? `<a href="${account.hasCreatorDashboard ? creatorDashboardUrl : "/pages/become-a-creator"}">
+          <span class="customhouse-mobile-drawer__account-icon" aria-hidden="true"><svg viewBox="0 0 32 32" focusable="false"><circle cx="16" cy="10" r="5.5"></circle><path d="M5 28c1.5-6.2 5.2-9.5 11-9.5s9.5 3.3 11 9.5"></path></svg></span>
+          <span>${account.hasCreatorDashboard ? "CREATOR DASHBOARD" : "BECOME A CREATOR"}</span>
+        </a>
+        <a href="${logoutUrl}">
+          <span class="customhouse-mobile-drawer__account-icon" aria-hidden="true"><svg viewBox="0 0 32 32" focusable="false"><path d="M18 6h7v20h-7"></path><path d="M16 16H5"></path><path d="m10 11-5 5 5 5"></path></svg></span>
+          <span>LOG OUT</span>
+        </a>`
+    : `<a href="${becomeCreatorLoginUrl}">
+          <span class="customhouse-mobile-drawer__account-icon" aria-hidden="true"><svg viewBox="0 0 32 32" focusable="false"><path d="M16 4v24"></path><path d="M4 16h24"></path></svg></span>
+          <span>BECOME A CREATOR</span>
+        </a>
+        <a href="${loginUrl}">
+          <span class="customhouse-mobile-drawer__account-icon" aria-hidden="true"><svg viewBox="0 0 32 32" focusable="false"><path d="M14 6H7v20h7"></path><path d="M16 16h11"></path><path d="m22 11 5 5-5 5"></path></svg></span>
+          <span>LOG IN</span>
+        </a>`;
   return `<header class="customhouse-header" data-customhouse-shell>
     <div class="customhouse-header__inner">
       <a class="customhouse-header__logo" href="/" aria-label="CustomHouse home">
@@ -579,16 +647,7 @@ function siteHeader() {
             <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle cx="16" cy="10" r="5.5"></circle><path d="M5 28c1.5-6.2 5.2-9.5 11-9.5s9.5 3.3 11 9.5"></path></svg>
           </summary>
           <div class="customhouse-header__profile-menu">
-            <p class="customhouse-header__profile-name">Customer account</p>
-            <a href="${loginUrl}">Log in</a>
-            <a class="customhouse-header__profile-choice" href="${loginUrl}">
-              <strong>Create account</strong>
-              <small>Create a customer account to manage your orders and purchases.</small>
-            </a>
-            <a class="customhouse-header__profile-choice" href="${becomeCreatorLoginUrl}">
-              <strong>Become a creator</strong>
-              <small>Apply to become a Creator and publish your designs on CustomHouse.</small>
-            </a>
+            ${profileMenu}
           </div>
         </details>
         <button class="customhouse-header__icon customhouse-header__menu-button" type="button" data-customhouse-menu-open aria-label="Open menu" aria-expanded="false">
@@ -623,14 +682,7 @@ function siteHeader() {
         </a>
       </nav>
       <div class="customhouse-mobile-drawer__account">
-        <a href="${becomeCreatorLoginUrl}">
-          <span class="customhouse-mobile-drawer__account-icon" aria-hidden="true"><svg viewBox="0 0 32 32" focusable="false"><path d="M16 4v24"></path><path d="M4 16h24"></path></svg></span>
-          <span>BECOME A CREATOR</span>
-        </a>
-        <a href="${loginUrl}">
-          <span class="customhouse-mobile-drawer__account-icon" aria-hidden="true"><svg viewBox="0 0 32 32" focusable="false"><path d="M14 6H7v20h7"></path><path d="M16 16h11"></path><path d="m22 11 5 5-5 5"></path></svg></span>
-          <span>LOG IN</span>
-        </a>
+        ${mobileAccountLinks}
       </div>
     </aside>
   </header>`;
@@ -726,6 +778,7 @@ export function collectionHtml(input: {
       };
     };
   }>;
+  headerAccount?: SiteHeaderAccount;
 }) {
   const collectionName =
     input.collection.displayName?.trim() ||
@@ -782,7 +835,7 @@ export function collectionHtml(input: {
         ${publicCss()}
       </head>
       <body>
-        ${siteHeader()}
+        ${siteHeader(input.headerAccount)}
         <main class="customhouse-public-page" data-customhouse>
           <header class="customhouse-public-hero${heroImageUrl ? " customhouse-public-hero--with-banner" : ""}"${heroBackgroundAttr(heroImageUrl)}>
             <div class="customhouse-public-hero-copy">
@@ -922,6 +975,7 @@ function productHtml(input: {
   previewUrls?: string | null;
   creator: { displayName: string; handle: string };
   collection: { publicHandle: string; displayName?: string };
+  headerAccount?: SiteHeaderAccount;
   relatedProducts?: Array<{
     id: string;
     title: string;
@@ -1187,7 +1241,7 @@ function productHtml(input: {
         ${publicCss()}
       </head>
       <body>
-        ${siteHeader()}
+        ${siteHeader(input.headerAccount)}
         <main class="customhouse-product-page" data-customhouse>
           <section class="customhouse-product-layout">
             <div>
@@ -1920,9 +1974,15 @@ export async function handleStorefrontProxy(
             })),
             customer,
           };
-          return wantsJson(request)
+          const jsonResponse = wantsJson(request);
+          return jsonResponse
             ? success(data)
-            : collectionHtml({ collection, creator, products });
+            : collectionHtml({
+                collection,
+                creator,
+                products,
+                headerAccount: await siteHeaderAccount(context),
+              });
         }
       case "creatorProduct":
         if (request.method !== "GET") {
@@ -1997,10 +2057,12 @@ export async function handleStorefrontProxy(
             },
             customer,
           };
-          return wantsJson(request)
+          const jsonResponse = wantsJson(request);
+          return jsonResponse
             ? success(data)
             : productHtml({
                 ...product,
+                headerAccount: await siteHeaderAccount(context),
                 relatedProducts: related.products
                   .filter((item) => item.id !== product.id)
                   .slice(0, 12),
