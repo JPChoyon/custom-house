@@ -224,6 +224,8 @@ test("app managed creator cart uses base variants and signed attribution", () =>
   assert.match(proxy, /ChatGPT_Image_Jun_27_2026_06_10_23_PM\.png\?width=2400/);
   assert.match(proxy, /background:#050505/);
   assert.doesNotMatch(proxy, /body:has\(\.customhouse-public-page\) \.customhouse-public-hero\{padding-top/);
+  assert.match(proxy, /customhouse-header__nav a\{font-family:Inter/);
+  assert.match(proxy, /customhouse-mobile-drawer__nav a,.customhouse-mobile-drawer__account a\{display:grid[^}]*font-weight:800/);
   assert.match(proxy, /@media screen and \(min-width:901px\)\{\.customhouse-header__menu-button\{display:none!important\}/);
   assert.match(proxy, /FooterStrip-customhouse-app/);
   assert.match(proxy, /footer-strip__texture/);
