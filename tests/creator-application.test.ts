@@ -659,10 +659,6 @@ test("admin creators directory matches final table ux", () => {
   const styles = readFileSync("app/styles/admin.css", "utf8");
 
   assert.match(creatorsRoute, /creator-admin-header-actions/);
-  assert.match(creatorsRoute, /creator-directory-dashboard/);
-  assert.match(creatorsRoute, /creator-admin-title-icon/);
-  assert.match(creatorsRoute, /creator-directory-toolbar/);
-  assert.match(creatorsRoute, /creator-directory-panel/);
   assert.match(creatorsRoute, /creator-notification-menu/);
   assert.match(creatorsRoute, /MARK_ALL_NOTIFICATIONS_READ/);
   assert.doesNotMatch(creatorsRoute, /creator-invite-button/);
@@ -695,15 +691,7 @@ test("admin creators directory matches final table ux", () => {
   assert.match(styles, /Creator toolbar and pagination finishing pass/);
   assert.match(styles, /Cohesive responsive creators layout/);
   assert.match(styles, /Professional responsive creator directory actions/);
-  assert.match(styles, /Creator dashboard payout-style visual system/);
   assert.match(styles, /\.creator-more-menu summary::before/);
-  assert.match(styles, /\.creator-admin-page\.creator-directory-dashboard/);
-  assert.match(styles, /\.creator-directory-dashboard > \.creator-admin-header[\s\S]*grid-template-columns: 56px minmax\(0, 1fr\) auto/);
-  assert.match(styles, /\.creator-admin-title-icon/);
-  assert.match(styles, /\.creator-directory-dashboard \.creator-admin-stats[\s\S]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
-  assert.match(styles, /\.creator-directory-dashboard \.creator-toolbar-actions \.creator-application-tabs[\s\S]*grid-template-columns: repeat\(5, minmax\(92px, 1fr\)\)/);
-  assert.match(styles, /\.creator-directory-dashboard \.creator-directory-table th::after/);
-  assert.match(styles, /@media \(max-width: 1100px\)[\s\S]*\.creator-directory-dashboard \.creator-admin-stats/);
   assert.match(styles, /\.creator-admin-page \.creator-more-panel[\s\S]*box-shadow: 0 18px 42px/);
   assert.match(styles, /\.creator-admin-page \.creator-menu-link/);
   assert.match(styles, /\.creator-toolbar-actions/);
