@@ -2017,8 +2017,15 @@ test("client-final dashboard controls reuse existing flows and preserve safe sta
 test("theme account choices and footer explain the canonical Creator path", () => {
   const header = readFileSync("theme-live-cart/sections/header.liquid", "utf8");
   const footer = readFileSync("theme-live-cart/sections/footer-group.json", "utf8");
+  assert.match(header, /class="customhouse-header__profile-choice"/);
+  assert.match(header, /<strong>Create account<\/strong>\s*<small>Create a customer account to manage your orders and purchases\.<\/small>/);
+  assert.match(header, /<strong>Become a creator<\/strong>\s*<small>Apply to become a Creator and publish your designs on CustomHouse\.<\/small>/);
   assert.match(header, /Create a customer account to manage your orders and purchases\./);
   assert.match(header, /Apply to become a Creator and publish your designs on CustomHouse\./);
+  assert.match(header, /\.customhouse-header__profile-menu\s*\{[\s\S]*gap: 4px;/);
+  assert.match(header, /\.customhouse-header__profile-choice\s*\{[\s\S]*display: grid;[\s\S]*gap: 6px;[\s\S]*border-top: 1px solid rgb\(255 255 255 \/ 0\.1\);/);
+  assert.match(header, /\.customhouse-header__profile-choice strong\s*\{[\s\S]*display: block;/);
+  assert.match(header, /\.customhouse-header__profile-choice small\s*\{[\s\S]*display: block;[\s\S]*line-height: 1\.45;/);
   assert.match(footer, /BECOME A CREATOR/);
   assert.match(footer, /shopify:\/\/pages\/become-a-creator/);
 });

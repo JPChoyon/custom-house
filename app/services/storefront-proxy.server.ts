@@ -502,11 +502,12 @@ function publicCss() {
     .customhouse-header__profile>summary svg{display:block;width:30px!important;height:30px!important;min-width:30px}
     .customhouse-header__profile>summary:hover,.customhouse-header__profile>summary:focus-visible,.customhouse-header__profile[open]>summary{color:#9bd21a;background:rgb(155 210 26 / .14);box-shadow:0 0 0 5px rgb(155 210 26 / .08);outline:none;transform:scale(1.06)}
     .customhouse-header__profile>summary::-webkit-details-marker{display:none}
-    .customhouse-header__profile-menu{position:absolute;top:calc(100% + 14px);right:0;z-index:20;display:grid;width:min(280px,calc(100vw - 32px));padding:12px;border:1px solid rgb(255 255 255 / .14);border-radius:12px;color:#fff;background:rgb(8 9 10 / .98);box-shadow:0 18px 48px rgb(0 0 0 / .38)}
+    .customhouse-header__profile-menu{position:absolute;top:calc(100% + 14px);right:0;z-index:20;display:grid;gap:4px;width:min(280px,calc(100vw - 32px));padding:12px;border:1px solid rgb(255 255 255 / .14);border-radius:12px;color:#fff;background:rgb(8 9 10 / .98);box-shadow:0 18px 48px rgb(0 0 0 / .38)}
     .customhouse-header__profile-menu a{padding:11px 12px;border-radius:8px;color:inherit;font-weight:700;text-decoration:none}
     .customhouse-header__profile-menu a:hover,.customhouse-header__profile-menu a:focus-visible{color:#111;background:#9bd21a;outline:none}
-    .customhouse-header__profile-choice{display:grid;gap:3px}
-    .customhouse-header__profile-choice small{color:rgba(255,255,255,.66);font-size:.76rem;line-height:1.25}
+    .customhouse-header__profile-choice{display:grid;gap:6px;margin-top:2px;padding-block:13px;border-top:1px solid rgb(255 255 255 / .1)}
+    .customhouse-header__profile-choice strong{display:block;font:inherit;line-height:1.1}
+    .customhouse-header__profile-choice small{display:block;color:rgba(255,255,255,.68);font-size:.74rem;font-weight:500;line-height:1.45;text-transform:none}
     .customhouse-header__profile-choice:hover small,.customhouse-header__profile-choice:focus-visible small{color:#111}
     .customhouse-header__profile-name{margin:0 0 6px;padding:7px 12px 12px;border-bottom:1px solid rgb(255 255 255 / .14);font-size:.875rem;font-weight:800;overflow-wrap:anywhere}
     html.customhouse-mobile-drawer-open,html.customhouse-mobile-drawer-open body{overflow:hidden}

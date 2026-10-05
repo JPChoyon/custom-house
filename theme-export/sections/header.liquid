@@ -478,8 +478,14 @@
             {% else %}
               <p class="customhouse-header__profile-name">Customer account</p>
               <a href="{{ account_login_redirect_url }}">Log in</a>
-              <a href="{{ account_login_redirect_url }}">Create account</a>
-              <a href="{{ become_creator_login_url }}">Become a creator</a>
+              <a class="customhouse-header__profile-choice" href="{{ account_login_redirect_url }}">
+                <strong>Create account</strong>
+                <small>Create a customer account to manage your orders and purchases.</small>
+              </a>
+              <a class="customhouse-header__profile-choice" href="{{ become_creator_login_url }}">
+                <strong>Become a creator</strong>
+                <small>Apply to become a Creator and publish your designs on CustomHouse.</small>
+              </a>
             {% endif %}
           </div>
         </details>
@@ -915,6 +921,7 @@
     right: 0;
     z-index: 20;
     display: grid;
+    gap: 4px;
     width: min(280px, calc(100vw - 32px));
     padding: 12px;
     border: 1px solid rgb(255 255 255 / 0.14);
@@ -937,6 +944,34 @@
     color: #111111;
     background: #9bd21a;
     outline: none;
+  }
+
+  .customhouse-header__profile-choice {
+    display: grid;
+    gap: 6px;
+    margin-top: 2px;
+    padding-block: 13px;
+    border-top: 1px solid rgb(255 255 255 / 0.1);
+  }
+
+  .customhouse-header__profile-choice strong {
+    display: block;
+    font: inherit;
+    line-height: 1.1;
+  }
+
+  .customhouse-header__profile-choice small {
+    display: block;
+    color: rgb(255 255 255 / 0.68);
+    font-size: 0.74rem;
+    font-weight: 500;
+    line-height: 1.45;
+    text-transform: none;
+  }
+
+  .customhouse-header__profile-choice:hover small,
+  .customhouse-header__profile-choice:focus-visible small {
+    color: #111111;
   }
 
   .customhouse-header__profile-name {

@@ -887,6 +887,7 @@
     right: 0;
     z-index: 20;
     display: grid;
+    gap: 4px;
     width: min(280px, calc(100vw - 32px));
     padding: 12px;
     border: 1px solid rgb(255 255 255 / 0.14);
@@ -913,18 +914,24 @@
 
   .customhouse-header__profile-choice {
     display: grid;
-    gap: 3px;
+    gap: 6px;
+    margin-top: 2px;
+    padding-block: 13px;
+    border-top: 1px solid rgb(255 255 255 / 0.1);
   }
 
   .customhouse-header__profile-choice strong {
+    display: block;
     font: inherit;
+    line-height: 1.1;
   }
 
   .customhouse-header__profile-choice small {
+    display: block;
     color: rgb(255 255 255 / 0.68);
-    font-size: 0.72rem;
+    font-size: 0.74rem;
     font-weight: 500;
-    line-height: 1.35;
+    line-height: 1.45;
     text-transform: none;
   }
 

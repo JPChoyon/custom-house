@@ -237,6 +237,10 @@ test("app managed creator cart uses base variants and signed attribution", () =>
   assert.match(proxy, /--footer-link-size:17px/);
   assert.match(proxy, /customhouse-mobile-drawer__line-icon/);
   assert.match(proxy, /customhouse-header__profile-menu/);
+  assert.match(proxy, /customhouse-header__profile-menu\{[^}]*gap:4px/);
+  assert.match(proxy, /customhouse-header__profile-choice\{[^}]*display:grid;gap:6px;[^}]*border-top:1px solid rgb\(255 255 255 \/ \.1\)/);
+  assert.match(proxy, /customhouse-header__profile-choice strong\{display:block/);
+  assert.match(proxy, /customhouse-header__profile-choice small\{display:block;[^}]*line-height:1\.45/);
   assert.match(proxy, /T-SHIRTS/);
   assert.match(proxy, /HOODIES/);
   assert.match(proxy, /DESIGN SELV/);
