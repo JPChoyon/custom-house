@@ -704,8 +704,9 @@ export default function Creators() {
   return (
     <s-page heading="Creators">
       <AdminStyles />
-      <div className="creator-admin-page">
+      <div className="creator-admin-page creator-directory-dashboard">
         <header className="creator-admin-header">
+          <span className="creator-admin-title-icon" aria-hidden="true" />
           <div>
             <span className="creator-admin-eyebrow">Creator operations</span>
             <h1>Creators</h1>
@@ -768,7 +769,7 @@ export default function Creators() {
           <div className="creator-admin-message">{actionData.message}</div>
         )}
 
-        <section className="creator-admin-stats">
+        <section className="creator-admin-stats creator-directory-stats">
           <article className="creator-stat-card--total">
             <span className="creator-icon creator-icon--team" aria-hidden="true" />
             <div>
@@ -807,7 +808,7 @@ export default function Creators() {
           </article>
         </section>
 
-        <section className="creator-admin-toolbar">
+        <section className="creator-admin-toolbar creator-directory-toolbar">
           <Form method="get" className="creator-table-search-form">
             <label aria-label="Search creators">
               <span className="creator-mini-icon creator-mini-icon--search" aria-hidden="true" />
@@ -1068,7 +1069,7 @@ export default function Creators() {
           </section>
         ) : null}
 
-        <section className="creator-admin-panel">
+        <section className="creator-admin-panel creator-directory-panel">
           {creators.length ? (
             <div className="creator-table-wrap">
               <table className="creator-table creator-directory-table">
