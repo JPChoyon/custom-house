@@ -723,6 +723,9 @@ test("admin creators directory matches final table ux", () => {
   assert.match(styles, /\.creator-table th:nth-child\(1\) \{ width: 20%/);
   assert.match(styles, /\.creator-admin-page \.creator-directory-table th:nth-child\(7\) \{ width: 21%/);
   assert.match(styles, /\.creator-admin-page \.creator-directory-table td\[data-label="Actions"\][\s\S]*min-width: 236px/);
+  assert.match(styles, /\.creator-admin-page \.creator-action-group[\s\S]*display: inline-flex/);
+  assert.match(styles, /\.creator-admin-page \.creator-action-group[\s\S]*min-width: max-content/);
+  assert.match(styles, /\.creator-admin-page \.creator-action-group[\s\S]*margin-left: auto/);
   assert.match(styles, /\.creator-admin-page \.creator-action-group[\s\S]*align-content: center/);
   assert.match(styles, /\.creator-admin-page \.creator-action-group[\s\S]*flex-wrap: nowrap/);
   assert.match(styles, /\.creator-admin-page \.creator-table-action--activate button[\s\S]*min-width: 96px/);

@@ -10757,15 +10757,16 @@ s-page > s-banner {
 }
 
 .creator-admin-page .creator-action-group {
-  display: flex !important;
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
+  display: inline-flex !important;
+  width: auto !important;
+  min-width: max-content !important;
+  max-width: none !important;
   align-items: center !important;
-  justify-content: flex-end !important;
+  justify-content: flex-start !important;
   align-content: center !important;
   gap: 6px !important;
   flex-wrap: nowrap !important;
+  margin-left: auto !important;
 }
 
 .creator-admin-page .creator-action-group > * {
@@ -10868,9 +10869,13 @@ s-page > s-banner {
 
   .creator-admin-page .creator-directory-table td[data-label="Actions"] .creator-action-group {
     display: grid !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     justify-content: stretch !important;
     gap: 8px !important;
+    margin-left: 0 !important;
   }
 
   .creator-admin-page .creator-action-group .creator-view-button,
