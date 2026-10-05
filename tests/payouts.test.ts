@@ -266,6 +266,11 @@ test("payout form select styling uses one clean native-safe border", () => {
   assert.match(css, /box-shadow: none/);
   assert.match(css, /background-image: linear-gradient/);
   assert.match(css, /padding-right: 34px/);
+  assert.match(css, /Unified dropdown arrow spacing across the Creator storefront app UI/);
+  assert.match(css, /\[data-customhouse-dashboard\] select:not\(\[multiple\]\),/);
+  assert.match(css, /padding-right: 48px !important/);
+  assert.match(css, /background-position: right 18px center !important/);
+  assert.match(css, /select:not\(\[multiple\]\)::-ms-expand[\s\S]*display: none !important/);
 });
 
 test("creator payout cards keep readable, deterministic mobile layouts", () => {

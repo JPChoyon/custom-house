@@ -144,6 +144,9 @@ test("admin creator detail uses polished card layout and safe select spacing", (
   assert.match(styles, /\.creator-detail-hero-card[\s\S]*grid-template-columns: 72px minmax\(0, 1fr\)/);
   assert.match(styles, /\.creator-detail-redesign \.creator-referral-detail-grid[\s\S]*minmax\(360px, 1\.05fr\)/);
   assert.match(styles, /\.creator-banner-empty-state,[\s\S]*\.creator-referral-empty-card/);
-  assert.match(styles, /\.creator-admin-page select:not\(\[multiple\]\),[\s\S]*padding-right: 44px !important/);
+  assert.match(styles, /\.creator-admin-page select:not\(\[multiple\]\),[\s\S]*padding-right: 48px !important/);
+  assert.match(styles, /appearance: none !important/);
+  assert.match(styles, /background-image:[\s\S]*m6 9 6 6 6-6/);
   assert.match(styles, /background-position: right 18px center !important/);
+  assert.match(styles, /select:not\(\[multiple\]\)::-ms-expand[\s\S]*display: none !important/);
 });
