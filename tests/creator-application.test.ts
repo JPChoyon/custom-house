@@ -721,10 +721,11 @@ test("admin creators directory matches final table ux", () => {
   assert.match(styles, /\.creator-table-footer \.creator-pagination-button--prev::before[\s\S]*rotate\(-135deg\)/);
   assert.match(styles, /\.creator-table-footer \.creator-pagination-button--next::before[\s\S]*rotate\(45deg\)/);
   assert.match(styles, /\.creator-table th:nth-child\(1\) \{ width: 20%/);
-  assert.match(styles, /\.creator-admin-page \.creator-directory-table th:nth-child\(7\) \{ width: 19%/);
-  assert.match(styles, /\.creator-admin-page \.creator-directory-table td\[data-label="Actions"\][\s\S]*min-width: 218px/);
-  assert.match(styles, /\.creator-admin-page \.creator-action-group[\s\S]*flex-wrap: wrap/);
-  assert.match(styles, /\.creator-admin-page \.creator-table-action--activate button[\s\S]*min-width: 112px/);
+  assert.match(styles, /\.creator-admin-page \.creator-directory-table th:nth-child\(7\) \{ width: 21%/);
+  assert.match(styles, /\.creator-admin-page \.creator-directory-table td\[data-label="Actions"\][\s\S]*min-width: 236px/);
+  assert.match(styles, /\.creator-admin-page \.creator-action-group[\s\S]*align-content: center/);
+  assert.match(styles, /\.creator-admin-page \.creator-action-group[\s\S]*flex-wrap: nowrap/);
+  assert.match(styles, /\.creator-admin-page \.creator-table-action--activate button[\s\S]*min-width: 96px/);
   assert.match(styles, /@media \(max-width: 860px\)[\s\S]*\.creator-admin-page \.creator-directory-table td\[data-label="Actions"\] \.creator-action-group/);
   assert.match(styles, /\.creator-page-size select/);
   assert.match(styles, /\.creator-admin-toolbar \.creator-application-tabs[\s\S]*background: #f8fafc/);
