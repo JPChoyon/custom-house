@@ -148,5 +148,7 @@ test("admin creator detail uses polished card layout and safe select spacing", (
   assert.match(styles, /appearance: none !important/);
   assert.match(styles, /background-image:[\s\S]*m6 9 6 6 6-6/);
   assert.match(styles, /background-position: right 18px center !important/);
+  assert.match(styles, /color: #101633 !important/);
+  assert.match(styles, /select:not\(\[multiple\]\) option[\s\S]*color: #101633 !important/);
   assert.match(styles, /select:not\(\[multiple\]\)::-ms-expand[\s\S]*display: none !important/);
 });
