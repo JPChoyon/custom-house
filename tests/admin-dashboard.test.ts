@@ -34,3 +34,17 @@ test("admin pages use the final full-width layout override", () => {
   assert.match(styles, /@media \(min-width: 1600px\)[\s\S]*width: calc\(100vw - 56px\)/);
   assert.match(styles, /@media \(max-width: 520px\)[\s\S]*width: 100%/);
 });
+
+test("admin popup details close when clicking outside or pressing escape", () => {
+  const adminUi = readFileSync("app/components/admin-ui.tsx", "utf8");
+
+  assert.match(adminUi, /ADMIN_DETAILS_POPUP_SELECTOR/);
+  assert.match(adminUi, /details\.admin-notification-menu/);
+  assert.match(adminUi, /details\.creator-more-menu/);
+  assert.match(adminUi, /details\.creator-pending-reject-menu/);
+  assert.match(adminUi, /details\.creator-delete-menu/);
+  assert.match(adminUi, /document\.addEventListener\("pointerdown", handlePointerDown, true\)/);
+  assert.match(adminUi, /closeAdminDetailsPopups\(activePopup\)/);
+  assert.match(adminUi, /event\.key !== "Escape"/);
+  assert.match(adminUi, /details\.open = false/);
+});

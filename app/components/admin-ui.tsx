@@ -1,4 +1,5 @@
 import { useNavigation, useRouteError } from "react-router";
+import { useEffect } from "react";
 import type { ReactNode } from "react";
 
 type SubmitButtonProps = {
@@ -62,7 +63,49 @@ export function StatusBadge({ status }: { status: string }) {
   );
 }
 
+const ADMIN_DETAILS_POPUP_SELECTOR = [
+  "details.admin-notification-menu",
+  "details.creator-more-menu",
+  "details.creator-pending-reject-menu",
+  "details.creator-delete-menu",
+].join(", ");
+
+function closeAdminDetailsPopups(except?: HTMLDetailsElement | null) {
+  document
+    .querySelectorAll<HTMLDetailsElement>(`${ADMIN_DETAILS_POPUP_SELECTOR}[open]`)
+    .forEach((details) => {
+      if (details !== except) {
+        details.open = false;
+      }
+    });
+}
+
 export function AdminStyles() {
+  useEffect(() => {
+    function openPopupFromTarget(target: EventTarget | null) {
+      if (!(target instanceof Element)) return null;
+      return target.closest<HTMLDetailsElement>(ADMIN_DETAILS_POPUP_SELECTOR);
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      const activePopup = openPopupFromTarget(event.target);
+      closeAdminDetailsPopups(activePopup);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      closeAdminDetailsPopups();
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
   return null;
 }
 
