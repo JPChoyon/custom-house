@@ -2001,8 +2001,9 @@ test("client-final dashboard controls reuse existing flows and preserve safe sta
   assert.match(block, /Deactivate creator profile/);
   assert.match(block, /Deactivate profile/);
   assert.match(block, /customhouse-creator-danger-zone__button/);
-  assert.match(styles, /\.customhouse-creator-danger-zone\s*\{[\s\S]*grid-template-columns: 60px minmax\(0, 1fr\) auto/);
-  assert.match(styles, /\.customhouse-creator-danger-zone__icon\s*\{[\s\S]*place-items: center;[\s\S]*width: 54px;[\s\S]*height: 54px;[\s\S]*font-size: 1\.85rem/);
+  assert.match(styles, /\.customhouse-creator-danger-zone\s*\{[\s\S]*grid-template-columns: 76px minmax\(0, 1fr\) auto/);
+  assert.match(styles, /\.customhouse-creator-danger-zone__icon\s*\{[\s\S]*place-items: center;[\s\S]*align-self: center;[\s\S]*width: 66px;[\s\S]*height: 66px;[\s\S]*font-size: 2\.45rem/);
+  assert.match(styles, /\.customhouse-creator-danger-zone__icon\.material-symbols-outlined\s*\{[\s\S]*place-items: center;[\s\S]*font-size: 2\.45rem !important/);
   assert.match(styles, /\.customhouse-creator-danger-zone \.customhouse-creator-danger-zone__button:hover[\s\S]*background: linear-gradient\(135deg, #dc2626, #b42318\) !important;[\s\S]*color: #fff !important/);
   assert.match(script, /method: "DELETE"/);
   assert.match(script, /deactivate your public Creator profile and pause Creator participation/);
