@@ -129,3 +129,21 @@ test("Phase 7 creator admin detail includes referral financial summaries", () =>
   assert.match(route, /Direct creators do not generate referrer financials/);
   assert.doesNotMatch(route, /Change Referrer|Edit Referrer|name="referredByCreatorId"/);
 });
+
+test("admin creator detail uses polished card layout and safe select spacing", () => {
+  const route = readFileSync("app/routes/app.creators.tsx", "utf8");
+  const styles = readFileSync("app/styles/admin.css", "utf8");
+
+  assert.match(route, /creator-detail-redesign/);
+  assert.match(route, /creator-detail-hero-card/);
+  assert.match(route, /creator-detail-hero-avatar/);
+  assert.match(route, /creator-detail-meta-row/);
+  assert.match(route, /creator-banner-empty-state/);
+  assert.match(route, /creator-referral-section-heading/);
+  assert.match(styles, /Creator detail page polish matching the compact card reference/);
+  assert.match(styles, /\.creator-detail-hero-card[\s\S]*grid-template-columns: 72px minmax\(0, 1fr\)/);
+  assert.match(styles, /\.creator-detail-redesign \.creator-referral-detail-grid[\s\S]*minmax\(360px, 1\.05fr\)/);
+  assert.match(styles, /\.creator-banner-empty-state,[\s\S]*\.creator-referral-empty-card/);
+  assert.match(styles, /\.creator-admin-page select:not\(\[multiple\]\),[\s\S]*padding-right: 44px !important/);
+  assert.match(styles, /background-position: right 18px center !important/);
+});

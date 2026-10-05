@@ -700,6 +700,16 @@ export default function Creators() {
   const selectedBannerUrl = safeBannerUrl(
     selectedCreator?.marketplaceCollection?.bannerImageUrl,
   );
+  const selectedDisplayName =
+    selectedCreator?.displayName || selectedCreator?.legalName || "Unnamed creator";
+  const selectedAvatarUrl = safeAvatarUrl(selectedCreator?.profileImageUrl);
+  const selectedBannerStatus = selectedCreator?.marketplaceCollection?.bannerImageUrl
+    ? "Banner configured"
+    : "No banner";
+  const selectedCollectionTitle =
+    selectedCreator?.marketplaceCollection?.bannerTitle || "No title set";
+  const selectedCollectionSubtitle =
+    selectedCreator?.marketplaceCollection?.bannerSubtitle || "No subtitle set";
 
   return (
     <s-page heading="Creators">
@@ -843,26 +853,68 @@ export default function Creators() {
         </section>
 
         {selectedCreator ? (
-          <section className="creator-admin-panel creator-referral-detail-panel">
-            <div className="creator-detail-panel-header">
+          <section className="creator-admin-panel creator-referral-detail-panel creator-detail-redesign">
+            <div className="creator-detail-page-heading">
               <div>
                 <span className="creator-admin-eyebrow">Creator detail</span>
-                <h2>{selectedCreator.displayName || selectedCreator.legalName || "Unnamed creator"}</h2>
+                <h2>{selectedDisplayName}</h2>
               </div>
-              <Link className="creator-clear-filter" to="/app/creators">
+              <Link className="creator-detail-back-button" to="/app/creators">
+                <span aria-hidden="true">←</span>
                 Back to list
               </Link>
             </div>
+
+            <article className="creator-detail-hero-card">
+              <div className="creator-detail-hero-avatar" aria-hidden="true">
+                {selectedAvatarUrl ? (
+                  <img src={selectedAvatarUrl} alt="" />
+                ) : (
+                  <span>{creatorInitials(selectedDisplayName)}</span>
+                )}
+              </div>
+              <div className="creator-detail-hero-copy">
+                <div className="creator-detail-hero-title-row">
+                  <h3>{selectedDisplayName}</h3>
+                  <span className="creator-detail-hero-badge">{selectedBannerStatus}</span>
+                </div>
+                <dl className="creator-detail-meta-row">
+                  <div>
+                    <dt aria-label="Created">Created</dt>
+                    <dd>{formatDate(selectedCreator.submittedAt || selectedCreator.createdAt)}</dd>
+                  </div>
+                  <div>
+                    <dt aria-label="Collection title">Title</dt>
+                    <dd>{selectedCollectionTitle}</dd>
+                  </div>
+                  <div>
+                    <dt aria-label="Collection subtitle">Subtitle</dt>
+                    <dd>{selectedCollectionSubtitle}</dd>
+                  </div>
+                </dl>
+              </div>
+            </article>
+
             <div className="creator-referral-detail-grid">
               <article className="creator-referral-section creator-banner-status-card">
-                <h3>Collection Banner</h3>
+                <div className="creator-referral-section-heading">
+                  <span className="creator-detail-card-icon" aria-hidden="true">image</span>
+                  <div>
+                    <h3>Collection Banner</h3>
+                    <p>This banner is displayed on the creator&apos;s collection page.</p>
+                  </div>
+                </div>
                 {selectedCreator.marketplaceCollection ? (
                   <div className="creator-banner-status">
                     <div className="creator-banner-preview">
                       {selectedBannerUrl ? (
                         <img src={selectedBannerUrl} alt="" />
                       ) : (
-                        <span>No banner</span>
+                        <span className="creator-banner-empty-state">
+                          <span className="creator-banner-empty-icon" aria-hidden="true">image</span>
+                          <strong>No banner uploaded</strong>
+                          <small>Upload a banner to personalize this creator&apos;s collection page.</small>
+                        </span>
                       )}
                     </div>
                     <dl className="creator-detail-list">
@@ -887,7 +939,13 @@ export default function Creators() {
                 )}
               </article>
               <article className="creator-referral-section">
-                <h3>Earnings Summary</h3>
+                <div className="creator-referral-section-heading">
+                  <span className="creator-detail-card-icon creator-detail-card-icon--purple" aria-hidden="true">bar_chart</span>
+                  <div>
+                    <h3>Earnings Summary</h3>
+                    <p>Total earnings from products, referrals, and all creator activity.</p>
+                  </div>
+                </div>
                 <div className="creator-referral-summary">
                   <span>
                     <strong>{selectedUnifiedEarnings?.productEarnings || "0.00 kr"}</strong>
@@ -904,7 +962,13 @@ export default function Creators() {
                 </div>
               </article>
               <article className="creator-referral-section">
-                <h3>Referral Relationship</h3>
+                <div className="creator-referral-section-heading">
+                  <span className="creator-detail-card-icon" aria-hidden="true">group</span>
+                  <div>
+                    <h3>Referral Relationship</h3>
+                    <p>Shows who referred this creator, or if they joined directly.</p>
+                  </div>
+                </div>
                 {selectedReferral.referrerId ? (
                   <dl className="creator-detail-list">
                     <dt>Referred By</dt>
@@ -925,7 +989,11 @@ export default function Creators() {
                     <dd>{formatDateTime(selectedReferral.convertedAt)}</dd>
                   </dl>
                 ) : (
-                  <p className="creator-referral-empty">Direct / No Referral</p>
+                  <p className="creator-referral-empty creator-referral-empty-card">
+                    <span aria-hidden="true">account_tree</span>
+                    <strong>Direct / No Referral</strong>
+                    <small>This creator did not join through a referrer.</small>
+                  </p>
                 )}
                 {selectedReferral.inconsistent ? (
                   <p className="referral-warning">
@@ -934,7 +1002,13 @@ export default function Creators() {
                 ) : null}
               </article>
               <article className="creator-referral-section">
-                <h3>Referral Summary</h3>
+                <div className="creator-referral-section-heading">
+                  <span className="creator-detail-card-icon creator-detail-card-icon--blue" aria-hidden="true">pie_chart</span>
+                  <div>
+                    <h3>Referral Summary</h3>
+                    <p>Overview of creators referred by this creator.</p>
+                  </div>
+                </div>
                 <div className="creator-referral-summary">
                   <span>
                     <strong>{selectedCreator._count.referredCreators}</strong>
@@ -949,7 +1023,13 @@ export default function Creators() {
                 </div>
               </article>
               <article className="creator-referral-section">
-                <h3>Referrer Financial Summary</h3>
+                <div className="creator-referral-section-heading">
+                  <span className="creator-detail-card-icon" aria-hidden="true">account_balance_wallet</span>
+                  <div>
+                    <h3>Referrer Financial Summary</h3>
+                    <p>Financial details related to the referrer&apos;s commission from this creator.</p>
+                  </div>
+                </div>
                 <div className="creator-referral-summary">
                   <span>
                     <strong>{totalsLabel(selectedReferralFinancials?.summary.totals, "original")}</strong>
@@ -966,7 +1046,13 @@ export default function Creators() {
                 </div>
               </article>
               <article className="creator-referral-section">
-                <h3>Referral Generated For Referrer</h3>
+                <div className="creator-referral-section-heading">
+                  <span className="creator-detail-card-icon creator-detail-card-icon--blue" aria-hidden="true">description</span>
+                  <div>
+                    <h3>Referral Generated For Referrer</h3>
+                    <p>Financials generated for the referrer from this creator&apos;s activity.</p>
+                  </div>
+                </div>
                 {selectedReferral.referrerId ? (
                   <div className="creator-referral-summary">
                     <span>
@@ -983,7 +1069,11 @@ export default function Creators() {
                     </span>
                   </div>
                 ) : (
-                  <p className="creator-referral-empty">Direct creators do not generate referrer financials.</p>
+                  <p className="creator-referral-empty creator-referral-empty-card">
+                    <span aria-hidden="true">description</span>
+                    <strong>Direct creators do not generate referrer financials.</strong>
+                    <small>This creator joined directly and does not generate financials for a referrer.</small>
+                  </p>
                 )}
               </article>
             </div>
