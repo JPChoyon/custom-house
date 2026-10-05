@@ -449,6 +449,19 @@ test("creator application form uses one ajax submit path", () => {
   assert.doesNotMatch(script, /helium/i);
 });
 
+test("pending creator application returns shoppers home instead of account", () => {
+  const script = readFileSync("extensions/customhouse-creator-storefront/assets/creator-application.js", "utf8");
+  const pendingStatuses = script.match(/renderStatus\(root, "Application Under Review"[\s\S]*?\);/g) || [];
+
+  assert.equal(pendingStatuses.length, 2);
+  for (const statusMarkup of pendingStatuses) {
+    assert.match(statusMarkup, /"Return Home", "\/"/);
+    assert.doesNotMatch(statusMarkup, /"Return to Account", "\/account"/);
+  }
+
+  assert.match(script, /renderStatus\(root, "Creator Status"[\s\S]*"Return to Account", "\/account"\);/);
+});
+
 test("creator application proxy responses stay json for api callers", () => {
   const proxy = readFileSync("app/services/proxy.server.ts", "utf8");
   const applicationsRoute = readFileSync("app/routes/proxy.api.applications.tsx", "utf8");

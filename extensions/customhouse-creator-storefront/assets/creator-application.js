@@ -438,7 +438,7 @@ function renderForm(root, state, step = 0, errors = {}) {
         current.textContent = state.state === "REJECTED" ? "Resubmit Application" : "Submit Application";
         return;
       }
-      renderStatus(root, "Application Under Review", "We're reviewing your application. You'll see your status here when a decision has been made.", "Return to Account", "/account");
+      renderStatus(root, "Application Under Review", "We're reviewing your application. You'll see your status here when a decision has been made.", "Return Home", "/");
     } catch (error) {
       console.error("creator_application_submit_exception", error);
       screen.querySelector("[data-message]").textContent = "Something went wrong. Please try again.";
@@ -467,7 +467,7 @@ async function boot(root) {
     if (state.state === "LOGGED_OUT") {
       renderStatus(root, "Become a Creator", "Sign in to submit your creator application.", "Sign In", root.dataset.loginUrl);
     } else if (state.state === "PENDING") {
-      renderStatus(root, "Application Under Review", "We're reviewing your application. You'll see your status here when a decision has been made.", "Return to Account", "/account");
+      renderStatus(root, "Application Under Review", "We're reviewing your application. You'll see your status here when a decision has been made.", "Return Home", "/");
     } else if (state.state === "APPROVED") {
       renderStatus(root, "You're a Creator", "Your creator account is approved.", "Open Creator Dashboard", root.dataset.dashboardUrl);
     } else if (state.state === "SUSPENDED") {
