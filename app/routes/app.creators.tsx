@@ -1186,41 +1186,12 @@ export default function Creators() {
                           <div className={rowPresentation.actionGroupClassName}>
                             {rowPresentation.showInlineActions ? (
                               <>
-                                <Link className="creator-view-button" to={`/app/creators?creator=${creator.id}`}>
-                                  {rowPresentation.primaryActionLabel}
-                                </Link>
-                                {creator.status === "APPROVED" ? (
-                                  <details className="creator-more-menu">
-                                    <summary aria-label={`More actions for ${displayName}`} />
-                                    {!creator.welcomeEmailSentAt ? (
-                                      <Form method="post" className="creator-table-action">
-                                        <input type="hidden" name="creatorId" value={creator.id} />
-                                        <SubmitButton
-                                          name="intent"
-                                          value="SEND_WELCOME_EMAIL"
-                                          confirmMessage={`Send the Creator welcome email to ${creator.emailSnapshot || "this Creator"}?`}
-                                        >
-                                          Send Welcome Email
-                                        </SubmitButton>
-                                      </Form>
-                                    ) : (
-                                      <span className="creator-table-subtext">
-                                        Welcome email sent {formatDateTime(creator.welcomeEmailSentAt)}
-                                      </span>
-                                    )}
-                                    <Form method="post" className="creator-table-action">
-                                      <input type="hidden" name="creatorId" value={creator.id} />
-                                      <input name="reason" placeholder="Optional deactivation reason" />
-                                      <SubmitButton
-                                        name="intent"
-                                        value="SUSPEND"
-                                        confirmMessage="Deactivate this Creator? Dashboard and marketplace access will be suspended while orders, products, earnings, payouts, and audit history remain preserved."
-                                      >
-                                        Deactivate
-                                      </SubmitButton>
-                                    </Form>
-                                  </details>
-                                ) : creator.status === "SUSPENDED" ? (
+                                {creator.status !== "SUSPENDED" ? (
+                                  <Link className="creator-view-button" to={`/app/creators?creator=${creator.id}`}>
+                                    {rowPresentation.primaryActionLabel}
+                                  </Link>
+                                ) : null}
+                                {creator.status === "SUSPENDED" ? (
                                   <Form method="post" className="creator-table-action creator-table-action--activate">
                                     <input type="hidden" name="creatorId" value={creator.id} />
                                     <SubmitButton
@@ -1231,16 +1202,60 @@ export default function Creators() {
                                       Reactivate
                                     </SubmitButton>
                                   </Form>
+                                ) : null}
+                                {creator.status === "APPROVED" ? (
+                                  <details className="creator-more-menu">
+                                    <summary aria-label={`More actions for ${displayName}`} />
+                                    <div className="creator-more-panel">
+                                      {!creator.welcomeEmailSentAt ? (
+                                        <Form method="post" className="creator-table-action">
+                                          <input type="hidden" name="creatorId" value={creator.id} />
+                                          <SubmitButton
+                                            name="intent"
+                                            value="SEND_WELCOME_EMAIL"
+                                            confirmMessage={`Send the Creator welcome email to ${creator.emailSnapshot || "this Creator"}?`}
+                                          >
+                                            Send Welcome Email
+                                          </SubmitButton>
+                                        </Form>
+                                      ) : (
+                                        <span className="creator-table-subtext">
+                                          Welcome email sent {formatDateTime(creator.welcomeEmailSentAt)}
+                                        </span>
+                                      )}
+                                      <Form method="post" className="creator-table-action">
+                                        <input type="hidden" name="creatorId" value={creator.id} />
+                                        <input name="reason" placeholder="Optional deactivation reason" />
+                                        <SubmitButton
+                                          name="intent"
+                                          value="SUSPEND"
+                                          confirmMessage="Deactivate this Creator? Dashboard and marketplace access will be suspended while orders, products, earnings, payouts, and audit history remain preserved."
+                                        >
+                                          Deactivate
+                                        </SubmitButton>
+                                      </Form>
+                                      <CreatorPermanentDeleteForm creatorId={creator.id} />
+                                    </div>
+                                  </details>
                                 ) : creator.status === "REJECTED" ? (
                                   <details className="creator-more-menu">
                                     <summary aria-label={`More actions for ${displayName}`} />
-                                    <span className="creator-table-subtext">Waiting for creator resubmission</span>
+                                    <div className="creator-more-panel">
+                                      <span className="creator-table-subtext">Waiting for creator resubmission</span>
+                                      <CreatorPermanentDeleteForm creatorId={creator.id} />
+                                    </div>
+                                  </details>
+                                ) : creator.status === "SUSPENDED" ? (
+                                  <details className="creator-more-menu">
+                                    <summary aria-label={`More actions for ${displayName}`} />
+                                    <div className="creator-more-panel">
+                                      <Link className="creator-menu-link" to={`/app/creators?creator=${creator.id}`}>
+                                        View profile
+                                      </Link>
+                                      <CreatorPermanentDeleteForm creatorId={creator.id} />
+                                    </div>
                                   </details>
                                 ) : null}
-                                <details className="creator-more-menu creator-delete-menu">
-                                  <summary aria-label={`Permanent delete options for ${displayName}`} />
-                                  <CreatorPermanentDeleteForm creatorId={creator.id} />
-                                </details>
                               </>
                             ) : (
                               <span className="creator-pending-decision-pill">Review required</span>

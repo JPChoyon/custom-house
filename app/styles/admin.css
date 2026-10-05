@@ -10856,6 +10856,80 @@ s-page > s-banner {
   color: #b42318 !important;
 }
 
+.creator-admin-page .creator-more-panel {
+  position: absolute !important;
+  top: calc(100% + 8px) !important;
+  right: 0 !important;
+  z-index: 160 !important;
+  display: grid !important;
+  width: min(300px, calc(100vw - 48px)) !important;
+  gap: 10px !important;
+  padding: 12px !important;
+  border: 1px solid #d6deea !important;
+  border-radius: 12px !important;
+  background: #fff !important;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, .16) !important;
+  text-align: left !important;
+}
+
+.creator-admin-page .creator-more-panel .creator-table-action {
+  display: grid !important;
+  width: 100% !important;
+  gap: 8px !important;
+}
+
+.creator-admin-page .creator-more-panel .creator-table-action button,
+.creator-admin-page .creator-menu-link {
+  display: inline-flex !important;
+  width: 100% !important;
+  min-height: 38px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 12px !important;
+  border: 1px solid #d6deea !important;
+  border-radius: 9px !important;
+  background: #f8fafc !important;
+  color: #101828 !important;
+  font-size: 11px !important;
+  font-weight: 850 !important;
+  line-height: 1 !important;
+  text-decoration: none !important;
+  box-shadow: none !important;
+}
+
+.creator-admin-page .creator-more-panel .creator-table-action button:hover:not(:disabled),
+.creator-admin-page .creator-menu-link:hover {
+  border-color: #b8c3d4 !important;
+  background: #eef2f7 !important;
+  transform: none !important;
+}
+
+.creator-admin-page .creator-more-panel .creator-table-action--delete {
+  padding-top: 10px !important;
+  border-top: 1px solid #eef2f7 !important;
+}
+
+.creator-admin-page .creator-more-panel .creator-table-action--delete button {
+  border-color: #fecdca !important;
+  background: #fff5f4 !important;
+  color: #b42318 !important;
+}
+
+.creator-admin-page .creator-more-panel .creator-table-action--delete button:hover:not(:disabled) {
+  border-color: #f97066 !important;
+  background: #fee4e2 !important;
+  color: #912018 !important;
+}
+
+.creator-admin-page .creator-more-panel input {
+  width: 100% !important;
+  min-height: 36px !important;
+  padding: 0 10px !important;
+  border: 1px solid #d6deea !important;
+  border-radius: 8px !important;
+  box-sizing: border-box !important;
+}
+
 @media (max-width: 860px) {
   .creator-admin-page .creator-directory-table {
     min-width: 0 !important;

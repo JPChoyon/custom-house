@@ -675,6 +675,7 @@ test("admin creators directory matches final table ux", () => {
   assert.match(creatorsRoute, /creator-pagination-number/);
   assert.match(creatorsRoute, /creator-toolbar-actions/);
   assert.match(creatorsRoute, /creator-more-menu[\s\S]*summary aria-label/);
+  assert.match(creatorsRoute, /creator-more-panel[\s\S]*CreatorPermanentDeleteForm/);
   assert.doesNotMatch(creatorsRoute, /<summary aria-label=\{`More actions for \$\{displayName\}`\}>•••<\/summary>/);
   assert.match(creatorsRoute, /MARK_NOTIFICATION_READ|unreadNotifications/);
   assert.match(creatorsRoute, /name="intent" value="REJECT"/);
@@ -691,6 +692,8 @@ test("admin creators directory matches final table ux", () => {
   assert.match(styles, /Cohesive responsive creators layout/);
   assert.match(styles, /Professional responsive creator directory actions/);
   assert.match(styles, /\.creator-more-menu summary::before/);
+  assert.match(styles, /\.creator-admin-page \.creator-more-panel[\s\S]*box-shadow: 0 18px 42px/);
+  assert.match(styles, /\.creator-admin-page \.creator-menu-link/);
   assert.match(styles, /\.creator-toolbar-actions/);
   assert.match(styles, /\.creator-admin-toolbar \.creator-table-search-form[\s\S]*flex-wrap: wrap/);
   assert.match(styles, /\.creator-admin-page[\s\S]*max-width: none/);
