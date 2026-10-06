@@ -9434,7 +9434,7 @@ body:has([data-customhouse-dashboard]) {
     order: 1;
     border-color: transparent !important;
     color: #fff !important;
-    background: linear-gradient(135deg, var(--ch-primary), var(--ch-primary-2)) !important;
+    background: linear-gradient(135deg, #7c3aed, #5b22e8) !important;
     box-shadow: 0 12px 24px rgba(91, 34, 232, .2) !important;
   }
 
@@ -11098,6 +11098,13 @@ body:has([data-customhouse-dashboard]) {
 
   .ch-design-delete-modal:not(.ch-design-delete-modal--withdraw):not(.ch-design-delete-modal--delete) [data-dashboard-action-close] {
     order: 2;
+  }
+
+  .ch-design-review-modal .ch-creator-modal__dialog footer [data-dashboard-review-submit] {
+    border-color: transparent !important;
+    color: #fff !important;
+    background: linear-gradient(135deg, #7c3aed, #5b22e8) !important;
+    box-shadow: 0 14px 28px rgba(91, 34, 232, .24) !important;
   }
 }
 

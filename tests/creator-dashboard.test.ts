@@ -623,6 +623,10 @@ test("design review modal matches the responsive mobile submission sheet", () =>
     styles,
     /\[data-dashboard-review-submit\]\s*\{[^}]*order: 1;/s,
   );
+  assert.match(
+    styles,
+    /\.ch-design-review-modal \.ch-creator-modal__dialog footer \[data-dashboard-review-submit\]\s*\{[^}]*color: #fff !important;[^}]*background: linear-gradient\(135deg, #7c3aed, #5b22e8\) !important;/s,
+  );
   assert.doesNotMatch(
     styles,
     /\[data-dashboard-review-submit\]::after[\s\S]*arrow_forward/,
