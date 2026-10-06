@@ -1023,6 +1023,29 @@
     </section>
   </div>
 
+  <div class="ch-creator-modal ch-submit-feedback-modal" data-dashboard-submit-feedback-modal hidden>
+    <div class="ch-creator-modal__backdrop" data-dashboard-submit-feedback-close></div>
+    <section class="ch-creator-modal__dialog ch-creator-modal__dialog--compact" role="dialog" aria-modal="true" aria-labelledby="customhouse-submit-feedback-title" aria-describedby="customhouse-submit-feedback-description">
+      <header>
+        <div>
+          <span data-dashboard-submit-feedback-eyebrow>Design Submission</span>
+          <h3 id="customhouse-submit-feedback-title" data-dashboard-submit-feedback-title>Design submitted for review</h3>
+          <p id="customhouse-submit-feedback-description" data-dashboard-submit-feedback-description>Your design is now in My Products with a pending review status.</p>
+        </div>
+        <button type="button" data-dashboard-submit-feedback-close aria-label="Close submission message">
+          <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">close</span>
+        </button>
+      </header>
+      <div class="ch-submit-feedback-modal__body">
+        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true" data-dashboard-submit-feedback-icon>check_circle</span>
+        <p>We will show the latest status in your product list.</p>
+      </div>
+      <footer>
+        <button type="button" class="customhouse-action" data-dashboard-submit-feedback-primary>View My Products</button>
+      </footer>
+    </section>
+  </div>
+
   <div class="ch-creator-modal ch-design-delete-modal" data-dashboard-action-modal hidden>
     <div class="ch-creator-modal__backdrop" data-dashboard-action-close></div>
     <section class="ch-creator-modal__dialog ch-creator-modal__dialog--compact" role="dialog" aria-modal="true" aria-labelledby="customhouse-action-modal-title" aria-describedby="customhouse-action-modal-description">

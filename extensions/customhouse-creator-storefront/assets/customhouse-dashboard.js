@@ -412,6 +412,7 @@ function portalDashboardModals(root) {
   [
     "[data-dashboard-profile-modal]",
     "[data-dashboard-review-modal]",
+    "[data-dashboard-submit-feedback-modal]",
     "[data-dashboard-details-modal]",
     "[data-dashboard-action-modal]",
     "[data-dashboard-payout-method-modal]",
@@ -457,6 +458,70 @@ function showCreatorToast(root, message, error = false) {
     target.dataset.persist = "false";
     if (!error && target.textContent === message) target.textContent = "";
   }, 2800);
+}
+
+function goToMyProductsTab(root) {
+  activateDashboardTab(root, "my-products");
+  setDashboardMobileNav(root, false);
+  root.querySelector(".customhouse-dashboard-main")?.scrollIntoView({
+    block: "start",
+    behavior: "smooth",
+  });
+}
+
+function closeSubmitFeedbackModal(root) {
+  const modal = dashboardModalQuery(root, "[data-dashboard-submit-feedback-modal]");
+  if (modal) modal.hidden = true;
+  root.__customHouseSubmitFeedbackSuccess = false;
+}
+
+function openSubmitFeedbackModal(root, { success = true, message = "" } = {}) {
+  const modal = dashboardModalQuery(root, "[data-dashboard-submit-feedback-modal]");
+  if (!modal) {
+    showCreatorToast(
+      root,
+      message || (success ? "Submitted for review." : "Creator Product could not be submitted."),
+      !success,
+    );
+    if (success) goToMyProductsTab(root);
+    return;
+  }
+  root.__customHouseSubmitFeedbackSuccess = Boolean(success);
+  modal.classList.toggle("ch-submit-feedback-modal--success", Boolean(success));
+  modal.classList.toggle("ch-submit-feedback-modal--error", !success);
+  const icon = modal.querySelector("[data-dashboard-submit-feedback-icon]");
+  const title = modal.querySelector("[data-dashboard-submit-feedback-title]");
+  const description = modal.querySelector("[data-dashboard-submit-feedback-description]");
+  const primary = modal.querySelector("[data-dashboard-submit-feedback-primary]");
+  if (icon) icon.textContent = success ? "check_circle" : "error";
+  if (title) title.textContent = success ? "Design submitted for review" : "Submission could not be completed";
+  if (description) {
+    description.textContent = message || (
+      success
+        ? "Your design is now in My Products with a pending review status."
+        : "Please check your design details and try again."
+    );
+  }
+  if (primary) primary.textContent = success ? "View My Products" : "Try Again";
+  if (success) goToMyProductsTab(root);
+  modal.hidden = false;
+  window.setTimeout(() => primary?.focus(), 0);
+}
+
+function bindSubmitFeedbackModal(root) {
+  if (root.__customHouseSubmitFeedbackBound) return;
+  root.__customHouseSubmitFeedbackBound = true;
+  dashboardModalQueryAll(root, "[data-dashboard-submit-feedback-close]").forEach((button) => {
+    button.addEventListener("click", () => closeSubmitFeedbackModal(root));
+  });
+  dashboardModalQuery(root, "[data-dashboard-submit-feedback-primary]")?.addEventListener("click", () => {
+    if (root.__customHouseSubmitFeedbackSuccess) goToMyProductsTab(root);
+    closeSubmitFeedbackModal(root);
+  });
+  document.addEventListener("keydown", (event) => {
+    const modal = dashboardModalQuery(root, "[data-dashboard-submit-feedback-modal]");
+    if (event.key === "Escape" && modal && !modal.hidden) closeSubmitFeedbackModal(root);
+  });
 }
 
 function updateCreatorProductInState(root, product) {
@@ -2123,13 +2188,12 @@ function bindCreatorProductSubmission(root) {
     try {
       const product = await submitCreatorProductForReview(button.dataset.creatorProductSubmit);
       updateCreatorProductInState(root, product);
-      showCreatorToast(root, "Submitted for review.");
+      openSubmitFeedbackModal(root, { success: true });
     } catch (error) {
-      showCreatorToast(
-        root,
-        error instanceof Error ? error.message : "Creator Product could not be submitted.",
-        true,
-      );
+      openSubmitFeedbackModal(root, {
+        success: false,
+        message: error instanceof Error ? error.message : "Creator Product could not be submitted.",
+      });
     } finally {
       restoreButton();
     }
@@ -2359,13 +2423,12 @@ function bindDesignReviewModal(root) {
       const updated = await submitCreatorProductForReview(product.id);
       updateCreatorProductInState(root, updated);
       closeDesignReviewModal(root);
-      showCreatorToast(root, "Submitted for review.");
+      openSubmitFeedbackModal(root, { success: true });
     } catch (error) {
-      showCreatorToast(
-        root,
-        error instanceof Error ? error.message : "Creator Product could not be submitted.",
-        true,
-      );
+      openSubmitFeedbackModal(root, {
+        success: false,
+        message: error instanceof Error ? error.message : "Creator Product could not be submitted.",
+      });
     } finally {
       restoreButton();
     }
@@ -2652,13 +2715,12 @@ function bindMyDesignsUx(root) {
         try {
           const updated = await submitCreatorProductForReview(product.id);
           updateCreatorProductInState(root, updated);
-          showCreatorToast(root, "Submitted for review.");
+          openSubmitFeedbackModal(root, { success: true });
         } catch (error) {
-          showCreatorToast(
-            root,
-            error instanceof Error ? error.message : "Creator Product could not be submitted.",
-            true,
-          );
+          openSubmitFeedbackModal(root, {
+            success: false,
+            message: error instanceof Error ? error.message : "Creator Product could not be submitted.",
+          });
         } finally {
           restoreButton();
         }
@@ -5219,6 +5281,7 @@ if (typeof document !== "undefined") {
     bindCreatorDesignActions(root);
     bindCreatorProductSubmission(root);
     bindDesignReviewModal(root);
+    bindSubmitFeedbackModal(root);
     bindMyDesignsUx(root);
     void claimPendingReferralCookie();
     void refreshDashboard();

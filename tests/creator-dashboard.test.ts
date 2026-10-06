@@ -334,6 +334,8 @@ test("storefront dashboard displays total sales and ten percent commission", () 
   assert.match(block, /Start a New Design/);
   assert.match(script, /Start Design/);
   assert.match(block, /data-dashboard-review-modal/);
+  assert.match(block, /data-dashboard-submit-feedback-modal/);
+  assert.match(block, /data-dashboard-submit-feedback-primary>View My Products/);
   assert.doesNotMatch(block, /data-dashboard-pitchprint-modal/);
   assert.doesNotMatch(block, /Create Draft/);
   assert.doesNotMatch(block, /Open PitchPrint/);
@@ -481,7 +483,10 @@ test("creator dashboard starts PitchPrint directly and reviews saved designs wit
   assert.match(script, /Submit for Review/);
   assert.match(script, /Resubmit for Review/);
   assert.match(script, /Design saved as draft/);
-  assert.match(script, /Submitted for review/);
+  assert.match(script, /openSubmitFeedbackModal\(root, \{ success: true \}\)/);
+  assert.match(script, /openSubmitFeedbackModal\(root, \{\s*success: false,/s);
+  assert.match(script, /goToMyProductsTab\(root\)/);
+  assert.match(script, /activateDashboardTab\(root, "my-products"\)/);
   assert.match(script, /creatorProductStatusLabel/);
   assert.match(script, /Pending Review/);
   assert.match(script, /Needs Changes/);
@@ -627,6 +632,8 @@ test("design review modal matches the responsive mobile submission sheet", () =>
     styles,
     /\.ch-design-review-modal \.ch-creator-modal__dialog footer \[data-dashboard-review-submit\]\s*\{[^}]*color: #fff !important;[^}]*background: linear-gradient\(135deg, #7c3aed, #5b22e8\) !important;/s,
   );
+  assert.match(styles, /\.ch-submit-feedback-modal__body > \.material-symbols-outlined\s*\{[^}]*background: #dcfae6;/s);
+  assert.match(styles, /\.ch-submit-feedback-modal--error \.ch-submit-feedback-modal__body > \.material-symbols-outlined\s*\{[^}]*background: #fee4e2;/s);
   assert.doesNotMatch(
     styles,
     /\[data-dashboard-review-submit\]::after[\s\S]*arrow_forward/,
@@ -820,15 +827,15 @@ test("creator dashboard popups share the professional mobile sheet contract", ()
 
   assert.match(
     phoneContract,
-    /\.customhouse-payout-method-modal,\s*\.customhouse-profile-modal,\s*\.ch-design-review-modal,\s*\.ch-design-edit-modal,\s*\.ch-design-delete-modal\s*\{[^}]*align-items: end;[^}]*padding: 0;/s,
+    /\.customhouse-payout-method-modal,\s*\.customhouse-profile-modal,\s*\.ch-design-review-modal,\s*\.ch-design-edit-modal,\s*\.ch-submit-feedback-modal,\s*\.ch-design-delete-modal\s*\{[^}]*align-items: end;[^}]*padding: 0;/s,
   );
   assert.match(
     phoneContract,
-    /\.customhouse-payout-method-modal \.ch-creator-modal__dialog,\s*\.customhouse-profile-modal-panel,\s*\.ch-design-review-modal \.ch-creator-modal__dialog,\s*\.ch-design-edit-modal \.ch-creator-modal__dialog,\s*\.ch-design-delete-modal \.ch-creator-modal__dialog\s*\{[^}]*width: 100%;[^}]*max-height: calc\(100dvh - 54px\);[^}]*border-radius: 28px 28px 0 0;/s,
+    /\.customhouse-payout-method-modal \.ch-creator-modal__dialog,\s*\.customhouse-profile-modal-panel,\s*\.ch-design-review-modal \.ch-creator-modal__dialog,\s*\.ch-design-edit-modal \.ch-creator-modal__dialog,\s*\.ch-submit-feedback-modal \.ch-creator-modal__dialog,\s*\.ch-design-delete-modal \.ch-creator-modal__dialog\s*\{[^}]*width: 100%;[^}]*max-height: calc\(100dvh - 54px\);[^}]*border-radius: 28px 28px 0 0;/s,
   );
   assert.match(
     phoneContract,
-    /\.customhouse-payout-method-modal \.ch-creator-modal__dialog header button,\s*\.customhouse-profile-modal-panel header button,\s*\.ch-design-review-modal \.ch-creator-modal__dialog header button,\s*\.ch-design-edit-modal \.ch-creator-modal__dialog header button,\s*\.ch-design-delete-modal \.ch-creator-modal__dialog header button\s*\{[^}]*width: 40px !important;[^}]*height: 40px;[^}]*min-height: 40px !important;/s,
+    /\.customhouse-payout-method-modal \.ch-creator-modal__dialog header button,\s*\.customhouse-profile-modal-panel header button,\s*\.ch-design-review-modal \.ch-creator-modal__dialog header button,\s*\.ch-design-edit-modal \.ch-creator-modal__dialog header button,\s*\.ch-submit-feedback-modal \.ch-creator-modal__dialog header button,\s*\.ch-design-delete-modal \.ch-creator-modal__dialog header button\s*\{[^}]*width: 40px !important;[^}]*height: 40px;[^}]*min-height: 40px !important;/s,
   );
   assert.match(
     phoneContract,

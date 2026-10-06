@@ -3057,6 +3057,55 @@
   background: #4f46e5;
 }
 
+.ch-submit-feedback-modal .ch-creator-modal__dialog {
+  width: min(520px, calc(100vw - 32px));
+  height: auto;
+  max-height: calc(100dvh - 40px);
+  grid-template-rows: auto auto auto;
+}
+
+.ch-submit-feedback-modal__body {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 18px 22px 8px;
+  text-align: center;
+}
+
+.ch-submit-feedback-modal__body > .material-symbols-outlined {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  border-radius: 18px;
+  color: #067647;
+  background: #dcfae6;
+  font-size: 34px;
+}
+
+.ch-submit-feedback-modal--error .ch-submit-feedback-modal__body > .material-symbols-outlined {
+  color: #b42318;
+  background: #fee4e2;
+}
+
+.ch-submit-feedback-modal__body p {
+  max-width: 28rem;
+  margin: 0;
+  color: #475467;
+  font-size: .92rem;
+  line-height: 1.45;
+}
+
+.ch-submit-feedback-modal footer {
+  display: grid;
+  padding: 16px 22px 22px;
+}
+
+.ch-submit-feedback-modal footer button {
+  width: 100%;
+  min-height: 46px;
+}
+
 @media (max-width: 900px) {
   .ch-designs__toolbar {
     grid-template-columns: 1fr 1fr;
@@ -10946,6 +10995,7 @@ body:has([data-customhouse-dashboard]) {
   .customhouse-profile-modal,
   .ch-design-review-modal,
   .ch-design-edit-modal,
+  .ch-submit-feedback-modal,
   .ch-design-delete-modal {
     align-items: end;
     padding: 0;
@@ -10960,6 +11010,7 @@ body:has([data-customhouse-dashboard]) {
   .customhouse-profile-modal-backdrop,
   .ch-design-review-modal .ch-creator-modal__backdrop,
   .ch-design-edit-modal .ch-creator-modal__backdrop,
+  .ch-submit-feedback-modal .ch-creator-modal__backdrop,
   .ch-design-delete-modal .ch-creator-modal__backdrop {
     background: rgba(10, 20, 36, .68);
     backdrop-filter: blur(3px);
@@ -10969,6 +11020,7 @@ body:has([data-customhouse-dashboard]) {
   .customhouse-profile-modal-panel,
   .ch-design-review-modal .ch-creator-modal__dialog,
   .ch-design-edit-modal .ch-creator-modal__dialog,
+  .ch-submit-feedback-modal .ch-creator-modal__dialog,
   .ch-design-delete-modal .ch-creator-modal__dialog {
     width: 100%;
     max-width: 600px;
@@ -10993,6 +11045,7 @@ body:has([data-customhouse-dashboard]) {
   .customhouse-profile-modal-panel::before,
   .ch-design-review-modal .ch-creator-modal__dialog::before,
   .ch-design-edit-modal .ch-creator-modal__dialog::before,
+  .ch-submit-feedback-modal .ch-creator-modal__dialog::before,
   .ch-design-delete-modal .ch-creator-modal__dialog::before {
     content: "";
     position: absolute;
@@ -11009,6 +11062,7 @@ body:has([data-customhouse-dashboard]) {
   .customhouse-profile-modal-panel header,
   .ch-design-review-modal .ch-creator-modal__dialog header,
   .ch-design-edit-modal .ch-creator-modal__dialog header,
+  .ch-submit-feedback-modal .ch-creator-modal__dialog header,
   .ch-design-delete-modal .ch-creator-modal__dialog header {
     gap: 12px;
     padding: 30px 20px 14px;
@@ -11019,6 +11073,7 @@ body:has([data-customhouse-dashboard]) {
   .customhouse-profile-modal-panel header > div,
   .ch-design-review-modal .ch-creator-modal__dialog header > div,
   .ch-design-edit-modal .ch-creator-modal__dialog header > div,
+  .ch-submit-feedback-modal .ch-creator-modal__dialog header > div,
   .ch-design-delete-modal .ch-creator-modal__dialog header > div {
     min-width: 0;
   }
@@ -11027,6 +11082,7 @@ body:has([data-customhouse-dashboard]) {
   .customhouse-profile-modal-panel header button,
   .ch-design-review-modal .ch-creator-modal__dialog header button,
   .ch-design-edit-modal .ch-creator-modal__dialog header button,
+  .ch-submit-feedback-modal .ch-creator-modal__dialog header button,
   .ch-design-delete-modal .ch-creator-modal__dialog header button {
     width: 40px !important;
     height: 40px;
@@ -11045,6 +11101,7 @@ body:has([data-customhouse-dashboard]) {
   .customhouse-profile-modal button:focus-visible,
   .ch-design-review-modal button:focus-visible,
   .ch-design-edit-modal button:focus-visible,
+  .ch-submit-feedback-modal button:focus-visible,
   .ch-design-delete-modal button:focus-visible {
     outline: 2px solid #6938ef;
     outline-offset: 2px;
@@ -11054,6 +11111,7 @@ body:has([data-customhouse-dashboard]) {
   .customhouse-profile-editor-main > footer,
   .ch-design-review-modal .ch-creator-modal__dialog footer,
   .ch-design-edit-modal .ch-creator-modal__dialog footer,
+  .ch-submit-feedback-modal footer,
   .ch-design-delete-modal footer {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -11068,6 +11126,7 @@ body:has([data-customhouse-dashboard]) {
   .customhouse-profile-editor-main > footer button,
   .ch-design-review-modal .ch-creator-modal__dialog footer button,
   .ch-design-edit-modal .ch-creator-modal__dialog footer button,
+  .ch-submit-feedback-modal footer button,
   .ch-design-delete-modal footer button {
     width: 100% !important;
     min-width: 0;
@@ -11113,9 +11172,11 @@ body:has([data-customhouse-dashboard]) {
   .customhouse-profile-modal-panel header,
   .ch-design-review-modal .ch-creator-modal__dialog header,
   .ch-design-edit-modal .ch-creator-modal__dialog header,
+  .ch-submit-feedback-modal .ch-creator-modal__dialog header,
   .ch-design-delete-modal .ch-creator-modal__dialog header,
   .customhouse-payout-method-modal-form,
   .customhouse-profile-form-wrap,
+  .ch-submit-feedback-modal footer,
   .ch-design-delete-modal footer {
     padding-right: 14px;
     padding-left: 14px;
