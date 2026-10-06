@@ -9432,13 +9432,10 @@ body:has([data-customhouse-dashboard]) {
 
   .ch-design-review-modal [data-dashboard-review-submit] {
     order: 1;
-  }
-
-  .ch-design-review-modal [data-dashboard-review-submit]::after {
-    content: "arrow_forward";
-    font-family: "Material Symbols Outlined";
-    font-size: 20px;
-    font-weight: normal;
+    border-color: transparent !important;
+    color: #fff !important;
+    background: linear-gradient(135deg, var(--ch-primary), var(--ch-primary-2)) !important;
+    box-shadow: 0 12px 24px rgba(91, 34, 232, .2) !important;
   }
 
   .ch-design-review-modal [data-dashboard-review-draft] {

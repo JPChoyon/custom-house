@@ -517,6 +517,7 @@ test("creator dashboard starts PitchPrint directly and reviews saved designs wit
   assert.match(block, /Continue Editing/);
   assert.match(block, /Keep as Draft/);
   assert.match(block, /Submit for Review/);
+  assert.match(block, /class="customhouse-action" data-dashboard-review-submit/);
   assert.doesNotMatch(block, /data-dashboard-creator-products-form/);
   assert.doesNotMatch(block, /data-dashboard-pitchprint-launch/);
   assert.doesNotMatch(block, /Edit Draft/);
@@ -621,6 +622,10 @@ test("design review modal matches the responsive mobile submission sheet", () =>
   assert.match(
     styles,
     /\[data-dashboard-review-submit\]\s*\{[^}]*order: 1;/s,
+  );
+  assert.doesNotMatch(
+    styles,
+    /\[data-dashboard-review-submit\]::after[\s\S]*arrow_forward/,
   );
 });
 
