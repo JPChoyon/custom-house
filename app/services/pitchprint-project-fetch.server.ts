@@ -142,7 +142,14 @@ export async function fetchPitchPrintProjectSource(
   }
   const source = (body as Record<string, unknown>).data;
   if (!source || typeof source !== "object" || Array.isArray(source)) {
-    throw projectFetchError("invalid_source");
+    const record = body as Record<string, unknown>;
+    const errorValue = record.error;
+    throw projectFetchError("invalid_source", {
+      bodyKeys: Object.keys(record).sort().slice(0, 10).join(","),
+      dataType: Array.isArray(source) ? "array" : typeof source,
+      hasError: Boolean(errorValue),
+      errorType: Array.isArray(errorValue) ? "array" : typeof errorValue,
+    });
   }
   const project = source as Record<string, unknown>;
   const returnedProjectId = cleanProjectId(project._id || project.projectId);
