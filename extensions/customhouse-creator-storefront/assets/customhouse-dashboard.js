@@ -2280,11 +2280,11 @@ function bindPitchPrintManager(root) {
             {
               kind: `pitchprint-unsaved:${product.id}`,
               eyebrow: "Design Draft",
-              title: "Save before leaving",
+              title: "Save for later before leaving",
               description: manager.draftSessionSaved
-                ? "Your latest available draft is stored, but recent changes may still be pending. Return to the designer and choose Preview, then Save Design, to keep the newest version."
-                : "Your latest changes are still open in this browser, but they are not saved yet. Return to the designer and choose Preview, then Save Design, so you can continue later.",
-              confirm: "Return & Save",
+                ? "Your latest available draft is stored, but recent changes may still be pending. Return to the designer and choose Save for Later to keep the newest version."
+                : "Your latest changes are still open in this browser, but they are not saved yet. Return to the designer and choose Save for Later so you can continue editing another time.",
+              confirm: "Return to Designer",
               loading: "Returning...",
               cancel: "Leave Without Saving",
               destructive: false,

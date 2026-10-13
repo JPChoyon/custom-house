@@ -477,8 +477,9 @@ test("creator dashboard starts PitchPrint directly and reviews saved designs wit
   assert.match(script, /bindPitchPrintEvent\(client, "session-saved"/);
   assert.match(script, /action: "save-draft-session"/);
   assert.match(script, /keepalive: true/);
-  assert.match(script, /title: "Save before leaving"/);
-  assert.match(script, /confirm: "Return & Save"/);
+  assert.match(script, /title: "Save for later before leaving"/);
+  assert.match(script, /choose Save for Later so you can continue editing another time/);
+  assert.match(script, /confirm: "Return to Designer"/);
   assert.match(script, /cancel: "Leave Without Saving"/);
   assert.match(script, /manager\.client\?\.showApp\(\)/);
   assert.match(script, /window\.addEventListener\("beforeunload"/);
