@@ -471,7 +471,7 @@ test("creator dashboard starts PitchPrint directly and reviews saved designs wit
   assert.match(script, /await root\.__customHouseOpenPitchPrintDesigner\?\.\(created, startButton\)/);
   assert.match(script, /setActionLoading\(startButton, "Preparing designer\.\.\."\)/);
   assert.match(script, /if \(manager\.showAppCalled\) return/);
-  assert.match(script, /client\.showApp\(\)/);
+  assert.match(script, /client\.showApp\(savedProjectSource \|\| undefined\)/);
   assert.match(script, /bindPitchPrintEvent\(client, "project-saved"/);
   assert.match(script, /manager\.projectSaved/);
   assert.match(script, /saveCreatorProductPitchPrintProject/);
@@ -974,10 +974,13 @@ test("creator dashboard PitchPrint bridge uses Creator setup contract instead of
   assert.match(script, /creatorContext: true/);
   assert.match(script, /launchContext: "creator_dashboard"/);
   assert.match(script, /const \{ designId, projectId, mode \} = creatorPitchPrintLaunchConfig\(product\)/);
+  assert.match(script, /requestCreatorPitchPrintProjectSource\(product\.id\)/);
+  assert.match(script, /mode: savedProjectSource \? "new" : mode/);
   assert.match(script, /const clientOptions = creatorPitchPrintClientOptions\(\{/);
   assert.match(script, /designId,/);
   assert.match(script, /projectId,/);
-  assert.match(script, /\.\.\.\(projectId \? \{ projectId \} : \{\}\)/);
+  assert.match(script, /\.\.\.\(!savedProjectSource && projectId \? \{ projectId \} : \{\}\)/);
+  assert.match(script, /client\.showApp\(savedProjectSource \|\| undefined\)/);
   assert.doesNotMatch(script, /mode,\s*projectId,\s*userId/);
   assert.doesNotMatch(script, /creatorPitchPrintLaunchProjectId\(product\)/);
   assert.doesNotMatch(script, /creatorPitchPrintLaunchProjectIdSource/);

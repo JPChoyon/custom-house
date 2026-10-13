@@ -9,6 +9,8 @@ const PAYOUT_METHODS_ENDPOINT = "/apps/customhouse/api/payout-methods";
 const PAYOUTS_ENDPOINT = "/apps/customhouse/api/payouts";
 const CREATOR_PITCHPRINT_IDENTITY_ENDPOINT =
   "/apps/customhouse/api/creator-pitchprint-identity";
+const creatorPitchPrintProjectEndpoint = (productId) =>
+  `${CREATOR_PRODUCTS_ENDPOINT}/${encodeURIComponent(productId)}/pitchprint-project`;
 const REFERRAL_CLAIM_ENDPOINT = "/apps/customhouse/api/referral/claim";
 const PENDING_REFERRAL_COOKIE = "customhouse_referral_pending";
 const PITCHPRINT_CLIENT_SRC = "https://pitchprint.io/rsc/js/client.js";
@@ -264,6 +266,20 @@ async function requestPitchPrintIdentity() {
     throw new Error("Creator identity could not be loaded");
   }
   return body.data;
+}
+
+async function requestCreatorPitchPrintProjectSource(productId) {
+  const response = await fetch(creatorPitchPrintProjectEndpoint(productId), {
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok || !body?.ok || !Array.isArray(body.data?.source?.pages)) {
+    throw new Error(
+      body?.error?.message || "We couldn't load your saved design. Please try again.",
+    );
+  }
+  return body.data.source;
 }
 
 async function createCreatorProductDraft(payload) {
@@ -2097,24 +2113,27 @@ function bindPitchPrintManager(root) {
         projectIdLength: projectId.length,
         mode,
       });
-      const [Client, identity] = await Promise.all([
+      const [Client, identity, , savedProjectSource] = await Promise.all([
         loadPitchPrintClient(root),
         requestPitchPrintIdentity(),
         ensurePitchPrintBaseProductConfig(root, product),
+        projectId
+          ? requestCreatorPitchPrintProjectSource(product.id)
+          : Promise.resolve(null),
       ]);
       if (token !== manager.token) return;
       const customHouseConfig = creatorPitchPrintConfig(root, product, identity);
       const clientOptions = creatorPitchPrintClientOptions({
         apiKey,
         designId,
-        mode,
+        mode: savedProjectSource ? "new" : mode,
         identity,
         product,
         customHouseConfig,
       });
       const client = new Client({
         ...clientOptions,
-        ...(projectId ? { projectId } : {}),
+        ...(!savedProjectSource && projectId ? { projectId } : {}),
       });
       manager.client = client;
       bindCreatorSetupWindowEvents(product, token);
@@ -2146,8 +2165,11 @@ function bindPitchPrintManager(root) {
         clearValidationTimer();
         if (manager.showAppCalled) return;
         manager.showAppCalled = true;
-        pitchPrintDiagnostics(root, "showApp", { creatorProductId: product.id });
-        client.showApp();
+        pitchPrintDiagnostics(root, "showApp", {
+          creatorProductId: product.id,
+          restoredProjectSource: Boolean(savedProjectSource),
+        });
+        client.showApp(savedProjectSource || undefined);
       });
       manager.validationTimer = window.setTimeout(() => {
         if (manager.showAppCalled || token !== manager.token) return;
