@@ -650,6 +650,10 @@ test("design review modal matches the responsive mobile submission sheet", () =>
   );
 
   assert.match(block, /ch-design-review-modal/);
+  assert.match(
+    styles,
+    /\.ch-creator-modal\s*\{[^}]*--ch-primary: #5b16e8;[^}]*--ch-primary-2: #7c2df3;[^}]*--ch-text: #111827;[^}]*--ch-border: #e5e7eb;/s,
+  );
   assert.match(block, /data-summary-icon="sell"/);
   assert.match(block, /data-summary-icon="layers"/);
   assert.match(block, /data-summary-icon="schedule"/);

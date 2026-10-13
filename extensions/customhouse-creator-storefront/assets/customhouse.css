@@ -2559,6 +2559,14 @@
 }
 
 .ch-creator-modal {
+  --ch-primary: #5b16e8;
+  --ch-primary-2: #7c2df3;
+  --ch-text: #111827;
+  --ch-muted: #667085;
+  --ch-soft: #f6f3ff;
+  --ch-border: #e5e7eb;
+  --ch-surface: #fff;
+  --ch-focus: 0 0 0 3px rgba(91, 34, 232, .22);
   position: fixed;
   inset: 0;
   display: grid;
