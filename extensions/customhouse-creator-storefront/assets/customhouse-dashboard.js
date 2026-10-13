@@ -317,6 +317,24 @@ async function saveCreatorProductPitchPrintProject(productId, payload) {
   return body.data?.product;
 }
 
+async function saveCreatorProductPitchPrintDraftSession(productId, payload) {
+  const response = await fetch(`${CREATOR_PRODUCTS_ENDPOINT}/${encodeURIComponent(productId)}`, {
+    method: "POST",
+    credentials: "same-origin",
+    keepalive: true,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ action: "save-draft-session", ...payload }),
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok || !body?.ok) {
+    throw new Error(body?.error?.message || "Design draft could not be saved");
+  }
+  return body.data?.product;
+}
+
 async function submitCreatorProductForReview(productId) {
   const response = await fetch(`${CREATOR_PRODUCTS_ENDPOINT}/${encodeURIComponent(productId)}`, {
     method: "POST",
@@ -698,6 +716,20 @@ function creatorProductPreviewUrl(product) {
   );
 }
 
+function creatorProductHasCompletedDesign(product) {
+  const previews = projectPreviewUrls(product);
+  const setup = creatorSetupForProduct(product);
+  const hasDesignPreview = previews.some((url) => url.startsWith("https://"));
+  return Boolean(
+    product?.pitchprintProjectId &&
+      hasDesignPreview &&
+      creatorProductProductionMethod(product) &&
+      activeCreatorColor(setup) &&
+      Number(setup?.placementCount) > 0 &&
+      setup?.copyrightAccepted === true,
+  );
+}
+
 function designFilterLabel(filter) {
   return {
     ACTIVE: "Active",
@@ -902,7 +934,7 @@ function renderCreatorProducts(list, empty, products) {
       addMenuAction(menu, "Withdraw to Draft", "withdraw", product.id);
     } else {
       addMenuAction(menu, "Edit Details", "details", product.id);
-      if (statusValue === "DRAFT" && product.pitchprintProjectId) {
+      if (statusValue === "DRAFT" && creatorProductHasCompletedDesign(product)) {
         addMenuAction(menu, "Submit for Review", "submit", product.id);
       } else if (statusValue === "REJECTED") {
         addMenuAction(menu, "Resubmit for Review", "submit", product.id);
@@ -952,7 +984,7 @@ function renderCreatorProducts(list, empty, products) {
       addDesignButton(actions, label, { creatorProductDesign: product.id }, "ch-design-card__button--primary");
     };
     if (statusValue === "DRAFT") {
-      addDesignAction(product.pitchprintProjectId ? "Edit Design" : "Continue Designing");
+      addDesignAction("Continue Designing");
     } else if (statusValue === "REJECTED") {
       addDesignAction("Edit Design");
     } else if (statusValue === "PENDING") {
@@ -1228,6 +1260,15 @@ export function normalizePitchPrintSaveEvent(value, options = {}) {
       project?.designId ||
       project?.design_id ||
       "",
+  };
+}
+
+export function pitchPrintSaveFlags(value) {
+  const data = value?.data && typeof value.data === "object" ? value.data : value;
+  const project = data?.project && typeof data.project === "object" ? data.project : {};
+  return {
+    autoSaved: data?.autoSaved === true || project?.autoSaved === true,
+    saveForLater: data?.saveForLater === true || project?.saveForLater === true,
   };
 }
 
@@ -1901,7 +1942,12 @@ function bindPitchPrintManager(root) {
     validationTimer: null,
     creatorSetupAbortController: null,
     showAppCalled: false,
+    designerVisible: false,
     projectSaved: false,
+    draftSessionSaved: false,
+    draftSessionSavePromise: null,
+    draftSessionNoticeShown: false,
+    unsavedExitAcknowledged: false,
     saveFailureNotified: false,
     pendingCreatorSetup: null,
     pendingPitchPrintSave: null,
@@ -1921,12 +1967,22 @@ function bindPitchPrintManager(root) {
     }
     manager.client = null;
     manager.showAppCalled = false;
+    manager.designerVisible = false;
     manager.projectSaved = false;
+    manager.draftSessionSaved = false;
+    manager.draftSessionSavePromise = null;
+    manager.draftSessionNoticeShown = false;
+    manager.unsavedExitAcknowledged = false;
     manager.saveFailureNotified = false;
     manager.pendingCreatorSetup = null;
     manager.pendingPitchPrintSave = null;
     manager.isDesignerOpening = false;
   };
+  window.addEventListener("beforeunload", (event) => {
+    if (!manager.designerVisible || manager.projectSaved) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
   const hidePitchPrint = () => {
     try {
       if (typeof manager.client?.hideApp === "function") manager.client.hideApp();
@@ -2032,8 +2088,45 @@ function bindPitchPrintManager(root) {
     manager.pendingCreatorSetup = setupEvent;
     await savePendingCreatorProduct(product, token);
   };
+  const handlePitchPrintDraftSessionSaved = async (product, event, token) => {
+    if (manager.projectSaved || manager.draftSessionSaved || token !== manager.token) return;
+    const saveEvent = normalizePitchPrintSaveEvent(event);
+    if (!saveEvent.projectId) return;
+    const persistSession = saveCreatorProductPitchPrintDraftSession(product.id, {
+      projectId: saveEvent.projectId,
+      designId: saveEvent.designId || product.pitchprintDesignId || "",
+    });
+    manager.draftSessionSavePromise = persistSession;
+    try {
+      const updated = await persistSession;
+      if (token !== manager.token) return;
+      manager.activeProjectId = saveEvent.projectId;
+      manager.draftSessionSaved = true;
+      updateCreatorProductInState(root, updated);
+      if (!manager.draftSessionNoticeShown) {
+        manager.draftSessionNoticeShown = true;
+        showCreatorToast(root, "Draft saved. You can continue later.");
+      }
+    } catch (error) {
+      if (token !== manager.token) return;
+      showCreatorToast(
+        root,
+        error instanceof Error ? error.message : "Design draft could not be saved.",
+        true,
+      );
+    } finally {
+      if (manager.draftSessionSavePromise === persistSession) {
+        manager.draftSessionSavePromise = null;
+      }
+    }
+  };
   const handlePitchPrintProjectSaved = async (product, event, token) => {
     if (manager.projectSaved || token !== manager.token) return;
+    const saveFlags = pitchPrintSaveFlags(event);
+    if (saveFlags.autoSaved || saveFlags.saveForLater) {
+      await handlePitchPrintDraftSessionSaved(product, event, token);
+      return;
+    }
     const setupEvent = normalizeCreatorSetupEvent(event);
     manager.pendingCreatorSetup = chooseCreatorSetupEvent(
       manager.pendingCreatorSetup,
@@ -2151,18 +2244,62 @@ function bindPitchPrintManager(root) {
       bindPitchPrintEvent(client, "before-show", token);
       bindPitchPrintEvent(client, "app-shown", token, () => {
         manager.isDesignerOpening = false;
+        manager.designerVisible = true;
+        manager.unsavedExitAcknowledged = false;
         restoreButton();
       });
       bindPitchPrintEvent(client, "editor-shown", token, () => {
         manager.isDesignerOpening = false;
+        manager.designerVisible = true;
+        manager.unsavedExitAcknowledged = false;
         restoreButton();
+      });
+      bindPitchPrintEvent(client, "session-saved", token, (event) => {
+        void handlePitchPrintDraftSessionSaved(product, event, token);
       });
       bindPitchPrintEvent(client, "project-saved", token, (event) => {
         void handlePitchPrintProjectSaved(product, event, token);
       });
       bindPitchPrintEvent(client, "after-close-app", token, () => {
         manager.isDesignerOpening = false;
+        manager.designerVisible = false;
         restoreButton();
+        void (async () => {
+          try {
+            await manager.draftSessionSavePromise;
+          } catch {
+            // The save handler already displays a safe error; still offer recovery.
+          }
+          if (
+            token !== manager.token ||
+            manager.projectSaved ||
+            manager.unsavedExitAcknowledged
+          ) return;
+          openDashboardActionModal(
+            root,
+            {
+              kind: `pitchprint-unsaved:${product.id}`,
+              eyebrow: "Design Draft",
+              title: "Save before leaving",
+              description: manager.draftSessionSaved
+                ? "Your latest available draft is stored, but recent changes may still be pending. Return to the designer and choose Preview, then Save Design, to keep the newest version."
+                : "Your latest changes are still open in this browser, but they are not saved yet. Return to the designer and choose Preview, then Save Design, so you can continue later.",
+              confirm: "Return & Save",
+              loading: "Returning...",
+              cancel: "Leave Without Saving",
+              destructive: false,
+              toast: "",
+              onConfirm: async () => {
+                manager.unsavedExitAcknowledged = false;
+                manager.isDesignerOpening = true;
+                manager.client?.showApp();
+              },
+              onCancel: () => {
+                manager.unsavedExitAcknowledged = true;
+              },
+            },
+          );
+        })();
       });
       bindPitchPrintEvent(client, "error", token, (event) => {
         clearValidationTimer();
@@ -2631,7 +2768,8 @@ function actionModalConfig(product, action) {
   };
 }
 
-function closeDesignActionModal(root) {
+function closeDesignActionModal(root, invokeCancel = false) {
+  const cancelHandler = invokeCancel ? root.__customHouseActionCancelHandler : null;
   const modal = dashboardModalQuery(root, "[data-dashboard-action-modal]");
   if (modal) {
     modal.hidden = true;
@@ -2643,11 +2781,13 @@ function closeDesignActionModal(root) {
   }
   unlockReviewModalScroll(root);
   root.__customHouseActionHandler = null;
+  root.__customHouseActionCancelHandler = null;
   root.__customHouseActionKind = "";
   root.__customHouseActionProduct = null;
   root.__customHouseActionName = "";
   root.__customHouseActionReturnFocus?.focus?.();
   root.__customHouseActionReturnFocus = null;
+  cancelHandler?.();
 }
 
 function openDashboardActionModal(root, config, sourceButton = null) {
@@ -2659,6 +2799,8 @@ function openDashboardActionModal(root, config, sourceButton = null) {
     notice.hidden = true;
   });
   root.__customHouseActionHandler = config.onConfirm;
+  root.__customHouseActionCancelHandler =
+    typeof config.onCancel === "function" ? config.onCancel : null;
   root.__customHouseActionKind = config.kind || "generic";
   root.__customHouseActionToast = config.toast || "";
   root.__customHouseActionReturnFocus = sourceButton;
@@ -2672,6 +2814,8 @@ function openDashboardActionModal(root, config, sourceButton = null) {
     confirm.dataset.loadingLabel = config.loading || "Working...";
     confirm.classList.toggle("ch-design-delete-modal__confirm--safe", !config.destructive);
   }
+  const cancel = modal.querySelector("[data-dashboard-action-cancel]");
+  if (cancel) cancel.textContent = config.cancel || "Cancel";
   const error = modal.querySelector("[data-dashboard-action-error]");
   if (error) {
     error.hidden = true;
@@ -2693,6 +2837,8 @@ function openDesignActionModal(root, product, action, sourceButton = null) {
   const deleteNotice = modal.querySelector("[data-dashboard-delete-notice]");
   if (deleteNotice) deleteNotice.hidden = action !== "delete";
   root.__customHouseActionProduct = product;
+  root.__customHouseActionHandler = null;
+  root.__customHouseActionCancelHandler = null;
   root.__customHouseActionName = action;
   root.__customHouseActionToast = config.toast;
   root.__customHouseActionReturnFocus = sourceButton;
@@ -2704,6 +2850,8 @@ function openDesignActionModal(root, product, action, sourceButton = null) {
     confirm.textContent = config.confirm;
     confirm.classList.toggle("ch-design-delete-modal__confirm--safe", !config.destructive);
   }
+  const cancel = modal.querySelector("[data-dashboard-action-cancel]");
+  if (cancel) cancel.textContent = "Cancel";
   const error = modal.querySelector("[data-dashboard-action-error]");
   if (error) {
     error.hidden = true;
@@ -2863,7 +3011,7 @@ function bindMyDesignsUx(root) {
     }
   });
   dashboardModalQueryAll(root, "[data-dashboard-action-close]").forEach((button) => {
-    button.addEventListener("click", () => closeDesignActionModal(root));
+    button.addEventListener("click", () => closeDesignActionModal(root, true));
   });
   dashboardModalQuery(root, "[data-dashboard-action-confirm]")?.addEventListener("click", async (event) => {
     if (typeof root.__customHouseActionHandler === "function") {
@@ -2936,7 +3084,7 @@ function bindMyDesignsUx(root) {
     const details = dashboardModalQuery(root, "[data-dashboard-details-modal]");
     const action = dashboardModalQuery(root, "[data-dashboard-action-modal]");
     if (details && !details.hidden) closeDesignDetailsModal(root);
-    if (action && !action.hidden) closeDesignActionModal(root);
+    if (action && !action.hidden) closeDesignActionModal(root, true);
   });
 }
 

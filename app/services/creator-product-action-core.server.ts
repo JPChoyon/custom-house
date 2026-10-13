@@ -4,10 +4,12 @@ import {
   creatorProductColorInputDiagnostics,
   deleteCreatorProductForCustomer,
   restoreCreatorProductToDraftForCustomer,
+  savePitchPrintDraftSessionForCustomer,
   submitCreatorProductForReview,
   updateCreatorProductDetailsForCustomer,
   withdrawCreatorProductForCustomer,
   type AttachPitchPrintProjectInput,
+  type SavePitchPrintDraftSessionInput,
 } from "./creator-products.server.ts";
 
 type CreatorSaveLog = ReturnType<typeof creatorProductColorInputDiagnostics> & {
@@ -33,6 +35,7 @@ export type CreatorProductActionCoreDependencies = {
   attachPitchPrintProjectToCreatorProduct: typeof attachPitchPrintProjectToCreatorProduct;
   deleteCreatorProductForCustomer: typeof deleteCreatorProductForCustomer;
   restoreCreatorProductToDraftForCustomer: typeof restoreCreatorProductToDraftForCustomer;
+  savePitchPrintDraftSessionForCustomer: typeof savePitchPrintDraftSessionForCustomer;
   submitCreatorProductForReview: typeof submitCreatorProductForReview;
   updateCreatorProductDetailsForCustomer: typeof updateCreatorProductDetailsForCustomer;
   withdrawCreatorProductForCustomer: typeof withdrawCreatorProductForCustomer;
@@ -44,6 +47,7 @@ export const creatorProductActionServices = {
   attachPitchPrintProjectToCreatorProduct,
   deleteCreatorProductForCustomer,
   restoreCreatorProductToDraftForCustomer,
+  savePitchPrintDraftSessionForCustomer,
   submitCreatorProductForReview,
   updateCreatorProductDetailsForCustomer,
   withdrawCreatorProductForCustomer,
@@ -122,6 +126,16 @@ export async function creatorProductActionCore(
           context.shop,
           context.customerId!,
           creatorProductId,
+        ),
+      });
+    }
+    if (actionName === "save-draft-session") {
+      return dependencies.apiData({
+        product: await dependencies.savePitchPrintDraftSessionForCustomer(
+          context.shop,
+          context.customerId!,
+          creatorProductId,
+          body as SavePitchPrintDraftSessionInput,
         ),
       });
     }

@@ -39,6 +39,7 @@ import {
   type EmbroiderySubtype,
 } from "./production-method-pricing.server.ts";
 import { classifyPitchPrintProjectSource } from "./pitchprint-project-metadata.ts";
+import { fetchPitchPrintProjectSource } from "./pitchprint-project-fetch.server.ts";
 import {
   canonicalVariantIdentity,
   creatorProductionPricingPreview,
@@ -179,6 +180,15 @@ export type AttachPitchPrintProjectInput = {
   rightsConfirmed?: unknown;
   nonReturnAcknowledged?: unknown;
 };
+
+export type SavePitchPrintDraftSessionInput = {
+  projectId?: unknown;
+  designId?: unknown;
+};
+
+export type PitchPrintProjectFetcher = (
+  projectId: unknown,
+) => Promise<Record<string, unknown>>;
 
 export type UpdateCreatorProductDetailsInput = {
   title?: unknown;
@@ -1994,8 +2004,95 @@ export async function creatorPitchPrintIdentityForCustomer(
 ) {
   const creator = await approvedCreatorForCustomer(shop, customerId, database);
   return {
-    userId: `customhouse:${shop}:creator:${creator.id}`,
+    userId: creatorPitchPrintUserId(shop, creator.id),
   };
+}
+
+function creatorPitchPrintUserId(shop: string, creatorId: string) {
+  return `customhouse:${shop}:creator:${creatorId}`;
+}
+
+export async function savePitchPrintDraftSessionForCustomer(
+  shop: string,
+  customerId: string,
+  creatorProductId: string,
+  input: SavePitchPrintDraftSessionInput,
+  database: CreatorProductDb = db,
+  fetchProject: PitchPrintProjectFetcher = fetchPitchPrintProjectSource,
+) {
+  const creator = await approvedCreatorForCustomer(shop, customerId, database);
+  const existing = await database.creatorProduct.findFirst({
+    where: {
+      id: creatorProductId,
+      shop,
+      creatorId: creator.id,
+    },
+  });
+  if (!existing) {
+    throw new DomainError(
+      "CREATOR_PRODUCT_NOT_FOUND",
+      "Creator Product not found.",
+      404,
+    );
+  }
+  if (!["DRAFT", "REJECTED"].includes(existing.status)) {
+    throw new DomainError(
+      "CREATOR_PRODUCT_NOT_EDITABLE",
+      "Only draft or rejected Creator Products can save a design session.",
+      409,
+    );
+  }
+
+  const projectId = cleanProjectId(input.projectId);
+  const source = await fetchProject(projectId);
+  const expectedAuthor = creatorPitchPrintUserId(shop, creator.id);
+  const sourceAuthor = cleanOptionalText(source._author, 300);
+  if (sourceAuthor !== expectedAuthor) {
+    throw new DomainError(
+      "PITCHPRINT_PROJECT_OWNER_MISMATCH",
+      "This saved design does not belong to the authenticated creator.",
+      403,
+    );
+  }
+
+  const sourceDesignId = cleanPitchPrintDesignId(source.designId);
+  const requestedDesignId = cleanPitchPrintDesignId(input.designId);
+  if (
+    !sourceDesignId ||
+    (existing.pitchprintDesignId && sourceDesignId !== existing.pitchprintDesignId) ||
+    (requestedDesignId && requestedDesignId !== sourceDesignId)
+  ) {
+    throw new DomainError(
+      "PITCHPRINT_DESIGN_MISMATCH",
+      "The saved design does not match this Creator Product.",
+      409,
+    );
+  }
+
+  const updated = await database.creatorProduct.update({
+    where: { id: existing.id },
+    data: {
+      pitchprintProjectId: projectId,
+      pitchprintDesignId: sourceDesignId,
+    },
+  });
+  await database.auditLog?.create({
+    data: {
+      shop,
+      actorType: "CUSTOMER",
+      actorId: normalizeCustomerGid(customerId),
+      action: "creator_product.pitchprint_draft_session_saved",
+      entityType: "CreatorProduct",
+      entityId: existing.id,
+      afterJson: safeJson({
+        creatorId: creator.id,
+        projectId,
+        designId: sourceDesignId,
+        status: existing.status,
+      }),
+    },
+  });
+  return updated;
 }
 
 export async function attachPitchPrintProjectToCreatorProduct(

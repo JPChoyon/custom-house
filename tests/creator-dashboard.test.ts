@@ -12,6 +12,7 @@ import {
   loadDashboardState,
   normalizeCreatorSetupEvent,
   normalizePitchPrintSaveEvent,
+  pitchPrintSaveFlags,
   resolveDashboardState,
 } from "../extensions/customhouse-creator-storefront/assets/customhouse-dashboard.js";
 import { countActiveCollectionProducts } from "../app/services/creator-collection-products.server.ts";
@@ -473,6 +474,14 @@ test("creator dashboard starts PitchPrint directly and reviews saved designs wit
   assert.match(script, /if \(manager\.showAppCalled\) return/);
   assert.match(script, /client\.showApp\(savedProjectSource \|\| undefined\)/);
   assert.match(script, /bindPitchPrintEvent\(client, "project-saved"/);
+  assert.match(script, /bindPitchPrintEvent\(client, "session-saved"/);
+  assert.match(script, /action: "save-draft-session"/);
+  assert.match(script, /keepalive: true/);
+  assert.match(script, /title: "Save before leaving"/);
+  assert.match(script, /confirm: "Return & Save"/);
+  assert.match(script, /cancel: "Leave Without Saving"/);
+  assert.match(script, /manager\.client\?\.showApp\(\)/);
+  assert.match(script, /window\.addEventListener\("beforeunload"/);
   assert.match(script, /manager\.projectSaved/);
   assert.match(script, /saveCreatorProductPitchPrintProject/);
   assert.match(script, /updateCreatorProductInState\(root, updated\)/);
@@ -531,6 +540,34 @@ test("creator dashboard starts PitchPrint directly and reviews saved designs wit
   assert.match(styles, /height:/);
   const sharedDialog = styles.match(/\.ch-creator-modal__dialog\s*\{[^}]*\}/)?.[0] || "";
   assert.doesNotMatch(sharedDialog, /\n\s*height:/);
+});
+
+test("PitchPrint save flags distinguish autosave and save-for-later events", () => {
+  assert.deepEqual(pitchPrintSaveFlags({ data: { autoSaved: true } }), {
+    autoSaved: true,
+    saveForLater: false,
+  });
+  assert.deepEqual(
+    pitchPrintSaveFlags({ data: { project: { saveForLater: true } } }),
+    { autoSaved: false, saveForLater: true },
+  );
+  assert.deepEqual(pitchPrintSaveFlags({ data: { projectId: "project-1" } }), {
+    autoSaved: false,
+    saveForLater: false,
+  });
+});
+
+test("partial saved sessions remain resumable but cannot be submitted", () => {
+  assert.match(script, /addDesignAction\("Continue Designing"\)/);
+  assert.doesNotMatch(
+    script,
+    /addDesignAction\(product\.pitchprintProjectId \? "Edit Design" : "Continue Designing"\)/,
+  );
+  assert.match(
+    script,
+    /statusValue === "DRAFT" && creatorProductHasCompletedDesign\(product\)/,
+  );
+  assert.match(block, /data-dashboard-action-cancel/);
 });
 
 test("creator dashboard renders professional My Designs management UI", () => {

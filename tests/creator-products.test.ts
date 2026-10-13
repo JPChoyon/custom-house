@@ -21,6 +21,7 @@ import {
   archiveCreatorProductForCustomer,
   deleteCreatorProductForCustomer,
   restoreCreatorProductToDraftForCustomer,
+  savePitchPrintDraftSessionForCustomer,
   submitCreatorProductForReview,
   updateCreatorProductDetailsForCustomer,
   withdrawCreatorProductForCustomer,
@@ -979,6 +980,143 @@ test("authenticated Creator A can attach a PitchPrint project to their own Draft
     nonReturnAcknowledged: true,
     savedAt: savedSetup.savedAt,
   });
+});
+
+test("authenticated creator can persist an owned PitchPrint draft session without completing submission data", async () => {
+  const database = fakeDb();
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id },
+    fakeClient(),
+    database,
+  );
+  const originalSetup = draft.designVariantSelectionsJson;
+
+  const updated = await savePitchPrintDraftSessionForCustomer(
+    shop,
+    "gid://shopify/Customer/1",
+    draft.id,
+    {
+      projectId: "pp_draft_session_123",
+      designId: "pp_design_global_hoodie",
+    },
+    database,
+    async (projectId) => {
+      assert.equal(projectId, "pp_draft_session_123");
+      return {
+        _id: "pp_draft_session_123",
+        _author: `customhouse:${shop}:creator:creator-a`,
+        designId: "pp_design_global_hoodie",
+        pages: [{ id: "front", items: [] }],
+      };
+    },
+  );
+
+  assert.equal(updated.pitchprintProjectId, "pp_draft_session_123");
+  assert.equal(updated.pitchprintDesignId, "pp_design_global_hoodie");
+  assert.equal(updated.status, "DRAFT");
+  assert.equal(updated.previewUrl, draft.previewUrl);
+  assert.equal(updated.designVariantSelectionsJson, originalSetup);
+});
+
+test("PitchPrint draft sessions reject another creator's project and mismatched designs", async () => {
+  const database = fakeDb();
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    { shopifyProductId: baseProduct.id },
+    fakeClient(),
+    database,
+  );
+
+  await assert.rejects(
+    () =>
+      savePitchPrintDraftSessionForCustomer(
+        shop,
+        "gid://shopify/Customer/1",
+        draft.id,
+        { projectId: "pp_other_creator" },
+        database,
+        async () => ({
+          _author: `customhouse:${shop}:creator:creator-b`,
+          designId: "pp_design_global_hoodie",
+          pages: [{ id: "front" }],
+        }),
+      ),
+    (error) =>
+      error instanceof DomainError &&
+      error.code === "PITCHPRINT_PROJECT_OWNER_MISMATCH" &&
+      error.status === 403,
+  );
+
+  await assert.rejects(
+    () =>
+      savePitchPrintDraftSessionForCustomer(
+        shop,
+        "gid://shopify/Customer/1",
+        draft.id,
+        { projectId: "pp_wrong_design" },
+        database,
+        async () => ({
+          _author: `customhouse:${shop}:creator:creator-a`,
+          designId: "different_design",
+          pages: [{ id: "front" }],
+        }),
+      ),
+    (error) =>
+      error instanceof DomainError &&
+      error.code === "PITCHPRINT_DESIGN_MISMATCH" &&
+      error.status === 409,
+  );
+  assert.equal(database.products[0].pitchprintProjectId, null);
+});
+
+test("creator product action routes draft-session saves separately from completed design saves", async () => {
+  const routeAction = creatorProductRoute.creatorProductActionCore;
+  let draftSessionCalls = 0;
+  let completedSaveCalls = 0;
+  const response = await routeAction(
+    {
+      params: { id: "creator-product-1" },
+      request: new Request(`https://${shop}/apps/customhouse/api/creator-products/creator-product-1`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "save-draft-session",
+          projectId: "pp_draft_session_456",
+          designId: "pp_design_global_hoodie",
+        }),
+      }),
+    },
+    {
+      ...creatorProductRoute.creatorProductActionServices,
+      proxyContext: async () => ({
+        shop,
+        customerId: "gid://shopify/Customer/1",
+        client: fakeClient(),
+      }),
+      enforceRateLimit: () => undefined,
+      jsonBody: (request: Request) => request.json(),
+      apiData: (data: unknown) => Response.json({ ok: true, data }),
+      apiError: (error: unknown) => Response.json({ ok: false, error }, { status: 500 }),
+      savePitchPrintDraftSessionForCustomer: async (_shop, _customerId, creatorProductId, input) => {
+        draftSessionCalls += 1;
+        assert.equal(creatorProductId, "creator-product-1");
+        assert.equal(input.projectId, "pp_draft_session_456");
+        return { id: creatorProductId } as CreatorProductRecord;
+      },
+      attachPitchPrintProjectToCreatorProduct: async () => {
+        completedSaveCalls += 1;
+        throw new Error("completed save should not run");
+      },
+      logCreatorSave: () => undefined,
+    },
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(draftSessionCalls, 1);
+  assert.equal(completedSaveCalls, 0);
 });
 
 test("creator product route saves nested Navy when empty legacy outer aliases are present", async () => {
