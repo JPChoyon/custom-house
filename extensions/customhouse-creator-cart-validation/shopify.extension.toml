@@ -3,6 +3,8 @@ api_version = "2026-07"
 [[extensions]]
 name = "t:name"
 handle = "customhouse-creator-cart-validation"
+
+uid = "40e6369b-e9ad-7643-24ae-77420bfb945c058a8665"
 type = "function"
 description = "t:description"
 

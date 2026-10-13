@@ -82,6 +82,28 @@ test("PitchPrint project fetch rejects mismatched or malformed source safely", a
   }
 });
 
+test("PitchPrint project fetch reports an unavailable saved project for recovery", async () => {
+  const restore = withPitchPrintCredentials();
+  try {
+    await assert.rejects(
+      () =>
+        fetchPitchPrintProjectSource("project-123", async () =>
+          Response.json({
+            error: true,
+            message: "Project does not exist",
+          }),
+        ),
+      (error) =>
+        error instanceof DomainError &&
+        error.code === "PITCHPRINT_PROJECT_UNAVAILABLE" &&
+        error.status === 410 &&
+        error.message === "This saved design is no longer available in PitchPrint.",
+    );
+  } finally {
+    restore();
+  }
+});
+
 test("PitchPrint project fetch requires server-only credentials", async () => {
   const previousApiKey = process.env.PITCHPRINT_API_KEY;
   const previousSecret = process.env.PITCHPRINT_SECRET_KEY;

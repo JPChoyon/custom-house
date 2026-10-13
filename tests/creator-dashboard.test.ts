@@ -973,7 +973,9 @@ test("creator dashboard PitchPrint bridge uses Creator setup contract instead of
   assert.match(script, /flowMode: "CREATOR_DESIGN"/);
   assert.match(script, /creatorContext: true/);
   assert.match(script, /launchContext: "creator_dashboard"/);
-  assert.match(script, /const \{ designId, projectId, mode \} = creatorPitchPrintLaunchConfig\(product\)/);
+  assert.match(script, /const launchConfig = creatorPitchPrintLaunchConfig\(product\)/);
+  assert.match(script, /const projectId = replaceUnavailableProject \? "" : launchConfig\.projectId/);
+  assert.match(script, /const mode = replaceUnavailableProject \? "new" : launchConfig\.mode/);
   assert.match(script, /requestCreatorPitchPrintProjectSource\(product\.id\)/);
   assert.match(script, /mode: savedProjectSource \? "new" : mode/);
   assert.match(script, /const clientOptions = creatorPitchPrintClientOptions\(\{/);
@@ -981,6 +983,14 @@ test("creator dashboard PitchPrint bridge uses Creator setup contract instead of
   assert.match(script, /projectId,/);
   assert.match(script, /\.\.\.\(!savedProjectSource && projectId \? \{ projectId \} : \{\}\)/);
   assert.match(script, /client\.showApp\(savedProjectSource \|\| undefined\)/);
+  assert.match(script, /error\?\.code === "PITCHPRINT_PROJECT_UNAVAILABLE"/);
+  assert.match(script, /title: "Saved design is unavailable"/);
+  assert.match(script, /confirm: "Start Replacement"/);
+  assert.match(script, /replaceUnavailableProject: true/);
+  assert.doesNotMatch(
+    script,
+    /PITCHPRINT_PROJECT_UNAVAILABLE[\s\S]{0,1200}createCreatorProductDraft\(/,
+  );
   assert.doesNotMatch(script, /mode,\s*projectId,\s*userId/);
   assert.doesNotMatch(script, /creatorPitchPrintLaunchProjectId\(product\)/);
   assert.doesNotMatch(script, /creatorPitchPrintLaunchProjectIdSource/);

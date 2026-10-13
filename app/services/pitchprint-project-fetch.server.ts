@@ -45,6 +45,18 @@ function projectFetchError(
   );
 }
 
+function projectUnavailableError() {
+  console.warn("pitchprint_project_fetch_failed", {
+    stage: "invalid_source",
+    errorCategory: "project_unavailable",
+  });
+  return new DomainError(
+    "PITCHPRINT_PROJECT_UNAVAILABLE",
+    "This saved design is no longer available in PitchPrint.",
+    410,
+  );
+}
+
 function classifyUpstreamMessage(value: unknown) {
   const message = typeof value === "string" ? value.toLowerCase() : "";
   if (!message) return "missing";
@@ -161,12 +173,16 @@ export async function fetchPitchPrintProjectSource(
   if (!source || typeof source !== "object" || Array.isArray(source)) {
     const record = body as Record<string, unknown>;
     const errorValue = record.error;
+    const errorCategory = classifyUpstreamMessage(record.message);
+    if (errorCategory === "project_unavailable") {
+      throw projectUnavailableError();
+    }
     throw projectFetchError("invalid_source", {
       bodyKeys: Object.keys(record).sort().slice(0, 10).join(","),
       dataType: Array.isArray(source) ? "array" : typeof source,
       hasError: Boolean(errorValue),
       errorType: Array.isArray(errorValue) ? "array" : typeof errorValue,
-      errorCategory: classifyUpstreamMessage(record.message),
+      errorCategory,
     });
   }
   const project = source as Record<string, unknown>;

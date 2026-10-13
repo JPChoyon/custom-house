@@ -275,9 +275,12 @@ async function requestCreatorPitchPrintProjectSource(productId) {
   });
   const body = await response.json().catch(() => null);
   if (!response.ok || !body?.ok || !Array.isArray(body.data?.source?.pages)) {
-    throw new Error(
+    const error = new Error(
       body?.error?.message || "We couldn't load your saved design. Please try again.",
     );
+    error.code = body?.error?.code || "";
+    error.status = response.status;
+    throw error;
   }
   return body.data.source;
 }
@@ -2086,7 +2089,11 @@ function bindPitchPrintManager(root) {
       { signal: controller.signal },
     );
   };
-  const openPitchPrintDesigner = async (product, sourceButton = null) => {
+  const openPitchPrintDesigner = async (
+    product,
+    sourceButton = null,
+    { replaceUnavailableProject = false } = {},
+  ) => {
     if (!product?.id || manager.isDesignerOpening) return;
     cleanupPitchPrintSession();
     manager.isDesignerOpening = true;
@@ -2100,7 +2107,10 @@ function bindPitchPrintManager(root) {
           "Printing method is missing. Please return to Add Product and start a new design.",
         );
       }
-      const { designId, projectId, mode } = creatorPitchPrintLaunchConfig(product);
+      const launchConfig = creatorPitchPrintLaunchConfig(product);
+      const designId = launchConfig.designId;
+      const projectId = replaceUnavailableProject ? "" : launchConfig.projectId;
+      const mode = replaceUnavailableProject ? "new" : launchConfig.mode;
       manager.activeProjectId = projectId;
       const apiKey = root.dataset.pitchprintApiKey || "";
       if (!apiKey) throw new Error("PitchPrint public API key is not configured.");
@@ -2187,6 +2197,33 @@ function bindPitchPrintManager(root) {
     } catch (error) {
       manager.isDesignerOpening = false;
       restoreButton();
+      if (
+        error?.code === "PITCHPRINT_PROJECT_UNAVAILABLE" &&
+        !replaceUnavailableProject
+      ) {
+        openDashboardActionModal(
+          root,
+          {
+            kind: `pitchprint-replacement:${product.id}`,
+            eyebrow: "Edit Design",
+            title: "Saved design is unavailable",
+            description:
+              "PitchPrint no longer has the editable file for this design. Start a replacement using the same product? Your existing design stays unchanged until you save.",
+            confirm: "Start Replacement",
+            loading: "Opening designer...",
+            destructive: false,
+            toast: "",
+            onConfirm: async () => {
+              closeDesignActionModal(root);
+              await openPitchPrintDesigner(product, sourceButton, {
+                replaceUnavailableProject: true,
+              });
+            },
+          },
+          sourceButton,
+        );
+        return;
+      }
       showCreatorToast(
         root,
         error instanceof Error ? error.message : "Unable to open the designer. Please try again.",
@@ -2841,9 +2878,9 @@ function bindMyDesignsUx(root) {
       const error = dashboardModalQuery(root, "[data-dashboard-action-error]");
       try {
         await root.__customHouseActionHandler();
-        const toast = root.__customHouseActionToast || "Action completed.";
+        const toast = root.__customHouseActionToast;
         closeDesignActionModal(root);
-        showDashboardToast(root, toast, "success");
+        if (toast) showDashboardToast(root, toast, "success");
       } catch (requestError) {
         if (error) {
           error.hidden = false;
