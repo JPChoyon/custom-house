@@ -1760,6 +1760,7 @@ export function creatorPitchPrintClientOptions({
     designId,
     mode,
     userId: identity.userId,
+    accountPath: "/pages/creator-dashboard",
     custom: true,
     isvx: true,
     flowMode: "CREATOR_DESIGN",

@@ -1492,6 +1492,8 @@ test("PitchPrint client options expose the persisted method and color at every s
     customHouseConfig,
   });
 
+  assert.equal(options.accountPath, "/pages/creator-dashboard");
+
   for (const boundary of [options, options.product, options.userData]) {
     assert.equal(boundary.productionMethod, "EMBROIDERY");
     assert.equal(boundary.selectedProductionMethod, "EMBROIDERY");
