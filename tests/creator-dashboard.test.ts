@@ -1017,6 +1017,12 @@ test("creator dashboard PitchPrint bridge uses Creator setup contract instead of
   assert.match(script, /requestCreatorPitchPrintProjectSource\(product\.id\)/);
   assert.match(script, /mode: savedProjectSource \? "new" : mode/);
   assert.match(script, /const clientOptions = creatorPitchPrintClientOptions\(\{/);
+  const accountPathIndex = script.indexOf(
+    'window.PPCLIENT.userAccountPath = "/pages/creator-dashboard";',
+  );
+  const clientConstructionIndex = script.indexOf("const client = new Client({");
+  assert.ok(accountPathIndex >= 0);
+  assert.ok(accountPathIndex < clientConstructionIndex);
   assert.match(script, /designId,/);
   assert.match(script, /projectId,/);
   assert.match(script, /\.\.\.\(!savedProjectSource && projectId \? \{ projectId \} : \{\}\)/);
@@ -1491,8 +1497,6 @@ test("PitchPrint client options expose the persisted method and color at every s
     },
     customHouseConfig,
   });
-
-  assert.equal(options.accountPath, "/pages/creator-dashboard");
 
   for (const boundary of [options, options.product, options.userData]) {
     assert.equal(boundary.productionMethod, "EMBROIDERY");
