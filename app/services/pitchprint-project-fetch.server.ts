@@ -45,6 +45,23 @@ function projectFetchError(
   );
 }
 
+function classifyUpstreamMessage(value: unknown) {
+  const message = typeof value === "string" ? value.toLowerCase() : "";
+  if (!message) return "missing";
+  if (/api\s*key|signature|secret|auth|credential/.test(message))
+    return "authentication";
+  if (
+    /project/.test(message) &&
+    /not\s+found|missing|invalid|exist/.test(message)
+  ) {
+    return "project_unavailable";
+  }
+  if (/rate|limit|too many/.test(message)) return "rate_limited";
+  if (/parameter|payload|request|required/.test(message))
+    return "invalid_request";
+  return "unknown";
+}
+
 export async function fetchPitchPrintProjectSource(
   projectIdInput: unknown,
   fetchImpl: typeof fetch = fetch,
@@ -149,6 +166,7 @@ export async function fetchPitchPrintProjectSource(
       dataType: Array.isArray(source) ? "array" : typeof source,
       hasError: Boolean(errorValue),
       errorType: Array.isArray(errorValue) ? "array" : typeof errorValue,
+      errorCategory: classifyUpstreamMessage(record.message),
     });
   }
   const project = source as Record<string, unknown>;
