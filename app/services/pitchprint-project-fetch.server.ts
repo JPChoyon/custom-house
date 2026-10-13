@@ -33,7 +33,11 @@ function fetchTimeoutMs() {
   return Math.min(Math.max(Math.round(configured), 1000), 15000);
 }
 
-function projectFetchError() {
+function projectFetchError(
+  stage: string,
+  details: Record<string, string | number | boolean> = {},
+) {
+  console.error("pitchprint_project_fetch_failed", { stage, ...details });
   return new DomainError(
     "PITCHPRINT_PROJECT_FETCH_FAILED",
     "We couldn't load your saved design. Please try again.",
@@ -98,54 +102,61 @@ export async function fetchPitchPrintProjectSource(
       signal: controller.signal,
     });
   } catch {
-    throw projectFetchError();
+    throw projectFetchError("request_failed");
   } finally {
     clearTimeout(timeout);
   }
 
-  if (!response.ok) throw projectFetchError();
+  if (!response.ok) {
+    throw projectFetchError("upstream_status", { status: response.status });
+  }
   const declaredLength = Number(response.headers.get("content-length"));
   if (
     Number.isFinite(declaredLength) &&
     declaredLength > MAX_PROJECT_SOURCE_BYTES
   ) {
-    throw projectFetchError();
+    throw projectFetchError("declared_size", { declaredLength });
   }
 
   let text: string;
   try {
     text = await response.text();
   } catch {
-    throw projectFetchError();
+    throw projectFetchError("response_read_failed");
   }
   if (!text || Buffer.byteLength(text, "utf8") > MAX_PROJECT_SOURCE_BYTES) {
-    throw projectFetchError();
+    throw projectFetchError("response_size", {
+      empty: !text,
+      bytes: Buffer.byteLength(text || "", "utf8"),
+    });
   }
 
   let body: unknown;
   try {
     body = JSON.parse(text);
   } catch {
-    throw projectFetchError();
+    throw projectFetchError("invalid_json");
   }
   if (!body || typeof body !== "object" || Array.isArray(body)) {
-    throw projectFetchError();
+    throw projectFetchError("invalid_body");
   }
   const source = (body as Record<string, unknown>).data;
   if (!source || typeof source !== "object" || Array.isArray(source)) {
-    throw projectFetchError();
+    throw projectFetchError("invalid_source");
   }
   const project = source as Record<string, unknown>;
   const returnedProjectId = cleanProjectId(project._id || project.projectId);
   if (returnedProjectId && returnedProjectId !== projectId) {
-    throw projectFetchError();
+    throw projectFetchError("project_mismatch");
   }
   if (
     !Array.isArray(project.pages) ||
     project.pages.length < 1 ||
     project.pages.length > 50
   ) {
-    throw projectFetchError();
+    throw projectFetchError("invalid_pages", {
+      pageCount: Array.isArray(project.pages) ? project.pages.length : -1,
+    });
   }
 
   return project;
