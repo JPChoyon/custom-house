@@ -1930,6 +1930,17 @@ async function loadPitchPrintClient(root) {
   return Client;
 }
 
+export function closeCreatorDesignerSession(
+  manager,
+  restoreButton = () => {},
+  showProducts = () => {},
+) {
+  manager.isDesignerOpening = false;
+  manager.designerVisible = false;
+  restoreButton();
+  showProducts();
+}
+
 function bindPitchPrintManager(root) {
   if (root.__customHousePitchPrintManagerBound) return;
   root.__customHousePitchPrintManagerBound = true;
@@ -1944,11 +1955,8 @@ function bindPitchPrintManager(root) {
     showAppCalled: false,
     designerVisible: false,
     projectSaved: false,
-    projectSavePending: false,
     draftSessionSaved: false,
-    draftSessionSavePromise: null,
     draftSessionNoticeShown: false,
-    unsavedExitAcknowledged: false,
     saveFailureNotified: false,
     pendingCreatorSetup: null,
     pendingPitchPrintSave: null,
@@ -1970,11 +1978,8 @@ function bindPitchPrintManager(root) {
     manager.showAppCalled = false;
     manager.designerVisible = false;
     manager.projectSaved = false;
-    manager.projectSavePending = false;
     manager.draftSessionSaved = false;
-    manager.draftSessionSavePromise = null;
     manager.draftSessionNoticeShown = false;
-    manager.unsavedExitAcknowledged = false;
     manager.saveFailureNotified = false;
     manager.pendingCreatorSetup = null;
     manager.pendingPitchPrintSave = null;
@@ -2087,7 +2092,6 @@ function bindPitchPrintManager(root) {
       normalizeCreatorSetupEvent(event),
     );
     if (!setupEvent) return;
-    manager.projectSavePending = true;
     manager.pendingCreatorSetup = setupEvent;
     await savePendingCreatorProduct(product, token);
   };
@@ -2099,7 +2103,6 @@ function bindPitchPrintManager(root) {
       projectId: saveEvent.projectId,
       designId: saveEvent.designId || product.pitchprintDesignId || "",
     });
-    manager.draftSessionSavePromise = persistSession;
     try {
       const updated = await persistSession;
       if (token !== manager.token) return;
@@ -2117,10 +2120,6 @@ function bindPitchPrintManager(root) {
         error instanceof Error ? error.message : "Design draft could not be saved.",
         true,
       );
-    } finally {
-      if (manager.draftSessionSavePromise === persistSession) {
-        manager.draftSessionSavePromise = null;
-      }
     }
   };
   const handlePitchPrintProjectSaved = async (product, event, token) => {
@@ -2130,7 +2129,6 @@ function bindPitchPrintManager(root) {
       await handlePitchPrintDraftSessionSaved(product, event, token);
       return;
     }
-    manager.projectSavePending = true;
     const setupEvent = normalizeCreatorSetupEvent(event);
     manager.pendingCreatorSetup = chooseCreatorSetupEvent(
       manager.pendingCreatorSetup,
@@ -2251,13 +2249,11 @@ function bindPitchPrintManager(root) {
       bindPitchPrintEvent(client, "app-shown", token, () => {
         manager.isDesignerOpening = false;
         manager.designerVisible = true;
-        manager.unsavedExitAcknowledged = false;
         restoreButton();
       });
       bindPitchPrintEvent(client, "editor-shown", token, () => {
         manager.isDesignerOpening = false;
         manager.designerVisible = true;
-        manager.unsavedExitAcknowledged = false;
         restoreButton();
       });
       bindPitchPrintEvent(client, "session-saved", token, (event) => {
@@ -2267,46 +2263,9 @@ function bindPitchPrintManager(root) {
         void handlePitchPrintProjectSaved(product, event, token);
       });
       bindPitchPrintEvent(client, "after-close-app", token, () => {
-        manager.isDesignerOpening = false;
-        manager.designerVisible = false;
-        restoreButton();
-        void (async () => {
-          try {
-            await manager.draftSessionSavePromise;
-          } catch {
-            // The save handler already displays a safe error; still offer recovery.
-          }
-          if (
-            token !== manager.token ||
-            manager.projectSaved ||
-            manager.projectSavePending ||
-            manager.unsavedExitAcknowledged
-          ) return;
-          openDashboardActionModal(
-            root,
-            {
-              kind: `pitchprint-unsaved:${product.id}`,
-              eyebrow: "Design Draft",
-              title: "Save for later before leaving",
-              description: manager.draftSessionSaved
-                ? "Your latest available draft is stored, but recent changes may still be pending. Return to the designer and choose Save for Later to keep the newest version."
-                : "Your latest changes are still open in this browser, but they are not saved yet. Return to the designer and choose Save for Later so you can continue editing another time.",
-              confirm: "Return to Designer",
-              loading: "Returning...",
-              cancel: "Leave Without Saving",
-              destructive: false,
-              toast: "",
-              onConfirm: async () => {
-                manager.unsavedExitAcknowledged = false;
-                manager.isDesignerOpening = true;
-                manager.client?.showApp();
-              },
-              onCancel: () => {
-                manager.unsavedExitAcknowledged = true;
-              },
-            },
-          );
-        })();
+        closeCreatorDesignerSession(manager, restoreButton, () => {
+          goToMyProductsTab(root);
+        });
       });
       bindPitchPrintEvent(client, "error", token, (event) => {
         clearValidationTimer();
