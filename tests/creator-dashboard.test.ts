@@ -543,6 +543,27 @@ test("creator dashboard starts PitchPrint directly and reviews saved designs wit
   assert.doesNotMatch(sharedDialog, /\n\s*height:/);
 });
 
+test("creator submit closes PitchPrint without showing the unsaved-exit warning", () => {
+  const script = readFileSync(
+    "extensions/customhouse-creator-storefront/assets/customhouse-dashboard.js",
+    "utf8",
+  );
+
+  assert.match(script, /projectSavePending: false/);
+  assert.match(
+    script,
+    /handlePitchPrintCreatorSetupReady[\s\S]*manager\.projectSavePending = true;[\s\S]*await savePendingCreatorProduct\(product, token\)/s,
+  );
+  assert.match(
+    script,
+    /if \(saveFlags\.autoSaved \|\| saveFlags\.saveForLater\)[\s\S]*return;[\s\S]*manager\.projectSavePending = true;/s,
+  );
+  assert.match(
+    script,
+    /token !== manager\.token \|\|\s*manager\.projectSaved \|\|\s*manager\.projectSavePending \|\|\s*manager\.unsavedExitAcknowledged/s,
+  );
+});
+
 test("PitchPrint save flags distinguish autosave and save-for-later events", () => {
   assert.deepEqual(pitchPrintSaveFlags({ data: { autoSaved: true } }), {
     autoSaved: true,

@@ -1944,6 +1944,7 @@ function bindPitchPrintManager(root) {
     showAppCalled: false,
     designerVisible: false,
     projectSaved: false,
+    projectSavePending: false,
     draftSessionSaved: false,
     draftSessionSavePromise: null,
     draftSessionNoticeShown: false,
@@ -1969,6 +1970,7 @@ function bindPitchPrintManager(root) {
     manager.showAppCalled = false;
     manager.designerVisible = false;
     manager.projectSaved = false;
+    manager.projectSavePending = false;
     manager.draftSessionSaved = false;
     manager.draftSessionSavePromise = null;
     manager.draftSessionNoticeShown = false;
@@ -2085,6 +2087,7 @@ function bindPitchPrintManager(root) {
       normalizeCreatorSetupEvent(event),
     );
     if (!setupEvent) return;
+    manager.projectSavePending = true;
     manager.pendingCreatorSetup = setupEvent;
     await savePendingCreatorProduct(product, token);
   };
@@ -2127,6 +2130,7 @@ function bindPitchPrintManager(root) {
       await handlePitchPrintDraftSessionSaved(product, event, token);
       return;
     }
+    manager.projectSavePending = true;
     const setupEvent = normalizeCreatorSetupEvent(event);
     manager.pendingCreatorSetup = chooseCreatorSetupEvent(
       manager.pendingCreatorSetup,
@@ -2275,6 +2279,7 @@ function bindPitchPrintManager(root) {
           if (
             token !== manager.token ||
             manager.projectSaved ||
+            manager.projectSavePending ||
             manager.unsavedExitAcknowledged
           ) return;
           openDashboardActionModal(
