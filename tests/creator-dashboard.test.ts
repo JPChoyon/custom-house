@@ -477,11 +477,6 @@ test("creator dashboard starts PitchPrint directly and reviews saved designs wit
   assert.match(script, /bindPitchPrintEvent\(client, "session-saved"/);
   assert.match(script, /action: "save-draft-session"/);
   assert.match(script, /keepalive: true/);
-  assert.match(script, /title: "Save for later before leaving"/);
-  assert.match(script, /choose Save for Later so you can continue editing another time/);
-  assert.match(script, /confirm: "Return to Designer"/);
-  assert.match(script, /cancel: "Leave Without Saving"/);
-  assert.match(script, /manager\.client\?\.showApp\(\)/);
   assert.match(script, /window\.addEventListener\("beforeunload"/);
   assert.match(script, /manager\.projectSaved/);
   assert.match(script, /saveCreatorProductPitchPrintProject/);
@@ -543,25 +538,40 @@ test("creator dashboard starts PitchPrint directly and reviews saved designs wit
   assert.doesNotMatch(sharedDialog, /\n\s*height:/);
 });
 
-test("creator submit closes PitchPrint without showing the unsaved-exit warning", () => {
-  const script = readFileSync(
-    "extensions/customhouse-creator-storefront/assets/customhouse-dashboard.js",
-    "utf8",
+test("closing PitchPrint returns to the existing draft without prompting", () => {
+  const closeCreatorDesignerSession = (
+    dashboardModule as Record<string, unknown>
+  ).closeCreatorDesignerSession;
+
+  assert.equal(typeof closeCreatorDesignerSession, "function");
+
+  const manager = {
+    isDesignerOpening: true,
+    designerVisible: true,
+    projectSaved: false,
+  };
+  let restored = 0;
+  let productsShown = 0;
+
+  (closeCreatorDesignerSession as (
+    state: typeof manager,
+    restoreButton: () => void,
+    showProducts: () => void,
+  ) => void)(
+    manager,
+    () => {
+      restored += 1;
+    },
+    () => {
+      productsShown += 1;
+    },
   );
 
-  assert.match(script, /projectSavePending: false/);
-  assert.match(
-    script,
-    /handlePitchPrintCreatorSetupReady[\s\S]*manager\.projectSavePending = true;[\s\S]*await savePendingCreatorProduct\(product, token\)/s,
-  );
-  assert.match(
-    script,
-    /if \(saveFlags\.autoSaved \|\| saveFlags\.saveForLater\)[\s\S]*return;[\s\S]*manager\.projectSavePending = true;/s,
-  );
-  assert.match(
-    script,
-    /token !== manager\.token \|\|\s*manager\.projectSaved \|\|\s*manager\.projectSavePending \|\|\s*manager\.unsavedExitAcknowledged/s,
-  );
+  assert.equal(manager.isDesignerOpening, false);
+  assert.equal(manager.designerVisible, false);
+  assert.equal(manager.projectSaved, false);
+  assert.equal(restored, 1);
+  assert.equal(productsShown, 1);
 });
 
 test("PitchPrint save flags distinguish autosave and save-for-later events", () => {
