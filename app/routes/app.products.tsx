@@ -344,15 +344,18 @@ export default function Products() {
           )}
 
           {excludedProducts.length ? (
-            <section className="settings-card">
-              <div className="settings-card-heading">
+            <details className="settings-card production-pricing-diagnostics">
+              <summary className="production-pricing-diagnostics-summary">
                 <span className="settings-icon settings-icon--general" />
                 <div>
-                  <h2>Excluded Products</h2>
-                  <p>Creator and non-customizable products are read-only here.</p>
+                  <h2>Excluded products ({excludedProducts.length})</h2>
+                  <p>
+                    Internal, Creator, and non-customizable products are hidden
+                    from normal pricing controls.
+                  </p>
                 </div>
-              </div>
-              <div className="settings-toggle-list">
+              </summary>
+              <div className="settings-toggle-list production-pricing-diagnostics-list">
                 {excludedProducts.map((product) => (
                   <div className="settings-toggle-row" key={product.id}>
                     <span>{product.title}</span>
@@ -364,7 +367,7 @@ export default function Products() {
                   </div>
                 ))}
               </div>
-            </section>
+            </details>
           ) : null}
         </div>
       </s-section>

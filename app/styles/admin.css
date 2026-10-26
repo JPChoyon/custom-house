@@ -3713,6 +3713,42 @@ button:disabled {
   align-self: center;
 }
 
+.production-pricing-diagnostics {
+  padding: 0;
+  overflow: hidden;
+}
+
+.production-pricing-diagnostics-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.production-pricing-diagnostics-summary::-webkit-details-marker {
+  display: none;
+}
+
+.production-pricing-diagnostics-summary::after {
+  content: "+";
+  margin-left: auto;
+  color: var(--admin-muted);
+  font-size: 20px;
+}
+
+.production-pricing-diagnostics[open] .production-pricing-diagnostics-summary::after {
+  content: "−";
+}
+
+.production-pricing-diagnostics-list {
+  max-height: 320px;
+  overflow: auto;
+  border-top: 1px solid var(--settings-border, #d9dde3);
+  padding: 0 16px 16px;
+}
+
 @media (max-width: 640px) {
   .production-method-row {
     grid-template-columns: 1fr;

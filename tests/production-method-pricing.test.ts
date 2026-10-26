@@ -421,6 +421,19 @@ test("admin product eligibility excludes creator buy-only products", () => {
   assert.match(source, /!isCreatorFixed/);
 });
 
+test("admin keeps excluded internal products in a collapsed diagnostic", () => {
+  const source = readFileSync("app/routes/app.products.tsx", "utf8");
+  const styles = readFileSync("app/styles/admin.css", "utf8");
+
+  assert.match(
+    source,
+    /<details className="settings-card production-pricing-diagnostics">/,
+  );
+  assert.match(source, /Excluded products \(\{excludedProducts\.length\}\)/);
+  assert.match(source, /<summary className="production-pricing-diagnostics-summary">/);
+  assert.match(styles, /\.production-pricing-diagnostics-summary\s*\{/);
+});
+
 test("admin save flow surfaces Shopify sync failures", () => {
   const service = readFileSync(
     "app/services/production-method-pricing.server.ts",
