@@ -8,11 +8,14 @@ import {
 import {
   CREATOR_PRODUCTION_PRICING_PRODUCT_ID,
   feeVariantIdForEmbroiderySubtype,
+  getEnabledProductionMethodsForProduct,
+  getProductionPricingBridgeForProduct,
   listEnabledProductionMethods,
   parseSurchargeInput,
   pricingForEmbroiderySubtype,
   productionPricingBridgePayload,
   pricingConfigToMetafieldValue,
+  resolveProductionPricing,
   saveCreatorProductionPricing,
   saveProductionPricing,
   syncProductionFeeMerchandise,
@@ -66,6 +69,8 @@ test("enabled production methods preserve explicit disabled settings and canonic
   assert.deepEqual(methods, [
     { id: "EMBROIDERY", label: "Embroidery" },
     { id: "DTG", label: "DTG printing" },
+    { id: "SUBLIMATION", label: "Sublimation" },
+    { id: "STICKER_PRINTING", label: "Sticker Printing" },
   ]);
 });
 
@@ -144,14 +149,15 @@ function productSetInputFromVariables(variables: Record<string, unknown> | undef
 test("production method pricing schema matches existing production DB objects", () => {
   const schema = readFileSync("prisma/schema.prisma", "utf8");
 
-  assert.match(
-    schema,
-    /enum ProductionMethod\s*\{[\s\S]*EMBROIDERY[\s\S]*DTF[\s\S]*DTG[\s\S]*\}/,
-  );
   assert.match(schema, /model ProductionMethodSetting\s*\{/);
+  assert.match(schema, /method\s+String/);
   assert.match(schema, /description\s+String\s+@default\(""\)/);
+  assert.match(schema, /pricingBehavior\s+String/);
+  assert.match(schema, /configurationJson\s+Json/);
   assert.match(schema, /@@unique\(\[shopKey, method\]\)/);
   assert.match(schema, /model PublicProductProductionPricing\s*\{/);
+  assert.match(schema, /currency\s+String/);
+  assert.match(schema, /methodConfigurations\s+Json/);
   assert.match(
     schema,
     /embroiderySurcharge\s+Decimal\s+@default\(0\)\s+@db\.Decimal\(10,\s*2\)/,
@@ -159,6 +165,118 @@ test("production method pricing schema matches existing production DB objects", 
   assert.match(schema, /dtfSurcharge\s+Decimal\s+@default\(0\)\s+@db\.Decimal\(10,\s*2\)/);
   assert.match(schema, /dtgSurcharge\s+Decimal\s+@default\(0\)\s+@db\.Decimal\(10,\s*2\)/);
   assert.match(schema, /@@unique\(\[shopKey, shopifyProductId\]\)/);
+});
+
+test("canonical resolver supports product enablement, zero price, and dynamic methods", async () => {
+  const database = {
+    productionMethodSetting: {
+      async findMany() {
+        return [
+          { method: "EMBROIDERY", label: "Embroidery", description: "", enabled: true, pricingBehavior: "TIERED", configurationJson: { maxWidthCm: 8, maxHeightCm: 8 } },
+          { method: "DTF", label: "DTF printing", description: "", enabled: true, pricingBehavior: "SINGLE", configurationJson: { maxWidthCm: 35, maxHeightCm: 40 } },
+          { method: "SUBLIMATION", label: "Sublimation", description: "", enabled: true, pricingBehavior: "SINGLE", configurationJson: {} },
+          { method: "STICKER_PRINTING", label: "Sticker Printing", description: "", enabled: true, pricingBehavior: "SINGLE", configurationJson: {} },
+          { method: "LASER_ENGRAVING", label: "Laser Engraving", description: "", enabled: true, pricingBehavior: "TIERED", configurationJson: { tiers: ["SMALL", "LARGE"] } },
+        ];
+      },
+    },
+    publicProductProductionPricing: {
+      async findUnique() {
+        return {
+          id: "pricing-sticker",
+          shopKey: "shop.test",
+          shopifyProductId: "gid://shopify/Product/500",
+          currency: "SEK",
+          methodConfigurations: {
+            version: 2,
+            methods: {
+              EMBROIDERY: {
+                enabled: false,
+                tiers: {
+                  TEXT_ONLY: { enabled: false, surcharge: "50.00", feeVariantId: "gid://shopify/ProductVariant/501" },
+                  IMAGE_OR_LOGO: { enabled: false, surcharge: "300.00", feeVariantId: "gid://shopify/ProductVariant/502" },
+                },
+              },
+              DTF: { enabled: false, surcharge: "20.00", feeVariantId: "gid://shopify/ProductVariant/503" },
+              SUBLIMATION: { enabled: true, surcharge: "0.00", feeVariantId: null },
+              STICKER_PRINTING: { enabled: true, surcharge: "15.00", feeVariantId: "gid://shopify/ProductVariant/505" },
+              LASER_ENGRAVING: {
+                enabled: true,
+                tiers: {
+                  SMALL: { enabled: false, surcharge: "5.00", feeVariantId: null },
+                  LARGE: { enabled: true, surcharge: "25.00", feeVariantId: "gid://shopify/ProductVariant/506" },
+                },
+              },
+            },
+          },
+          embroiderySurcharge: parseSurchargeInput("0"),
+          embroideryTextSurcharge: parseSurchargeInput("50"),
+          embroideryImageSurcharge: parseSurchargeInput("300"),
+          dtfSurcharge: parseSurchargeInput("20"),
+          dtgSurcharge: parseSurchargeInput("30"),
+          embroideryFeeVariantId: null,
+          embroideryTextFeeVariantId: null,
+          embroideryImageFeeVariantId: null,
+          dtfFeeVariantId: null,
+          dtgFeeVariantId: null,
+        };
+      },
+    },
+  };
+
+  assert.deepEqual(
+    (await getEnabledProductionMethodsForProduct("shop.test", "gid://shopify/Product/500", database as never)).map((method) => method.id),
+    ["SUBLIMATION", "STICKER_PRINTING", "LASER_ENGRAVING"],
+  );
+  const sticker = await resolveProductionPricing({
+    shop: "shop.test",
+    productId: "gid://shopify/Product/500",
+    method: "STICKER_PRINTING",
+    database: database as never,
+  });
+  assert.equal(sticker.surchargeMinor, 1500n);
+  assert.equal(sticker.feeVariantId, "gid://shopify/ProductVariant/505");
+  const zeroCost = await resolveProductionPricing({
+    shop: "shop.test",
+    productId: "gid://shopify/Product/500",
+    method: "SUBLIMATION",
+    database: database as never,
+  });
+  assert.equal(zeroCost.surchargeMinor, 0n);
+  assert.equal(zeroCost.feeRequired, false);
+  const tieredFutureMethod = await resolveProductionPricing({
+    shop: "shop.test",
+    productId: "gid://shopify/Product/500",
+    method: "LASER_ENGRAVING",
+    pricingTier: "LARGE",
+    database: database as never,
+  });
+  assert.equal(tieredFutureMethod.surchargeMinor, 2500n);
+  assert.equal(tieredFutureMethod.artworkType, "LARGE");
+  const bridge = await getProductionPricingBridgeForProduct(
+    "shop.test",
+    "gid://shopify/Product/500",
+    database as never,
+  );
+  assert.deepEqual(
+    bridge?.productionMethods.map((method) => method.id),
+    ["SUBLIMATION", "STICKER_PRINTING", "LASER_ENGRAVING"],
+  );
+  assert.equal(bridge?.productionMethodPricing.STICKER_PRINTING.surchargeMinor, 1500);
+  assert.equal(
+    bridge?.productionMethodPricing.LASER_ENGRAVING.pricingTiers?.LARGE.surchargeMinor,
+    2500,
+  );
+  assert.equal(bridge?.productionMethodPricing.DTF, undefined);
+  await assert.rejects(
+    () => resolveProductionPricing({
+      shop: "shop.test",
+      productId: "gid://shopify/Product/500",
+      method: "DTF",
+      database: database as never,
+    }),
+    /not enabled/i,
+  );
 });
 
 test("production method surcharge validation accepts zero and two decimals", () => {
@@ -169,6 +287,22 @@ test("production method surcharge validation accepts zero and two decimals", () 
 test("production method surcharge validation rejects negative and too many decimals", () => {
   assert.throws(() => parseSurchargeInput("-1"), /negative/i);
   assert.throws(() => parseSurchargeInput("1.234"), /two decimals/i);
+});
+
+test("canonical migration backfills pricing without touching financial history", () => {
+  const migration = readFileSync(
+    "prisma/migrations/20261026000000_canonical_product_production_methods/migration.sql",
+    "utf8",
+  );
+  assert.match(migration, /UPDATE "PublicProductProductionPricing"/);
+  assert.match(migration, /"TEXT_ONLY"/);
+  assert.match(migration, /"IMAGE_OR_LOGO"/);
+  assert.match(migration, /'SUBLIMATION'/);
+  assert.match(migration, /'STICKER_PRINTING'/);
+  assert.doesNotMatch(
+    migration,
+    /(?:UPDATE|DELETE|TRUNCATE)\s+"(?:CreatorSale|CreatorOrderItem|ReferralEarning|Payout|PayoutAllocation|OrderDesignSnapshot)"/i,
+  );
 });
 
 test("embroidery subtype pricing uses configured Text and Image or Logo rates", () => {
@@ -237,25 +371,18 @@ test("production method display config serializes minor units", () => {
 test("admin products page exposes pricing only for public customizable products", () => {
   const source = readFileSync("app/routes/app.products.tsx", "utf8");
   const appShell = readFileSync("app/routes/app.tsx", "utf8");
-  const creatorPricingForm = source.match(
-    /value="save-creator-production-pricing"[\s\S]*?Save Creator Printing Pricing/,
-  )?.[0] || "";
   const publicPricingForm = source.match(
     /value="save-production-pricing"[\s\S]*?Save Production Pricing/,
   )?.[0] || "";
 
   assert.match(source, /save-production-pricing/);
-  assert.match(source, /save-creator-production-pricing/);
-  assert.match(source, /Creator Product Printing Methods/);
-  assert.match(source, /Save Creator Printing Pricing/);
-  assert.doesNotMatch(creatorPricingForm, /<span>Embroidery<\/span>/);
-  assert.match(creatorPricingForm, /Embroidery — Text only/);
-  assert.match(creatorPricingForm, /Embroidery — Image \/ Logo/);
-  assert.doesNotMatch(publicPricingForm, /<span>Embroidery<\/span>/);
-  assert.doesNotMatch(publicPricingForm, /name="embroiderySurcharge"/);
-  assert.match(publicPricingForm, /Embroidery — Text only/);
-  assert.match(publicPricingForm, /Embroidery — Image \/ Logo/);
-  assert.match(source, /CREATOR_PRODUCTION_PRICING_PRODUCT_ID/);
+  assert.doesNotMatch(source, /save-creator-production-pricing/);
+  assert.doesNotMatch(source, /Creator Product Printing Methods/);
+  assert.match(publicPricingForm, /methodDefinitions\.flatMap/);
+  assert.match(publicPricingForm, /type="checkbox"/);
+  assert.match(publicPricingForm, /type="number"/);
+  assert.match(publicPricingForm, /definition\.pricingBehavior === "TIERED"/);
+  assert.match(publicPricingForm, /method\.\$\{definition\.id\}/);
   assert.match(source, /product_type/);
   assert.match(source, /product_origin/);
   assert.match(source, /design_mode/);
@@ -263,12 +390,11 @@ test("admin products page exposes pricing only for public customizable products"
   assert.match(source, /global_customizable/);
   assert.match(source, /pitchprint-options/);
   assert.match(source, /isLegacyGlobalCustomizable/);
-  assert.match(source, /rowDefaults/);
   assert.match(source, /"0\.00"/);
   assert.match(source, /Production Pricing/);
-  assert.match(source, /Embroidery/);
-  assert.match(source, /DTF/);
-  assert.match(source, /DTG/);
+  assert.match(source, /listProductionMethodDefinitions/);
+  assert.match(source, /productProductionConfiguration/);
+  assert.match(source, /saveProductProductionConfiguration/);
   assert.match(source, /Save Production Pricing/);
   assert.match(appShell, /href="\/app\/products"[\s\S]*Products/);
 });
@@ -277,18 +403,13 @@ test("admin products regression keeps pricing controls visible without an existi
   const source = readFileSync("app/routes/app.products.tsx", "utf8");
   const styles = readFileSync("app/styles/admin.css", "utf8");
 
-  assert.match(source, /const pricing = rowDefaults\(pricingByProduct\[product\.id\]\)/);
-  assert.doesNotMatch(source, /defaultValue=\{pricing\.embroiderySurcharge\}/);
-  assert.match(source, /defaultValue=\{pricing\.embroideryTextSurcharge\}/);
-  assert.match(source, /defaultValue=\{pricing\.embroideryImageSurcharge\}/);
-  assert.match(source, /defaultValue=\{pricing\.dtfSurcharge\}/);
-  assert.match(source, /defaultValue=\{pricing\.dtgSurcharge\}/);
-  assert.match(source, /embroideryTextSurcharge:[\s\S]*?allowLegacyEmbroideryFallback/);
-  assert.match(source, /dtfSurcharge: row\?\.dtfSurcharge \?\? "0\.00"/);
-  assert.match(source, /dtgSurcharge: row\?\.dtgSurcharge \?\? "0\.00"/);
+  assert.match(source, /const configuration = configurationByProduct\[product\.id\]/);
+  assert.match(source, /if \(!configured\) return \{ enabled: false, surcharge: "0\.00" \}/);
+  assert.match(source, /defaultChecked=\{row\.rate\.enabled\}/);
+  assert.match(source, /defaultValue=\{row\.rate\.surcharge\}/);
   assert.match(
     styles,
-    /\.production-pricing-fields\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/,
+    /\.production-method-row\s*\{[\s\S]*?grid-template-columns:\s*minmax\(180px, 1fr\) minmax\(160px, 0\.8fr\)/,
   );
 });
 
@@ -652,8 +773,8 @@ test("admin save writes storefront pricing metafield after fee IDs are persisted
   assert.equal(metafieldPayload.productionMethods[0].surchargeMinor, 0);
   assert.equal(metafieldPayload.productionMethods[0].feeVariantId, undefined);
   assert.equal(metafieldPayload.productionMethods[0].feeVariantGid, undefined);
-  assert.equal(metafieldPayload.embroideryPricing.TEXT_ONLY.surchargeMinor, 1000);
-  assert.equal(metafieldPayload.embroideryPricing.IMAGE_OR_LOGO.surchargeMinor, 1500);
+  assert.equal(metafieldPayload.embroideryPricing.TEXT_ONLY!.surchargeMinor, 1000);
+  assert.equal(metafieldPayload.embroideryPricing.IMAGE_OR_LOGO!.surchargeMinor, 1500);
   assert.equal(metafieldPayload.productionMethods[1].feeVariantId, "9002");
   assert.equal(metafieldPayload.productionMethods[2].feeVariantId, "9003");
 });
@@ -1294,8 +1415,8 @@ test("production pricing bridge payload contains only trusted minor-unit values"
   assert.equal(payload.currency, "SEK");
   assert.equal(payload.productionMethods[0]?.id, "EMBROIDERY");
   assert.equal(payload.productionMethods[0]?.surchargeMinor, 0);
-  assert.equal(payload.embroideryPricing.TEXT_ONLY.surchargeMinor, 0);
-  assert.equal(payload.embroideryPricing.IMAGE_OR_LOGO.surchargeMinor, 0);
+  assert.equal(payload.embroideryPricing.TEXT_ONLY!.surchargeMinor, 0);
+  assert.equal(payload.embroideryPricing.IMAGE_OR_LOGO!.surchargeMinor, 0);
   assert.deepEqual(payload.productionMethods.slice(1), [
     { id: "DTF", label: "DTF printing", surchargeMinor: 3000 },
     { id: "DTG", label: "DTG printing", surchargeMinor: 2000 },
@@ -1501,6 +1622,94 @@ test("public DTF and DTG use their authoritative fee mappings", async () => {
   }
 });
 
+test("Sticker Printing uses the generic public cart path and canonical fee mapping", async () => {
+  const stickerPricingDb = {
+    productionMethodSetting: {
+      async findMany() {
+        return [
+          { method: "EMBROIDERY", label: "Embroidery", description: "", enabled: true, pricingBehavior: "TIERED" },
+          { method: "DTF", label: "DTF printing", description: "", enabled: true, pricingBehavior: "SINGLE" },
+          { method: "DTG", label: "DTG printing", description: "", enabled: true, pricingBehavior: "SINGLE" },
+          { method: "SUBLIMATION", label: "Sublimation", description: "", enabled: true, pricingBehavior: "SINGLE" },
+          { method: "STICKER_PRINTING", label: "Sticker Printing", description: "", enabled: true, pricingBehavior: "SINGLE" },
+        ];
+      },
+    },
+    publicProductProductionPricing: {
+      async findUnique() {
+        return {
+          id: "pricing-sticker",
+          shopKey: "shop.test",
+          shopifyProductId: "gid://shopify/Product/100",
+          currency: "SEK",
+          methodConfigurations: {
+            version: 2,
+            methods: {
+              EMBROIDERY: {
+                enabled: false,
+                tiers: {
+                  TEXT_ONLY: { enabled: false, surcharge: "50.00", feeVariantId: null },
+                  IMAGE_OR_LOGO: { enabled: false, surcharge: "300.00", feeVariantId: null },
+                },
+              },
+              DTF: { enabled: false, surcharge: "20.00", feeVariantId: null },
+              DTG: { enabled: false, surcharge: "30.00", feeVariantId: null },
+              SUBLIMATION: { enabled: false, surcharge: "0.00", feeVariantId: null },
+              STICKER_PRINTING: {
+                enabled: true,
+                surcharge: "15.00",
+                feeVariantId: "gid://shopify/ProductVariant/9505",
+              },
+            },
+          },
+          embroiderySurcharge: parseSurchargeInput("0"),
+          embroideryTextSurcharge: parseSurchargeInput("50"),
+          embroideryImageSurcharge: parseSurchargeInput("300"),
+          dtfSurcharge: parseSurchargeInput("20"),
+          dtgSurcharge: parseSurchargeInput("30"),
+          embroideryFeeVariantId: null,
+          embroideryTextFeeVariantId: null,
+          embroideryImageFeeVariantId: null,
+          dtfFeeVariantId: null,
+          dtgFeeVariantId: null,
+        };
+      },
+    },
+  };
+  const cart = await preparePublicProductionCart(
+    "shop.test",
+    publicCartInput({
+      shopifyProductId: "gid://shopify/Product/100",
+      pitchprintProjectId: "pp_sticker",
+      productionMethod: "STICKER_PRINTING",
+      artworkType: null,
+      selections: [{ variantId: "gid://shopify/ProductVariant/1", quantity: 2 }],
+    }),
+    fakeProductClient,
+    stickerPricingDb as never,
+  );
+
+  assert.equal(cart.productionMethod, "STICKER_PRINTING");
+  assert.equal(cart.totals.productionSurchargeMinor, 3000n);
+  assert.equal(cart.items[1]?.id, "9505");
+  assert.equal(cart.items[1]?.quantity, 2);
+  await assert.rejects(
+    () => preparePublicProductionCart(
+      "shop.test",
+      publicCartInput({
+        shopifyProductId: "gid://shopify/Product/100",
+        pitchprintProjectId: "pp_sticker_tampered",
+        productionMethod: "DTF",
+        artworkType: null,
+        selections: [{ variantId: "gid://shopify/ProductVariant/1", quantity: 1 }],
+      }),
+      fakeProductClient,
+      stickerPricingDb as never,
+    ),
+    /not enabled/i,
+  );
+});
+
 test("public multi-color variant selections aggregate one production fee", async () => {
   const cart = await preparePublicProductionCart(
     "shop.test",
@@ -1523,7 +1732,7 @@ test("public multi-color variant selections aggregate one production fee", async
   assert.equal(cart.items[2]?.quantity, 3);
 });
 
-test("missing public subtype pricing fails closed instead of granting free printing", async () => {
+test("enabled zero-cost public subtype succeeds without fee merchandise", async () => {
   const missingPricingDb = {
     publicProductProductionPricing: {
       async findUnique() {
@@ -1536,8 +1745,7 @@ test("missing public subtype pricing fails closed instead of granting free print
       },
     },
   };
-  await assert.rejects(
-    () => preparePublicProductionCart(
+  const cart = await preparePublicProductionCart(
       "shop.test",
       publicCartInput({
         shopifyProductId: "gid://shopify/Product/100",
@@ -1549,9 +1757,10 @@ test("missing public subtype pricing fails closed instead of granting free print
       }),
       fakeProductClient,
       missingPricingDb,
-    ),
-    /Embroidery image\/logo pricing is not configured/i,
   );
+  assert.equal(cart.totals.productionSurchargeMinor, 0n);
+  assert.equal(cart.feeRequired, false);
+  assert.equal(cart.items.length, 1);
 });
 
 test("public legal confirmations are required and preserved", async () => {

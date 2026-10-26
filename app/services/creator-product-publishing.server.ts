@@ -14,7 +14,8 @@ import {
 import {
   cleanEmbroiderySubtype,
   cleanProductionMethod,
-  getCreatorProductionPricing,
+  getProductionPricing,
+  resolveProductionPricing,
   type PublicProductProductionPricingRecord,
 } from "./production-method-pricing.server.ts";
 import {
@@ -556,6 +557,7 @@ async function creatorPublishedPricingPlan(
     publishedProductId: string;
     setup: CreatorProductSetup;
     pricing: CreatorPricingForContract;
+    resolvedSurcharge?: Prisma.Decimal;
   },
 ) {
   const [baseVariants, publishedVariants] = await Promise.all([
@@ -570,6 +572,7 @@ async function creatorPublishedPricingPlan(
     embroiderySubtype: input.setup.embroiderySubtype,
     placementCount: input.setup.placementCount,
     pricing: input.pricing,
+    resolvedSurcharge: input.resolvedSurcharge,
     baseVariants: baseVariants.map((variant) => ({
       id: variant.id,
       price: variant.price || "",
@@ -683,6 +686,7 @@ export async function synchronizeBakedCreatorProductPricing(
     collection: CreatorCollectionRecord;
     setup: CreatorProductSetup;
     pricing: CreatorPricingForContract;
+    resolvedSurcharge?: Prisma.Decimal;
   },
 ) {
   const cartValidationContract = creatorCartValidationContract(
@@ -841,9 +845,10 @@ export async function publishCreatorProductToShopify(
       409,
     );
   }
-  const pricing = await getCreatorProductionPricing(
+  const pricing = await getProductionPricing(
     shop,
-    database as unknown as Parameters<typeof getCreatorProductionPricing>[1],
+    product.shopifyProductId,
+    database as unknown as Parameters<typeof getProductionPricing>[2],
   );
   if (!pricing) {
     throw new DomainError(
@@ -852,6 +857,13 @@ export async function publishCreatorProductToShopify(
       409,
     );
   }
+  const resolvedPricing = await resolveProductionPricing({
+    shop,
+    productId: product.shopifyProductId,
+    method: setup.productionMethod,
+    artworkType: setup.embroiderySubtype,
+    database: database as unknown as Parameters<typeof resolveProductionPricing>[0]["database"],
+  });
   const cartValidationContract = creatorCartValidationContract(product.id, setup, pricing);
 
   const existing =
@@ -882,6 +894,7 @@ export async function publishCreatorProductToShopify(
     collection,
     setup,
     pricing,
+    resolvedSurcharge: resolvedPricing.surcharge,
   });
   const { pricingPlan } = synchronized;
   await addToCollection(client, collection.shopifyCollectionId, shopifyProduct.id);

@@ -220,6 +220,8 @@ test("public pricing map preserves canonical uppercase method codes and embroide
     },
     { id: "dtf", label: "DTF printing", surchargeMinor: 2000 },
     { id: "dtg", label: "DTG printing", surchargeMinor: 3000 },
+    { id: "sublimation", label: "Sublimation", surchargeMinor: 0 },
+    { id: "sticker_printing", label: "Sticker Printing", surchargeMinor: 1500 },
   ]);
 
   assert.deepEqual(JSON.parse(JSON.stringify(pricing)), {
@@ -233,6 +235,8 @@ test("public pricing map preserves canonical uppercase method codes and embroide
     },
     DTF: { label: "DTF printing", surchargeMinor: 2000 },
     DTG: { label: "DTG printing", surchargeMinor: 3000 },
+    SUBLIMATION: { label: "Sublimation", surchargeMinor: 0 },
+    STICKER_PRINTING: { label: "Sticker Printing", surchargeMinor: 1500 },
   });
   assert.equal(pricing.embroidery, undefined);
   assert.equal(pricing.dtf, undefined);
@@ -277,12 +281,12 @@ test("later config with the same variants cannot erase complete subtype pricing"
     ...complete,
     revision: "missing-pricing",
     embroideryPricing: {
-      TEXT_ONLY: { surchargeMinor: 0 },
-      IMAGE_OR_LOGO: { surchargeMinor: 0 },
+      TEXT_ONLY: {},
+      IMAGE_OR_LOGO: {},
     },
     productionMethodPricing: {
-      DTF: { surchargeMinor: 0 },
-      DTG: { surchargeMinor: 0 },
+      DTF: {},
+      DTG: {},
     },
   };
 

@@ -4,7 +4,7 @@ export type CreatorProductionMetadata = {
   pitchprintMasterProjectId: string | null;
   pitchprintDesignId: string | null;
   fixedColor: string;
-  productionMethod: "EMBROIDERY" | "DTF" | "DTG" | null;
+  productionMethod: string | null;
   embroiderySubtype: "TEXT_ONLY" | "IMAGE_OR_LOGO" | null;
   placementCount: number;
 };
@@ -31,11 +31,11 @@ export function creatorProductionMetadataFromAttributes(
   value: ShopifyLineAttribute[] | null | undefined,
 ): CreatorProductionMetadata {
   const attributes = Array.isArray(value) ? value : [];
-  const method = attributeValue(attributes, "_production_method");
-  const productionMethod = ["EMBROIDERY", "DTF", "DTG"].includes(
-    method || "",
-  )
-    ? (method as CreatorProductionMetadata["productionMethod"])
+  const method = String(attributeValue(attributes, "_production_method") || "")
+    .trim()
+    .toUpperCase();
+  const productionMethod = /^[A-Z][A-Z0-9_]{1,63}$/.test(method)
+    ? method
     : null;
   const subtype = attributeValue(attributes, "_embroidery_subtype");
   const embroiderySubtype =

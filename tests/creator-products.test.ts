@@ -734,10 +734,16 @@ test("eligible Creator base products expose the configured PitchPrint launch tem
   assert.equal(products[0].id, "gid://shopify/Product/1001");
   assert.equal(products[0].pitchprintDesignId, "pp_design_global_hoodie");
   assert.deepEqual(products[0].productionMethods, [
-    { id: "EMBROIDERY", label: "Embroidery" },
-    { id: "DTF", label: "DTF printing" },
-    { id: "DTG", label: "DTG printing" },
+    { id: "EMBROIDERY", label: "Embroidery", maxWidthCm: 8, maxHeightCm: 8 },
+    { id: "DTF", label: "DTF printing", maxWidthCm: 35, maxHeightCm: 40 },
+    { id: "DTG", label: "DTG printing", maxWidthCm: 35, maxHeightCm: 40 },
   ]);
+  const canonicalPricing = JSON.parse(products[0].productionMethodPricing || "null");
+  assert.equal(canonicalPricing.version, 2);
+  assert.deepEqual(
+    canonicalPricing.productionMethods.map((method: { id: string }) => method.id),
+    ["EMBROIDERY", "DTF", "DTG"],
+  );
 });
 
 test("Creator base product method options fall back to canonical active settings when the legacy metafield is missing", () => {
@@ -775,6 +781,18 @@ test("Creator base product method options respect a valid product-specific subse
 
 test("Creator draft creation rejects a method outside the product-specific active options", async () => {
   const db = fakeDb();
+  const findPricing = db.publicProductProductionPricing.findUnique.bind(
+    db.publicProductProductionPricing,
+  );
+  db.publicProductProductionPricing.findUnique = async (args: unknown) => ({
+    ...(await findPricing(args)),
+    methodConfigurations: {
+      version: 2,
+      methods: {
+        DTF: { enabled: true, surcharge: "30.00", feeVariantId: null },
+      },
+    },
+  });
   await assert.rejects(
     () =>
       createCreatorProductDraft(
@@ -4203,7 +4221,7 @@ test("cart prep validates variant ownership and locks creator artwork", async ()
   assert.equal(await db.creatorSale.count(), 0);
 });
 
-test("creator buy-only detail and cart use shared creator production pricing", async () => {
+test("legacy creator detail and cart prefer canonical base-product production pricing", async () => {
   const db = fakeDb();
   const lookedUpKeys: string[] = [];
   db.publicProductProductionPricing.findUnique = async (args: unknown) => {
@@ -4257,9 +4275,9 @@ test("creator buy-only detail and cart use shared creator production pricing", a
     fakePublicProductClient(),
     db,
   );
-  assert.equal(product.productionPricing?.methods.length, 3);
-  assert.equal(product.productionPricing?.methods[1]?.method, "DTF");
-  assert.equal(product.productionPricing?.methods[1]?.surchargeMinor, "3000");
+  assert.equal(product.productionPricing?.methods.length, 1);
+  assert.equal(product.productionPricing?.methods[0]?.method, "DTF");
+  assert.equal(product.productionPricing?.methods[0]?.surchargeMinor, "3000");
 
   const cart = await prepareCreatorProductCart(
     shop,
@@ -4275,7 +4293,7 @@ test("creator buy-only detail and cart use shared creator production pricing", a
   );
 
   assert.deepEqual([...new Set(lookedUpKeys)], [
-    CREATOR_PRODUCTION_PRICING_PRODUCT_ID,
+    baseProduct.id,
   ]);
   assert.equal(cart.production.method, "DTF");
   assert.equal(cart.production.surchargeMinor, "3000");

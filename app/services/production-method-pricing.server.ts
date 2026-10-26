@@ -1,16 +1,23 @@
-import { Prisma, type ProductionMethod } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import db from "../db.server.ts";
 import { DomainError, safeJson } from "./domain.ts";
 import { decimalMoneyToMinorUnits } from "./money.ts";
 import type { ShopifyGraphqlClient } from "./shopify-graphql.server.ts";
 import { throwUserErrors } from "./shopify-graphql.server.ts";
 
-export const PRODUCTION_METHODS = ["EMBROIDERY", "DTF", "DTG"] as const;
+export const PRODUCTION_METHODS = [
+  "EMBROIDERY",
+  "DTF",
+  "DTG",
+  "SUBLIMATION",
+  "STICKER_PRINTING",
+] as const;
 export const CREATOR_PRODUCTION_PRICING_PRODUCT_ID = "customhouse:creator-products";
 
-export type ProductionMethodCode = (typeof PRODUCTION_METHODS)[number];
+export type ProductionMethodCode = string;
 export const EMBROIDERY_SUBTYPES = ["TEXT_ONLY", "IMAGE_OR_LOGO"] as const;
 export type EmbroiderySubtype = (typeof EMBROIDERY_SUBTYPES)[number];
+export type ProductionPricingBehavior = "SINGLE" | "TIERED";
 
 type ProductionPricingDb = {
   publicProductProductionPricing: {
@@ -19,7 +26,7 @@ type ProductionPricingDb = {
     upsert(args: unknown): Promise<PublicProductProductionPricingRecord>;
     update(args: unknown): Promise<PublicProductProductionPricingRecord>;
   };
-  productionMethodSetting: {
+  productionMethodSetting?: {
     findMany(args: unknown): Promise<ProductionMethodSettingRecord[]>;
   };
 };
@@ -28,6 +35,8 @@ export type PublicProductProductionPricingRecord = {
   id: string;
   shopKey: string;
   shopifyProductId: string;
+  currency?: string;
+  methodConfigurations?: Prisma.JsonValue;
   embroiderySurcharge: Prisma.Decimal;
   embroideryTextSurcharge: Prisma.Decimal;
   embroideryImageSurcharge: Prisma.Decimal;
@@ -43,15 +52,45 @@ export type PublicProductProductionPricingRecord = {
 };
 
 export type ProductionMethodSettingRecord = {
-  method: ProductionMethod | ProductionMethodCode;
-  label: string;
-  description: string;
+  method: string;
+  label?: string;
+  description?: string;
   enabled: boolean;
+  pricingBehavior?: string;
+  configurationJson?: Prisma.JsonValue;
 };
 
 export type EnabledProductionMethod = {
   id: ProductionMethodCode;
   label: string;
+  pricingBehavior?: ProductionPricingBehavior;
+  maxWidthCm?: number;
+  maxHeightCm?: number;
+};
+
+export type ProductionMethodDefinition = EnabledProductionMethod & {
+  description: string;
+  enabled: boolean;
+  pricingBehavior: ProductionPricingBehavior;
+  tiers: string[];
+};
+
+export type ProductProductionRateConfiguration = {
+  enabled: boolean;
+  surcharge: string;
+  feeVariantId: string | null;
+};
+
+export type ProductProductionMethodConfiguration =
+  | ProductProductionRateConfiguration
+  | {
+      enabled: boolean;
+      tiers: Record<string, ProductProductionRateConfiguration>;
+    };
+
+export type ProductProductionConfiguration = {
+  version: 2;
+  methods: Record<string, ProductProductionMethodConfiguration>;
 };
 
 export type SaveProductionPricingInput = {
@@ -72,6 +111,19 @@ export type SaveCreatorProductionPricingInput = Omit<
   embroideryImage?: unknown;
 };
 
+export type SaveProductProductionConfigurationInput = {
+  shopifyProductId: string;
+  currency: string;
+  methods: Record<
+    string,
+    {
+      enabled: unknown;
+      surcharge?: unknown;
+      tiers?: Record<string, { enabled: unknown; surcharge: unknown }>;
+    }
+  >;
+};
+
 export type ProductionPricingSyncState = {
   saved: boolean;
   shopifySynced: boolean;
@@ -86,15 +138,23 @@ type PricingConfigMethod = {
   method: ProductionMethodCode;
   label: string;
   surcharge: Prisma.Decimal;
+  enabled?: boolean;
+  pricingBehavior?: ProductionPricingBehavior;
+  maxWidthCm?: number;
+  maxHeightCm?: number;
 };
 
 export type ProductionPricingBridgeMethod = {
   id: ProductionMethodCode;
   label: string;
+  enabled?: boolean;
   surchargeMinor: number;
   feeVariantId?: string;
   feeVariantGid?: string;
+  maxWidthCm?: number;
+  maxHeightCm?: number;
   embroiderySubtypes?: Record<EmbroiderySubtype, ProductionPricingBridgeRate>;
+  pricingTiers?: Record<string, ProductionPricingBridgeRate>;
 };
 
 export type ProductionPricingBridgeRate = {
@@ -105,14 +165,17 @@ export type ProductionPricingBridgeRate = {
 };
 
 export type ProductionPricingBridgePayload = {
-  version: 1;
+  version: 1 | 2;
   currency: string;
   productionMethods: ProductionPricingBridgeMethod[];
-  embroideryPricing: Record<EmbroiderySubtype, ProductionPricingBridgeRate>;
+  embroideryPricing: Partial<Record<EmbroiderySubtype, ProductionPricingBridgeRate>>;
   productionMethodPricing: Record<
-    ProductionMethodCode,
+    string,
     ProductionPricingBridgeRate & {
       embroiderySubtypes?: Record<EmbroiderySubtype, ProductionPricingBridgeRate>;
+      pricingTiers?: Record<string, ProductionPricingBridgeRate>;
+      maxWidthCm?: number;
+      maxHeightCm?: number;
     }
   >;
 };
@@ -126,7 +189,40 @@ const METHOD_LABELS: Record<ProductionMethodCode, string> = {
   EMBROIDERY: "Embroidery",
   DTF: "DTF printing",
   DTG: "DTG printing",
+  SUBLIMATION: "Sublimation",
+  STICKER_PRINTING: "Sticker Printing",
 };
+
+const DEFAULT_METHOD_DEFINITIONS: ProductionMethodDefinition[] = [
+  {
+    id: "EMBROIDERY",
+    label: METHOD_LABELS.EMBROIDERY,
+    description: "",
+    enabled: true,
+    pricingBehavior: "TIERED",
+    tiers: [...EMBROIDERY_SUBTYPES],
+    maxWidthCm: 8,
+    maxHeightCm: 8,
+  },
+  ...(["DTF", "DTG"] as const).map((id) => ({
+    id,
+    label: METHOD_LABELS[id],
+    description: "",
+    enabled: true,
+    pricingBehavior: "SINGLE" as const,
+    tiers: [],
+    maxWidthCm: 35,
+    maxHeightCm: 40,
+  })),
+  ...(["SUBLIMATION", "STICKER_PRINTING"] as const).map((id) => ({
+    id,
+    label: METHOD_LABELS[id],
+    description: "",
+    enabled: true,
+    pricingBehavior: "SINGLE" as const,
+    tiers: [],
+  })),
+];
 
 type ProductionFeeVariantNode = {
   id: string;
@@ -156,8 +252,8 @@ function numericShopifyId(value: string | null | undefined) {
 
 export function cleanProductionMethod(method: unknown): ProductionMethodCode {
   const normalized = typeof method === "string" ? methodKey(method) : "";
-  if (PRODUCTION_METHODS.includes(normalized as ProductionMethodCode)) {
-    return normalized as ProductionMethodCode;
+  if (/^[A-Z][A-Z0-9_]{1,63}$/.test(normalized)) {
+    return normalized;
   }
   throw new DomainError(
     "INVALID_PRODUCTION_METHOD",
@@ -204,6 +300,12 @@ export function pricingForMethod(
       return pricing.dtfSurcharge;
     case "DTG":
       return pricing.dtgSurcharge;
+    default:
+      throw new DomainError(
+        "LEGACY_PRODUCTION_PRICING_UNAVAILABLE",
+        "Production pricing is not configured for this method.",
+        409,
+      );
   }
 }
 
@@ -252,6 +354,8 @@ export function feeVariantIdForMethod(
       return pricing.dtfFeeVariantId;
     case "DTG":
       return pricing.dtgFeeVariantId;
+    default:
+      return null;
   }
 }
 
@@ -327,9 +431,12 @@ export function productionPricingBridgePayload(input: {
       pricing.embroideryImageFeeVariantId,
     ),
   };
-  const productionMethods = PRODUCTION_METHODS.map((method) => {
+  const productionMethods = input.methods
+    .filter((method) => method.enabled !== false)
+    .map((methodConfig) => {
+    const method = cleanProductionMethod(methodConfig.method);
     const config = byMethod.get(method);
-    const label = METHOD_LABELS[method];
+    const label = METHOD_LABELS[method] || methodConfig.label || method;
     const feeVariantGid =
       method === "EMBROIDERY"
         ? ""
@@ -371,44 +478,213 @@ export function productionPricingBridgePayload(input: {
 }
 
 function missingRequiredFeeVariantMethods(payload: ProductionPricingBridgePayload) {
-  return [
-    ...Object.values(payload.embroideryPricing)
-      .filter((rate) => rate.surchargeMinor > 0 && !rate.feeVariantId)
-      .map((rate) => rate.label),
-    ...payload.productionMethods
-      .filter(
-        (method) =>
-          method.id !== "EMBROIDERY" &&
-          method.surchargeMinor > 0 &&
-          !method.feeVariantId,
-      )
-      .map((method) => method.label),
-  ];
+  return payload.productionMethods.flatMap((method) => {
+    const tierRates = method.pricingTiers || method.embroiderySubtypes;
+    if (tierRates) {
+      return Object.values(tierRates)
+        .filter((rate) => rate.surchargeMinor > 0 && !rate.feeVariantId)
+        .map((rate) => rate.label);
+    }
+    return method.surchargeMinor > 0 && !method.feeVariantId
+      ? [method.label]
+      : [];
+  });
+}
+
+function recordValue(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function cleanProductionTier(value: unknown) {
+  const tier = String(value || "").trim().toUpperCase();
+  if (!/^[A-Z][A-Z0-9_]{1,63}$/.test(tier)) {
+    throw new DomainError(
+      "INVALID_PRODUCTION_PRICING_TIER",
+      "Choose a valid production pricing tier.",
+      422,
+    );
+  }
+  return tier;
+}
+
+function productionTierLabel(tier: string) {
+  if (tier === "TEXT_ONLY") return "Text only";
+  if (tier === "IMAGE_OR_LOGO") return "Image / Logo";
+  return tier
+    .toLowerCase()
+    .split("_")
+    .filter(Boolean)
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
+}
+
+function cleanCurrency(value: unknown) {
+  const currency = String(value || "SEK").trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(currency)) {
+    throw new DomainError(
+      "INVALID_PRODUCTION_CURRENCY",
+      "Choose a valid three-letter production pricing currency.",
+      422,
+    );
+  }
+  return currency;
+}
+
+function cleanBoolean(value: unknown, fallback = false) {
+  if (typeof value === "boolean") return value;
+  if (value === "true" || value === "1" || value === 1) return true;
+  if (value === "false" || value === "0" || value === 0) return false;
+  return fallback;
+}
+
+function optionalDimension(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : undefined;
+}
+
+function legacyProductConfiguration(
+  pricing: PublicProductProductionPricingRecord,
+): ProductProductionConfiguration {
+  return {
+    version: 2,
+    methods: {
+      EMBROIDERY: {
+        enabled: true,
+        tiers: {
+          TEXT_ONLY: {
+            enabled: true,
+            surcharge: pricing.embroideryTextSurcharge.toFixed(2),
+            feeVariantId: pricing.embroideryTextFeeVariantId,
+          },
+          IMAGE_OR_LOGO: {
+            enabled: true,
+            surcharge: pricing.embroideryImageSurcharge.toFixed(2),
+            feeVariantId: pricing.embroideryImageFeeVariantId,
+          },
+        },
+      },
+      DTF: {
+        enabled: true,
+        surcharge: pricing.dtfSurcharge.toFixed(2),
+        feeVariantId: pricing.dtfFeeVariantId,
+      },
+      DTG: {
+        enabled: true,
+        surcharge: pricing.dtgSurcharge.toFixed(2),
+        feeVariantId: pricing.dtgFeeVariantId,
+      },
+    },
+  };
+}
+
+export function productProductionConfiguration(
+  pricing: PublicProductProductionPricingRecord,
+): ProductProductionConfiguration {
+  const root = recordValue(pricing.methodConfigurations);
+  const methods = recordValue(root?.methods);
+  if (!methods || Object.keys(methods).length === 0) {
+    return legacyProductConfiguration(pricing);
+  }
+  const parsed: ProductProductionConfiguration = { version: 2, methods: {} };
+  for (const [rawCode, rawMethod] of Object.entries(methods)) {
+    const code = cleanProductionMethod(rawCode);
+    const method = recordValue(rawMethod);
+    if (!method) continue;
+    const rawTiers = recordValue(method.tiers);
+    if (rawTiers) {
+      const tiers: Record<string, ProductProductionRateConfiguration> = {};
+      for (const [rawTier, rawTierRate] of Object.entries(rawTiers)) {
+        const tier = code === "EMBROIDERY" && rawTier === "IMAGE_LOGO"
+          ? "IMAGE_OR_LOGO"
+          : cleanProductionTier(rawTier);
+        const rawRate = recordValue(rawTierRate);
+        tiers[tier] = {
+          enabled: cleanBoolean(rawRate?.enabled, false),
+          surcharge: parseSurchargeInput(rawRate?.surcharge ?? "0").toFixed(2),
+          feeVariantId:
+            typeof rawRate?.feeVariantId === "string" && rawRate.feeVariantId.trim()
+              ? rawRate.feeVariantId.trim()
+              : null,
+        };
+      }
+      parsed.methods[code] = {
+        enabled: cleanBoolean(method.enabled, Object.values(tiers).some((tier) => tier.enabled)),
+        tiers,
+      };
+      continue;
+    }
+    parsed.methods[code] = {
+      enabled: cleanBoolean(method.enabled, false),
+      surcharge: parseSurchargeInput(method.surcharge ?? "0").toFixed(2),
+      feeVariantId:
+        typeof method.feeVariantId === "string" && method.feeVariantId.trim()
+          ? method.feeVariantId.trim()
+          : null,
+    };
+  }
+  return parsed;
 }
 
 async function methodSettings(
   shop: string,
   database: ProductionPricingDb = db as unknown as ProductionPricingDb,
-) {
-  const rows = await database.productionMethodSetting.findMany({
-    where: { shopKey: shop },
-    orderBy: { method: "asc" },
-  });
-  const fallback: Record<ProductionMethodCode, ProductionMethodSettingRecord> = {
-    EMBROIDERY: {
-      method: "EMBROIDERY",
-      label: "Embroidery",
-      description: "",
-      enabled: true,
-    },
-    DTF: { method: "DTF", label: METHOD_LABELS.DTF, description: "", enabled: true },
-    DTG: { method: "DTG", label: METHOD_LABELS.DTG, description: "", enabled: true },
-  };
+): Promise<ProductionMethodDefinition[]> {
+  const rows = database.productionMethodSetting
+    ? await database.productionMethodSetting.findMany({
+        where: { shopKey: shop },
+        orderBy: { method: "asc" },
+      })
+    : [];
+  const fallback = new Map(
+    DEFAULT_METHOD_DEFINITIONS.map((definition) => [definition.id, definition]),
+  );
   for (const row of rows) {
     const method = cleanProductionMethod(row.method);
-    fallback[method] = { ...fallback[method], ...row };
+    const configuration = recordValue(row.configurationJson) || {};
+    const existing = fallback.get(method);
+    const pricingBehavior: ProductionPricingBehavior =
+      row.pricingBehavior === "TIERED" || method === "EMBROIDERY"
+        ? "TIERED"
+        : "SINGLE";
+    const configuredTiers = Array.isArray(configuration.tiers)
+      ? configuration.tiers.flatMap((tier) => {
+          try {
+            return [cleanProductionTier(tier)];
+          } catch {
+            return [];
+          }
+        })
+      : [];
+    fallback.set(method, {
+      id: method,
+      label: row.label?.trim() || existing?.label || METHOD_LABELS[method] || method,
+      description: row.description || "",
+      enabled: row.enabled !== false,
+      pricingBehavior,
+      tiers: pricingBehavior === "TIERED"
+        ? configuredTiers.length
+          ? [...new Set(configuredTiers)]
+          : existing?.tiers.length
+            ? [...existing.tiers]
+            : method === "EMBROIDERY"
+              ? [...EMBROIDERY_SUBTYPES]
+              : []
+        : [],
+      maxWidthCm: optionalDimension(configuration.maxWidthCm) ?? existing?.maxWidthCm,
+      maxHeightCm: optionalDimension(configuration.maxHeightCm) ?? existing?.maxHeightCm,
+    });
   }
-  return PRODUCTION_METHODS.map((method) => fallback[method]);
+  return [...fallback.values()].sort((left, right) => {
+    const leftIndex = PRODUCTION_METHODS.indexOf(left.id as (typeof PRODUCTION_METHODS)[number]);
+    const rightIndex = PRODUCTION_METHODS.indexOf(right.id as (typeof PRODUCTION_METHODS)[number]);
+    if (leftIndex >= 0 || rightIndex >= 0) {
+      return (leftIndex >= 0 ? leftIndex : Number.MAX_SAFE_INTEGER) -
+        (rightIndex >= 0 ? rightIndex : Number.MAX_SAFE_INTEGER);
+    }
+    return left.id.localeCompare(right.id);
+  });
 }
 
 export async function listEnabledProductionMethods(
@@ -419,12 +695,19 @@ export async function listEnabledProductionMethods(
   return settings
     .filter((setting) => setting.enabled !== false)
     .map((setting) => {
-      const id = cleanProductionMethod(setting.method);
+      const id = cleanProductionMethod(setting.id);
       return {
         id,
-        label: setting.label.trim() || METHOD_LABELS[id],
+        label: setting.label.trim() || METHOD_LABELS[id] || id,
       };
     });
+}
+
+export async function listProductionMethodDefinitions(
+  shop: string,
+  database: ProductionPricingDb = db as unknown as ProductionPricingDb,
+) {
+  return methodSettings(shop, database);
 }
 
 export async function listEnabledProductionMethodCodes(
@@ -449,6 +732,211 @@ export async function getProductionPricing(
       },
     },
   });
+}
+
+export async function getEnabledProductionMethodsForProduct(
+  shop: string,
+  productId: string,
+  database: ProductionPricingDb = db as unknown as ProductionPricingDb,
+): Promise<EnabledProductionMethod[]> {
+  const [definitions, pricing] = await Promise.all([
+    methodSettings(shop, database),
+    getProductionPricing(shop, productId, database),
+  ]);
+  if (!pricing) return [];
+  const configuration = productProductionConfiguration(pricing);
+  return definitions
+    .filter((definition) => {
+      if (!definition.enabled) return false;
+      const method = configuration.methods[definition.id];
+      if (!method || !method.enabled) return false;
+      if ("tiers" in method) {
+        return Object.values(method.tiers).some((tier) => tier.enabled);
+      }
+      return true;
+    })
+    .map(({ id, label, pricingBehavior, maxWidthCm, maxHeightCm }) => ({
+      id,
+      label,
+      pricingBehavior,
+      ...(maxWidthCm ? { maxWidthCm } : {}),
+      ...(maxHeightCm ? { maxHeightCm } : {}),
+    }));
+}
+
+export async function getProductionPricingBridgeForProduct(
+  shop: string,
+  productId: string,
+  database: ProductionPricingDb = db as unknown as ProductionPricingDb,
+): Promise<ProductionPricingBridgePayload | null> {
+  const [definitions, pricing] = await Promise.all([
+    methodSettings(shop, database),
+    getProductionPricing(shop, productId, database),
+  ]);
+  return pricing
+    ? canonicalProductionPricingBridgePayload(pricing, definitions)
+    : null;
+}
+
+export async function resolveProductionPricing(input: {
+  shop: string;
+  productId: string;
+  method: unknown;
+  artworkType?: unknown;
+  pricingTier?: unknown;
+  database?: ProductionPricingDb;
+}) {
+  const database = input.database ?? (db as unknown as ProductionPricingDb);
+  const method = cleanProductionMethod(input.method);
+  const [definitions, pricing] = await Promise.all([
+    methodSettings(input.shop, database),
+    getProductionPricing(input.shop, input.productId, database),
+  ]);
+  const definition = definitions.find((candidate) => candidate.id === method);
+  if (!definition?.enabled || !pricing) {
+    throw new DomainError(
+      "PRODUCTION_METHOD_DISABLED",
+      "Choose a valid printing method; it is not enabled for the selected product.",
+      422,
+    );
+  }
+  const configured = productProductionConfiguration(pricing).methods[method];
+  if (!configured?.enabled) {
+    throw new DomainError(
+      "PRODUCTION_METHOD_DISABLED",
+      "Choose a valid printing method; it is not enabled for the selected product.",
+      422,
+    );
+  }
+  let artworkType: string | null = null;
+  let rate: ProductProductionRateConfiguration;
+  if ("tiers" in configured) {
+    artworkType = method === "EMBROIDERY"
+      ? cleanEmbroiderySubtype(input.artworkType ?? input.pricingTier)
+      : cleanProductionTier(input.pricingTier ?? input.artworkType);
+    if (!definition.tiers.includes(artworkType)) {
+      throw new DomainError(
+        "PRODUCTION_METHOD_DISABLED",
+        "Choose a valid printing method tier that is enabled for the selected product.",
+        422,
+      );
+    }
+    rate = configured.tiers[artworkType];
+    if (!rate?.enabled) {
+      throw new DomainError(
+        "PRODUCTION_METHOD_DISABLED",
+        "Choose a valid printing method tier that is enabled for the selected product.",
+        422,
+      );
+    }
+  } else {
+    rate = configured;
+  }
+  const surcharge = parseSurchargeInput(rate.surcharge);
+  const surchargeMinor = decimalToMinor(surcharge);
+  return {
+    productId: input.productId,
+    method,
+    label: definition.label,
+    enabled: true as const,
+    artworkType,
+    surcharge,
+    surchargeMinor,
+    currency: cleanCurrency(pricing.currency),
+    feeVariantId: rate.feeVariantId,
+    feeRequired: surchargeMinor > 0n,
+    maxWidthCm: definition.maxWidthCm,
+    maxHeightCm: definition.maxHeightCm,
+  };
+}
+
+export function canonicalProductionPricingBridgePayload(
+  pricing: PublicProductProductionPricingRecord,
+  definitions: ProductionMethodDefinition[],
+): ProductionPricingBridgePayload {
+  const configuration = productProductionConfiguration(pricing);
+  const methods: ProductionPricingBridgeMethod[] = [];
+  const embroideryPricing: Partial<
+    Record<EmbroiderySubtype, ProductionPricingBridgeRate>
+  > = {};
+  const definitionById = new Map(definitions.map((definition) => [definition.id, definition]));
+  const bridgeRate = (
+    label: string,
+    rate: ProductProductionRateConfiguration,
+  ): ProductionPricingBridgeRate => {
+    const feeVariantGid = rate.feeVariantId || "";
+    const feeVariantId = numericShopifyId(feeVariantGid);
+    return {
+      label,
+      surchargeMinor: Number(decimalToMinor(parseSurchargeInput(rate.surcharge))),
+      ...(feeVariantId ? { feeVariantId } : {}),
+      ...(feeVariantGid ? { feeVariantGid } : {}),
+    };
+  };
+  for (const [method, configured] of Object.entries(configuration.methods)) {
+    const definition = definitionById.get(method);
+    if (!definition?.enabled || !configured.enabled) continue;
+    if ("tiers" in configured) {
+      const enabledTiers = Object.fromEntries(
+        definition.tiers.flatMap((tier) => {
+          const rate = configured.tiers[tier];
+          if (!rate?.enabled) return [];
+          const label = `${definition.label} — ${productionTierLabel(tier)}`;
+          const bridged = bridgeRate(label, rate);
+          if (
+            method === "EMBROIDERY" &&
+            EMBROIDERY_SUBTYPES.includes(tier as EmbroiderySubtype)
+          ) {
+            embroideryPricing[tier as EmbroiderySubtype] = bridged;
+          }
+          return [[tier, bridged]];
+        }),
+      ) as Record<string, ProductionPricingBridgeRate>;
+      if (Object.keys(enabledTiers).length) {
+        methods.push({
+          id: method,
+          label: definition.label,
+          enabled: true,
+          surchargeMinor: 0,
+          pricingTiers: enabledTiers,
+          ...(method === "EMBROIDERY"
+            ? { embroiderySubtypes: enabledTiers as Record<EmbroiderySubtype, ProductionPricingBridgeRate> }
+            : {}),
+          ...(definition.maxWidthCm ? { maxWidthCm: definition.maxWidthCm } : {}),
+          ...(definition.maxHeightCm ? { maxHeightCm: definition.maxHeightCm } : {}),
+        });
+      }
+      continue;
+    }
+    const rate = bridgeRate(definition.label, configured);
+    methods.push({
+      id: method,
+      enabled: true,
+      ...rate,
+      ...(definition.maxWidthCm ? { maxWidthCm: definition.maxWidthCm } : {}),
+      ...(definition.maxHeightCm ? { maxHeightCm: definition.maxHeightCm } : {}),
+    });
+  }
+  return {
+    version: 2,
+    currency: cleanCurrency(pricing.currency),
+    productionMethods: methods,
+    embroideryPricing,
+    productionMethodPricing: Object.fromEntries(
+      methods.map((method) => [method.id, {
+        label: method.label,
+        surchargeMinor: method.surchargeMinor,
+        ...(method.feeVariantId ? { feeVariantId: method.feeVariantId } : {}),
+        ...(method.feeVariantGid ? { feeVariantGid: method.feeVariantGid } : {}),
+        ...(method.embroiderySubtypes
+          ? { embroiderySubtypes: method.embroiderySubtypes }
+          : {}),
+        ...(method.pricingTiers ? { pricingTiers: method.pricingTiers } : {}),
+        ...(method.maxWidthCm ? { maxWidthCm: method.maxWidthCm } : {}),
+        ...(method.maxHeightCm ? { maxHeightCm: method.maxHeightCm } : {}),
+      }]),
+    ),
+  };
 }
 
 export async function getCreatorProductionPricing(
@@ -510,6 +998,36 @@ export async function syncProductionFeeMerchandise(
 ) {
   const includeLegacyGenericEmbroidery =
     options.includeLegacyGenericEmbroidery !== false;
+  const configuration = productProductionConfiguration(pricing);
+  const feeEntries: Array<{
+    method: string;
+    artworkType: string | null;
+    title: string;
+    surcharge: string;
+  }> = [];
+  for (const [method, configured] of Object.entries(configuration.methods)) {
+    if ("tiers" in configured) {
+      for (const [artworkType, rate] of Object.entries(configured.tiers)) {
+        feeEntries.push({
+          method,
+          artworkType,
+          title: method === "EMBROIDERY"
+            ? artworkType === "TEXT_ONLY"
+              ? "Embroidery Text Production Fee"
+              : "Embroidery Image or Logo Production Fee"
+            : `${method} ${artworkType} Production Fee`,
+          surcharge: rate.surcharge,
+        });
+      }
+    } else {
+      feeEntries.push({
+        method,
+        artworkType: null,
+        title: `${method} Production Fee`,
+        surcharge: configured.surcharge,
+      });
+    }
+  }
   const existing = await client.request<{
     products: { nodes: ProductionFeeProductNode[] };
   }>(
@@ -518,7 +1036,7 @@ export async function syncProductionFeeMerchandise(
         nodes {
           id
           title
-          variants(first: 10) {
+          variants(first: 100) {
             nodes { id title }
           }
           parentProductId: metafield(namespace: "customhouse", key: "production_fee_parent_product_id") {
@@ -547,7 +1065,7 @@ export async function syncProductionFeeMerchandise(
         product {
           id
           title
-          variants(first: 10) {
+          variants(first: 100) {
             nodes { id title }
           }
           parentProductId: metafield(namespace: "customhouse", key: "production_fee_parent_product_id") {
@@ -571,32 +1089,20 @@ export async function syncProductionFeeMerchandise(
               ...(includeLegacyGenericEmbroidery
                 ? [{ name: "Embroidery Production Fee" }]
                 : []),
-              { name: "Embroidery Text Production Fee" },
-              { name: "Embroidery Image or Logo Production Fee" },
-              { name: "DTF Production Fee" },
-              { name: "DTG Production Fee" },
+              ...feeEntries.map((entry) => ({ name: entry.title })),
             ],
           },
         ],
         variants: [
-          {
+          ...feeEntries.map((entry) => ({
             optionValues: [
-              { optionName: FEE_PRODUCT_OPTION_NAME, name: "Embroidery Text Production Fee" },
+              { optionName: FEE_PRODUCT_OPTION_NAME, name: entry.title },
             ],
-            price: pricing.embroideryTextSurcharge.toFixed(2),
+            price: entry.surcharge,
             taxable: true,
             inventoryPolicy: "CONTINUE",
             inventoryItem: { tracked: false },
-          },
-          {
-            optionValues: [
-              { optionName: FEE_PRODUCT_OPTION_NAME, name: "Embroidery Image or Logo Production Fee" },
-            ],
-            price: pricing.embroideryImageSurcharge.toFixed(2),
-            taxable: true,
-            inventoryPolicy: "CONTINUE",
-            inventoryItem: { tracked: false },
-          },
+          })),
           ...(includeLegacyGenericEmbroidery
             ? [
                 {
@@ -613,24 +1119,6 @@ export async function syncProductionFeeMerchandise(
                 },
               ]
             : []),
-          {
-            optionValues: [
-              { optionName: FEE_PRODUCT_OPTION_NAME, name: "DTF Production Fee" },
-            ],
-            price: pricing.dtfSurcharge.toFixed(2),
-            taxable: true,
-            inventoryPolicy: "CONTINUE",
-            inventoryItem: { tracked: false },
-          },
-          {
-            optionValues: [
-              { optionName: FEE_PRODUCT_OPTION_NAME, name: "DTG Production Fee" },
-            ],
-            price: pricing.dtgSurcharge.toFixed(2),
-            taxable: true,
-            inventoryPolicy: "CONTINUE",
-            inventoryItem: { tracked: false },
-          },
         ],
         metafields: [
           {
@@ -678,12 +1166,29 @@ export async function syncProductionFeeMerchandise(
   const embroideryImageFeeVariantId = variantByTitle.get("Embroidery Image or Logo Production Fee");
   const dtfFeeVariantId = variantByTitle.get("DTF Production Fee");
   const dtgFeeVariantId = variantByTitle.get("DTG Production Fee");
+  for (const entry of feeEntries) {
+    const feeVariantId = variantByTitle.get(entry.title);
+    if (!feeVariantId) {
+      throw new DomainError(
+        "PRODUCTION_FEE_VARIANTS_MISSING",
+        "Production fee variants could not be synced.",
+        502,
+      );
+    }
+    const configured = configuration.methods[entry.method];
+    if (!configured) continue;
+    if ("tiers" in configured && entry.artworkType) {
+      configured.tiers[entry.artworkType].feeVariantId = feeVariantId;
+    } else if (!("tiers" in configured)) {
+      configured.feeVariantId = feeVariantId;
+    }
+  }
   if (
     (includeLegacyGenericEmbroidery && !embroideryFeeVariantId) ||
-    !embroideryTextFeeVariantId ||
-    !embroideryImageFeeVariantId ||
-    !dtfFeeVariantId ||
-    !dtgFeeVariantId
+    (configuration.methods.EMBROIDERY &&
+      (!embroideryTextFeeVariantId || !embroideryImageFeeVariantId)) ||
+    (configuration.methods.DTF && !dtfFeeVariantId) ||
+    (configuration.methods.DTG && !dtgFeeVariantId)
   ) {
     throw new DomainError(
       "PRODUCTION_FEE_VARIANTS_MISSING",
@@ -696,10 +1201,11 @@ export async function syncProductionFeeMerchandise(
     where: { id: pricing.id },
     data: {
       ...(includeLegacyGenericEmbroidery ? { embroideryFeeVariantId } : {}),
-      embroideryTextFeeVariantId,
-      embroideryImageFeeVariantId,
-      dtfFeeVariantId,
-      dtgFeeVariantId,
+      ...(embroideryTextFeeVariantId ? { embroideryTextFeeVariantId } : {}),
+      ...(embroideryImageFeeVariantId ? { embroideryImageFeeVariantId } : {}),
+      ...(dtfFeeVariantId ? { dtfFeeVariantId } : {}),
+      ...(dtgFeeVariantId ? { dtgFeeVariantId } : {}),
+      methodConfigurations: configuration as unknown as Prisma.InputJsonValue,
     },
   });
   return {
@@ -804,6 +1310,145 @@ export async function syncProductionPricingMetafield(
   );
 }
 
+export async function saveProductProductionConfiguration(
+  shop: string,
+  input: SaveProductProductionConfigurationInput,
+  client: ShopifyGraphqlClient,
+  database: ProductionPricingDb = db as unknown as ProductionPricingDb,
+): Promise<ProductionPricingSyncState> {
+  const currency = cleanCurrency(input.currency);
+  const definitions = await methodSettings(shop, database);
+  const existing = await getProductionPricing(shop, input.shopifyProductId, database);
+  const previous = existing
+    ? productProductionConfiguration(existing)
+    : { version: 2 as const, methods: {} };
+  const methods: ProductProductionConfiguration["methods"] = {
+    ...previous.methods,
+  };
+  for (const definition of definitions) {
+    const submitted = input.methods[definition.id];
+    if (!submitted) continue;
+    if (definition.pricingBehavior === "TIERED") {
+      const previousMethod = methods[definition.id];
+      const previousTiers = previousMethod && "tiers" in previousMethod
+        ? previousMethod.tiers
+        : null;
+      const tiers: Record<string, ProductProductionRateConfiguration> = {};
+      for (const tier of definition.tiers) {
+        const submittedTier = submitted.tiers?.[tier];
+        const previousTier = previousTiers?.[tier];
+        tiers[tier] = submittedTier
+          ? {
+              enabled: cleanBoolean(submittedTier.enabled),
+              surcharge: parseSurchargeInput(submittedTier.surcharge).toFixed(2),
+              feeVariantId: previousTier?.feeVariantId || null,
+            }
+          : previousTier || { enabled: false, surcharge: "0.00", feeVariantId: null };
+      }
+      methods[definition.id] = {
+        enabled: Object.values(tiers).some((tier) => tier.enabled),
+        tiers,
+      };
+      continue;
+    }
+    const previousMethod = methods[definition.id];
+    methods[definition.id] = {
+      enabled: cleanBoolean(submitted.enabled),
+      surcharge: parseSurchargeInput(submitted.surcharge ?? "0").toFixed(2),
+      feeVariantId:
+        previousMethod && !("tiers" in previousMethod)
+          ? previousMethod.feeVariantId
+          : null,
+    };
+  }
+  const configuration: ProductProductionConfiguration = { version: 2, methods };
+  const embroidery = methods.EMBROIDERY && "tiers" in methods.EMBROIDERY
+    ? methods.EMBROIDERY
+    : null;
+  const dtf = methods.DTF && !("tiers" in methods.DTF) ? methods.DTF : null;
+  const dtg = methods.DTG && !("tiers" in methods.DTG) ? methods.DTG : null;
+  let pricing = await database.publicProductProductionPricing.upsert({
+    where: {
+      shopKey_shopifyProductId: {
+        shopKey: shop,
+        shopifyProductId: input.shopifyProductId,
+      },
+    },
+    create: {
+      shopKey: shop,
+      shopifyProductId: input.shopifyProductId,
+      currency,
+      methodConfigurations: configuration as unknown as Prisma.InputJsonValue,
+      embroiderySurcharge: new Prisma.Decimal(0),
+      embroideryTextSurcharge: parseSurchargeInput(
+        embroidery?.tiers.TEXT_ONLY.surcharge ?? "0",
+      ),
+      embroideryImageSurcharge: parseSurchargeInput(
+        embroidery?.tiers.IMAGE_OR_LOGO.surcharge ?? "0",
+      ),
+      dtfSurcharge: parseSurchargeInput(dtf?.surcharge ?? "0"),
+      dtgSurcharge: parseSurchargeInput(dtg?.surcharge ?? "0"),
+    },
+    update: {
+      currency,
+      methodConfigurations: configuration as unknown as Prisma.InputJsonValue,
+      embroideryTextSurcharge: parseSurchargeInput(
+        embroidery?.tiers.TEXT_ONLY.surcharge ?? "0",
+      ),
+      embroideryImageSurcharge: parseSurchargeInput(
+        embroidery?.tiers.IMAGE_OR_LOGO.surcharge ?? "0",
+      ),
+      dtfSurcharge: parseSurchargeInput(dtf?.surcharge ?? "0"),
+      dtgSurcharge: parseSurchargeInput(dtg?.surcharge ?? "0"),
+    },
+  });
+
+  const errors: string[] = [];
+  let productionFeeSynced = false;
+  let shopifySynced = false;
+  try {
+    const feeSync = await syncProductionFeeMerchandise(
+      shop,
+      pricing,
+      client,
+      database,
+      { includeLegacyGenericEmbroidery: false },
+    );
+    pricing = feeSync.pricing;
+    productionFeeSynced = feeSync.synced;
+  } catch {
+    errors.push("Production fee merchandise could not be synchronized.");
+  }
+  const metafieldValue = safeJson(
+    canonicalProductionPricingBridgePayload(pricing, definitions),
+  );
+  const missingFeeMethods = missingRequiredFeeVariantMethods(
+    JSON.parse(metafieldValue) as ProductionPricingBridgePayload,
+  );
+  if (missingFeeMethods.length) {
+    errors.push("Production fee merchandise is missing for an enabled paid method.");
+  } else {
+    try {
+      await syncProductionPricingMetafield(client, input.shopifyProductId, metafieldValue);
+      shopifySynced = true;
+    } catch {
+      errors.push("The Shopify production configuration could not be synchronized.");
+    }
+  }
+  return {
+    saved: true,
+    shopifySynced,
+    productionFeeSynced,
+    status: shopifySynced && productionFeeSynced ? "saved" : "partial",
+    message:
+      shopifySynced && productionFeeSynced
+        ? "Saved. Shopify config synced. Production fee synced."
+        : "Saved with a partial sync error.",
+    errors,
+    pricing,
+  };
+}
+
 export async function saveProductionPricing(
   shop: string,
   input: SaveProductionPricingInput,
@@ -815,16 +1460,41 @@ export async function saveProductionPricing(
   const dtf = parseSurchargeInput(input.dtf);
   const dtg = parseSurchargeInput(input.dtg);
   const settings = await methodSettings(shop, database);
-  const methods = settings.map((setting) => ({
-    method: cleanProductionMethod(setting.method),
-    label: setting.label,
-    surcharge:
-      setting.method === "EMBROIDERY"
-        ? new Prisma.Decimal(0)
-        : setting.method === "DTF"
-          ? dtf
-          : dtg,
-  }));
+  const existing = await getProductionPricing(shop, input.shopifyProductId, database);
+  const existingConfiguration = existing
+    ? productProductionConfiguration(existing)
+    : { version: 2 as const, methods: {} };
+  const methodConfigurations: ProductProductionConfiguration = {
+    version: 2,
+    methods: {
+      ...existingConfiguration.methods,
+      EMBROIDERY: {
+        enabled: true,
+        tiers: {
+          TEXT_ONLY: {
+            enabled: true,
+            surcharge: embroideryText.toFixed(2),
+            feeVariantId: existing?.embroideryTextFeeVariantId || null,
+          },
+          IMAGE_OR_LOGO: {
+            enabled: true,
+            surcharge: embroideryImage.toFixed(2),
+            feeVariantId: existing?.embroideryImageFeeVariantId || null,
+          },
+        },
+      },
+      DTF: {
+        enabled: true,
+        surcharge: dtf.toFixed(2),
+        feeVariantId: existing?.dtfFeeVariantId || null,
+      },
+      DTG: {
+        enabled: true,
+        surcharge: dtg.toFixed(2),
+        feeVariantId: existing?.dtgFeeVariantId || null,
+      },
+    },
+  };
   let pricing = await database.publicProductProductionPricing.upsert({
     where: {
       shopKey_shopifyProductId: {
@@ -835,6 +1505,8 @@ export async function saveProductionPricing(
     create: {
       shopKey: shop,
       shopifyProductId: input.shopifyProductId,
+      currency: cleanCurrency(input.currency),
+      methodConfigurations: methodConfigurations as unknown as Prisma.InputJsonValue,
       embroiderySurcharge: new Prisma.Decimal(0),
       embroideryTextSurcharge: embroideryText,
       embroideryImageSurcharge: embroideryImage,
@@ -842,6 +1514,8 @@ export async function saveProductionPricing(
       dtgSurcharge: dtg,
     },
     update: {
+      currency: cleanCurrency(input.currency),
+      methodConfigurations: methodConfigurations as unknown as Prisma.InputJsonValue,
       embroideryTextSurcharge: embroideryText,
       embroideryImageSurcharge: embroideryImage,
       dtfSurcharge: dtf,
@@ -870,11 +1544,9 @@ export async function saveProductionPricing(
     );
   }
 
-  const metafieldValue = pricingConfigToMetafieldValue({
-    currency: input.currency,
-    methods,
-    pricing,
-  });
+  const metafieldValue = safeJson(
+    canonicalProductionPricingBridgePayload(pricing, settings),
+  );
   const missingFeeMethods = missingRequiredFeeVariantMethods(
     JSON.parse(metafieldValue) as ProductionPricingBridgePayload,
   );

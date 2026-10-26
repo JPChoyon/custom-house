@@ -321,6 +321,13 @@ test("creator order view parses authoritative Shopify line production metadata",
       placementCount: 2,
     },
   );
+  assert.equal(
+    creatorProductionMetadataFromAttributes([
+      { key: "_production_method", value: "STICKER_PRINTING" },
+      { key: "_designed_placement_count", value: "1" },
+    ]).productionMethod,
+    "STICKER_PRINTING",
+  );
 });
 
 test("creator order admin routes are admin-only and public routes do not expose operations", () => {

@@ -173,7 +173,7 @@ test("republishing recalculates from base prices and never compounds", () => {
   );
 });
 
-test("save preview uses authoritative pricing and blocks zero configuration", () => {
+test("save preview uses authoritative pricing and accepts an enabled zero surcharge", () => {
   const preview = creatorProductionPricingPreview({
     productionMethod: "EMBROIDERY",
     embroiderySubtype: "TEXT_ONLY",
@@ -187,17 +187,13 @@ test("save preview uses authoritative pricing and blocks zero configuration", ()
     ["400.00", "420.00"],
   );
 
-  assert.throws(
-    () =>
-      creatorProductionPricingPreview({
-        productionMethod: "DTF",
-        embroiderySubtype: null,
-        placementCount: 1,
-        pricing: { ...pricing, dtfSurcharge: parseSurchargeInput("0") },
-        baseVariants: baseVariants.slice(0, 1),
-      }),
-    (error) =>
-      error instanceof DomainError &&
-      error.code === "DTF_PRICING_REQUIRED",
-  );
+  const zeroCost = creatorProductionPricingPreview({
+    productionMethod: "DTF",
+    embroiderySubtype: null,
+    placementCount: 1,
+    pricing: { ...pricing, dtfSurcharge: parseSurchargeInput("0") },
+    baseVariants: baseVariants.slice(0, 1),
+  });
+  assert.equal(zeroCost.productionCostMinor, "0");
+  assert.equal(zeroCost.variants[0].finalPrice, baseVariants[0].price);
 });

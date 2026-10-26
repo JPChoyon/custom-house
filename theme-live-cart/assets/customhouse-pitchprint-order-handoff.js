@@ -180,7 +180,7 @@
 
   const methodCode = (value) => {
     const text = String(value || '').trim().toUpperCase();
-    if (text === 'EMBROIDERY' || text === 'DTF' || text === 'DTG') return text;
+    if (/^[A-Z][A-Z0-9_]{1,63}$/.test(text)) return text;
     if (text === 'EMBROIDERY PRINTING') return 'EMBROIDERY';
     if (text.includes('EMBROIDERY')) return 'EMBROIDERY';
     if (text.includes('DTF')) return 'DTF';
@@ -308,11 +308,16 @@
       TEXT_ONLY: normalizeRate(rawEmbroideryPricing.TEXT_ONLY, 'Embroidery — Text only', 8, 8),
       IMAGE_OR_LOGO: normalizeRate(rawEmbroideryPricing.IMAGE_OR_LOGO || rawEmbroideryPricing.IMAGE_LOGO, 'Embroidery — Image / Logo', 8, 8),
     };
-    return Object.keys(METHOD_DETAILS).map((code) => {
-      const detail = METHOD_DETAILS[code];
-      const configured = methods[code] || (Array.isArray(pricing?.productionMethods)
-        ? pricing.productionMethods.find((method) => String(method?.id || '').toUpperCase() === code)
-        : null);
+    const configuredMethods = Array.isArray(pricing?.productionMethods)
+      ? pricing.productionMethods
+      : Object.entries(methods).map(([id, method]) => ({ id, ...method }));
+    return configuredMethods.filter((configured) => configured?.enabled !== false).map((configured) => {
+      const code = methodCode(configured?.id || configured?.method);
+      if (!code) return null;
+      const detail = METHOD_DETAILS[code] || {
+        id: code.toLowerCase(),
+        label: String(configured?.label || code.replace(/_/g, ' ')),
+      };
       const surchargeMinor = Number(configured?.surchargeMinor || 0);
       const feeVariantGid = String(configured?.feeVariantGid || configured?.productionFeeVariantId || configured?.shopifyFeeVariantId || '').trim();
       const feeVariantId = String(configured?.feeVariantId || normalizeVariantId(feeVariantGid)).trim();
@@ -328,10 +333,14 @@
         ...(!isEmbroidery && feeVariantId ? { feeVariantId } : {}),
         ...(!isEmbroidery && feeVariantGid ? { feeVariantGid } : {}),
         ...(isEmbroidery ? { embroiderySubtypes } : {}),
-        maxWidthCm: detail.maxWidthCm,
-        maxHeightCm: detail.maxHeightCm,
+        ...(Number(configured?.maxWidthCm || detail.maxWidthCm) > 0
+          ? { maxWidthCm: Number(configured?.maxWidthCm || detail.maxWidthCm) }
+          : {}),
+        ...(Number(configured?.maxHeightCm || detail.maxHeightCm) > 0
+          ? { maxHeightCm: Number(configured?.maxHeightCm || detail.maxHeightCm) }
+          : {}),
       };
-    });
+    }).filter(Boolean);
   };
 
   const buildProductConfig = (root) => {
@@ -784,7 +793,11 @@
       return;
     }
 
-    if (!configuredRate || Number(configuredRate.surchargeMinor || 0) <= 0 || !configuredRate.feeVariantId) {
+    if (
+      !configuredRate ||
+      !Number.isFinite(Number(configuredRate.surchargeMinor)) ||
+      (Number(configuredRate.surchargeMinor || 0) > 0 && !configuredRate.feeVariantId)
+    ) {
       warn('Missing production fee variant');
       setStatus(root, 'Unable to add this customization to your cart. Please try again.', true);
       return;

@@ -141,6 +141,7 @@ function productionSelection(input: {
   embroiderySubtype?: unknown;
   placementCount: number;
   pricing: PricingConfig;
+  resolvedSurcharge?: Prisma.Decimal;
 }) {
   if (!Number.isInteger(input.placementCount) || input.placementCount < 1) {
     throw new DomainError(
@@ -153,19 +154,14 @@ function productionSelection(input: {
   const embroiderySubtype = productionMethod === "EMBROIDERY"
     ? cleanEmbroiderySubtype(input.embroiderySubtype)
     : null;
-  const surcharge = embroiderySubtype
+  const surcharge = input.resolvedSurcharge ?? (embroiderySubtype
     ? pricingForEmbroiderySubtype(input.pricing, embroiderySubtype)
-    : pricingForMethod(input.pricing, productionMethod);
+    : pricingForMethod(input.pricing, productionMethod));
   const surchargeMinor = decimalMoneyToMinorUnits(surcharge);
-  if (surchargeMinor <= 0n) {
-    const label = productionMethod === "EMBROIDERY"
-      ? embroiderySubtype === "TEXT_ONLY"
-        ? "Embroidery Text"
-        : "Embroidery Image / Logo"
-      : productionMethod;
+  if (surchargeMinor < 0n) {
     throw new DomainError(
-      `${productionMethod}${embroiderySubtype ? `_${embroiderySubtype}` : ""}_PRICING_REQUIRED`,
-      `${label} pricing is not configured.`,
+      "INVALID_PRODUCTION_PRICING",
+      "Production pricing cannot be negative.",
       409,
     );
   }
@@ -202,6 +198,7 @@ export function creatorProductionPricingPreview(input: {
   embroiderySubtype?: unknown;
   placementCount: number;
   pricing: PricingConfig;
+  resolvedSurcharge?: Prisma.Decimal;
   baseVariants: CreatorPricingVariant[];
 }): CreatorPricingPreview {
   const selection = productionSelection(input);
@@ -241,6 +238,7 @@ export function buildCreatorPublishedPricingPlan(input: {
   embroiderySubtype?: unknown;
   placementCount: number;
   pricing: PricingConfig;
+  resolvedSurcharge?: Prisma.Decimal;
   baseVariants: CreatorPricingVariant[];
   publishedVariants: CreatorPricingVariant[];
 }): CreatorPublishedPricingPlan {

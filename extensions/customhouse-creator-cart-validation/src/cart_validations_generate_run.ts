@@ -35,9 +35,9 @@ type CreatorGroup = {
 
 type PublicCartValidationContract = {
   version: 1;
-  feeRequired: true;
-  feeVariantId: string;
-  productionMethod: "EMBROIDERY" | "DTF" | "DTG";
+  feeRequired: boolean;
+  feeVariantId: string | null;
+  productionMethod: string;
   embroiderySubtype: "TEXT_ONLY" | "IMAGE_OR_LOGO" | null;
   placementCount: number;
 };
@@ -113,9 +113,7 @@ function creatorFeeKey(creatorProductId: string, feeKey: string): string {
 
 function cleanProductionMethod(value: unknown) {
   const method = String(value || "").trim().toUpperCase();
-  return method === "EMBROIDERY" || method === "DTF" || method === "DTG"
-    ? method
-    : null;
+  return /^[A-Z][A-Z0-9_]{1,63}$/.test(method) ? method : null;
 }
 
 function cleanEmbroiderySubtype(value: unknown) {
@@ -142,9 +140,7 @@ function parsePublicContract(value: string | null): PublicCartValidationContract
     : cleanEmbroiderySubtype(candidate.embroiderySubtype);
   if (
     candidate.version !== 1 ||
-    candidate.feeRequired !== true ||
-    typeof candidate.feeVariantId !== "string" ||
-    !candidate.feeVariantId.startsWith("gid://shopify/ProductVariant/") ||
+    typeof candidate.feeRequired !== "boolean" ||
     !productionMethod ||
     !Number.isInteger(candidate.placementCount) ||
     (candidate.placementCount as number) < 1 ||
@@ -153,10 +149,16 @@ function parsePublicContract(value: string | null): PublicCartValidationContract
   ) {
     return null;
   }
+  if (
+    (candidate.feeRequired === true &&
+      (typeof candidate.feeVariantId !== "string" ||
+        !candidate.feeVariantId.startsWith("gid://shopify/ProductVariant/"))) ||
+    (candidate.feeRequired === false && candidate.feeVariantId !== null)
+  ) return null;
   return {
     version: 1,
-    feeRequired: true,
-    feeVariantId: candidate.feeVariantId,
+    feeRequired: candidate.feeRequired,
+    feeVariantId: candidate.feeVariantId as string | null,
     productionMethod,
     embroiderySubtype,
     placementCount: candidate.placementCount as number,
@@ -166,7 +168,7 @@ function parsePublicContract(value: string | null): PublicCartValidationContract
 function publicPricingRate(
   product: Product,
   contract: PublicCartValidationContract,
-): { surchargeMinor: number; feeVariantGid: string } | null {
+): { surchargeMinor: number; feeVariantGid: string | null } | null {
   const value = product.productionMethodPricing?.jsonValue;
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const pricing = value as Record<string, unknown>;
@@ -197,10 +199,10 @@ function publicPricingRate(
   if (!rate || typeof rate !== "object" || Array.isArray(rate)) return null;
   const record = rate as Record<string, unknown>;
   const surchargeMinor = Number(record.surchargeMinor);
-  const feeVariantGid = String(record.feeVariantGid || "").trim();
+  const feeVariantGid = String(record.feeVariantGid || "").trim() || null;
   return Number.isSafeInteger(surchargeMinor) &&
-    surchargeMinor > 0 &&
-    feeVariantGid.startsWith("gid://shopify/ProductVariant/")
+    surchargeMinor >= 0 &&
+    (surchargeMinor === 0 || feeVariantGid?.startsWith("gid://shopify/ProductVariant/"))
     ? { surchargeMinor, feeVariantGid }
     : null;
 }
@@ -362,6 +364,7 @@ export function cartValidationsGenerateRun(
       const validContract = Boolean(
         contract &&
           pricingRate &&
+          contract.feeRequired === (pricingRate.surchargeMinor > 0) &&
           contract.feeVariantId === pricingRate.feeVariantGid,
       );
       if (
@@ -383,7 +386,7 @@ export function cartValidationsGenerateRun(
           expectedFeeQuantity: validContract && contract
             ? line.quantity * contract.placementCount
             : 0,
-          expectedFeeVariantId: validContract && pricingRate
+          expectedFeeVariantId: validContract && contract?.feeRequired && pricingRate
             ? pricingRate.feeVariantGid
             : null,
           valid: validContract,
@@ -468,8 +471,12 @@ export function cartValidationsGenerateRun(
   }
 
   for (const [key, publicGroup] of publicGroups) {
-    if (!publicGroup.valid || !publicGroup.expectedFeeVariantId) continue;
     const feeGroup = feeGroups.get(key);
+    if (!publicGroup.valid) continue;
+    if (!publicGroup.expectedFeeVariantId) {
+      if (feeGroup) addError(MESSAGES.publicFee);
+      continue;
+    }
     if (
       !feeGroup ||
       feeGroup.quantity !== publicGroup.expectedFeeQuantity ||

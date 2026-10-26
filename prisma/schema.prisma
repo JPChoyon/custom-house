@@ -226,12 +226,6 @@ enum CreatorOrderProductionStatus {
   CANCELLED
 }
 
-enum ProductionMethod {
-  EMBROIDERY
-  DTF
-  DTG
-}
-
 model ShopConfig {
   id                                 String    @id @default(cuid())
   shop                               String    @unique
@@ -572,35 +566,39 @@ model GlobalProductMapping {
 }
 
 model ProductionMethodSetting {
-  id          String           @id @default(cuid())
-  shopKey     String
-  method      ProductionMethod
-  label       String
-  description String           @default("")
-  enabled     Boolean          @default(true)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id                String   @id @default(cuid())
+  shopKey           String
+  method            String
+  label             String
+  description       String   @default("")
+  enabled           Boolean  @default(true)
+  pricingBehavior   String   @default("SINGLE")
+  configurationJson Json     @default("{}")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   @@unique([shopKey, method])
   @@index([shopKey, enabled])
 }
 
 model PublicProductProductionPricing {
-  id                     String   @id @default(cuid())
-  shopKey                String
-  shopifyProductId       String
-  embroiderySurcharge    Decimal  @default(0) @db.Decimal(10, 2)
-  embroideryTextSurcharge Decimal @default(0) @db.Decimal(10, 2)
-  embroideryImageSurcharge Decimal @default(0) @db.Decimal(10, 2)
-  dtfSurcharge           Decimal  @default(0) @db.Decimal(10, 2)
-  dtgSurcharge           Decimal  @default(0) @db.Decimal(10, 2)
-  embroideryFeeVariantId String?
-  embroideryTextFeeVariantId String?
+  id                          String   @id @default(cuid())
+  shopKey                     String
+  shopifyProductId            String
+  currency                    String   @default("SEK")
+  methodConfigurations        Json     @default("{}")
+  embroiderySurcharge         Decimal  @default(0) @db.Decimal(10, 2)
+  embroideryTextSurcharge     Decimal  @default(0) @db.Decimal(10, 2)
+  embroideryImageSurcharge    Decimal  @default(0) @db.Decimal(10, 2)
+  dtfSurcharge                Decimal  @default(0) @db.Decimal(10, 2)
+  dtgSurcharge                Decimal  @default(0) @db.Decimal(10, 2)
+  embroideryFeeVariantId      String?
+  embroideryTextFeeVariantId  String?
   embroideryImageFeeVariantId String?
-  dtfFeeVariantId        String?
-  dtgFeeVariantId        String?
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  dtfFeeVariantId             String?
+  dtgFeeVariantId             String?
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
 
   @@unique([shopKey, shopifyProductId])
   @@index([shopKey])

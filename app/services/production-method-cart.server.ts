@@ -6,10 +6,7 @@ import type { ShopifyGraphqlClient } from "./shopify-graphql.server.ts";
 import {
   cleanEmbroiderySubtype,
   cleanProductionMethod,
-  feeVariantIdForEmbroiderySubtype,
-  feeVariantIdForMethod,
-  pricingForEmbroiderySubtype,
-  pricingForMethod,
+  resolveProductionPricing,
   type EmbroiderySubtype,
   type PublicProductProductionPricingRecord,
 } from "./production-method-pricing.server.ts";
@@ -18,6 +15,16 @@ import { classifyPitchPrintProjectSource } from "./pitchprint-project-metadata.t
 type ProductionCartDb = {
   publicProductProductionPricing: {
     findUnique(args: unknown): Promise<PublicProductProductionPricingRecord | null>;
+  };
+  productionMethodSetting?: {
+    findMany(args: unknown): Promise<Array<{
+      method: string;
+      label: string;
+      description: string;
+      enabled: boolean;
+      pricingBehavior?: string;
+      configurationJson?: Prisma.JsonValue;
+    }>>;
   };
 };
 
@@ -388,41 +395,16 @@ export async function preparePublicProductionCart(
     }
   }
   const selectedColors = cleanTextList(input.selectedColors);
-  const pricing = await database.publicProductProductionPricing.findUnique({
-    where: {
-      shopKey_shopifyProductId: {
-        shopKey: shop,
-        shopifyProductId: productId,
-      },
-    },
+  const resolvedPricing = await resolveProductionPricing({
+    shop,
+    productId,
+    method: productionMethod,
+    artworkType: embroiderySubtype,
+    database: database as Parameters<typeof resolveProductionPricing>[0]["database"],
   });
-  if (!pricing) {
-    throw new DomainError(
-      "PRODUCTION_PRICING_REQUIRED",
-      "Production pricing is not configured for this product.",
-      409,
-    );
-  }
-  const surcharge = embroiderySubtype
-    ? pricingForEmbroiderySubtype(pricing, embroiderySubtype)
-    : pricingForMethod(pricing, productionMethod);
-  const surchargeMinor = decimalMoneyToMinorUnits(surcharge);
-  const feeVariantId = embroiderySubtype
-    ? feeVariantIdForEmbroiderySubtype(pricing, embroiderySubtype)
-    : feeVariantIdForMethod(pricing, productionMethod);
-  if (surchargeMinor <= 0n) {
-    const pricingLabel = embroiderySubtype === "TEXT_ONLY"
-      ? "Embroidery text"
-      : embroiderySubtype === "IMAGE_OR_LOGO"
-        ? "Embroidery image/logo"
-        : productionMethod;
-    throw new DomainError(
-      "PRODUCTION_PRICING_REQUIRED",
-      `${pricingLabel} pricing is not configured.`,
-      409,
-    );
-  }
-  if (!feeVariantId) {
+  const surchargeMinor = resolvedPricing.surchargeMinor;
+  const feeVariantId = resolvedPricing.feeVariantId;
+  if (resolvedPricing.feeRequired && !feeVariantId) {
     throw new DomainError(
       "PRODUCTION_FEE_SYNC_REQUIRED",
       "Production fee merchandise is not synced for this product.",
@@ -510,7 +492,7 @@ export async function preparePublicProductionCart(
     _customhouse_terms_acknowledgement: "Accepted",
     _customhouse_public_cart_validation: JSON.stringify({
       version: 1,
-      feeRequired: true,
+      feeRequired: resolvedPricing.feeRequired,
       feeVariantId,
       productionMethod,
       embroiderySubtype,
@@ -529,20 +511,22 @@ export async function preparePublicProductionCart(
       quantity: selection.quantity,
       properties: baseProperties,
     })),
-    {
-      id: numericId(feeVariantId),
-      quantity: totals.productionFeeQuantity,
-      properties: {
-        _customhouse_production_fee: "true",
-        _customhouse_parent_product_id: productId,
-        _customhouse_parent_project_id: pitchprintProjectId,
-        _customhouse_fee_key: feeKey,
-        _pitchprint: pitchprintProjectId,
-        _production_method: productionMethod,
-        _designed_placement_count: String(placementCount),
-        ...(embroiderySubtype ? { _embroidery_subtype: embroiderySubtype } : {}),
-      },
-    },
+    ...(resolvedPricing.feeRequired && feeVariantId
+      ? [{
+          id: numericId(feeVariantId),
+          quantity: totals.productionFeeQuantity,
+          properties: {
+            _customhouse_production_fee: "true",
+            _customhouse_parent_product_id: productId,
+            _customhouse_parent_project_id: pitchprintProjectId,
+            _customhouse_fee_key: feeKey,
+            _pitchprint: pitchprintProjectId,
+            _production_method: productionMethod,
+            _designed_placement_count: String(placementCount),
+            ...(embroiderySubtype ? { _embroidery_subtype: embroiderySubtype } : {}),
+          },
+        }]
+      : []),
   ];
   return {
     items,
@@ -552,7 +536,7 @@ export async function preparePublicProductionCart(
     placements: artworkFacts.placements,
     placementCount,
     feeVariantId,
-    feeRequired: true,
+    feeRequired: resolvedPricing.feeRequired,
     feeKey,
     totals,
   };

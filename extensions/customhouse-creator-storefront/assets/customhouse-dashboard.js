@@ -1480,7 +1480,7 @@ function creatorSetupForProduct(product) {
 
 function normalizedCreatorProductionMethod(value) {
   const method = String(value || "").trim().toUpperCase();
-  return ["EMBROIDERY", "DTF", "DTG"].includes(method) ? method : "";
+  return /^[A-Z][A-Z0-9_]{1,63}$/.test(method) ? method : "";
 }
 
 export function creatorProductProductionMethod(product) {
@@ -2509,14 +2509,17 @@ function renderReviewVariantSelections(root, product) {
   title.textContent = "Creator setup";
   const list = document.createElement("ul");
   const presentation = creatorReviewPresentation(product);
-  const methodLabels = {
-    EMBROIDERY: "Embroidery",
-    DTF: "DTF",
-    DTG: "DTG",
-  };
+  const methodCode = presentation.productionMethod;
+  const baseProduct = baseProductForPitchPrint(root, product);
+  const configuredMethod = (baseProduct?.productionMethods || []).find(
+    (method) => String(method?.id || "").trim().toUpperCase() === methodCode,
+  );
+  const methodLabel = String(configuredMethod?.label || "").trim() ||
+    String(methodCode || "").toLowerCase().split("_").filter(Boolean)
+      .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`).join(" ");
   const rows = [
-    presentation.productionMethod
-      ? `Printing Method: ${methodLabels[presentation.productionMethod]}`
+    methodCode
+      ? `Printing Method: ${methodLabel}`
       : "Printing method is missing. Please return to Add Product and start a new design.",
     `Color: ${presentation.fixedColor}`,
     `Designed placements: ${setup.placementCount}`,

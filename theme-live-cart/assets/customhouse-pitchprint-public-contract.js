@@ -1,3 +1,4 @@
+/* global globalThis */
 (function attachCustomHousePublicPitchPrintContract(global) {
   const CONTRACT_VERSION = 'PUBLIC_CUSTOMIZE_V2';
 
@@ -241,8 +242,9 @@
   function buildProductionMethodPricing(methods) {
     return (Array.isArray(methods) ? methods : []).reduce((result, method) => {
       const code = text(method?.id).toUpperCase();
-      if (!['EMBROIDERY', 'DTF', 'DTG'].includes(code)) return result;
-      const { id: _id, ...pricing } = method;
+      if (!/^[A-Z][A-Z0-9_]{1,63}$/.test(code)) return result;
+      const pricing = { ...method };
+      delete pricing.id;
       result[code] = pricing;
       return result;
     }, {});
@@ -252,12 +254,14 @@
     const embroidery = config?.embroideryPricing ||
       config?.productionMethodPricing?.EMBROIDERY?.embroiderySubtypes || {};
     const pricing = config?.productionMethodPricing || {};
-    return [
-      embroidery?.TEXT_ONLY,
-      embroidery?.IMAGE_OR_LOGO,
-      pricing?.DTF,
-      pricing?.DTG,
-    ].filter((rate) => Number(rate?.surchargeMinor || 0) > 0).length;
+    return Object.entries(pricing).reduce((count, [code, rate]) => {
+      if (code === 'EMBROIDERY') {
+        return count + Object.values(embroidery).filter((item) =>
+          Number.isFinite(Number(item?.surchargeMinor))
+        ).length;
+      }
+      return count + (Number.isFinite(Number(rate?.surchargeMinor)) ? 1 : 0);
+    }, 0);
   }
 
   function chooseCanonicalConfig(current, candidate) {

@@ -1614,8 +1614,8 @@ test("Creator save rejects a selected color that disagrees with the rendered pre
   );
 });
 
-test("Creator save restores the persisted method instead of trusting the PitchPrint handoff", () => {
-  for (const productionMethod of ["EMBROIDERY", "DTF", "DTG"]) {
+test("Creator save restores any canonical persisted method instead of trusting the PitchPrint handoff", () => {
+  for (const productionMethod of ["EMBROIDERY", "DTF", "DTG", "SUBLIMATION", "STICKER_PRINTING"]) {
     const product = {
       designVariantSelectionsJson: JSON.stringify({
         schema: "creator_design_setup_v1",

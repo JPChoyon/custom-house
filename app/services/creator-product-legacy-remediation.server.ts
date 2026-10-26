@@ -7,6 +7,7 @@ import {
 import {
   PRODUCTION_METHODS,
   cleanProductionMethod,
+  getEnabledProductionMethodsForProduct,
   listEnabledProductionMethodCodes,
   type ProductionMethodCode,
 } from "./production-method-pricing.server.ts";
@@ -505,11 +506,14 @@ export async function applyLegacyCreatorProductRepair(
       409,
     );
   }
-  const enabledMethods = dependencies.database.productionMethodSetting
-    ? await listEnabledProductionMethodCodes(
+  const enabledMethods = dependencies.database.publicProductProductionPricing
+    ? (await getEnabledProductionMethodsForProduct(
         shop,
+        product.shopifyProductId,
         dependencies.database as never,
-      )
+      )).map((method) => method.id)
+    : dependencies.database.productionMethodSetting
+      ? await listEnabledProductionMethodCodes(shop, dependencies.database as never)
     : [...PRODUCTION_METHODS];
   const setup = legacySetupDraft(product, input, base.variants, enabledMethods);
   const oldMapping = product.publishedShopifyProductId;
@@ -822,9 +826,15 @@ export async function getLegacyRepairDetail(
     publishedProduct,
     candidates,
     availableColors: baseProduct ? legacyProductColors(baseProduct.variants) : [],
-    enabledMethods: database.productionMethodSetting
-      ? await listEnabledProductionMethodCodes(shop, database as never)
-      : [...PRODUCTION_METHODS],
+    enabledMethods: database.publicProductProductionPricing
+      ? (await getEnabledProductionMethodsForProduct(
+          shop,
+          product.shopifyProductId,
+          database as never,
+        )).map((method) => method.id)
+      : database.productionMethodSetting
+        ? await listEnabledProductionMethodCodes(shop, database as never)
+        : [...PRODUCTION_METHODS],
     dependencies: {
       orders: Number(orderCount),
       creatorOrderItems: Number(orderCount),
