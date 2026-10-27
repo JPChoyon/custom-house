@@ -250,6 +250,29 @@
     }, {});
   }
 
+  // Availability comes from the explicit product list, never from registry defaults.
+  function normalizeProductionMethods(pricing) {
+    const source = Array.isArray(pricing?.productionMethods)
+      ? pricing.productionMethods
+      : Object.entries(pricing?.productionMethodPricing || {}).map(([id, rate]) => ({ id, ...rate }));
+    return source.filter((method) => method && method.enabled !== false).flatMap((method) => {
+      const code = text(method.code || method.id || method.method).toUpperCase();
+      if (!/^[A-Z][A-Z0-9_]{1,63}$/.test(code)) return [];
+      const tiers = method.pricingTiers || method.embroiderySubtypes ||
+        (code === 'EMBROIDERY' ? pricing?.embroideryPricing : null);
+      return [{
+        ...method,
+        id: code.toLowerCase(),
+        code,
+        label: text(method.label || code.replace(/_/g, ' ')),
+        enabled: true,
+        currency: text(method.currency || pricing?.currency || 'SEK').toUpperCase(),
+        ...(tiers ? { pricingTiers: tiers } : {}),
+        ...(code === 'EMBROIDERY' && tiers ? { embroiderySubtypes: tiers } : {}),
+      }];
+    });
+  }
+
   function pricingCompleteness(config) {
     const embroidery = config?.embroideryPricing ||
       config?.productionMethodPricing?.EMBROIDERY?.embroiderySubtypes || {};
@@ -268,6 +291,16 @@
     if (!current) return candidate;
     if (!candidate) return current;
     if (text(current.productId) !== text(candidate.productId)) return candidate;
+    if (current.productionMethodsResolved && !candidate.productionMethodsResolved) return current;
+    if (candidate.productionMethodsResolved && Array.isArray(candidate.productionMethods)) {
+      if (current.productionMethodsResolved && candidate.revision === current.revision) return current;
+      // A smaller list (including []) is a valid authoritative admin change.
+      return {
+        ...candidate,
+        variants: (candidate.variants?.length || 0) < (current.variants?.length || 0)
+          ? current.variants : candidate.variants,
+      };
+    }
     const currentCount = Array.isArray(current.variants) ? current.variants.length : 0;
     const candidateCount = Array.isArray(candidate.variants) ? candidate.variants.length : 0;
     if (candidateCount < currentCount) return current;
@@ -286,6 +319,7 @@
     chooseCanonicalConfig,
     integrationSettings,
     normalizeVariantId,
+    normalizeProductionMethods,
     revisionFor,
     semanticOption,
   });

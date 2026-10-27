@@ -29,6 +29,7 @@ type PublicContractApi = {
     current: Record<string, unknown> | null,
     candidate: Record<string, unknown>,
   ): Record<string, unknown>;
+  normalizeProductionMethods(pricing: Record<string, unknown>): Array<Record<string, unknown>>;
   revisionFor(value: unknown): string;
 };
 
@@ -43,6 +44,15 @@ function loadContract(): PublicContractApi {
   );
   return sandbox.CustomHousePublicPitchPrintContract as PublicContractApi;
 }
+
+test("partial method config cannot erase the authoritative list; explicit empty can", () => {
+  const api = loadContract();
+  const complete = { productId: "1", productionMethodsResolved: true, productionMethods: [{ code: "STICKER_PRINTING" }], variants: [], revision: "full" };
+  const partial = { productId: "1", productionMethodPricing: {}, variants: [], revision: "partial" };
+  assert.equal(api.chooseCanonicalConfig(complete, partial), complete);
+  const empty = { ...complete, productionMethods: [], revision: "empty" };
+  assert.deepEqual(api.chooseCanonicalConfig(complete, empty).productionMethods, []);
+});
 
 const variants = [
   {

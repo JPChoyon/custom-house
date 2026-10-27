@@ -2127,9 +2127,8 @@ test("storefront PitchPrint bridge exposes trusted product pricing config", () =
   assert.match(handoff, /PUBLIC_DTF_PRICE/);
   assert.match(handoff, /PUBLIC_DTG_PRICE/);
   assert.match(handoff, /PUBLIC_GENERIC_EMBROIDERY_PRICE_USED: false/);
-  assert.match(handoff, /const isEmbroidery = code === 'EMBROIDERY'/);
-  assert.match(handoff, /maxWidthCm: 8/);
-  assert.match(handoff, /maxHeightCm: 40/);
+  assert.match(handoff, /normalizeProductionMethods = publicContract.normalizeProductionMethods/);
+  assert.match(handoff, /CUSTOMHOUSE_PP_FULL_PRODUCT_CONFIG/);
   assert.doesNotMatch(handoff, /CUSTOMHOUSE_PP_PRODUCTION_METHODS/);
   assert.doesNotMatch(handoff, /browserSurchargeMinor/);
   assert.doesNotMatch(handoff, /browserTotalMinor/);

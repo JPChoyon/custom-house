@@ -1658,10 +1658,7 @@ function productionPricingForProduct(root, product) {
 }
 
 async function ensurePitchPrintBaseProductConfig(root, product) {
-  const existing = baseProductForPitchPrint(root, product);
-  if (existing?.productionMethodPricing && pitchPrintProductVariants(existing).length) {
-    return existing;
-  }
+  // Refresh on every launch; admin changes must not reuse an earlier product list.
   const products = await requestCreatorBaseProducts();
   dashboardState(root).baseProducts = products;
   const wrap = root.querySelector("[data-dashboard-base-products]");
@@ -1669,7 +1666,7 @@ async function ensurePitchPrintBaseProductConfig(root, product) {
   return baseProductForPitchPrint(root, product);
 }
 
-function creatorPitchPrintConfig(root, product, identity) {
+export function creatorPitchPrintConfig(root, product, identity) {
   const hydratedProduct = hydratePitchPrintProduct(root, product);
   const baseProduct = baseProductForPitchPrint(root, hydratedProduct);
   const variants = pitchPrintProductVariants(hydratedProduct);
@@ -1677,7 +1674,9 @@ function creatorPitchPrintConfig(root, product, identity) {
   const productionMethod = creatorProductProductionMethod(product);
   const pricing = productionPricingForProduct(root, hydratedProduct);
   const productionMethods = Array.isArray(pricing?.productionMethods)
-    ? pricing.productionMethods
+    ? [...pricing.productionMethods].filter(method => method?.enabled !== false).map(method => ({
+        ...method, code: method.code || method.id, enabled: true, currency: method.currency || pricing.currency,
+      }))
     : [];
   const colorOptionValues = optionValuesFromVariants(variants, /^(color|colour|farg|färg)$/i);
   const sizeOptionValues = optionValuesFromVariants(variants, /^(size|storlek|storrelse)$/i);
@@ -1692,6 +1691,9 @@ function creatorPitchPrintConfig(root, product, identity) {
     creatorContext: true,
     launchContext: "creator_dashboard",
     isCreatorProduct: true,
+    baseProductId: baseProduct?.id || product.shopifyProductId,
+    currency: pricing?.currency || variants[0]?.currency || "SEK",
+    productionMethodsResolved: true,
     creatorProductId: product.id,
     creatorPublicHandle: product.creatorHandle || product.publicHandle || "",
     shopifyProductId: product.shopifyProductId,
@@ -2147,7 +2149,31 @@ function bindPitchPrintManager(root) {
     });
     await savePendingCreatorProduct(product, token);
   };
+  const creatorConfigTargets = new Map();
+  const sendCreatorConfig = (target, origin) => {
+    const payload = window.CustomHouseCreatorPitchPrintConfig;
+    if (!payload || !target?.postMessage) return;
+    for (const type of ['CUSTOMHOUSE_PP_FULL_PRODUCT_CONFIG', 'CUSTOMHOUSE_PP_CREATOR_CONFIG_DATA', 'CUSTOMHOUSE_PP_ORDER_CONFIG_DATA']) {
+      target.postMessage({ type, payload }, origin);
+    }
+    console.info('[CustomHouse PitchPrint] METHOD_HANDOFF', {
+      FLOW_MODE: payload.flowMode, PRODUCT_ID: payload.productId,
+      METHOD_COUNT: payload.productionMethods.length,
+      METHOD_CODES: payload.productionMethods.map(method => method.code || method.id),
+      CURRENCY: payload.currency, CONFIG_EVENT_TYPE: 'CUSTOMHOUSE_PP_FULL_PRODUCT_CONFIG',
+    });
+  };
+  const resendCreatorConfig = () => {
+    for (const iframe of document.querySelectorAll('iframe')) {
+      try {
+        const url = new URL(iframe.src, window.location.origin);
+        if (url.origin === 'https://pitchprint.io') creatorConfigTargets.set(iframe.contentWindow, url.origin);
+      } catch { /* Ignore unrelated frames. */ }
+    }
+    for (const [target, origin] of creatorConfigTargets) sendCreatorConfig(target, origin);
+  };
   const bindCreatorSetupWindowEvents = (product, token) => {
+    creatorConfigTargets.clear();
     if (manager.creatorSetupAbortController) {
       manager.creatorSetupAbortController.abort();
     }
@@ -2156,19 +2182,22 @@ function bindPitchPrintManager(root) {
     window.addEventListener(
       "message",
       (event) => {
-        if (
-          event?.data?.type === "CUSTOMHOUSE_PP_CREATOR_CONFIG_REQUEST" ||
-          event?.data?.type === "CUSTOMHOUSE_PP_ORDER_CONFIG_REQUEST"
-        ) {
-          const payload = window.CustomHouseCreatorPitchPrintConfig || null;
-          event.source?.postMessage?.({
-            type: "CUSTOMHOUSE_PP_CREATOR_CONFIG_DATA",
-            payload,
-          }, event.origin || "*");
-          event.source?.postMessage?.({
-            type: "CUSTOMHOUSE_PP_ORDER_CONFIG_DATA",
-            payload,
-          }, event.origin || "*");
+        if (token !== manager.token) return;
+        const allowedOrigin = event.origin === 'https://pitchprint.io' || event.origin === window.location.origin;
+        const type = event?.data?.type;
+        if (['CUSTOMHOUSE_PP_CREATOR_CONFIG_REQUEST', 'CUSTOMHOUSE_PP_ORDER_CONFIG_REQUEST', 'CUSTOMHOUSE_PP_FULL_PRODUCT_CONFIG_REQUEST', 'CUSTOMHOUSE_PP_VARIANTS_REQUEST'].includes(type)) {
+          if (!allowedOrigin || !event.source) return;
+          creatorConfigTargets.set(event.source, event.origin);
+          sendCreatorConfig(event.source, event.origin);
+          return;
+        }
+        if (type === 'CUSTOMHOUSE_PP_ORDER_CONFIG_ACK') {
+          if (!allowedOrigin || !creatorConfigTargets.has(event.source)) return;
+          console.info('[CustomHouse PitchPrint] CONFIG_ACK', {
+            PP_CONFIG_ACK_PRODUCT_ID: window.CustomHouseCreatorPitchPrintConfig?.productId,
+            PP_CONFIG_ACK_METHOD_COUNT: window.CustomHouseCreatorPitchPrintConfig?.productionMethods?.length || 0,
+            PP_CONFIG_ACK_METHOD_CODES: window.CustomHouseCreatorPitchPrintConfig?.productionMethods?.map(method => method.code || method.id) || [],
+          });
           return;
         }
         if (event?.data?.type !== "CUSTOMHOUSE_PP_CREATOR_SETUP_READY") return;
@@ -2238,12 +2267,15 @@ function bindPitchPrintManager(root) {
       });
       window.PPCLIENT ||= {};
       window.PPCLIENT.userAccountPath = "/pages/creator-dashboard";
+      bindCreatorSetupWindowEvents(product, token);
       const client = new Client({
         ...clientOptions,
         ...(!savedProjectSource && projectId ? { projectId } : {}),
       });
       manager.client = client;
-      bindCreatorSetupWindowEvents(product, token);
+      for (const ready of ['lib-ready', 'before-show', 'app-shown', 'editor-shown']) {
+        bindPitchPrintEvent(client, ready, token, resendCreatorConfig);
+      }
       bindPitchPrintEvent(client, "lib-ready", token);
       bindPitchPrintEvent(client, "before-show", token);
       bindPitchPrintEvent(client, "app-shown", token, () => {
