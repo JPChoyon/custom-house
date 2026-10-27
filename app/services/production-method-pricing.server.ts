@@ -156,6 +156,10 @@ type PricingConfigMethod = {
 
 export type ProductionPricingBridgeMethod = {
   id: ProductionMethodCode;
+  code?: ProductionMethodCode;
+  currency?: string;
+  description?: string;
+  pricingBehavior?: ProductionPricingBehavior;
   label: string;
   enabled?: boolean;
   surchargeMinor: number;
@@ -165,9 +169,11 @@ export type ProductionPricingBridgeMethod = {
   maxHeightCm?: number;
   embroiderySubtypes?: Record<EmbroiderySubtype, ProductionPricingBridgeRate>;
   pricingTiers?: Record<string, ProductionPricingBridgeRate>;
+  tiers?: Record<string, ProductionPricingBridgeRate>;
 };
 
 export type ProductionPricingBridgeRate = {
+  enabled?: boolean;
   label: string;
   surchargeMinor: number;
   feeVariantId?: string;
@@ -696,7 +702,7 @@ export function productProductionConfiguration(
 ): ProductProductionConfiguration {
   const root = recordValue(pricing.methodConfigurations);
   const methods = recordValue(root?.methods);
-  if (!methods || Object.keys(methods).length === 0) {
+  if (!methods) {
     return legacyProductConfiguration(pricing);
   }
   const parsed: ProductProductionConfiguration = { version: 2, methods: {} };
@@ -980,6 +986,7 @@ export function canonicalProductionPricingBridgePayload(
     const feeVariantId = numericShopifyId(feeVariantGid);
     return {
       label,
+      enabled: rate.enabled,
       surchargeMinor: Number(decimalToMinor(parseSurchargeInput(rate.surcharge))),
       ...(feeVariantId ? { feeVariantId } : {}),
       ...(feeVariantGid ? { feeVariantGid } : {}),
@@ -1007,10 +1014,17 @@ export function canonicalProductionPricingBridgePayload(
       if (Object.keys(enabledTiers).length) {
         methods.push({
           id: method,
+          code: method,
+          currency: cleanCurrency(pricing.currency),
+          description: definition.description,
+          pricingBehavior: definition.pricingBehavior,
           label: definition.label,
           enabled: true,
           surchargeMinor: 0,
           pricingTiers: enabledTiers,
+          tiers: Object.fromEntries(Object.entries(configured.tiers).map(([tier, rate]) => [
+            tier, bridgeRate(`${definition.label} — ${productionTierLabel(tier)}`, rate),
+          ])),
           ...(method === "EMBROIDERY"
             ? { embroiderySubtypes: enabledTiers as Record<EmbroiderySubtype, ProductionPricingBridgeRate> }
             : {}),
@@ -1023,6 +1037,10 @@ export function canonicalProductionPricingBridgePayload(
     const rate = bridgeRate(definition.label, configured);
     methods.push({
       id: method,
+      code: method,
+      currency: cleanCurrency(pricing.currency),
+      description: definition.description,
+      pricingBehavior: definition.pricingBehavior,
       enabled: true,
       ...rate,
       ...(definition.maxWidthCm ? { maxWidthCm: definition.maxWidthCm } : {}),

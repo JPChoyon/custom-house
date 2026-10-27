@@ -92,27 +92,6 @@
 
   const getRootProductId = (root) => String(root?.querySelector?.('[data-marked-product-actions]')?.dataset.productId || '').trim();
 
-  const METHOD_DETAILS = {
-    EMBROIDERY: {
-      id: 'embroidery',
-      label: 'Embroidery',
-      maxWidthCm: 8,
-      maxHeightCm: 8,
-    },
-    DTF: {
-      id: 'dtf',
-      label: 'DTF printing',
-      maxWidthCm: 35,
-      maxHeightCm: 40,
-    },
-    DTG: {
-      id: 'dtg',
-      label: 'DTG printing',
-      maxWidthCm: 35,
-      maxHeightCm: 40,
-    },
-  };
-
   const parseJson = (value, fallback = null) => {
     try {
       return JSON.parse(value || '');
@@ -288,67 +267,15 @@
     request.send(JSON.stringify(payload));
   });
 
-  const normalizeProductionMethods = (pricing) => {
-    const methods = pricing?.productionMethodPricing || {};
-    const rawEmbroideryPricing = pricing?.embroideryPricing || methods?.EMBROIDERY?.embroiderySubtypes || {};
-    const normalizeRate = (rate, fallbackLabel, maxWidthCm, maxHeightCm) => {
-      const surchargeMinor = Number(rate?.surchargeMinor || 0);
-      const feeVariantGid = String(rate?.feeVariantGid || rate?.productionFeeVariantId || rate?.shopifyFeeVariantId || '').trim();
-      const feeVariantId = String(rate?.feeVariantId || normalizeVariantId(feeVariantGid)).trim();
-      return {
-        label: String(rate?.label || fallbackLabel),
-        surchargeMinor: Number.isFinite(surchargeMinor) && surchargeMinor > 0 ? Math.round(surchargeMinor) : 0,
-        ...(feeVariantId ? { feeVariantId } : {}),
-        ...(feeVariantGid ? { feeVariantGid } : {}),
-        maxWidthCm,
-        maxHeightCm,
-      };
-    };
-    const embroiderySubtypes = {
-      TEXT_ONLY: normalizeRate(rawEmbroideryPricing.TEXT_ONLY, 'Embroidery — Text only', 8, 8),
-      IMAGE_OR_LOGO: normalizeRate(rawEmbroideryPricing.IMAGE_OR_LOGO || rawEmbroideryPricing.IMAGE_LOGO, 'Embroidery — Image / Logo', 8, 8),
-    };
-    const configuredMethods = Array.isArray(pricing?.productionMethods)
-      ? pricing.productionMethods
-      : Object.entries(methods).map(([id, method]) => ({ id, ...method }));
-    return configuredMethods.filter((configured) => configured?.enabled !== false).map((configured) => {
-      const code = methodCode(configured?.id || configured?.method);
-      if (!code) return null;
-      const detail = METHOD_DETAILS[code] || {
-        id: code.toLowerCase(),
-        label: String(configured?.label || code.replace(/_/g, ' ')),
-      };
-      const surchargeMinor = Number(configured?.surchargeMinor || 0);
-      const feeVariantGid = String(configured?.feeVariantGid || configured?.productionFeeVariantId || configured?.shopifyFeeVariantId || '').trim();
-      const feeVariantId = String(configured?.feeVariantId || normalizeVariantId(feeVariantGid)).trim();
-      const isEmbroidery = code === 'EMBROIDERY';
-      return {
-        id: detail.id,
-        label: detail.label,
-        surchargeMinor: isEmbroidery
-          ? 0
-          : Number.isFinite(surchargeMinor) && surchargeMinor > 0
-            ? Math.round(surchargeMinor)
-            : 0,
-        ...(!isEmbroidery && feeVariantId ? { feeVariantId } : {}),
-        ...(!isEmbroidery && feeVariantGid ? { feeVariantGid } : {}),
-        ...(isEmbroidery ? { embroiderySubtypes } : {}),
-        ...(Number(configured?.maxWidthCm || detail.maxWidthCm) > 0
-          ? { maxWidthCm: Number(configured?.maxWidthCm || detail.maxWidthCm) }
-          : {}),
-        ...(Number(configured?.maxHeightCm || detail.maxHeightCm) > 0
-          ? { maxHeightCm: Number(configured?.maxHeightCm || detail.maxHeightCm) }
-          : {}),
-      };
-    }).filter(Boolean);
-  };
+  const normalizeProductionMethods = publicContract.normalizeProductionMethods;
 
   const buildProductConfig = (root) => {
     const actions = root?.querySelector?.('[data-marked-product-actions]');
     if (!actions || actions.dataset.customhousePitchprintRequired !== 'true') return null;
 
     const rawPricing = actions.querySelector('[data-customhouse-production-pricing-json]')?.textContent || '';
-    const pricing = parseJson(rawPricing, null);
+    const productId = String(actions.dataset.productId || '');
+    const pricing = state.methodPricing?.get(productId) || parseJson(rawPricing, null);
     const productionMethods = normalizeProductionMethods(pricing);
 
     const sizePosition = Number(actions.dataset.sizeOptionPosition || 0);
@@ -368,6 +295,10 @@
 
     const baseConfig = {
       version: 2,
+      flowMode: 'PUBLIC_CUSTOMIZE',
+      baseProductId: pricing?.baseProductId || String(actions.dataset.productId || ''),
+      productionMethodsResolved: Array.isArray(pricing?.productionMethods) ||
+        Boolean(pricing?.version === 1 && pricing?.productionMethodPricing),
       contractVersion: publicContract.CONTRACT_VERSION,
       productId: String(actions.dataset.productId || ''),
       productHandle: String(actions.dataset.productHandle || ''),
@@ -406,6 +337,7 @@
     };
     const revision = publicContract.revisionFor({
       productId: baseConfig.productId,
+      productionMethodsResolved: baseConfig.productionMethodsResolved,
       optionNames,
       variants,
       productionMethods,
@@ -489,19 +421,61 @@
     return config;
   };
 
-  const respondWithProductConfig = (targetWindow) => {
+  const respondWithProductConfig = (targetWindow, targetOrigin = PITCHPRINT_ORIGIN) => {
     const config = refreshPublicConfig();
-    if (!config || !targetWindow || typeof targetWindow.postMessage !== 'function') return false;
+    if (!config?.productionMethodsResolved || !targetWindow || typeof targetWindow.postMessage !== 'function' || !isAllowedMessageOrigin(targetOrigin)) return false;
+    state.configTargets.set(targetWindow, targetOrigin);
+    targetWindow.postMessage({ type: 'CUSTOMHOUSE_PP_FULL_PRODUCT_CONFIG', payload: config }, targetOrigin);
+    log('METHOD_HANDOFF', { FLOW_MODE: config.flowMode, PRODUCT_ID: config.productId,
+      METHOD_COUNT: config.productionMethods.length, METHOD_CODES: config.productionMethods.map(method => method.code),
+      CURRENCY: config.currency, CONFIG_EVENT_TYPE: 'CUSTOMHOUSE_PP_FULL_PRODUCT_CONFIG' });
     targetWindow.postMessage({
       type: 'CUSTOMHOUSE_PP_ORDER_CONFIG_DATA',
       payload: config,
-    }, '*');
+    }, targetOrigin);
     log('PUBLIC_CONFIG_SENT', {
       PUBLIC_CONFIG_REVISION: config.revision,
       PUBLIC_CONFIG_SENT_VARIANTS: config.variants.length,
       PUBLIC_CONFIG_SENT_TEXT_PRICE: Number(config.embroideryPricing?.TEXT_ONLY?.surchargeMinor || 0),
     });
     return true;
+  };
+
+  state.methodPricing = new Map();
+  state.configTargets = new Map();
+  state.methodRequests = new Map();
+  const sendLatestProductConfig = () => {
+    for (const iframe of document.querySelectorAll('iframe')) {
+      try {
+        const url = new URL(iframe.src, window.location.href);
+        if (url.origin === PITCHPRINT_ORIGIN) state.configTargets.set(iframe.contentWindow, url.origin);
+      } catch { /* Ignore frames without an established PitchPrint origin. */ }
+    }
+    for (const [target, origin] of state.configTargets) respondWithProductConfig(target, origin);
+  };
+  const loadCanonicalMethods = (force = false) => {
+    const config = refreshPublicConfig();
+    if (!config?.productId || typeof fetch !== 'function') return Promise.resolve();
+    const productId = config.productId;
+    const canonicalProductId = /^\d+$/.test(productId) ? `gid://shopify/Product/${productId}` : productId;
+    if (state.methodRequests.has(productId)) return state.methodRequests.get(productId);
+    if (!force && state.methodPricing.has(productId)) return Promise.resolve();
+    const pending = fetch(route('apps/customhouse/api/pitchprint-method-config') + '?productId=' + encodeURIComponent(canonicalProductId), {
+      credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' },
+    }).then(async response => {
+      if (!response.ok) throw new Error('Method configuration unavailable');
+      const result = await response.json();
+      const pricing = result?.data;
+      if (!result.ok || pricing?.productId !== canonicalProductId || !Array.isArray(pricing.productionMethods)) {
+        throw new Error('Invalid method configuration');
+      }
+      state.methodPricing.set(productId, pricing);
+      // A response for Product A must not replace Product B after navigation.
+      if (refreshPublicConfig()?.productId === productId) sendLatestProductConfig();
+    }).catch(() => warn('Canonical method configuration could not be refreshed'))
+      .finally(() => state.methodRequests.delete(productId));
+    state.methodRequests.set(productId, pending);
+    return pending;
   };
 
   const captureSnapshotFromRoot = (root, message = 'Variant snapshot', triggerMatched = false) => {
@@ -1074,6 +1048,9 @@
     if (!client || typeof client.on !== 'function') return false;
 
     try {
+      for (const ready of ['lib-ready', 'before-show', 'app-shown', 'editor-shown']) {
+        client.on(ready, () => { sendLatestProductConfig(); void loadCanonicalMethods(); });
+      }
       client.on('project-saved', handleProjectSaved);
       client.on('save-failed', handleProjectSaveFailed);
       client.on('cart-ready', handleCartReady);
@@ -1136,6 +1113,8 @@
     const root = target?.closest(triggerSelector)?.closest?.(rootSelector);
     if (!root) return;
 
+    state.configTargets.clear();
+    void loadCanonicalMethods(true);
     captureSnapshotFromRoot(root, 'Variant snapshot', true);
     if (!ensurePitchPrintListener() && state.propertyHookUnavailable) {
       requestAnimationFrame(ensurePitchPrintListener);
@@ -1157,12 +1136,16 @@
       return;
     }
     if (message?.type === 'CUSTOMHOUSE_PP_ORDER_CONFIG_ACK') {
+      if (!isAllowedMessageOrigin(event.origin) || !state.configTargets.has(event.source)) return;
       const acknowledgedRevision = String(
         message?.payload?.configRevision || message?.configRevision || ''
       );
       if (acknowledgedRevision && acknowledgedRevision === state.configRevision) {
         state.acknowledgedRevision = acknowledgedRevision;
         log('PUBLIC_CONFIG_ACKNOWLEDGED', {
+          PP_CONFIG_ACK_PRODUCT_ID: state.config?.productId,
+          PP_CONFIG_ACK_METHOD_COUNT: state.config?.productionMethods?.length || 0,
+          PP_CONFIG_ACK_METHOD_CODES: state.config?.productionMethods?.map(method => method.code) || [],
           PUBLIC_CONFIG_REVISION: acknowledgedRevision,
           PUBLIC_CONFIG_ACK_VARIANTS: state.config?.variants?.length || 0,
           PUBLIC_CONFIG_ACK_TEXT_PRICE: Number(state.config?.embroideryPricing?.TEXT_ONLY?.surchargeMinor || 0),
@@ -1170,8 +1153,11 @@
       }
       return;
     }
-    if (message?.type !== 'CUSTOMHOUSE_PP_ORDER_CONFIG_REQUEST') return;
-    respondWithProductConfig(event.source);
+    if (!['CUSTOMHOUSE_PP_ORDER_CONFIG_REQUEST', 'CUSTOMHOUSE_PP_FULL_PRODUCT_CONFIG_REQUEST', 'CUSTOMHOUSE_PP_VARIANTS_REQUEST'].includes(message?.type)) return;
+    if (!isAllowedMessageOrigin(event.origin) || !event.source) return;
+    state.configTargets.set(event.source, event.origin);
+    respondWithProductConfig(event.source, event.origin);
+    void loadCanonicalMethods();
   });
 
   window.addEventListener('customhouse:pitchprint-order-config-request', (event) => {
@@ -1191,5 +1177,6 @@
 
   log('Initialized');
   refreshPublicConfig();
+  void loadCanonicalMethods();
   ensurePitchPrintListener();
 })();

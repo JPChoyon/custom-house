@@ -123,6 +123,8 @@ test("the same nested source selections are not counted twice", () => {
 });
 
 type BridgeHarness = {
+  setPricing(pricing: Record<string, unknown>): void;
+  setProductId(productId: string): void;
   dispatchMessage(event: Record<string, unknown>): void;
   emitClient(eventName: string, data: Record<string, unknown>): void;
   flush(): Promise<void>;
@@ -133,7 +135,7 @@ type BridgeHarness = {
   logs: Array<{ level: string; message: string; detail?: unknown }>;
 };
 
-function bridgeHarness(): BridgeHarness {
+function bridgeHarness(initialPricing?: Record<string, unknown>, fetchConfig?: typeof fetch): BridgeHarness {
   const listeners = new Map<string, Array<(event: Record<string, unknown>) => void>>();
   const requests: Array<{ url: string; payload: Record<string, unknown> }> = [];
   const acknowledgements: Array<Record<string, unknown>> = [];
@@ -141,7 +143,7 @@ function bridgeHarness(): BridgeHarness {
   const clientListeners = new Map<string, Array<(event: Record<string, unknown>) => void>>();
   const logs: Array<{ level: string; message: string; detail?: unknown }> = [];
   const status = { textContent: "", hidden: true, classList: { toggle() {} } };
-  const pricing = {
+  let pricing: Record<string, unknown> = initialPricing || {
     version: 1,
     currency: "SEK",
     productionMethodPricing: {
@@ -295,6 +297,7 @@ function bridgeHarness(): BridgeHarness {
       warn(message: string, detail?: unknown) { logs.push({ level: "warn", message, detail }); },
     },
   };
+  if (fetchConfig) sandbox.fetch = fetchConfig;
   vm.runInNewContext(
     readFileSync("theme-live-cart/assets/customhouse-pitchprint-public-contract.js", "utf8"),
     sandbox,
@@ -312,6 +315,8 @@ function bridgeHarness(): BridgeHarness {
   };
 
   return {
+    setPricing(value) { pricing = value; },
+    setProductId(value) { actions.dataset.productId = value; },
     dispatchMessage(event) {
       for (const listener of listeners.get("message") || []) listener(event);
     },
@@ -330,6 +335,96 @@ function bridgeHarness(): BridgeHarness {
     logs,
   };
 }
+
+test("full-config request delivers sticker-only config, resends on ready, and tracks ACK", () => {
+  const harness = bridgeHarness({ currency: "SEK", productionMethods: [
+    { code: "STICKER_PRINTING", label: "Sticker Printing", enabled: true, surchargeMinor: 1000 },
+    { code: "DTF", enabled: false, surchargeMinor: 2000 },
+  ] });
+  const messages: Array<{ type: string; payload: Record<string, unknown> }> = [];
+  const source = { postMessage(message: typeof messages[number]) { messages.push(message); } };
+  harness.dispatchMessage({ origin: "https://pitchprint.io", source, data: { type: "CUSTOMHOUSE_PP_FULL_PRODUCT_CONFIG_REQUEST" } });
+  const full = messages.find(message => message.type === "CUSTOMHOUSE_PP_FULL_PRODUCT_CONFIG")!;
+  assert.ok(full);
+  assert.equal(full.payload.flowMode, "PUBLIC_CUSTOMIZE");
+  assert.deepEqual(JSON.parse(JSON.stringify(full.payload.productionMethods)), [{
+    code: "STICKER_PRINTING", id: "sticker_printing", label: "Sticker Printing", enabled: true, surchargeMinor: 1000, currency: "SEK",
+  }]);
+  harness.emitClient("editor-shown", {});
+  assert.equal(messages.filter(message => message.type === "CUSTOMHOUSE_PP_FULL_PRODUCT_CONFIG").length, 2);
+  harness.dispatchMessage({ origin: "https://pitchprint.io", source, data: { type: "CUSTOMHOUSE_PP_ORDER_CONFIG_ACK", payload: { configRevision: full.payload.configRevision } } });
+  assert.ok(harness.logs.some(log => log.message.includes("PUBLIC_CONFIG_ACKNOWLEDGED")));
+});
+
+test("authoritative list can shrink to empty and product switch cannot reuse its predecessor", () => {
+  const harness = bridgeHarness({ currency: "SEK", productionMethods: [{ id: "DTF" }, { id: "STICKER_PRINTING" }] });
+  const messages: Array<{ type: string; payload: { productId: string; productionMethods: Array<{ code: string }> } }> = [];
+  const source = { postMessage(message: typeof messages[number]) { messages.push(message); } };
+  const request = () => harness.dispatchMessage({ origin: "https://pitchprint.io", source, data: { type: "CUSTOMHOUSE_PP_ORDER_CONFIG_REQUEST" } });
+  request();
+  harness.setPricing({ currency: "SEK", productionMethods: [{ id: "STICKER_PRINTING" }] });
+  request();
+  assert.deepEqual(Array.from(messages.at(-1)?.payload.productionMethods || [], method => method.code), ["STICKER_PRINTING"]);
+  harness.setPricing({ currency: "SEK", productionMethods: [] });
+  request();
+  assert.deepEqual(JSON.parse(JSON.stringify(messages.at(-1)?.payload.productionMethods)), []);
+  harness.setProductId("gid://shopify/Product/200");
+  harness.setPricing({ currency: "SEK", productionMethods: [{ id: "SCREEN_PRINTING" }] });
+  request();
+  assert.equal(messages.at(-1)?.payload.productId, "gid://shopify/Product/200");
+  assert.deepEqual(Array.from(messages.at(-1)?.payload.productionMethods || [], method => method.code), ["SCREEN_PRINTING"]);
+});
+
+test("canonical server result replaces stale Liquid data and is delivered after readiness", async () => {
+  let finish!: (response: Response) => void;
+  const response = new Promise<Response>(resolve => { finish = resolve; });
+  const harness = bridgeHarness({ productionMethods: [{ id: "EMBROIDERY" }, { id: "DTF" }, { id: "DTG" }] }, (() => response) as typeof fetch);
+  const messages: Array<{ type: string; payload: { productionMethods: Array<{ code: string }> } }> = [];
+  const source = { postMessage(message: typeof messages[number]) { messages.push(message); } };
+  harness.dispatchMessage({ origin: "https://pitchprint.io", source, data: { type: "CUSTOMHOUSE_PP_FULL_PRODUCT_CONFIG_REQUEST" } });
+  finish(Response.json({ ok: true, data: { productId: "gid://shopify/Product/100", currency: "SEK", productionMethods: [{ code: "STICKER_PRINTING", enabled: true, surchargeMinor: 1000 }] } }));
+  await harness.flush();
+  await harness.flush();
+  assert.deepEqual(Array.from(messages.at(-1)?.payload.productionMethods || [], method => method.code), ["STICKER_PRINTING"]);
+});
+
+test("untrusted origins cannot obtain config", () => {
+  const harness = bridgeHarness({ productionMethods: [] });
+  let sent = false;
+  harness.dispatchMessage({ origin: "https://untrusted.invalid", source: { postMessage() { sent = true; } }, data: { type: "CUSTOMHOUSE_PP_FULL_PRODUCT_CONFIG_REQUEST" } });
+  assert.equal(sent, false);
+});
+
+test("Liquid numeric product ID is normalized for the canonical server lookup", async () => {
+  const requests: string[] = [];
+  const harness = bridgeHarness({ productionMethods: [] }, (async (url: string) => {
+    requests.push(url);
+    const productId = new URL(url, "https://customhouse.se").searchParams.get("productId");
+    return Response.json({ ok: true, data: { productId, baseProductId: productId, currency: "SEK", productionMethods: [{ code: "STICKER_PRINTING" }] } });
+  }) as typeof fetch);
+  harness.setProductId("16472592548185");
+  const messages: Array<{ payload: { productionMethods: Array<{ code: string }> } }> = [];
+  harness.dispatchMessage({ origin: "https://pitchprint.io", source: { postMessage(message: typeof messages[number]) { messages.push(message); } }, data: { type: "CUSTOMHOUSE_PP_FULL_PRODUCT_CONFIG_REQUEST" } });
+  await harness.flush();
+  await harness.flush();
+  assert.ok(requests.some(url => decodeURIComponent(url).includes("gid://shopify/Product/16472592548185")));
+  assert.deepEqual(Array.from(messages.at(-1)?.payload.productionMethods || [], method => method.code), ["STICKER_PRINTING"]);
+});
+
+test("partial Liquid pricing cannot close the authoritative list, while a resolved empty server list does", async () => {
+  let finish!: (response: Response) => void;
+  const pending = new Promise<Response>(resolve => { finish = resolve; });
+  const harness = bridgeHarness({ currency: "SEK" }, (() => pending) as typeof fetch);
+  const messages: Array<{ payload: { productionMethods: unknown[] } }> = [];
+  const source = { postMessage(message: typeof messages[number]) { messages.push(message); } };
+  harness.dispatchMessage({ origin: "https://pitchprint.io", source, data: { type: "CUSTOMHOUSE_PP_FULL_PRODUCT_CONFIG_REQUEST" } });
+  assert.equal(messages.length, 0);
+  finish(Response.json({ ok: true, data: { productId: "gid://shopify/Product/100", currency: "SEK", productionMethods: [] } }));
+  await harness.flush();
+  await harness.flush();
+  assert.ok(messages.length > 0);
+  assert.deepEqual(JSON.parse(JSON.stringify(messages.at(-1)?.payload.productionMethods)), []);
+});
 
 test("allowed PitchPrint cart-ready message atomically adds all prepared lines, acknowledges, and redirects", async () => {
   const harness = bridgeHarness();
@@ -414,7 +509,7 @@ test("new public design config exposes explicit save-on-continue identity", () =
     data: { type: "CUSTOMHOUSE_PP_ORDER_CONFIG_REQUEST" },
   });
 
-  const response = messages[0] as {
+  const response = messages.find(message => message.type === "CUSTOMHOUSE_PP_ORDER_CONFIG_DATA") as {
     type?: string;
     payload?: Record<string, unknown>;
   };
