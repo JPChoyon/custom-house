@@ -28,6 +28,8 @@ type ProductionPricingDb = {
   };
   productionMethodSetting?: {
     findMany(args: unknown): Promise<ProductionMethodSettingRecord[]>;
+    findUnique?(args: unknown): Promise<ProductionMethodSettingRecord | null>;
+    create?(args: unknown): Promise<ProductionMethodSettingRecord>;
   };
 };
 
@@ -73,6 +75,14 @@ export type ProductionMethodDefinition = EnabledProductionMethod & {
   enabled: boolean;
   pricingBehavior: ProductionPricingBehavior;
   tiers: string[];
+};
+
+export type CreateProductionMethodDefinitionInput = {
+  label: unknown;
+  code?: unknown;
+  pricingBehavior?: unknown;
+  maxWidthCm?: unknown;
+  maxHeightCm?: unknown;
 };
 
 export type ProductProductionRateConfiguration = {
@@ -542,6 +552,108 @@ function cleanBoolean(value: unknown, fallback = false) {
 function optionalDimension(value: unknown) {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? number : undefined;
+}
+
+export function canonicalProductionMethodCode(value: unknown) {
+  const code = String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return cleanProductionMethod(code);
+}
+
+function customMethodDimension(value: unknown) {
+  if (value === undefined || value === null || String(value).trim() === "") {
+    return undefined;
+  }
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0 || number > 1000) {
+    throw new DomainError(
+      "PRODUCTION_METHOD_DIMENSION_INVALID",
+      "Artwork dimensions must be positive numbers no greater than 1000 cm.",
+      422,
+    );
+  }
+  return number;
+}
+
+export async function createProductionMethodDefinition(
+  shop: string,
+  input: CreateProductionMethodDefinitionInput,
+  database: ProductionPricingDb = db as unknown as ProductionPricingDb,
+): Promise<ProductionMethodDefinition> {
+  const label = typeof input.label === "string" ? input.label.trim() : "";
+  if (label.length < 2 || label.length > 80) {
+    throw new DomainError(
+      "PRODUCTION_METHOD_LABEL_INVALID",
+      "Method name must be between 2 and 80 characters.",
+      422,
+    );
+  }
+  const code = canonicalProductionMethodCode(
+    typeof input.code === "string" && input.code.trim() ? input.code : label,
+  );
+  if (PRODUCTION_METHODS.includes(code as (typeof PRODUCTION_METHODS)[number])) {
+    throw new DomainError(
+      "PRODUCTION_METHOD_RESERVED",
+      "Built-in production method codes cannot be overwritten.",
+      409,
+    );
+  }
+  if (input.pricingBehavior && input.pricingBehavior !== "SINGLE") {
+    throw new DomainError(
+      "PRODUCTION_METHOD_PRICING_BEHAVIOR_INVALID",
+      "New production methods currently support single-price behavior.",
+      422,
+    );
+  }
+  const delegate = database.productionMethodSetting;
+  if (!delegate?.findUnique || !delegate.create) {
+    throw new DomainError(
+      "PRODUCTION_METHOD_REGISTRY_UNAVAILABLE",
+      "Production method management is temporarily unavailable.",
+      503,
+    );
+  }
+  const existing = await delegate.findUnique({
+    where: { shopKey_method: { shopKey: shop, method: code } },
+  });
+  if (existing) {
+    throw new DomainError(
+      "PRODUCTION_METHOD_DUPLICATE",
+      "A production method with this stable code already exists.",
+      409,
+    );
+  }
+  const maxWidthCm = customMethodDimension(input.maxWidthCm);
+  const maxHeightCm = customMethodDimension(input.maxHeightCm);
+  await delegate.create({
+    data: {
+      shopKey: shop,
+      method: code,
+      label,
+      description: "",
+      enabled: true,
+      pricingBehavior: "SINGLE",
+      configurationJson: {
+        ...(maxWidthCm ? { maxWidthCm } : {}),
+        ...(maxHeightCm ? { maxHeightCm } : {}),
+      } as Prisma.InputJsonValue,
+    },
+  });
+  return {
+    id: code,
+    label,
+    description: "",
+    enabled: true,
+    pricingBehavior: "SINGLE",
+    tiers: [],
+    ...(maxWidthCm ? { maxWidthCm } : {}),
+    ...(maxHeightCm ? { maxHeightCm } : {}),
+  };
 }
 
 function legacyProductConfiguration(

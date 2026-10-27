@@ -1,14 +1,17 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { Form, useActionData, useLoaderData } from "react-router";
+import { useActionData, useLoaderData } from "react-router";
 import { AdminStyles, SafeAdminError } from "../components/admin-ui";
+import { ProductionPricingMatrix } from "../components/production-pricing-matrix";
 import { authenticate } from "../shopify.server";
+import { DomainError } from "../services/domain";
+import { parseProductionPricingBatchForm } from "../services/production-pricing-admin";
 import { AdminGraphqlClient } from "../services/shopify-graphql.server";
 import {
+  createProductionMethodDefinition,
   listProductionPricingRows,
   listProductionMethodDefinitions,
   productProductionConfiguration,
   saveProductProductionConfiguration,
-  type ProductProductionConfiguration,
 } from "../services/production-method-pricing.server";
 
 type ProductRow = {
@@ -57,13 +60,6 @@ function isPublicCustomizableProduct(product: {
   );
 }
 
-function moneyRange(product: ProductRow) {
-  const min = product.priceRangeV2.minVariantPrice;
-  const max = product.priceRangeV2.maxVariantPrice;
-  if (min.amount === max.amount) return `${min.amount} ${min.currencyCode}`;
-  return `${min.amount} - ${max.amount} ${min.currencyCode}`;
-}
-
 async function verifyPublicCustomizableProduct(
   client: AdminGraphqlClient,
   productId: string,
@@ -90,31 +86,12 @@ async function verifyPublicCustomizableProduct(
     { id: productId },
   );
   if (!data.product || !isPublicCustomizableProduct(data.product)) {
-    throw new Error(
+    throw new DomainError(
+      "PRODUCTION_PRICING_PRODUCT_INELIGIBLE",
       "Production pricing is only available for public customizable PitchPrint products.",
+      422,
     );
   }
-}
-
-function configuredRate(
-  configuration: ProductProductionConfiguration | undefined,
-  method: string,
-  tier?: string,
-) {
-  const configured = configuration?.methods[method];
-  if (!configured) return { enabled: false, surcharge: "0.00" };
-  if (tier && "tiers" in configured) {
-    return configured.tiers[tier] || { enabled: false, surcharge: "0.00" };
-  }
-  if (!("tiers" in configured)) return configured;
-  return { enabled: configured.enabled, surcharge: "0.00" };
-}
-
-function tierLabel(tier: string) {
-  if (tier === "TEXT_ONLY") return "Text only";
-  if (tier === "IMAGE_OR_LOGO") return "Image / Logo";
-  return tier.toLowerCase().split("_").filter(Boolean)
-    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`).join(" ");
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -161,59 +138,55 @@ export async function action({ request }: ActionFunctionArgs) {
   const client = new AdminGraphqlClient(admin);
   const form = await request.formData();
   const intent = String(form.get("intent") || "");
-  const currency = String(form.get("currency") || "SEK");
-  if (intent !== "save-production-pricing") {
-    return {
-      ok: false,
-      message: "Unsupported product action.",
-      productId: null,
-      details: [] as string[],
-    };
-  }
-
-  const productId = String(form.get("shopifyProductId") || "");
   try {
-    await verifyPublicCustomizableProduct(client, productId);
-    const definitions = await listProductionMethodDefinitions(session.shop);
-    const methods = Object.fromEntries(definitions.map((definition) => {
-      if (definition.pricingBehavior === "TIERED") {
-        const tiers = Object.fromEntries(definition.tiers.map((tier) => [tier, {
-          enabled: form.get(`method.${definition.id}.${tier}.enabled`) === "on",
-          surcharge: form.get(`method.${definition.id}.${tier}.surcharge`),
-        }]));
-        return [definition.id, { enabled: true, tiers }];
+    if (intent === "add-production-method") {
+      const definition = await createProductionMethodDefinition(session.shop, {
+        label: form.get("methodName"),
+        code: form.get("methodCode"),
+        pricingBehavior: form.get("pricingBehavior"),
+        maxWidthCm: form.get("maxWidthCm"),
+        maxHeightCm: form.get("maxHeightCm"),
+      });
+      return {
+        ok: true,
+        intent,
+        message: `${definition.label} was added and starts disabled for every product.`,
+        details: [] as string[],
+      };
+    }
+
+    if (intent === "save-production-pricing-batch") {
+      const definitions = await listProductionMethodDefinitions(session.shop);
+      const inputs = parseProductionPricingBatchForm(form, definitions);
+
+      // Validate the entire batch before any database or Shopify writes occur.
+      for (const input of inputs) {
+        await verifyPublicCustomizableProduct(client, input.shopifyProductId);
       }
-      return [definition.id, {
-        enabled: form.get(`method.${definition.id}.enabled`) === "on",
-        surcharge: form.get(`method.${definition.id}.surcharge`),
-      }];
-    }));
-    const result = await saveProductProductionConfiguration(
-      session.shop,
-      {
-        shopifyProductId: productId,
-        currency,
-        methods,
-      },
-      client,
-    );
-    return {
-      ok: result.status === "saved",
-      productId,
-      message: result.message,
-      details: [
-        result.saved ? "Saved" : null,
-        result.shopifySynced ? "Shopify config synced" : null,
-        result.productionFeeSynced ? "Production fee synced" : null,
-        ...result.errors,
-      ].filter((item): item is string => Boolean(item)),
-    };
+
+      const results = [];
+      for (const input of inputs) {
+        results.push(await saveProductProductionConfiguration(session.shop, input, client));
+      }
+      const errors = results.flatMap((result) => result.errors);
+      const fullySaved = results.every((result) => result.status === "saved");
+      return {
+        ok: fullySaved,
+        intent,
+        message: fullySaved
+          ? `Production pricing saved for ${results.length} product${results.length === 1 ? "" : "s"}.`
+          : "Production pricing was saved with sync warnings.",
+        details: errors,
+      };
+    }
+
+    throw new DomainError("UNSUPPORTED_PRODUCT_ACTION", "Unsupported product action.", 400);
   } catch (error) {
     return {
       ok: false,
-      productId,
+      intent,
       message:
-        error instanceof Error
+        error instanceof DomainError
           ? error.message
           : "Production pricing could not be saved.",
       details: [] as string[],
@@ -243,96 +216,18 @@ export default function Products() {
           </header>
 
           {eligibleProducts.length ? (
-            <div className="settings-grid">
-              {eligibleProducts.map((product) => {
-                const configuration = configurationByProduct[product.id];
-                const currency =
-                  product.priceRangeV2.minVariantPrice.currencyCode;
-                const active = actionData?.productId === product.id;
-                return (
-                  <section className="settings-card" key={product.id}>
-                    <div className="settings-card-heading">
-                      <span className="settings-icon settings-icon--integration" />
-                      <div>
-                        <h2>{product.title}</h2>
-                        <p>
-                          Base Shopify price: {moneyRange(product)} ·{" "}
-                          {product.handle}
-                        </p>
-                      </div>
-                    </div>
-                    <h3 className="settings-subheading">Production Pricing</h3>
-                    {active ? (
-                      <s-banner tone={actionData.ok ? "success" : "critical"}>
-                        <strong>{actionData.message}</strong>
-                        {actionData.details.length ? (
-                          <span> {actionData.details.join(" · ")}</span>
-                        ) : null}
-                      </s-banner>
-                    ) : null}
-                    <Form method="post" className="settings-field-stack production-pricing-form">
-                      <input
-                        type="hidden"
-                        name="intent"
-                        value="save-production-pricing"
-                      />
-                      <input
-                        type="hidden"
-                        name="shopifyProductId"
-                        value={product.id}
-                      />
-                      <input type="hidden" name="currency" value={currency} />
-                      <div className="production-method-grid">
-                        {methodDefinitions.flatMap((definition) => {
-                          const rows = definition.pricingBehavior === "TIERED"
-                            ? definition.tiers.map((tier) => ({
-                                key: `${definition.id}.${tier}`,
-                                label: `${definition.label} — ${tierLabel(tier)}`,
-                                tier,
-                                rate: configuredRate(configuration, definition.id, tier),
-                              }))
-                            : [{
-                                key: definition.id,
-                                label: definition.label,
-                                tier: undefined,
-                                rate: configuredRate(configuration, definition.id),
-                              }];
-                          return rows.map((row) => (
-                            <div className="production-method-row" key={row.key}>
-                              <label className="production-method-enabled">
-                                <input
-                                  type="checkbox"
-                                  name={`method.${definition.id}${row.tier ? `.${row.tier}` : ""}.enabled`}
-                                  defaultChecked={row.rate.enabled}
-                                />
-                                <span>{row.label}</span>
-                              </label>
-                              <label className="production-method-price">
-                                <span>Price</span>
-                                <input
-                                  name={`method.${definition.id}${row.tier ? `.${row.tier}` : ""}.surcharge`}
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  defaultValue={row.rate.surcharge}
-                                />
-                                <small>{currency}</small>
-                              </label>
-                            </div>
-                          ));
-                        })}
-                      </div>
-                      <button
-                        type="submit"
-                        className="settings-secondary-button"
-                      >
-                        Save Production Pricing
-                      </button>
-                    </Form>
-                  </section>
-                );
-              })}
-            </div>
+            <ProductionPricingMatrix
+              products={eligibleProducts.map((product) => ({
+                id: product.id,
+                title: product.title,
+                handle: product.handle,
+                currency: product.priceRangeV2.minVariantPrice.currencyCode,
+                basePrice: product.priceRangeV2.minVariantPrice.amount,
+              }))}
+              configurationByProduct={configurationByProduct}
+              methodDefinitions={methodDefinitions}
+              actionData={actionData}
+            />
           ) : (
             <div className="dashboard-empty">
               <strong>No public customizable products were found.</strong>

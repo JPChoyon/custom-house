@@ -1006,6 +1006,67 @@ test("Creator draft persists each selected printing method before PitchPrint lau
   }
 });
 
+test("Creator save accepts a canonical custom method code longer than forty characters", async () => {
+  const customMethod = "ULTRA_LONG_CUSTOM_PRODUCTION_METHOD_FOR_CREATOR_FLOW";
+  assert.ok(customMethod.length > 40);
+  const db = fakeDb();
+  db.productionMethodSetting.findMany = async () => [
+    { method: "EMBROIDERY", enabled: true },
+    { method: "DTF", enabled: true },
+    { method: "DTG", enabled: true },
+    {
+      method: customMethod,
+      label: "Long custom method",
+      description: "",
+      enabled: true,
+      pricingBehavior: "SINGLE",
+      configurationJson: {},
+    },
+  ];
+  const findPricing = db.publicProductProductionPricing.findUnique.bind(
+    db.publicProductProductionPricing,
+  );
+  db.publicProductProductionPricing.findUnique = async (args?: unknown) => ({
+    ...(await findPricing(args)),
+    methodConfigurations: {
+      version: 2,
+      methods: {
+        [customMethod]: {
+          enabled: true,
+          surcharge: "25.00",
+          feeVariantId: "gid://shopify/ProductVariant/9090",
+        },
+      },
+    },
+  });
+  const draft = await createCreatorProductDraft(
+    shop,
+    "gid://shopify/Customer/1",
+    {
+      shopifyProductId: baseProduct.id,
+      selectedProductionMethod: customMethod,
+    },
+    fakeClient(),
+    db,
+  );
+
+  const updated = await attachPitchPrintProjectToCreatorProduct(
+    shop,
+    "gid://shopify/Customer/1",
+    draft.id,
+    pitchPrintPayload({
+      projectId: "pp_long_custom_method",
+      previewUrl: "https://cdn.pitchprint.test/long-custom-method.png",
+    }),
+    db,
+  );
+
+  assert.equal(
+    JSON.parse(updated.designVariantSelectionsJson).productionMethod,
+    customMethod,
+  );
+});
+
 test("base product without PitchPrint design ID cannot create a broken Creator Product", async () => {
   const db = fakeDb();
   await assert.rejects(

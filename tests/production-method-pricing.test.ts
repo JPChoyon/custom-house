@@ -7,10 +7,13 @@ import {
 } from "../app/services/shopify-graphql.server.ts";
 import {
   CREATOR_PRODUCTION_PRICING_PRODUCT_ID,
+  canonicalProductionMethodCode,
+  createProductionMethodDefinition,
   feeVariantIdForEmbroiderySubtype,
   getEnabledProductionMethodsForProduct,
   getProductionPricingBridgeForProduct,
   listEnabledProductionMethods,
+  listProductionMethodDefinitions,
   parseSurchargeInput,
   pricingForEmbroiderySubtype,
   productionPricingBridgePayload,
@@ -22,12 +25,113 @@ import {
   type ProductionPricingBridgePayload,
   type PublicProductProductionPricingRecord,
 } from "../app/services/production-method-pricing.server.ts";
+import { DomainError } from "../app/services/domain.ts";
 
 import {
   calculateTrustedProductionTotal,
   jsonSafePublicProductionCart,
   preparePublicProductionCart,
 } from "../app/services/production-method-cart.server.ts";
+
+test("custom registry method uses a stable code and starts disabled for products", async () => {
+  const rows: Array<Record<string, unknown>> = [];
+  let productPricingWrites = 0;
+  const database = {
+    productionMethodSetting: {
+      async findMany() {
+        return rows;
+      },
+      async findUnique({ where }: { where: { shopKey_method: { shopKey: string; method: string } } }) {
+        return rows.find((row) =>
+          row.shopKey === where.shopKey_method.shopKey &&
+          row.method === where.shopKey_method.method,
+        ) || null;
+      },
+      async create({ data }: { data: Record<string, unknown> }) {
+        const row = { id: "method-1", ...data };
+        rows.push(row);
+        return row;
+      },
+    },
+    publicProductProductionPricing: {
+      async findUnique() { return null; },
+      async findMany() { return []; },
+      async upsert() { productPricingWrites += 1; throw new Error("unexpected pricing write"); },
+      async update() { productPricingWrites += 1; throw new Error("unexpected pricing write"); },
+    },
+  };
+
+  assert.equal(canonicalProductionMethodCode("Screen Printing"), "SCREEN_PRINTING");
+  const created = await createProductionMethodDefinition(
+    "shop.test",
+    {
+      label: "Screen Printing",
+      code: "",
+      pricingBehavior: "SINGLE",
+      maxWidthCm: "35",
+      maxHeightCm: "40",
+    },
+    database as never,
+  );
+  assert.deepEqual(
+    {
+      id: created.id,
+      label: created.label,
+      pricingBehavior: created.pricingBehavior,
+      maxWidthCm: created.maxWidthCm,
+      maxHeightCm: created.maxHeightCm,
+    },
+    {
+      id: "SCREEN_PRINTING",
+      label: "Screen Printing",
+      pricingBehavior: "SINGLE",
+      maxWidthCm: 35,
+      maxHeightCm: 40,
+    },
+  );
+  const definitions = await listProductionMethodDefinitions("shop.test", database as never);
+  assert.equal(definitions.at(-1)?.id, "SCREEN_PRINTING");
+  assert.equal(productPricingWrites, 0);
+});
+
+test("custom registry method rejects reserved duplicate and invalid configuration", async () => {
+  const rows = [{
+    id: "method-1",
+    shopKey: "shop.test",
+    method: "SCREEN_PRINTING",
+    label: "Screen Printing",
+    description: "",
+    enabled: true,
+    pricingBehavior: "SINGLE",
+    configurationJson: {},
+  }];
+  const database = {
+    productionMethodSetting: {
+      async findMany() { return rows; },
+      async findUnique({ where }: { where: { shopKey_method: { method: string } } }) {
+        return rows.find((row) => row.method === where.shopKey_method.method) || null;
+      },
+      async create() { throw new Error("must not create invalid method"); },
+    },
+    publicProductProductionPricing: {
+      async findUnique() { return null; },
+      async findMany() { return []; },
+      async upsert() { throw new Error("unexpected"); },
+      async update() { throw new Error("unexpected"); },
+    },
+  };
+
+  for (const [input, code] of [
+    [{ label: "DTF", code: "DTF", pricingBehavior: "SINGLE" }, "PRODUCTION_METHOD_RESERVED"],
+    [{ label: "Screen Printing", code: "SCREEN_PRINTING", pricingBehavior: "SINGLE" }, "PRODUCTION_METHOD_DUPLICATE"],
+    [{ label: "Laser Engraving", code: "LASER_ENGRAVING", pricingBehavior: "SINGLE", maxWidthCm: "0" }, "PRODUCTION_METHOD_DIMENSION_INVALID"],
+  ] as const) {
+    await assert.rejects(
+      () => createProductionMethodDefinition("shop.test", input, database as never),
+      (error) => error instanceof DomainError && error.code === code,
+    );
+  }
+});
 
 test("enabled production methods preserve explicit disabled settings and canonical labels", async () => {
   let findManyArgs: unknown;
@@ -370,19 +474,30 @@ test("production method display config serializes minor units", () => {
 
 test("admin products page exposes pricing only for public customizable products", () => {
   const source = readFileSync("app/routes/app.products.tsx", "utf8");
+  const matrix = readFileSync("app/components/production-pricing-matrix.tsx", "utf8");
   const appShell = readFileSync("app/routes/app.tsx", "utf8");
-  const publicPricingForm = source.match(
-    /value="save-production-pricing"[\s\S]*?Save Production Pricing/,
-  )?.[0] || "";
 
-  assert.match(source, /save-production-pricing/);
+  assert.match(source, /save-production-pricing-batch/);
+  assert.match(source, /add-production-method/);
   assert.doesNotMatch(source, /save-creator-production-pricing/);
   assert.doesNotMatch(source, /Creator Product Printing Methods/);
-  assert.match(publicPricingForm, /methodDefinitions\.flatMap/);
-  assert.match(publicPricingForm, /type="checkbox"/);
-  assert.match(publicPricingForm, /type="number"/);
-  assert.match(publicPricingForm, /definition\.pricingBehavior === "TIERED"/);
-  assert.match(publicPricingForm, /method\.\$\{definition\.id\}/);
+  assert.match(source, /ProductionPricingMatrix/);
+  assert.match(matrix, /<table/);
+  assert.match(matrix, /<thead>/);
+  assert.match(matrix, /<tbody>/);
+  assert.match(matrix, /type="checkbox"/);
+  assert.match(matrix, /type="number"/);
+  assert.match(matrix, /navigation\.state !== "idle"/);
+  assert.match(matrix, /disabled=\{frozen\}/);
+  assert.match(matrix, /disabled=\{frozen \|\| !enabled\}/);
+  assert.match(matrix, /Save Changes/);
+  assert.equal(matrix.match(/Save Changes/g)?.length, 1);
+  assert.match(matrix, /Add Method \+/);
+  assert.match(matrix, /role="dialog"/);
+  assert.match(matrix, /name="methodName"/);
+  assert.match(matrix, /name="methodCode"/);
+  assert.match(matrix, /name="maxWidthCm"/);
+  assert.match(matrix, /name="maxHeightCm"/);
   assert.match(source, /product_type/);
   assert.match(source, /product_origin/);
   assert.match(source, /design_mode/);
@@ -390,27 +505,24 @@ test("admin products page exposes pricing only for public customizable products"
   assert.match(source, /global_customizable/);
   assert.match(source, /pitchprint-options/);
   assert.match(source, /isLegacyGlobalCustomizable/);
-  assert.match(source, /"0\.00"/);
   assert.match(source, /Production Pricing/);
   assert.match(source, /listProductionMethodDefinitions/);
   assert.match(source, /productProductionConfiguration/);
   assert.match(source, /saveProductProductionConfiguration/);
-  assert.match(source, /Save Production Pricing/);
   assert.match(appShell, /href="\/app\/products"[\s\S]*Products/);
 });
 
 test("admin products regression keeps pricing controls visible without an existing row", () => {
-  const source = readFileSync("app/routes/app.products.tsx", "utf8");
+  const source = readFileSync("app/components/production-pricing-matrix.tsx", "utf8");
   const styles = readFileSync("app/styles/admin.css", "utf8");
 
-  assert.match(source, /const configuration = configurationByProduct\[product\.id\]/);
-  assert.match(source, /if \(!configured\) return \{ enabled: false, surcharge: "0\.00" \}/);
-  assert.match(source, /defaultChecked=\{row\.rate\.enabled\}/);
-  assert.match(source, /defaultValue=\{row\.rate\.surcharge\}/);
-  assert.match(
-    styles,
-    /\.production-method-row\s*\{[\s\S]*?grid-template-columns:\s*minmax\(180px, 1fr\) minmax\(160px, 0\.8fr\)/,
-  );
+  assert.match(source, /productionPricingMatrixRows/);
+  assert.match(source, /productionPricingMatrixColumns/);
+  assert.match(source, /useState\(cell\.enabled\)/);
+  assert.match(source, /useState\(cell\.surcharge\)/);
+  assert.match(source, /type="hidden"[\s\S]*?value=\{price/);
+  assert.match(styles, /\.production-pricing-matrix-scroll\s*\{[\s\S]*?overflow:\s*auto/);
+  assert.match(styles, /\.production-pricing-product-cell\s*\{[\s\S]*?position:\s*sticky/);
 });
 
 test("admin product eligibility excludes creator buy-only products", () => {

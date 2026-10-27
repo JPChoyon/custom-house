@@ -2208,12 +2208,12 @@ export async function attachPitchPrintProjectToCreatorProduct(
   const previewUrl = previewUrls[0] || null;
   const effectiveColors = normalizedCreatorColorValues(requestedSetup);
   const effectiveColor = effectiveColors.length === 1 ? effectiveColors[0] : null;
-  const lockedMethod = cleanOptionalText(
+  const lockedMethodValue =
     lockedSetup.productionMethod ||
-      lockedSetup.fixedProductionMethod ||
-      lockedSetup.selectedProductionMethod,
-    40,
-  );
+    lockedSetup.fixedProductionMethod ||
+    lockedSetup.selectedProductionMethod;
+  const lockedMethod =
+    typeof lockedMethodValue === "string" ? lockedMethodValue.trim() : "";
   if (!lockedMethod) {
     throw new DomainError(
       "PRODUCTION_METHOD_REQUIRED",
@@ -2230,8 +2230,11 @@ export async function attachPitchPrintProjectToCreatorProduct(
     nestedRequestedSetup.productionMethod,
     nestedRequestedSetup.selectedProductionMethod,
   ]
-    .map((value) => cleanOptionalText(value, 40))
-    .filter((value): value is string => Boolean(value))
+    .filter(
+      (value): value is string =>
+        typeof value === "string" && Boolean(value.trim()),
+    )
+    .map((value) => value.trim())
     .map(cleanProductionMethod);
   if (requestedMethods.some((method) => method !== persistedProductionMethod)) {
     throw new DomainError("PRODUCTION_METHOD_LOCKED", "The printing method is fixed for this Creator Product.", 422);

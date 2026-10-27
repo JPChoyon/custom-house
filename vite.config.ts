@@ -57,6 +57,9 @@ export default defineConfig({
   ],
   build: {
     assetsInlineLimit: 0,
+    rollupOptions: {
+      maxParallelFileOps: 1,
+    },
   },
   optimizeDeps: {
     include: ["@shopify/app-bridge-react"],
