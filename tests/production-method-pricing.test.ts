@@ -1753,7 +1753,7 @@ test("enabled zero-cost public subtype succeeds without fee merchandise", async 
         return {
           ...pricing,
           embroideryImageSurcharge: parseSurchargeInput("0.00"),
-          embroideryImageFeeVariantId: null,
+          embroideryImageFeeVariantId: "gid://shopify/ProductVariant/9005",
         };
       },
     },
@@ -1773,6 +1773,12 @@ test("enabled zero-cost public subtype succeeds without fee merchandise", async 
   );
   assert.equal(cart.totals.productionSurchargeMinor, 0n);
   assert.equal(cart.feeRequired, false);
+  assert.equal(cart.feeVariantId, null);
+  const baseProperties = cart.items[0]?.properties as Record<string, string>;
+  const contract = JSON.parse(
+    baseProperties._customhouse_public_cart_validation || "{}",
+  );
+  assert.equal(contract.feeVariantId, null);
   assert.equal(cart.items.length, 1);
 });
 

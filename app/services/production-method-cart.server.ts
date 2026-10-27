@@ -403,7 +403,9 @@ export async function preparePublicProductionCart(
     database: database as Parameters<typeof resolveProductionPricing>[0]["database"],
   });
   const surchargeMinor = resolvedPricing.surchargeMinor;
-  const feeVariantId = resolvedPricing.feeVariantId;
+  const feeVariantId = resolvedPricing.feeRequired
+    ? resolvedPricing.feeVariantId
+    : null;
   if (resolvedPricing.feeRequired && !feeVariantId) {
     throw new DomainError(
       "PRODUCTION_FEE_SYNC_REQUIRED",

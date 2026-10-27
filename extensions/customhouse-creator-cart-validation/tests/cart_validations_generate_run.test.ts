@@ -189,6 +189,7 @@ function publicLine({
   method = "EMBROIDERY",
   subtype = "TEXT_ONLY",
   placementCount = 1,
+  feeRequired = true,
   feeVariantId = "gid://shopify/ProductVariant/public-text-fee",
 }: {
   productId?: string;
@@ -197,7 +198,8 @@ function publicLine({
   method?: "EMBROIDERY" | "DTF" | "DTG";
   subtype?: "TEXT_ONLY" | "IMAGE_OR_LOGO" | null;
   placementCount?: number;
-  feeVariantId?: string;
+  feeRequired?: boolean;
+  feeVariantId?: string | null;
 } = {}): Line {
   return {
     id: `gid://shopify/CartLine/public-${quantity}`,
@@ -212,7 +214,7 @@ function publicLine({
     placementCountAttribute: attribute(String(placementCount)),
     publicCartValidationAttribute: attribute(JSON.stringify({
       version: 1,
-      feeRequired: true,
+      feeRequired,
       feeVariantId,
       productionMethod: method,
       embroiderySubtype: subtype,
@@ -457,6 +459,22 @@ describe("CustomHouse public customization cart validation", () => {
       }),
       publicFeeLine({ variantId: "gid://shopify/ProductVariant/public-image-fee" }),
     ])).toEqual([]);
+  });
+
+  test("allows a canonical zero-price rate with an existing fee mapping", () => {
+    const zeroPriceWithExistingMapping = structuredClone(publicPricing);
+    zeroPriceWithExistingMapping.productionMethodPricing.DTF.surchargeMinor = 0;
+
+    const line = publicLine({
+      method: "DTF",
+      subtype: null,
+      feeRequired: false,
+      feeVariantId: null,
+    });
+    (line.merchandise as { product: { productionMethodPricing: { jsonValue: unknown } } })
+      .product.productionMethodPricing.jsonValue = zeroPriceWithExistingMapping;
+
+    expect(errors([line])).toEqual([]);
   });
 
   test("requires purchased quantity multiplied by placement count", () => {

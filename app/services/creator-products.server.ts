@@ -1834,16 +1834,18 @@ export async function createCreatorProductDraft(
   const productionMethod = cleanProductionMethod(
     input.fixedProductionMethod ?? input.selectedProductionMethod,
   );
-  const availableMethods = database.publicProductProductionPricing
-    ? await getEnabledProductionMethodsForProduct(
-        shop,
-        product.id,
-        database as unknown as Parameters<typeof getEnabledProductionMethodsForProduct>[2],
-      )
-    : productionMethodsForCreatorProduct(
-        PRODUCTION_METHODS.map((id) => ({ id, label: id })),
-        product.productionMethodPricing?.value,
-      );
+  if (!database.publicProductProductionPricing) {
+    throw new DomainError(
+      "PRODUCTION_PRICING_REQUIRED",
+      "Product-specific production pricing is required for new Creator Products.",
+      409,
+    );
+  }
+  const availableMethods = await getEnabledProductionMethodsForProduct(
+    shop,
+    product.id,
+    database as unknown as Parameters<typeof getEnabledProductionMethodsForProduct>[2],
+  );
   if (!availableMethods.some((method) => method.id === productionMethod)) {
     throw new DomainError(
       "PRODUCTION_METHOD_DISABLED",
@@ -1915,6 +1917,13 @@ export async function listEligibleCreatorBaseProducts(
   database: CreatorProductDb = db,
 ) {
   await approvedCreatorForCustomer(shop, customerId, database);
+  if (!database.publicProductProductionPricing) {
+    throw new DomainError(
+      "PRODUCTION_PRICING_REQUIRED",
+      "Product-specific production pricing is required for new Creator Products.",
+      409,
+    );
+  }
   const result = await client.request<{
     shop?: { currencyCode: string };
     products: {
@@ -1980,13 +1989,11 @@ export async function listEligibleCreatorBaseProducts(
     .map(async (product) => {
       const classification = eligibleClassification(product);
       if (!classification) return null;
-      const canonicalPricing = database.publicProductProductionPricing
-        ? await getProductionPricingBridgeForProduct(
-            shop,
-            product.id,
-            database as unknown as Parameters<typeof getProductionPricingBridgeForProduct>[2],
-          )
-        : null;
+      const canonicalPricing = await getProductionPricingBridgeForProduct(
+        shop,
+        product.id,
+        database as unknown as Parameters<typeof getProductionPricingBridgeForProduct>[2],
+      );
       const productionMethods = canonicalPricing
         ? canonicalPricing.productionMethods.map(({ id, label, maxWidthCm, maxHeightCm }) => ({
             id,
@@ -1994,10 +2001,7 @@ export async function listEligibleCreatorBaseProducts(
             ...(maxWidthCm ? { maxWidthCm } : {}),
             ...(maxHeightCm ? { maxHeightCm } : {}),
           }))
-        : productionMethodsForCreatorProduct(
-            PRODUCTION_METHODS.map((id) => ({ id, label: id })),
-            product.productionMethodPricing?.value,
-          );
+        : [];
       return {
         id: product.id,
         title: product.title,
@@ -2009,7 +2013,7 @@ export async function listEligibleCreatorBaseProducts(
           null,
         productionMethodPricing: canonicalPricing
           ? safeJson(canonicalPricing)
-          : product.productionMethodPricing?.value || null,
+          : null,
         productionMethods,
         classification,
         variants: creatorProductBaseVariants(product, result.shop?.currencyCode || ""),
@@ -2033,6 +2037,22 @@ export async function creatorPitchPrintIdentityForCustomer(
 
 function creatorPitchPrintUserId(shop: string, creatorId: string) {
   return `customhouse:${shop}:creator:${creatorId}`;
+}
+
+export function assertPitchPrintProjectOwner(
+  shop: string,
+  creatorId: string,
+  source: Record<string, unknown>,
+) {
+  const expectedAuthor = creatorPitchPrintUserId(shop, creatorId);
+  const sourceAuthor = cleanOptionalText(source._author, 300);
+  if (sourceAuthor !== expectedAuthor) {
+    throw new DomainError(
+      "PITCHPRINT_PROJECT_OWNER_MISMATCH",
+      "This saved design does not belong to the authenticated creator.",
+      403,
+    );
+  }
 }
 
 export async function savePitchPrintDraftSessionForCustomer(
@@ -2068,15 +2088,7 @@ export async function savePitchPrintDraftSessionForCustomer(
 
   const projectId = cleanProjectId(input.projectId);
   const source = await fetchProject(projectId);
-  const expectedAuthor = creatorPitchPrintUserId(shop, creator.id);
-  const sourceAuthor = cleanOptionalText(source._author, 300);
-  if (sourceAuthor !== expectedAuthor) {
-    throw new DomainError(
-      "PITCHPRINT_PROJECT_OWNER_MISMATCH",
-      "This saved design does not belong to the authenticated creator.",
-      403,
-    );
-  }
+  assertPitchPrintProjectOwner(shop, creator.id, source);
 
   const sourceDesignId = cleanPitchPrintDesignId(source.designId);
   const requestedDesignId = cleanPitchPrintDesignId(input.designId);

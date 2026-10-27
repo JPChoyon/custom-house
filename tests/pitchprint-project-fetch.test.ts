@@ -143,6 +143,10 @@ test("saved-project source route authenticates the app proxy and scopes access t
     route,
     /fetchPitchPrintProjectSource\(\s*product\.pitchprintProjectId/,
   );
+  assert.match(
+    route,
+    /assertPitchPrintProjectOwner\(\s*context\.shop,\s*product\.creatorId,\s*source/,
+  );
   assert.doesNotMatch(route, /request\.(?:json|formData)\(/);
   assert.doesNotMatch(route, /PITCHPRINT_(?:SECRET_KEY|API_SECRET)/);
 });

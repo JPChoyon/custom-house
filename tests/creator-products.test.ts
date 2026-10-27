@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   type CreatorProductRecord,
+  assertPitchPrintProjectOwner,
   attachPitchPrintProjectToCreatorProduct,
   creatorProductSetupFromRecord,
   cleanupCreatorProductAsAdmin,
@@ -43,6 +44,26 @@ import {
 
 const shop = "customhouse.test";
 const { nonFixedColorVariantIds } = creatorPublishing;
+
+test("PitchPrint project ownership rejects foreign and missing authors", () => {
+  assert.doesNotThrow(() =>
+    assertPitchPrintProjectOwner(shop, "creator-a", {
+      _author: `customhouse:${shop}:creator:creator-a`,
+    }),
+  );
+  for (const source of [
+    { _author: `customhouse:${shop}:creator:creator-b` },
+    {},
+  ]) {
+    assert.throws(
+      () => assertPitchPrintProjectOwner(shop, "creator-a", source),
+      (error) =>
+        error instanceof DomainError &&
+        error.code === "PITCHPRINT_PROJECT_OWNER_MISMATCH" &&
+        error.status === 403,
+    );
+  }
+});
 
 function creatorCartContractApi() {
   const value = creatorPublishing as unknown as {
@@ -744,6 +765,82 @@ test("eligible Creator base products expose the configured PitchPrint launch tem
     canonicalPricing.productionMethods.map((method: { id: string }) => method.id),
     ["EMBROIDERY", "DTF", "DTG"],
   );
+});
+
+test("Creator Add Product fails closed when canonical product pricing is unavailable", async () => {
+  const db = fakeDb();
+  const { publicProductProductionPricing: _canonicalPricing, ...legacyOnlyDb } = db;
+  void _canonicalPricing;
+  const client: ShopifyGraphqlClient = {
+    async request<T>() {
+      return {
+        products: {
+          nodes: [
+            {
+              ...baseProduct,
+              status: "ACTIVE",
+              tags: ["pitchprint"],
+              productType: { value: "global_customizable" },
+              inkybayEnabled: null,
+              pitchprintEnabled: { value: "true" },
+              creatorPublishingEnabled: { value: "true" },
+              legacyOrigin: null,
+              legacyMode: null,
+              productionMethodPricing: {
+                value: JSON.stringify({
+                  productionMethods: [{ id: "DTF", label: "DTF printing" }],
+                }),
+              },
+            },
+          ],
+        },
+      } as T;
+    },
+  };
+
+  await assert.rejects(
+    () =>
+      listEligibleCreatorBaseProducts(
+        shop,
+        "gid://shopify/Customer/1",
+        client,
+        legacyOnlyDb as never,
+      ),
+    (error) =>
+      error instanceof DomainError &&
+      error.code === "PRODUCTION_PRICING_REQUIRED",
+  );
+});
+
+test("new Creator drafts never accept the legacy shared method fallback", async () => {
+  const db = fakeDb();
+  const { publicProductProductionPricing: _canonicalPricing, ...legacyOnlyDb } = db;
+  void _canonicalPricing;
+
+  await assert.rejects(
+    () =>
+      createCreatorProductDraft(
+        shop,
+        "gid://shopify/Customer/1",
+        {
+          shopifyProductId: baseProduct.id,
+          selectedProductionMethod: "DTF",
+        },
+        fakeClient({
+          ...baseProduct,
+          productionMethodPricing: {
+            value: JSON.stringify({
+              productionMethods: [{ id: "DTF", label: "DTF printing" }],
+            }),
+          },
+        }),
+        legacyOnlyDb as never,
+      ),
+    (error) =>
+      error instanceof DomainError &&
+      error.code === "PRODUCTION_PRICING_REQUIRED",
+  );
+  assert.equal(db.products.length, 0);
 });
 
 test("Creator base product method options fall back to canonical active settings when the legacy metafield is missing", () => {

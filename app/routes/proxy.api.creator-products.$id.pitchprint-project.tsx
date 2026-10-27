@@ -1,5 +1,8 @@
 import type { LoaderFunctionArgs } from "react-router";
-import { getCreatorProductForCustomer } from "../services/creator-products.server";
+import {
+  assertPitchPrintProjectOwner,
+  getCreatorProductForCustomer,
+} from "../services/creator-products.server";
 import { DomainError } from "../services/domain";
 import { fetchPitchPrintProjectSource } from "../services/pitchprint-project-fetch.server";
 import { apiData, apiError, proxyContext } from "../services/proxy.server";
@@ -36,6 +39,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     const source = await fetchPitchPrintProjectSource(
       product.pitchprintProjectId,
     );
+    assertPitchPrintProjectOwner(context.shop, product.creatorId, source);
     const sourceDesignId = String(source.designId || "").trim();
     if (
       product.pitchprintDesignId &&

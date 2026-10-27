@@ -199,11 +199,15 @@ function publicPricingRate(
   if (!rate || typeof rate !== "object" || Array.isArray(rate)) return null;
   const record = rate as Record<string, unknown>;
   const surchargeMinor = Number(record.surchargeMinor);
-  const feeVariantGid = String(record.feeVariantGid || "").trim() || null;
+  const configuredFeeVariantGid = String(record.feeVariantGid || "").trim() || null;
   return Number.isSafeInteger(surchargeMinor) &&
     surchargeMinor >= 0 &&
-    (surchargeMinor === 0 || feeVariantGid?.startsWith("gid://shopify/ProductVariant/"))
-    ? { surchargeMinor, feeVariantGid }
+    (surchargeMinor === 0 ||
+      configuredFeeVariantGid?.startsWith("gid://shopify/ProductVariant/"))
+    ? {
+        surchargeMinor,
+        feeVariantGid: surchargeMinor > 0 ? configuredFeeVariantGid : null,
+      }
     : null;
 }
 

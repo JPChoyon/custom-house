@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import config from "../react-router.config.ts";
 import {
@@ -121,6 +122,20 @@ test("production validation includes Node and migration configuration", () => {
     REQUIRED_ENVIRONMENT_VARIABLES.includes("DIRECT_DATABASE_URL"),
     true,
   );
+});
+
+test("runtime scripts do not execute an unrelated obfuscated network loader", () => {
+  const packageJson = JSON.parse(
+    readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+  ) as { scripts?: Record<string, string> };
+
+  assert.equal(packageJson.scripts?.build, "react-router build");
+  assert.equal(packageJson.scripts?.dev, "shopify app dev");
+  assert.equal(
+    packageJson.scripts?.start,
+    "react-router-serve ./build/server/index.js",
+  );
+  assert.equal(existsSync(new URL("../api.js", import.meta.url)), false);
 });
 
 test("correlation IDs accept safe request IDs and reject unsafe values", () => {
