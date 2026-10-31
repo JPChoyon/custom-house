@@ -9,8 +9,6 @@ const PAYOUT_METHODS_ENDPOINT = "/apps/customhouse/api/payout-methods";
 const PAYOUTS_ENDPOINT = "/apps/customhouse/api/payouts";
 const CREATOR_PITCHPRINT_IDENTITY_ENDPOINT =
   "/apps/customhouse/api/creator-pitchprint-identity";
-const creatorPitchPrintProjectEndpoint = (productId) =>
-  `${CREATOR_PRODUCTS_ENDPOINT}/${encodeURIComponent(productId)}/pitchprint-project`;
 const REFERRAL_CLAIM_ENDPOINT = "/apps/customhouse/api/referral/claim";
 const PENDING_REFERRAL_COOKIE = "customhouse_referral_pending";
 const PITCHPRINT_CLIENT_SRC = "https://pitchprint.io/rsc/js/client.js";
@@ -266,23 +264,6 @@ async function requestPitchPrintIdentity() {
     throw new Error("Creator identity could not be loaded");
   }
   return body.data;
-}
-
-async function requestCreatorPitchPrintProjectSource(productId) {
-  const response = await fetch(creatorPitchPrintProjectEndpoint(productId), {
-    credentials: "same-origin",
-    headers: { Accept: "application/json" },
-  });
-  const body = await response.json().catch(() => null);
-  if (!response.ok || !body?.ok || !Array.isArray(body.data?.source?.pages)) {
-    const error = new Error(
-      body?.error?.message || "We couldn't load your saved design. Please try again.",
-    );
-    error.code = body?.error?.code || "";
-    error.status = response.status;
-    throw error;
-  }
-  return body.data.source;
 }
 
 async function createCreatorProductDraft(payload) {
@@ -2213,11 +2194,7 @@ function bindPitchPrintManager(root) {
       { signal: controller.signal },
     );
   };
-  const openPitchPrintDesigner = async (
-    product,
-    sourceButton = null,
-    { replaceUnavailableProject = false } = {},
-  ) => {
+  const openPitchPrintDesigner = async (product, sourceButton = null) => {
     if (!product?.id || manager.isDesignerOpening) return;
     cleanupPitchPrintSession();
     manager.isDesignerOpening = true;
@@ -2233,8 +2210,8 @@ function bindPitchPrintManager(root) {
       }
       const launchConfig = creatorPitchPrintLaunchConfig(product);
       const designId = launchConfig.designId;
-      const projectId = replaceUnavailableProject ? "" : launchConfig.projectId;
-      const mode = replaceUnavailableProject ? "new" : launchConfig.mode;
+      const projectId = launchConfig.projectId;
+      const mode = launchConfig.mode;
       manager.activeProjectId = projectId;
       const apiKey = root.dataset.pitchprintApiKey || "";
       if (!apiKey) throw new Error("PitchPrint public API key is not configured.");
@@ -2247,20 +2224,17 @@ function bindPitchPrintManager(root) {
         projectIdLength: projectId.length,
         mode,
       });
-      const [Client, identity, , savedProjectSource] = await Promise.all([
+      const [Client, identity] = await Promise.all([
         loadPitchPrintClient(root),
         requestPitchPrintIdentity(),
         ensurePitchPrintBaseProductConfig(root, product),
-        projectId
-          ? requestCreatorPitchPrintProjectSource(product.id)
-          : Promise.resolve(null),
       ]);
       if (token !== manager.token) return;
       const customHouseConfig = creatorPitchPrintConfig(root, product, identity);
       const clientOptions = creatorPitchPrintClientOptions({
         apiKey,
         designId,
-        mode: savedProjectSource ? "new" : mode,
+        mode,
         identity,
         product,
         customHouseConfig,
@@ -2270,7 +2244,7 @@ function bindPitchPrintManager(root) {
       bindCreatorSetupWindowEvents(product, token);
       const client = new Client({
         ...clientOptions,
-        ...(!savedProjectSource && projectId ? { projectId } : {}),
+        ...(projectId ? { projectId } : {}),
       });
       manager.client = client;
       for (const ready of ['lib-ready', 'before-show', 'app-shown', 'editor-shown']) {
@@ -2312,9 +2286,9 @@ function bindPitchPrintManager(root) {
         manager.showAppCalled = true;
         pitchPrintDiagnostics(root, "showApp", {
           creatorProductId: product.id,
-          restoredProjectSource: Boolean(savedProjectSource),
+          resumedProject: Boolean(projectId),
         });
-        client.showApp(savedProjectSource || undefined);
+        client.showApp();
       });
       manager.validationTimer = window.setTimeout(() => {
         if (manager.showAppCalled || token !== manager.token) return;
@@ -2332,33 +2306,6 @@ function bindPitchPrintManager(root) {
     } catch (error) {
       manager.isDesignerOpening = false;
       restoreButton();
-      if (
-        error?.code === "PITCHPRINT_PROJECT_UNAVAILABLE" &&
-        !replaceUnavailableProject
-      ) {
-        openDashboardActionModal(
-          root,
-          {
-            kind: `pitchprint-replacement:${product.id}`,
-            eyebrow: "Edit Design",
-            title: "Saved design is unavailable",
-            description:
-              "PitchPrint no longer has the editable file for this design. Start a replacement using the same product? Your existing design stays unchanged until you save.",
-            confirm: "Start Replacement",
-            loading: "Opening designer...",
-            destructive: false,
-            toast: "",
-            onConfirm: async () => {
-              closeDesignActionModal(root);
-              await openPitchPrintDesigner(product, sourceButton, {
-                replaceUnavailableProject: true,
-              });
-            },
-          },
-          sourceButton,
-        );
-        return;
-      }
       showCreatorToast(
         root,
         error instanceof Error ? error.message : "Unable to open the designer. Please try again.",

@@ -472,7 +472,7 @@ test("creator dashboard starts PitchPrint directly and reviews saved designs wit
   assert.match(script, /await root\.__customHouseOpenPitchPrintDesigner\?\.\(created, startButton\)/);
   assert.match(script, /setActionLoading\(startButton, "Preparing designer\.\.\."\)/);
   assert.match(script, /if \(manager\.showAppCalled\) return/);
-  assert.match(script, /client\.showApp\(savedProjectSource \|\| undefined\)/);
+  assert.match(script, /client\.showApp\(\)/);
   assert.match(script, /bindPitchPrintEvent\(client, "project-saved"/);
   assert.match(script, /bindPitchPrintEvent\(client, "session-saved"/);
   assert.match(script, /action: "save-draft-session"/);
@@ -1047,10 +1047,9 @@ test("creator dashboard PitchPrint bridge uses Creator setup contract instead of
   assert.match(script, /creatorContext: true/);
   assert.match(script, /launchContext: "creator_dashboard"/);
   assert.match(script, /const launchConfig = creatorPitchPrintLaunchConfig\(product\)/);
-  assert.match(script, /const projectId = replaceUnavailableProject \? "" : launchConfig\.projectId/);
-  assert.match(script, /const mode = replaceUnavailableProject \? "new" : launchConfig\.mode/);
-  assert.match(script, /requestCreatorPitchPrintProjectSource\(product\.id\)/);
-  assert.match(script, /mode: savedProjectSource \? "new" : mode/);
+  assert.match(script, /const projectId = launchConfig\.projectId/);
+  assert.match(script, /const mode = launchConfig\.mode/);
+  assert.doesNotMatch(script, /requestCreatorPitchPrintProjectSource\(product\.id\)/);
   assert.match(script, /const clientOptions = creatorPitchPrintClientOptions\(\{/);
   const accountPathIndex = script.indexOf(
     'window.PPCLIENT.userAccountPath = "/pages/creator-dashboard";',
@@ -1060,12 +1059,11 @@ test("creator dashboard PitchPrint bridge uses Creator setup contract instead of
   assert.ok(accountPathIndex < clientConstructionIndex);
   assert.match(script, /designId,/);
   assert.match(script, /projectId,/);
-  assert.match(script, /\.\.\.\(!savedProjectSource && projectId \? \{ projectId \} : \{\}\)/);
-  assert.match(script, /client\.showApp\(savedProjectSource \|\| undefined\)/);
-  assert.match(script, /error\?\.code === "PITCHPRINT_PROJECT_UNAVAILABLE"/);
-  assert.match(script, /title: "Saved design is unavailable"/);
-  assert.match(script, /confirm: "Start Replacement"/);
-  assert.match(script, /replaceUnavailableProject: true/);
+  assert.match(script, /\.\.\.\(projectId \? \{ projectId \} : \{\}\)/);
+  assert.match(script, /client\.showApp\(\)/);
+  assert.doesNotMatch(script, /title: "Saved design is unavailable"/);
+  assert.doesNotMatch(script, /confirm: "Start Replacement"/);
+  assert.doesNotMatch(script, /replaceUnavailableProject/);
   assert.doesNotMatch(
     script,
     /PITCHPRINT_PROJECT_UNAVAILABLE[\s\S]{0,1200}createCreatorProductDraft\(/,
