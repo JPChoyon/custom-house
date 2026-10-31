@@ -670,6 +670,38 @@ test("creator dashboard renders professional My Designs management UI", () => {
   assert.doesNotMatch(styles, /\.modal\s*\{/);
 });
 
+test("published Creator cards move Edit Details to the card actions without duplicating it in the menu", () => {
+  const script = readFileSync(
+    "extensions/customhouse-creator-storefront/assets/customhouse-dashboard.js",
+    "utf8",
+  );
+  const publishedActions = script.match(
+    /else if \(statusValue === "PUBLISHED"\) \{\s*addDesignButton\([\s\S]*?\);\s*addDesignLink\([\s\S]*?\);\s*\}/,
+  )?.[0] || "";
+
+  assert.match(
+    script,
+    /if \(statusValue !== "PUBLISHED"\) \{\s*addMenuAction\(menu, "Edit Details", "details", product\.id\);\s*\}/,
+  );
+  assert.match(
+    publishedActions,
+    /addDesignButton\(\s*actions,\s*"Edit Details",\s*\{ designMenuAction: "details", creatorProductId: product\.id \}/,
+  );
+  assert.doesNotMatch(publishedActions, /"View Product"/);
+  assert.match(publishedActions, /"View Collection"/);
+  assert.match(
+    script,
+    /statusValue === "PUBLISHED"\) \{\s*addMenuAction\(menu, "Archive Design", "archive", product\.id, true\);/,
+  );
+  assert.match(
+    script,
+    /const product = creatorProductById\(root, menuAction\.dataset\.creatorProductId\);[\s\S]*?if \(action === "details"\) openDesignDetailsModal\(root, product, menuAction\);/,
+  );
+  assert.match(script, /if \(statusValue === "PENDING"\) \{\s*addMenuAction\(menu, "View Details", "details", product\.id\);/);
+  assert.match(script, /statusValue === "DRAFT" && creatorProductHasCompletedDesign\(product\)/);
+  assert.match(script, /else if \(statusValue === "REJECTED"\) \{/);
+});
+
 test("design review modal matches the responsive mobile submission sheet", () => {
   const block = readFileSync(
     "extensions/customhouse-creator-storefront/blocks/creator-dashboard.liquid",

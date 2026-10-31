@@ -933,7 +933,9 @@ function renderCreatorProducts(list, empty, products) {
       addMenuAction(menu, "View Details", "details", product.id);
       addMenuAction(menu, "Withdraw to Draft", "withdraw", product.id);
     } else {
-      addMenuAction(menu, "Edit Details", "details", product.id);
+      if (statusValue !== "PUBLISHED") {
+        addMenuAction(menu, "Edit Details", "details", product.id);
+      }
       if (statusValue === "DRAFT" && creatorProductHasCompletedDesign(product)) {
         addMenuAction(menu, "Submit for Review", "submit", product.id);
       } else if (statusValue === "REJECTED") {
@@ -993,10 +995,10 @@ function renderCreatorProducts(list, empty, products) {
       pending.textContent = "Pending Review";
       actions.append(pending);
     } else if (statusValue === "PUBLISHED") {
-      addDesignLink(
+      addDesignButton(
         actions,
-        "View Product",
-        product.publicProductUrl || `/apps/customhouse/design/${encodeURIComponent(product.id)}`,
+        "Edit Details",
+        { designMenuAction: "details", creatorProductId: product.id },
       );
       addDesignLink(
         actions,
